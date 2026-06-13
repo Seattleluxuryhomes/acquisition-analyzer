@@ -1,4 +1,3 @@
-// src/attom.js — ATTOM Data integration + normalization
 const BASE = process.env.ATTOM_BASE || "https://api.gateway.attomdata.com";
 
 function headers() {
@@ -7,15 +6,10 @@ function headers() {
   return { apikey: key, accept: "application/json" };
 }
 
-// ATTOM wants the address split: address1 = street, address2 = "City, ST ZIP"
 export function splitAddress(full) {
   const parts = String(full || "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (parts.length < 2) {
-    return { address1: parts[0] || "", address2: "" };
-  }
-  const address1 = parts[0];
-  const address2 = parts.slice(1).join(", ");
-  return { address1, address2 };
+  if (parts.length < 2) return { address1: parts[0] || "", address2: "" };
+  return { address1: parts[0], address2: parts.slice(1).join(", ") };
 }
 
 async function attomGet(path, params) {
@@ -24,27 +18,25 @@ async function attomGet(path, params) {
   const res = await fetch(url, { headers: headers() });
   const text = await res.text();
   let json = null;
-  try { json = JSON.parse(text); } catch { /* non-JSON error body */ }
+  try { json = JSON.parse(text); } catch { /* non-JSON */ }
   return { ok: res.ok, status: res.status, json, text };
 }
 
-// Primary lookup: expanded profile (richest single-call payload).
 export async function fetchProperty(full) {
   const { address1, address2 } = splitAddress(full);
   if (!address1 || !address2) {
-    const err = new Error("Address must include street and city/state, e.g. \"123 Main St, Olympia, WA 98501\".");
+    const err = new Error('Address must include street and city/state, e.g. "123 Main St, Olympia, WA 98501".');
     err.code = "BAD_ADDRESS";
     throw err;
   }
 
   const detail = await attomGet("/propertyapi/v1.0.0/property/expandedprofile", { address1, address2 });
 
-  // ATTOM returns status inside body even on HTTP 200; check both.
-  const code = detail.json?.status?.code;
   if (!detail.ok && detail.status === 401) {
     const e = new Error("ATTOM rejected the API key (401). Rotate and re-check ATTOM_API_KEY.");
     e.code = "AUTH"; throw e;
   }
+  const code = detail.json?.status?.code;
   if (!detail.json || code === undefined) {
     const e = new Error("ATTOM returned an unreadable response.");
     e.code = "UPSTREAM"; e.detail = detail.text?.slice(0, 300); throw e;
@@ -55,7 +47,6 @@ export async function fetchProperty(full) {
     e.code = "NOT_FOUND"; e.attomStatus = detail.json?.status; throw e;
   }
 
-  // AVM is a separate endpoint; failure here is non-fatal.
   let avm = null;
   try {
     const a = await attomGet("/propertyapi/v1.0.0/attomavm/detail", { address1, address2 });
@@ -68,21 +59,25 @@ export async function fetchProperty(full) {
 function normalize(p, avm) {
   const n = (v) => (v === undefined || v === null || v === "" ? null : v);
   const num = (v) => (v === undefined || v === null || v === "" || isNaN(+v) ? null : +v);
+  const pick = (...vals) => { for (const v of vals) { const r = num(v); if (r !== null) return r; } return null; };
+  const pickStr = (...vals) => { for (const v of vals) { const r = n(v); if (r !== null) return r; } return null; };
 
   const id = p.identifier || {};
   const addr = p.address || {};
   const lot = p.lot || {};
   const area = p.building?.size || {};
   const rooms = p.building?.rooms || {};
-  const construction = p.building?.construction || {};
   const summary = p.summary || {};
   const owner = p.owner || {};
   const assessment = p.assessment || {};
   const sale = p.sale || {};
-  const mortgage = assessment?.mortgage || p.mortgage || {};
-  const tax = assessment?.tax || {};
-  const assessed = assessment?.assessed || {};
-  const market = assessment?.market || {};
+  const saleAmt = sale.amount || {};
+  const assessed = assessment.assessed || {};
+  const market = assessment.market || {};
+  const tax = assessment.tax || {};
+  const mortgage = assessment.mortgage || p.mortgage || {};
+  const util = p.utilities || {};
+  const vintage = p.vintage || {};
 
   const ownerNames = [];
   if (owner.owner1?.fullname) ownerNames.push(owner.owner1.fullname);
@@ -91,76 +86,76 @@ function normalize(p, avm) {
   return {
     fetchedAt: new Date().toISOString(),
     source: "ATTOM expandedprofile + attomavm",
-    attomId: n(id.attomId || id.Id),
-    apn: n(id.apn),
-    fips: n(id.fips),
+    attomId: pickStr(id.attomId, id.Id),
+    apn: pickStr(id.apn, id.apnOrig),
+    fips: pickStr(id.fips),
 
     address: {
       line1: n(addr.line1),
       line2: n(addr.line2),
-      city: n(addr.locality),
-      county: n(addr.countrySubd ? null : addr.county) || n(p.area?.countrySecSubd),
-      state: n(addr.countrySubd),
-      zip: n(addr.postal1),
+      city: pickStr(addr.locality, addr.city),
+      county: pickStr(addr.countrySubdName, p.area?.countrySecSubd),
+      state: pickStr(addr.countrySubd),
+      zip: pickStr(addr.postal1),
       full: [n(addr.line1), n(addr.line2)].filter(Boolean).join(", "),
       lat: num(p.location?.latitude),
       lng: num(p.location?.longitude),
     },
 
     property: {
-      type: n(summary.proptype || summary.propclass),
-      useDescription: n(summary.propLandUse || summary.propsubtype),
-      yearBuilt: num(summary.yearbuilt || construction.yearBuilt),
-      stories: num(area.levels || construction.levels),
-      bedrooms: num(rooms.beds),
-      bathrooms: num(rooms.bathstotal),
-      zoning: n(lot.zoningType || p.lot?.zoningType || p.area?.zoning),
+      type: pickStr(summary.propertyType, summary.proptype, summary.propclass, summary.propLandUse),
+      useDescription: pickStr(summary.propLandUse, summary.propsubtype),
+      yearBuilt: pick(summary.yearbuilt, summary.yearBuilt, p.building?.construction?.yearBuilt),
+      stories: pick(area.levels, p.building?.construction?.levels),
+      bedrooms: pick(rooms.beds),
+      bathrooms: pick(rooms.bathstotal, rooms.bathsfull),
+      zoning: pickStr(lot.zoningType, lot.siteZoningIdent, p.area?.zoning),
     },
 
     lot: {
-      sizeAcres: num(lot.lotsize1),
-      sizeSqft: num(lot.lotsize2),
-      depthFt: num(lot.depth),
-      frontageFt: num(lot.frontage),
+      sizeAcres: pick(lot.lotsize1),
+      sizeSqft: pick(lot.lotsize2),
+      depthFt: pick(lot.depth),
+      frontageFt: pick(lot.frontage),
     },
 
     building: {
-      sizeSqft: num(area.universalsize || area.bldgsize || area.livingsize),
-      grossSqft: num(area.grosssize),
-      livingSqft: num(area.livingsize),
+      sizeSqft: pick(area.universalsize, area.bldgsize, area.livingsize, area.grosssize),
+      grossSqft: pick(area.grosssize),
+      livingSqft: pick(area.livingsize, area.universalsize),
     },
 
     valuation: {
-      assessedTotal: num(assessed.assdttlvalue),
-      assessedLand: num(assessed.assdlandvalue),
-      assessedImprovement: num(assessed.assdimprvalue),
-      marketTotal: num(market.mktttlvalue),
-      taxYear: num(tax.taxyear),
-      taxAmount: num(tax.taxamt),
-      avmValue: num(avm?.amount?.value),
-      avmHigh: num(avm?.amount?.high),
-      avmLow: num(avm?.amount?.low),
-      avmConfidence: num(avm?.amount?.scr || avm?.condition?.score),
+      assessedTotal: pick(assessed.assdttlvalue),
+      assessedLand: pick(assessed.assdlandvalue),
+      assessedImprovement: pick(assessed.assdimprvalue),
+      marketTotal: pick(market.mktttlvalue),
+      taxYear: pick(tax.taxyear),
+      taxAmount: pick(tax.taxamt),
+      avmValue: pick(avm?.amount?.value),
+      avmHigh: pick(avm?.amount?.high),
+      avmLow: pick(avm?.amount?.low),
+      avmConfidence: pick(avm?.amount?.scr, avm?.condition?.score),
     },
 
     lastSale: {
-      date: n(sale.salesearchdate || sale.saleTransDate || sale.amount?.saledate),
-      amount: num(sale.amount?.saleamt),
-      deedType: n(sale.salesType || sale.amount?.saledoctype),
+      date: pickStr(sale.saleTransDate, sale.salesearchdate, saleAmt.salerecdate),
+      amount: pick(saleAmt.saleamt),
+      deedType: pickStr(saleAmt.saledoctype, sale.saleTransType),
     },
 
     mortgage: {
-      amount: num(mortgage.amount || mortgage.firstmtgamt),
-      lender: n(mortgage.lender || mortgage.firstmtglender),
-      date: n(mortgage.date || mortgage.firstmtgdate),
-      term: n(mortgage.term),
+      amount: pick(mortgage.amount, mortgage.firstmtgamt),
+      lender: pickStr(mortgage.lender, mortgage.firstmtglender),
+      date: pickStr(mortgage.date, mortgage.firstmtgdate),
+      term: pickStr(mortgage.term),
     },
 
     ownership: {
       names: ownerNames,
-      ownerOccupied: n(summary.ownerOccupied || owner.owner1?.ownerOccupied),
-      mailingAddress: n(owner.mailingaddressoneline),
-      corporateOwner: n(owner.corporateindicator),
+      ownerOccupied: pickStr(summary.ownerOccupied, owner.owner1?.ownerOccupied, owner.absenteeOwnerStatus),
+      mailingAddress: pickStr(owner.mailingaddressoneline),
+      corporateOwner: pickStr(owner.corporateindicator),
     },
   };
 }
