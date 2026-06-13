@@ -1,27 +1,39 @@
-// src/analyze.js — send normalized ATTOM data to Claude, get a structured report
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
-const SYSTEM = `You are an acquisition analyst for Builder Buy Box, a real estate acquisition platform.
+const SYSTEM = `You are an acquisition analyst for a real estate acquisition tool.
 You receive normalized public-record property data and produce an Acquisition Analyzer report.
 
 Rules:
 - Base every statement only on the data provided. If a field is null/missing, say "Not available" — never invent figures.
 - You are NOT giving legal, investment, or appraisal advice. This is a research summary for a licensed professional.
 - Be concrete and concise. No hype.
-- Return ONLY a JSON object (no markdown, no prose outside JSON) with EXACTLY this shape:
+- Return ONLY a JSON object. No markdown, no code fences, no text before or after the JSON.
+- Do not use trailing commas. Ensure the JSON is strictly valid.
+- Use EXACTLY this shape:
 {
   "propertySummary": "string",
   "ownershipSummary": "string",
   "valueAnalysis": "string",
   "developmentPotential": "string",
-  "buyBoxMatchScore": { "score": 0-100, "rationale": "string" },
-  "acquisitionScore": { "score": 0-100, "rationale": "string" },
+  "buyBoxMatchScore": { "score": 0, "rationale": "string" },
+  "acquisitionScore": { "score": 0, "rationale": "string" },
   "offerStrategy": "string",
-  "risks": ["string", "..."],
-  "nextSteps": ["string", "..."],
-  "dataGaps": ["string", "..."]
+  "risks": ["string"],
+  "nextSteps": ["string"],
+  "dataGaps": ["string"]
 }
-Scoring guidance: acquisitionScore reflects overall opportunity given value vs. assessed/AVM spread, lot/development upside, ownership signals (corporate/absentee), and data completeness. Lower the score when key data is missing and list it in dataGaps. buyBoxMatchScore reflects fit for an infill/development buyer (lot size, zoning, redevelopment headroom).`;
+Scores are integers 0-100. Lower the acquisitionScore when key data is missing and list what's missing in dataGaps.`;
+
+function extractJSON(raw) {
+  let t = String(raw || "").trim();
+  t = t.replace(/^```(json)?/i, "").replace(/```$/i, "").trim();
+  const s = t.indexOf("{");
+  const e = t.lastIndexOf("}");
+  if (s < 0 || e < 0) throw new Error("No JSON object found in model response.");
+  let body = t.slice(s, e + 1);
+  body = body.replace(/,(\s*[}\]])/g, "$1");
+  return JSON.parse(body);
+}
 
 export async function analyze(normalized) {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -48,10 +60,8 @@ export async function analyze(normalized) {
     e.detail = t.slice(0, 300);
     throw e;
   }
+
   const data = await res.json();
-  let raw = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-  raw = raw.replace(/^```(json)?/i, "").replace(/```$/, "").trim();
-  const s = raw.indexOf("{"), eIdx = raw.lastIndexOf("}");
-  if (s < 0 || eIdx < 0) throw new Error("Claude did not return JSON.");
-  return JSON.parse(raw.slice(s, eIdx + 1));
+  const raw = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+  return extractJSON(raw);
 }
