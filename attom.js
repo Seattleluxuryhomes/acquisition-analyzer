@@ -65,10 +65,16 @@ export async function fetchProperty(full) {
     saleProp = s.json?.property?.[0] || null;
   } catch { /* sales history optional */ }
 
-  return normalize(prop, avm, assessmentProp, saleProp);
+  let ownerProp = null;
+  try {
+    const o = await attomGet("/propertyapi/v1.0.0/property/detailowner", { address1, address2 });
+    ownerProp = o.json?.property?.[0] || null;
+  } catch { /* owner optional */ }
+
+  return normalize(prop, avm, assessmentProp, saleProp, ownerProp);
 }
 
-function normalize(p, avm, ap, sp) {
+function normalize(p, avm, ap, sp, op) {
   const n = (v) => (v === undefined || v === null || v === "" ? null : v);
   const num = (v) => (v === undefined || v === null || v === "" || isNaN(+v) ? null : +v);
   const pick = (...vals) => { for (const v of vals) { const r = num(v); if (r !== null) return r; } return null; };
@@ -80,15 +86,14 @@ function normalize(p, avm, ap, sp) {
   const area = p.building?.size || {};
   const rooms = p.building?.rooms || {};
   const summary = p.summary || {};
-  const owner = p.owner || {};
 
   const aAssessment = ap?.assessment || {};
   const aAssessed = aAssessment.assessed || {};
   const aMarket = aAssessment.market || {};
   const aTax = aAssessment.tax || {};
-  const aOwner = ap?.owner || {};
   const aLot = ap?.lot || {};
   const aArea = ap?.building?.size || {};
+  const aRooms = ap?.building?.rooms || {};
 
   const pAssessment = p.assessment || {};
   const pAssessed = pAssessment.assessed || {};
@@ -101,15 +106,23 @@ function normalize(p, avm, ap, sp) {
 
   const mortgage = aAssessment?.mortgage || pAssessment?.mortgage || p.mortgage || {};
 
+  const ownerObj = op?.owner || op?.assessment?.owner || ap?.assessment?.owner || ap?.owner || p.owner || {};
+  const o1 = ownerObj.owner1 || {};
+  const o2 = ownerObj.owner2 || {};
+  const buildName = (o) => {
+    if (!o) return null;
+    if (o.fullname) return o.fullname;
+    const parts = [o.firstNameAndMi || o.firstname || o.firstName, o.lastname || o.lastName].filter(Boolean);
+    return parts.length ? parts.join(" ") : null;
+  };
   const ownerNames = [];
-  const o1 = aOwner.owner1 || owner.owner1 || {};
-  const o2 = aOwner.owner2 || owner.owner2 || {};
-  if (o1.fullname) ownerNames.push(o1.fullname);
-  if (o2.fullname) ownerNames.push(o2.fullname);
+  const n1 = buildName(o1); if (n1) ownerNames.push(n1);
+  const n2 = buildName(o2); if (n2) ownerNames.push(n2);
+  if (!ownerNames.length && ownerObj.description) ownerNames.push(ownerObj.description);
 
   return {
     fetchedAt: new Date().toISOString(),
-    source: "ATTOM expandedprofile + avm + assessment + saleshistory",
+    source: "ATTOM expandedprofile + avm + assessment + saleshistory + owner",
     attomId: pickStr(id.attomId, id.Id),
     apn: pickStr(id.apn, id.apnOrig),
     fips: pickStr(id.fips),
@@ -131,8 +144,8 @@ function normalize(p, avm, ap, sp) {
       useDescription: pickStr(summary.propLandUse, summary.propsubtype),
       yearBuilt: pick(summary.yearbuilt, summary.yearBuilt, p.building?.construction?.yearBuilt),
       stories: pick(area.levels, aArea.levels, p.building?.construction?.levels),
-      bedrooms: pick(rooms.beds),
-      bathrooms: pick(rooms.bathstotal, rooms.bathsfull),
+      bedrooms: pick(rooms.beds, aRooms.beds),
+      bathrooms: pick(rooms.bathstotal, aRooms.bathstotal, rooms.bathsfull, aRooms.bathsfull, rooms.bathfixtures, aRooms.bathfixtures),
       zoning: pickStr(lot.zoningType, aLot.zoningType, lot.siteZoningIdent, p.area?.zoning),
     },
 
@@ -177,9 +190,9 @@ function normalize(p, avm, ap, sp) {
 
     ownership: {
       names: ownerNames,
-      ownerOccupied: pickStr(summary.ownerOccupied, aOwner.absenteeOwnerStatus, o1.ownerOccupied),
-      mailingAddress: pickStr(aOwner.mailingaddressoneline, owner.mailingaddressoneline),
-      corporateOwner: pickStr(aOwner.corporateindicator, owner.corporateindicator),
+      ownerOccupied: pickStr(summary.ownerOccupied, ownerObj.absenteeOwnerStatus, o1.ownerOccupied),
+      mailingAddress: pickStr(ownerObj.mailingaddressoneline, op?.address?.oneLine),
+      corporateOwner: pickStr(ownerObj.corporateindicator),
     },
   };
 }
