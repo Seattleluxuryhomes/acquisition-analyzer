@@ -7,33 +7,39 @@ Rules:
 - Base every statement only on the data provided. If a field is null/missing, say "Not available" — never invent figures.
 - You are NOT giving legal, investment, or appraisal advice. This is a research summary for a licensed professional.
 - Be concrete and concise. No hype.
-- Return ONLY a JSON object. No markdown, no code fences, no text before or after the JSON.
-- Do not use trailing commas. Ensure the JSON is strictly valid.
-- Use EXACTLY this shape:
-{
-  "propertySummary": "string",
-  "ownershipSummary": "string",
-  "valueAnalysis": "string",
-  "developmentPotential": "string",
-  "buyBoxMatchScore": { "score": 0, "rationale": "string" },
-  "acquisitionScore": { "score": 0, "rationale": "string" },
-  "offerStrategy": "string",
-  "risks": ["string"],
-  "nextSteps": ["string"],
-  "dataGaps": ["string"]
-}
-Scores are integers 0-100. Lower the acquisitionScore when key data is missing and list what's missing in dataGaps.`;
+- Keep each text value under 600 characters. Do not use line breaks, tabs, or double quotes inside any string value — use single quotes if you must quote.`;
 
-function extractJSON(raw) {
-  let t = String(raw || "").trim();
-  t = t.replace(/^```(json)?/i, "").replace(/```$/i, "").trim();
-  const s = t.indexOf("{");
-  const e = t.lastIndexOf("}");
-  if (s < 0 || e < 0) throw new Error("No JSON object found in model response.");
-  let body = t.slice(s, e + 1);
-  body = body.replace(/,(\s*[}\]])/g, "$1");
-  return JSON.parse(body);
-}
+const TOOL = {
+  name: "acquisition_report",
+  description: "Return the structured acquisition analysis.",
+  input_schema: {
+    type: "object",
+    properties: {
+      propertySummary: { type: "string" },
+      ownershipSummary: { type: "string" },
+      valueAnalysis: { type: "string" },
+      developmentPotential: { type: "string" },
+      buyBoxMatchScore: {
+        type: "object",
+        properties: { score: { type: "integer" }, rationale: { type: "string" } },
+        required: ["score", "rationale"],
+      },
+      acquisitionScore: {
+        type: "object",
+        properties: { score: { type: "integer" }, rationale: { type: "string" } },
+        required: ["score", "rationale"],
+      },
+      offerStrategy: { type: "string" },
+      risks: { type: "array", items: { type: "string" } },
+      nextSteps: { type: "array", items: { type: "string" } },
+      dataGaps: { type: "array", items: { type: "string" } },
+    },
+    required: [
+      "propertySummary", "ownershipSummary", "valueAnalysis", "developmentPotential",
+      "buyBoxMatchScore", "acquisitionScore", "offerStrategy", "risks", "nextSteps", "dataGaps",
+    ],
+  },
+};
 
 export async function analyze(normalized) {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -50,6 +56,8 @@ export async function analyze(normalized) {
       model: MODEL,
       max_tokens: 1500,
       system: SYSTEM,
+      tools: [TOOL],
+      tool_choice: { type: "tool", name: "acquisition_report" },
       messages: [{ role: "user", content: "Property data:\n" + JSON.stringify(normalized, null, 2) }],
     }),
   });
@@ -62,6 +70,14 @@ export async function analyze(normalized) {
   }
 
   const data = await res.json();
-  const raw = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
-  return extractJSON(raw);
+  const toolUse = (data.content || []).find((b) => b.type === "tool_use");
+  if (toolUse && toolUse.input) return toolUse.input;
+
+  const raw = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+  const s = raw.indexOf("{"), e = raw.lastIndexOf("}");
+  if (s >= 0 && e >= 0) {
+    let body = raw.slice(s, e + 1).replace(/,(\s*[}\]])/g, "$1");
+    return JSON.parse(body);
+  }
+  throw new Error("Model did not return a structured report.");
 }
