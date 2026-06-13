@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Builder Buy Box — Acquisition Analyzer MVP",
   "type": "module",
-  "main": "src/server.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch server.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
