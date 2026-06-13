@@ -53,10 +53,22 @@ export async function fetchProperty(full) {
     avm = a.json?.property?.[0]?.avm || null;
   } catch { /* AVM optional */ }
 
-  return normalize(prop, avm);
+  let assessmentProp = null;
+  try {
+    const a = await attomGet("/propertyapi/v1.0.0/assessment/detail", { address1, address2 });
+    assessmentProp = a.json?.property?.[0] || null;
+  } catch { /* assessment optional */ }
+
+  let saleProp = null;
+  try {
+    const s = await attomGet("/propertyapi/v1.0.0/saleshistory/detail", { address1, address2 });
+    saleProp = s.json?.property?.[0] || null;
+  } catch { /* sales history optional */ }
+
+  return normalize(prop, avm, assessmentProp, saleProp);
 }
 
-function normalize(p, avm) {
+function normalize(p, avm, ap, sp) {
   const n = (v) => (v === undefined || v === null || v === "" ? null : v);
   const num = (v) => (v === undefined || v === null || v === "" || isNaN(+v) ? null : +v);
   const pick = (...vals) => { for (const v of vals) { const r = num(v); if (r !== null) return r; } return null; };
@@ -69,23 +81,35 @@ function normalize(p, avm) {
   const rooms = p.building?.rooms || {};
   const summary = p.summary || {};
   const owner = p.owner || {};
-  const assessment = p.assessment || {};
-  const sale = p.sale || {};
-  const saleAmt = sale.amount || {};
-  const assessed = assessment.assessed || {};
-  const market = assessment.market || {};
-  const tax = assessment.tax || {};
-  const mortgage = assessment.mortgage || p.mortgage || {};
-  const util = p.utilities || {};
-  const vintage = p.vintage || {};
+
+  const aAssessment = ap?.assessment || {};
+  const aAssessed = aAssessment.assessed || {};
+  const aMarket = aAssessment.market || {};
+  const aTax = aAssessment.tax || {};
+  const aOwner = ap?.owner || {};
+  const aLot = ap?.lot || {};
+  const aArea = ap?.building?.size || {};
+
+  const pAssessment = p.assessment || {};
+  const pAssessed = pAssessment.assessed || {};
+  const pMarket = pAssessment.market || {};
+  const pTax = pAssessment.tax || {};
+
+  const saleList = sp?.salehistory || sp?.saleHistory || [];
+  const lastSaleEntry = Array.isArray(saleList) && saleList.length ? saleList[0] : (sp?.sale || p.sale || {});
+  const saleAmt = lastSaleEntry?.amount || {};
+
+  const mortgage = aAssessment?.mortgage || pAssessment?.mortgage || p.mortgage || {};
 
   const ownerNames = [];
-  if (owner.owner1?.fullname) ownerNames.push(owner.owner1.fullname);
-  if (owner.owner2?.fullname) ownerNames.push(owner.owner2.fullname);
+  const o1 = aOwner.owner1 || owner.owner1 || {};
+  const o2 = aOwner.owner2 || owner.owner2 || {};
+  if (o1.fullname) ownerNames.push(o1.fullname);
+  if (o2.fullname) ownerNames.push(o2.fullname);
 
   return {
     fetchedAt: new Date().toISOString(),
-    source: "ATTOM expandedprofile + attomavm",
+    source: "ATTOM expandedprofile + avm + assessment + saleshistory",
     attomId: pickStr(id.attomId, id.Id),
     apn: pickStr(id.apn, id.apnOrig),
     fips: pickStr(id.fips),
@@ -106,32 +130,32 @@ function normalize(p, avm) {
       type: pickStr(summary.propertyType, summary.proptype, summary.propclass, summary.propLandUse),
       useDescription: pickStr(summary.propLandUse, summary.propsubtype),
       yearBuilt: pick(summary.yearbuilt, summary.yearBuilt, p.building?.construction?.yearBuilt),
-      stories: pick(area.levels, p.building?.construction?.levels),
+      stories: pick(area.levels, aArea.levels, p.building?.construction?.levels),
       bedrooms: pick(rooms.beds),
       bathrooms: pick(rooms.bathstotal, rooms.bathsfull),
-      zoning: pickStr(lot.zoningType, lot.siteZoningIdent, p.area?.zoning),
+      zoning: pickStr(lot.zoningType, aLot.zoningType, lot.siteZoningIdent, p.area?.zoning),
     },
 
     lot: {
-      sizeAcres: pick(lot.lotsize1),
-      sizeSqft: pick(lot.lotsize2),
-      depthFt: pick(lot.depth),
-      frontageFt: pick(lot.frontage),
+      sizeAcres: pick(lot.lotsize1, aLot.lotsize1),
+      sizeSqft: pick(lot.lotsize2, aLot.lotsize2),
+      depthFt: pick(lot.depth, aLot.depth),
+      frontageFt: pick(lot.frontage, aLot.frontage),
     },
 
     building: {
-      sizeSqft: pick(area.universalsize, area.bldgsize, area.livingsize, area.grosssize),
-      grossSqft: pick(area.grosssize),
-      livingSqft: pick(area.livingsize, area.universalsize),
+      sizeSqft: pick(area.universalsize, aArea.universalsize, area.bldgsize, aArea.bldgsize, area.livingsize, aArea.livingsize),
+      grossSqft: pick(area.grosssize, aArea.grosssize),
+      livingSqft: pick(area.livingsize, aArea.livingsize, area.universalsize, aArea.universalsize),
     },
 
     valuation: {
-      assessedTotal: pick(assessed.assdttlvalue),
-      assessedLand: pick(assessed.assdlandvalue),
-      assessedImprovement: pick(assessed.assdimprvalue),
-      marketTotal: pick(market.mktttlvalue),
-      taxYear: pick(tax.taxyear),
-      taxAmount: pick(tax.taxamt),
+      assessedTotal: pick(aAssessed.assdttlvalue, pAssessed.assdttlvalue),
+      assessedLand: pick(aAssessed.assdlandvalue, pAssessed.assdlandvalue),
+      assessedImprovement: pick(aAssessed.assdimprvalue, pAssessed.assdimprvalue),
+      marketTotal: pick(aMarket.mktttlvalue, pMarket.mktttlvalue),
+      taxYear: pick(aTax.taxyear, pTax.taxyear),
+      taxAmount: pick(aTax.taxamt, pTax.taxamt),
       avmValue: pick(avm?.amount?.value),
       avmHigh: pick(avm?.amount?.high),
       avmLow: pick(avm?.amount?.low),
@@ -139,9 +163,9 @@ function normalize(p, avm) {
     },
 
     lastSale: {
-      date: pickStr(sale.saleTransDate, sale.salesearchdate, saleAmt.salerecdate),
-      amount: pick(saleAmt.saleamt),
-      deedType: pickStr(saleAmt.saledoctype, sale.saleTransType),
+      date: pickStr(lastSaleEntry?.saleTransDate, lastSaleEntry?.salesearchdate, saleAmt.salerecdate, p.sale?.saleTransDate),
+      amount: pick(saleAmt.saleamt, p.sale?.amount?.saleamt),
+      deedType: pickStr(saleAmt.saledoctype, lastSaleEntry?.saleTransType),
     },
 
     mortgage: {
@@ -153,9 +177,9 @@ function normalize(p, avm) {
 
     ownership: {
       names: ownerNames,
-      ownerOccupied: pickStr(summary.ownerOccupied, owner.owner1?.ownerOccupied, owner.absenteeOwnerStatus),
-      mailingAddress: pickStr(owner.mailingaddressoneline),
-      corporateOwner: pickStr(owner.corporateindicator),
+      ownerOccupied: pickStr(summary.ownerOccupied, aOwner.absenteeOwnerStatus, o1.ownerOccupied),
+      mailingAddress: pickStr(aOwner.mailingaddressoneline, owner.mailingaddressoneline),
+      corporateOwner: pickStr(aOwner.corporateindicator, owner.corporateindicator),
     },
   };
 }
