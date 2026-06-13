@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acquisition Analyzer — Builder Buy Box</title>
+<style>
+  :root{
+    --ink:#0C0D10;--charcoal:#15171C;--graphite:#23262E;--bone:#F2F0EA;--silver:#9BA0AB;--faint:#6B7077;
+    --gold:#C9A35C;--gold-bright:#E3C078;--gold-dim:rgba(201,163,92,.34);--ok:#8FBC8F;--danger:#D98A6A;
+    --display:"Didot","Bodoni MT","Playfair Display",Georgia,serif;
+    --body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ink);color:var(--bone);font-family:var(--body);line-height:1.5}
+  .wrap{max-width:780px;margin:0 auto;padding:32px 22px 80px}
+  header h1{font-family:var(--display);font-weight:400;font-size:26px;letter-spacing:.04em}
+  header h1 b{color:var(--gold)}
+  header .cat{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--silver);margin-top:4px}
+  .searchrow{display:flex;gap:10px;margin-top:26px}
+  #addr{flex:1;background:transparent;border:0;border-bottom:1px solid var(--gold-dim);color:var(--bone);
+        font-size:18px;font-family:var(--body);padding:10px 2px}
+  #addr:focus{outline:none;border-bottom-color:var(--gold-bright)}
+  #addr::placeholder{color:#4A4E56}
+  #go{background:var(--gold);color:#17120A;border:0;border-radius:11px;padding:12px 22px;font-size:15px;font-weight:700;font-family:var(--body)}
+  #go:disabled{opacity:.5}
+  .status{margin-top:16px;font-size:13px;color:var(--silver);min-height:18px}
+  .status.err{color:var(--danger)}
+  .report{margin-top:26px;display:none}
+  .report.show{display:block}
+  .scorecard{display:flex;gap:12px;margin-bottom:22px}
+  .sc{flex:1;background:linear-gradient(135deg,rgba(201,163,92,.13),var(--charcoal));border:1px solid var(--gold-dim);border-radius:14px;padding:18px 16px;text-align:center}
+  .sc .v{font-family:var(--display);font-size:40px;color:var(--gold-bright);line-height:1}
+  .sc .l{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--silver);margin-top:8px}
+  .sc .r{font-size:12px;color:var(--faint);margin-top:8px;line-height:1.45}
+  section.block{border-top:1px solid var(--graphite);padding:18px 0}
+  section.block h2{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:9px}
+  section.block p{font-size:15px;color:var(--bone)}
+  ul.list{list-style:none}
+  ul.list li{font-size:14.5px;padding:5px 0 5px 18px;position:relative}
+  ul.list li::before{content:"·";color:var(--gold);position:absolute;left:4px;font-weight:700}
+  ul.list.risk li::before{content:"!";color:var(--danger)}
+  .facts{display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-top:6px}
+  .facts .row{display:flex;justify-content:space-between;border-bottom:1px solid var(--graphite);padding:7px 0;font-size:13.5px}
+  .facts .row .k{color:var(--silver)}.facts .row .v{font-family:var(--mono)}
+  .toolbar{display:flex;gap:10px;margin-top:24px}
+  .toolbar button{background:transparent;color:var(--gold-bright);border:1px solid var(--gold-dim);border-radius:10px;padding:11px 16px;font-size:14px;font-family:var(--body)}
+  .disc{font-size:11.5px;color:var(--faint);margin-top:22px;line-height:1.6;border-top:1px solid var(--graphite);padding-top:14px}
+  @media print{
+    body{background:#fff;color:#111}.searchrow,.toolbar,.status,header .cat{display:none}
+    .sc{background:#f4f1ea;border-color:#caa}.sc .v{color:#9a7a2e}
+    section.block h2{color:#9a7a2e}.disc{color:#555}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Acquisition <b>Analyzer</b></h1>
+    <div class="cat">Builder Buy Box · Property Intelligence</div>
+  </header>
+
+  <div class="searchrow">
+    <input id="addr" type="text" placeholder="123 Main St, Olympia, WA 98501" autocomplete="off">
+    <button id="go" type="button">Analyze</button>
+  </div>
+  <div class="status" id="status"></div>
+
+  <div class="report" id="report"></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const money=n=>n==null?"Not available":"$"+Number(n).toLocaleString("en-US");
+const numf=n=>n==null?"Not available":Number(n).toLocaleString("en-US");
+const txt=v=>v==null||v===""?"Not available":v;
+
+async function run(){
+  const address=$("addr").value.trim();
+  if(!address){setStatus("Enter a property address.",true);return;}
+  $("go").disabled=true;$("report").classList.remove("show");
+  setStatus("Looking up public records and analyzing…",false);
+  try{
+    const res=await fetch("/api/analyze",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({address})});
+    const out=await res.json();
+    if(!res.ok){setStatus(out.error||"Something went wrong.",true);$("go").disabled=false;return;}
+    render(out.data,out.report,out.analysisError);
+    setStatus("",false);
+  }catch(e){setStatus("Network error — is the server running?",true);}
+  $("go").disabled=false;
+}
+function setStatus(m,err){const s=$("status");s.textContent=m;s.className="status"+(err?" err":"");}
+
+function render(d,r,analysisError){
+  const a=d.address||{},v=d.valuation||{},p=d.property||{},lot=d.lot||{},b=d.building||{},o=d.ownership||{},sale=d.lastSale||{},m=d.mortgage||{};
+  let h="";
+  if(r){
+    h+='<div class="scorecard">'
+      +'<div class="sc"><div class="v">'+(r.acquisitionScore?.score??"—")+'</div><div class="l">Acquisition score</div><div class="r">'+txt(r.acquisitionScore?.rationale)+'</div></div>'
+      +'<div class="sc"><div class="v">'+(r.buyBoxMatchScore?.score??"—")+'</div><div class="l">Buy Box match</div><div class="r">'+txt(r.buyBoxMatchScore?.rationale)+'</div></div>'
+      +'</div>';
+  } else if(analysisError){
+    h+='<section class="block"><h2>Analysis unavailable</h2><p>'+txt(analysisError)+' — public-record data is shown below.</p></section>';
+  }
+
+  // facts (always from real ATTOM data)
+  h+='<section class="block"><h2>Public record</h2><div class="facts">'
+    +fact("Address",[a.line1,a.line2].filter(Boolean).join(", ")||a.full)
+    +fact("APN",d.apn)+fact("Type",p.type)+fact("Year built",p.yearBuilt)
+    +fact("Lot (acres)",lot.sizeAcres)+fact("Lot (sqft)",numf(lot.sizeSqft))
+    +fact("Building (sqft)",numf(b.sizeSqft))+fact("Beds / baths",(p.bedrooms??"–")+" / "+(p.bathrooms??"–"))
+    +fact("Zoning",p.zoning)
+    +fact("Assessed total",money(v.assessedTotal))+fact("Market total",money(v.marketTotal))
+    +fact("AVM estimate",money(v.avmValue))+fact("AVM range",v.avmLow!=null?money(v.avmLow)+" – "+money(v.avmHigh):"Not available")
+    +fact("Tax ("+txt(v.taxYear)+")",money(v.taxAmount))
+    +fact("Last sale",sale.amount!=null?money(sale.amount)+(sale.date?" ("+sale.date+")":""):"Not available")
+    +fact("Mortgage",m.amount!=null?money(m.amount)+(m.lender?" · "+m.lender:""):"Not available")
+    +fact("Owner",(o.names&&o.names.length)?o.names.join("; "):"Not available")
+    +fact("Owner-occupied",txt(o.ownerOccupied))
+    +'</div></section>';
+
+  if(r){
+    h+=block("Property summary",r.propertySummary)
+      +block("Ownership summary",r.ownershipSummary)
+      +block("Value analysis",r.valueAnalysis)
+      +block("Development potential",r.developmentPotential)
+      +block("Offer strategy",r.offerStrategy)
+      +listBlock("Risks",r.risks,"risk")
+      +listBlock("Recommended next steps",r.nextSteps)
+      +(r.dataGaps&&r.dataGaps.length?listBlock("Data gaps",r.dataGaps):"");
+  }
+
+  h+='<div class="toolbar"><button onclick="window.print()">Save as PDF</button>'
+    +'<button onclick="copyJSON()">Copy JSON</button></div>';
+  h+='<div class="disc">Research summary generated from ATTOM public-record data for a licensed professional. '
+    +'Not legal, investment, or appraisal advice. Verify all figures independently before acting.</div>';
+
+  window.__lastJSON=JSON.stringify({data:d,report:r},null,2);
+  $("report").innerHTML=h;$("report").classList.add("show");
+}
+function fact(k,v){return '<div class="row"><span class="k">'+k+'</span><span class="v">'+txt(v)+'</span></div>';}
+function block(title,body){return body?'<section class="block"><h2>'+title+'</h2><p>'+esc(body)+'</p></section>':'';}
+function listBlock(title,arr,cls){if(!arr||!arr.length)return'';
+  return '<section class="block"><h2>'+title+'</h2><ul class="list'+(cls?" "+cls:"")+'">'+arr.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></section>';}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function copyJSON(){navigator.clipboard.writeText(window.__lastJSON||"").then(()=>setStatus("JSON copied.",false));}
+
+$("go").addEventListener("click",run);
+$("addr").addEventListener("keydown",e=>{if(e.key==="Enter")run();});
+</script>
+</body>
+</html>

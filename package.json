@@ -1,0 +1,16 @@
+{
+  "name": "acquisition-analyzer",
+  "version": "1.0.0",
+  "description": "Builder Buy Box — Acquisition Analyzer MVP",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "engines": { "node": ">=18" }
+}
