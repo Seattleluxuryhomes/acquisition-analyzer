@@ -118,6 +118,9 @@
     </div>
 
     <div class="vopts">
+      <label>Engine
+        <select id="vengine"><option value="local" selected>Local (free, no key)</option><option value="arcads">Arcads AI (Seedance)</option></select>
+      </label>
       <label>Clip length
         <select id="vdur"><option value="4">4s</option><option value="5" selected>5s</option><option value="7">7s</option><option value="10">10s</option></select>
       </label>
@@ -241,15 +244,20 @@ const vstat=(m,err)=>{const s=$("vstatus");s.textContent=m||"";s.className="vsta
 
 function vCost(){
   const dur=+$("vdur").value, res=$("vres").value, n=vPhotos.length||(vListing?.photos?.length||5);
-  const rate=res==="480p"?32:48;
-  return {perClip:Math.round(rate*dur), total:Math.round(rate*dur)*n, n, dur, res, rate};
+  const rate=res==="480p"?32:48, engine=$("vengine").value;
+  return {engine, perClip:Math.round(rate*dur), total:engine==="local"?0:Math.round(rate*dur)*n, n, dur, res, rate};
 }
 function vRenderEst(){
   const c=vCost(), el=$("vest");
   el.style.display="block";
-  el.innerHTML="Estimated cost: <b>~"+c.total.toLocaleString()+" credits</b> · "+c.n+
-    " clip(s) × "+c.dur+"s × ~"+c.rate+" cr/s ("+c.res+"). "+
-    "<span style='color:var(--faint)'>Estimate only — confirm in Arcads. Credits charge at generation time.</span>";
+  if(c.engine==="local"){
+    el.innerHTML="<b>Local render — free.</b> "+c.n+" photo(s) animated with a Ken Burns pan/zoom via bundled ffmpeg. "+
+      "<span style='color:var(--faint)'>No Arcads key or credits needed.</span>";
+  }else{
+    el.innerHTML="Estimated cost: <b>~"+c.total.toLocaleString()+" credits</b> · "+c.n+
+      " clip(s) × "+c.dur+"s × ~"+c.rate+" cr/s ("+c.res+"). "+
+      "<span style='color:var(--faint)'>Estimate only — confirm in Arcads. Credits charge at generation time.</span>";
+  }
 }
 function vSync(){
   $("vgo").disabled=!(vPhotos.length>0);
@@ -293,7 +301,7 @@ $("vfile").addEventListener("change",e=>vAddFiles(e.target.files));
 ["dragenter","dragover"].forEach(ev=>$("vdrop").addEventListener(ev,e=>{e.preventDefault();$("vdrop").classList.add("hot");}));
 ["dragleave","drop"].forEach(ev=>$("vdrop").addEventListener(ev,e=>{e.preventDefault();$("vdrop").classList.remove("hot");}));
 $("vdrop").addEventListener("drop",e=>vAddFiles(e.dataTransfer.files));
-["vdur","vaspect","vres"].forEach(id=>$(id).addEventListener("change",()=>{if(vPhotos.length)vRenderEst();}));
+["vengine","vdur","vaspect","vres"].forEach(id=>$(id).addEventListener("change",vRenderEst));
 
 async function vDoPreview(){
   const zillowUrl=$("vurl").value.trim(), address=$("addr").value.trim();
@@ -301,7 +309,7 @@ async function vDoPreview(){
   $("vpreview").disabled=true;vstat("Resolving listing (ATTOM + Zillow)…",false);
   try{
     const res=await fetch("/api/showcase/preview",{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({zillowUrl,address,duration:+$("vdur").value,resolution:$("vres").value})});
+      body:JSON.stringify({zillowUrl,address,duration:+$("vdur").value,resolution:$("vres").value,engine:$("vengine").value})});
     const out=await res.json();
     if(!res.ok){vstat(out.error||"Preview failed.",true);$("vpreview").disabled=false;return;}
     vListing=out.listing;
@@ -325,14 +333,14 @@ let vPollTimer=null;
 async function vStart(){
   if(!vPhotos.length){vstat("Upload at least one photo.",true);return;}
   const c=vCost();
-  if(!confirm("Generate "+c.n+" clip(s) — estimated ~"+c.total.toLocaleString()+" Arcads credits.\n\nEstimate only; confirm exact cost in Arcads. Proceed?"))return;
+  if(c.engine==="arcads"&&!confirm("Generate "+c.n+" clip(s) — estimated ~"+c.total.toLocaleString()+" Arcads credits.\n\nEstimate only; confirm exact cost in Arcads. Proceed?"))return;
   $("vgo").disabled=true;$("vout").classList.remove("show");
   $("vlog").classList.add("show");$("vlog").textContent="";
   vstat("Starting…",false);
   try{
     const body={zillowUrl:$("vurl").value.trim(),address:$("addr").value.trim(),listing:vListing,
       photos:vPhotos.map(p=>({dataUrl:p.dataUrl,label:p.name})),
-      opts:{duration:+$("vdur").value,aspectRatio:$("vaspect").value,resolution:$("vres").value},confirm:true};
+      opts:{engine:c.engine,duration:+$("vdur").value,aspectRatio:$("vaspect").value,resolution:$("vres").value},confirm:true};
     const res=await fetch("/api/showcase/start",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
     const out=await res.json();
     if(!res.ok){vstat(out.error||"Could not start.",true);$("vgo").disabled=false;return;}
@@ -364,6 +372,15 @@ async function vPoll(id){
   },4000);
 }
 $("vgo").addEventListener("click",vStart);
+
+(async function vInit(){
+  try{
+    const h=await (await fetch("/api/health")).json();
+    if(!h.arcadsKey){const o=$("vengine").querySelector('option[value="arcads"]');if(o)o.textContent="Arcads AI (needs key in .env)";}
+    if(!h.videoTooling){vstat("Video tooling unavailable on this server — run npm install.",true);}
+  }catch{}
+  vRenderEst();
+})();
 </script>
 </body>
 </html>

@@ -180,3 +180,27 @@ export function dimsFor(aspectRatio, resolution) {
   if (aspectRatio === "9:16") return resolution === "480p" ? [480, 854] : [720, 1280];
   return resolution === "480p" ? [854, 480] : [1280, 720];
 }
+
+// Local "Ken Burns" engine: animate a still photo with a slow pan/zoom — a
+// real cinematic clip with no Arcads key and no credits. Variant cycles the
+// camera move so a multi-photo tour doesn't feel repetitive.
+export async function kenBurnsClip(image, seconds, w, h, out, variantIdx = 0) {
+  const frames = Math.max(2, Math.round(seconds * 30));
+  const f = frames - 1;
+  const variants = [
+    { z: "min(zoom+0.0010,1.20)", x: "iw/2-(iw/zoom/2)", y: "ih/2-(ih/zoom/2)" },              // zoom-in center
+    { z: "min(zoom+0.0008,1.15)", x: `(iw-iw/zoom)*on/${f}`, y: "ih/2-(ih/zoom/2)" },           // pan right
+    { z: "min(zoom+0.0008,1.15)", x: `(iw-iw/zoom)*(1-on/${f})`, y: "ih/2-(ih/zoom/2)" },       // pan left
+    { z: "min(zoom+0.0008,1.15)", x: "iw/2-(iw/zoom/2)", y: `(ih-ih/zoom)*(1-on/${f})` },       // pan up
+    { z: "min(zoom+0.0008,1.15)", x: "iw/2-(iw/zoom/2)", y: `(ih-ih/zoom)*on/${f}` },           // pan down
+    { z: "min(zoom+0.0006,1.12)", x: "iw/2-(iw/zoom/2)", y: "ih/2-(ih/zoom/2)" },               // slow zoom
+  ];
+  const v = variants[variantIdx % variants.length];
+  const big = `${w * 2}:${h * 2}`;
+  const vf =
+    `scale=${big}:force_original_aspect_ratio=increase,crop=${big},` +
+    `zoompan=z='${v.z}':d=${frames}:x='${v.x}':y='${v.y}':s=${w}x${h}:fps=30,format=yuv420p`;
+  await run(["-y", "-loop", "1", "-i", image, "-t", String(seconds), "-vf", vf,
+    "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-an", out]);
+  return out;
+}

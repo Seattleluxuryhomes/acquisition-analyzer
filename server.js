@@ -8,12 +8,15 @@ import { fetchProperty } from "./attom.js";
 import { analyze } from "./analyze.js";
 import { arcadsReady } from "./arcads.js";
 import { resolveListing } from "./zillow.js";
-import { buildShowcase, estimate, OUTPUTS_DIR } from "./showcase.js";
+import { buildShowcase, estimate, defaultEngine, OUTPUTS_DIR } from "./showcase.js";
 import { videoToolingReady } from "./video.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-app.use(express.json({ limit: "256kb" }));
+// Global JSON parser is small; the showcase route (base64 photos) opts out and
+// uses its own larger parser, so the small global limit can't reject it first.
+const smallJson = express.json({ limit: "256kb" });
+app.use((req, res, next) => (req.path === "/api/showcase/start" ? next() : smallJson(req, res, next)));
 app.use(express.static(__dirname));
 
 // Serve generated showcase media.
@@ -64,8 +67,8 @@ app.post("/api/showcase/preview", async (req, res) => {
   try {
     const listing = await resolveListing({ zillowUrl, address });
     const photoCount = Math.max(1, Number(req.body?.photoCount) || listing.photos.length || 5);
-    const est = estimate({ photoCount, duration: Number(req.body?.duration) || 5, resolution: req.body?.resolution || "720p" });
-    res.json({ listing, estimate: est, arcadsKey: arcadsReady(), videoTooling: videoToolingReady() });
+    const est = estimate({ photoCount, duration: Number(req.body?.duration) || 5, resolution: req.body?.resolution || "720p", engine: req.body?.engine });
+    res.json({ listing, estimate: est, arcadsKey: arcadsReady(), defaultEngine: defaultEngine(), videoTooling: videoToolingReady() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -88,14 +91,19 @@ function decodePhotos(arr) {
 // Start a showcase job. Body: { zillowUrl?, address?, listing?, photos:[dataUrl|{dataUrl,label}], opts, confirm }
 // Photos arrive as base64 data URLs, so this route gets a larger body limit.
 app.post("/api/showcase/start", express.json({ limit: "60mb" }), async (req, res) => {
-  if (!arcadsReady()) return res.status(400).json({ error: "Arcads credentials not set — add ARCADS_BASIC_AUTH to .env (run ./scripts/setup.sh)." });
-  if (req.body?.confirm !== true) return res.status(400).json({ error: "Cost not confirmed — set confirm:true to proceed." });
+  const opts = req.body?.opts || {};
+  const engine = opts.engine === "arcads" || opts.engine === "local" ? opts.engine : defaultEngine();
+  if (engine === "arcads" && !arcadsReady()) {
+    return res.status(400).json({ error: "Arcads credentials not set — add ARCADS_BASIC_AUTH to .env (run ./scripts/setup.sh), or use the free local engine." });
+  }
+  if (engine === "arcads" && req.body?.confirm !== true) {
+    return res.status(400).json({ error: "Cost not confirmed — set confirm:true to proceed." });
+  }
 
   const photos = decodePhotos(req.body?.photos);
   if (!photos.length) return res.status(400).json({ error: "Upload at least one listing photo." });
   if (photos.length > 8) return res.status(400).json({ error: "Max 8 photos per showcase." });
 
-  const opts = req.body?.opts || {};
   let listing = req.body?.listing;
   if (!listing) {
     try { listing = await resolveListing({ zillowUrl: req.body?.zillowUrl, address: req.body?.address }); }
@@ -109,7 +117,7 @@ app.post("/api/showcase/start", express.json({ limit: "60mb" }), async (req, res
   buildShowcase({
     listing,
     photos,
-    opts,
+    opts: { ...opts, engine },
     onProgress: (p) => { job.progress.push({ t: Date.now(), ...p }); if (job.progress.length > 200) job.progress.shift(); },
   })
     .then((result) => { job.result = result; job.status = "done"; })
