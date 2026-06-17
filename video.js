@@ -93,6 +93,44 @@ export function renderOutroCard(listing, w, h, outPath) {
   return outPath;
 }
 
+// Details card PNG (opaque): a tidy spec sheet (beds/baths/SF/lot/parking/schools).
+export function renderDetailsCard(listing, w, h, outPath) {
+  const { cv, ctx } = newCanvas(w, h);
+  ctx.fillStyle = INK; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = "rgba(201,163,92,0.5)"; ctx.lineWidth = Math.max(2, Math.round(h / 360));
+  const m = Math.round(h * 0.07); ctx.strokeRect(m, m, w - 2 * m, h - 2 * m);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = GOLD; ctx.font = `${Math.round(h * 0.03)}px ${SANS}`;
+  ctx.fillText("PROPERTY DETAILS", w / 2, h * 0.2);
+
+  const rows = [];
+  if (listing.bedsNote || listing.beds != null) rows.push(["Bedrooms", String(listing.bedsNote ?? listing.beds)]);
+  if (listing.baths != null) rows.push(["Bathrooms", String(listing.baths)]);
+  if (listing.sqft != null) rows.push(["Finished", numf(listing.sqft) + " SF"]);
+  if (listing.lotSqft != null) rows.push(["Lot", numf(listing.lotSqft) + " SF"]);
+  if (listing.parking) rows.push(["Parking", listing.parking]);
+  if (listing.schoolDistrict) rows.push(["School district", listing.schoolDistrict]);
+
+  const xL = Math.round(w * 0.18), xR = Math.round(w * 0.82);
+  const top = h * 0.3, rowH = h * 0.078;
+  ctx.font = `${Math.round(h * 0.036)}px ${SANS}`;
+  rows.forEach((r, i) => {
+    const y = top + i * rowH;
+    ctx.textAlign = "left"; ctx.fillStyle = SILVER; ctx.fillText(r[0], xL, y);
+    ctx.textAlign = "right"; ctx.fillStyle = BONE; ctx.fillText(r[1], xR, y);
+    ctx.strokeStyle = "rgba(35,38,46,1)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(xL, y + rowH * 0.28); ctx.lineTo(xR, y + rowH * 0.28); ctx.stroke();
+  });
+
+  if (listing.schools && listing.schools.length) {
+    ctx.textAlign = "center"; ctx.fillStyle = GOLDB; ctx.font = `${Math.round(h * 0.03)}px ${SANS}`;
+    ctx.fillText(listing.schools.join("   ·   "), w / 2, top + rows.length * rowH + h * 0.04);
+  }
+  fs.writeFileSync(outPath, cv.toBuffer("image/png"));
+  return outPath;
+}
+
 // Full-frame transparent overlay: bottom gradient strip + persistent address /
 // price lower-third, composited over each animated clip.
 export function renderLowerThird(listing, w, h, outPath) {
@@ -163,6 +201,12 @@ export async function stitchShowcase({ clips, listing, dims, workDir, out }) {
   const lower = renderLowerThird(listing, w, h, path.join(workDir, "lower.png"));
   for (let i = 0; i < clips.length; i++) {
     segs.push(await clipToSegment(clips[i], lower, w, h, path.join(workDir, `seg-${i}.mp4`)));
+  }
+
+  const hasDetails = listing.lotSqft != null || listing.parking || listing.schoolDistrict || (listing.schools && listing.schools.length);
+  if (hasDetails) {
+    const det = renderDetailsCard(listing, w, h, path.join(workDir, "details.png"));
+    segs.push(await stillToSegment(det, 4.5, w, h, path.join(workDir, "seg-details.mp4")));
   }
 
   const outro = renderOutroCard(listing, w, h, path.join(workDir, "outro.png"));
