@@ -41,6 +41,22 @@ function newCanvas(w, h) {
   return { cv, ctx: cv.getContext("2d") };
 }
 
+async function loadLogo(p) {
+  if (!p || !canvasMod) return null;
+  try { return await canvasMod.loadImage(p); } catch { return null; }
+}
+
+// Draw a logo (preserving aspect) at targetW, anchored center/left/right at cx.
+function drawLogo(ctx, logo, cx, topY, targetW, align = "center", shadow = false) {
+  if (!logo) return 0;
+  const tw = targetW, th = tw * (logo.height / logo.width);
+  const x = align === "right" ? cx - tw : align === "left" ? cx : cx - tw / 2;
+  if (shadow) { ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.55)"; ctx.shadowBlur = tw * 0.06; ctx.shadowOffsetY = 2; }
+  ctx.drawImage(logo, x, topY, tw, th);
+  if (shadow) ctx.restore();
+  return th;
+}
+
 function factsLine(listing) {
   const parts = [];
   if (listing.beds != null) parts.push(listing.beds + " bd");
@@ -50,14 +66,15 @@ function factsLine(listing) {
   return parts.join("   ·   ");
 }
 
-// Intro title card PNG (opaque): address + price + facts.
-export function renderTitleCard(listing, w, h, outPath) {
+// Intro title card PNG (opaque): logo + address + price + facts.
+export function renderTitleCard(listing, w, h, outPath, logo) {
   const { cv, ctx } = newCanvas(w, h);
   ctx.fillStyle = INK; ctx.fillRect(0, 0, w, h);
   // thin gold frame
   ctx.strokeStyle = "rgba(201,163,92,0.5)"; ctx.lineWidth = Math.max(2, Math.round(h / 360));
   const m = Math.round(h * 0.07); ctx.strokeRect(m, m, w - 2 * m, h - 2 * m);
 
+  drawLogo(ctx, logo, w / 2, h * 0.13, w * 0.22, "center");
   ctx.textAlign = "center";
   ctx.fillStyle = SILVER; ctx.font = `${Math.round(h * 0.028)}px ${SANS}`;
   ctx.fillText("PROPERTY SHOWCASE", w / 2, h * 0.34);
@@ -79,30 +96,32 @@ export function renderTitleCard(listing, w, h, outPath) {
   return outPath;
 }
 
-// Outro card PNG (opaque): simple CTA.
-export function renderOutroCard(listing, w, h, outPath) {
+// Outro card PNG (opaque): logo + CTA.
+export function renderOutroCard(listing, w, h, outPath, logo) {
   const { cv, ctx } = newCanvas(w, h);
   ctx.fillStyle = INK; ctx.fillRect(0, 0, w, h);
+  drawLogo(ctx, logo, w / 2, h * 0.27, w * 0.3, "center");
   ctx.textAlign = "center";
   const [line1] = splitAddress(listing.address);
   ctx.fillStyle = GOLDB; ctx.font = `${Math.round(h * 0.06)}px ${SERIF}`;
-  ctx.fillText("Schedule a private showing", w / 2, h * 0.46);
+  ctx.fillText("Schedule a private showing", w / 2, h * 0.55);
   ctx.fillStyle = BONE; ctx.font = `${Math.round(h * 0.04)}px ${SANS}`;
-  ctx.fillText(line1 || "", w / 2, h * 0.57);
+  ctx.fillText(line1 || "", w / 2, h * 0.65);
   fs.writeFileSync(outPath, cv.toBuffer("image/png"));
   return outPath;
 }
 
 // Details card PNG (opaque): a tidy spec sheet (beds/baths/SF/lot/parking/schools).
-export function renderDetailsCard(listing, w, h, outPath) {
+export function renderDetailsCard(listing, w, h, outPath, logo) {
   const { cv, ctx } = newCanvas(w, h);
   ctx.fillStyle = INK; ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = "rgba(201,163,92,0.5)"; ctx.lineWidth = Math.max(2, Math.round(h / 360));
   const m = Math.round(h * 0.07); ctx.strokeRect(m, m, w - 2 * m, h - 2 * m);
 
+  drawLogo(ctx, logo, w / 2, h * 0.1, w * 0.16, "center");
   ctx.textAlign = "center";
   ctx.fillStyle = GOLD; ctx.font = `${Math.round(h * 0.03)}px ${SANS}`;
-  ctx.fillText("PROPERTY DETAILS", w / 2, h * 0.2);
+  ctx.fillText("PROPERTY DETAILS", w / 2, h * 0.22);
 
   const rows = [];
   if (listing.bedsNote || listing.beds != null) rows.push(["Bedrooms", String(listing.bedsNote ?? listing.beds)]);
@@ -133,9 +152,11 @@ export function renderDetailsCard(listing, w, h, outPath) {
 
 // Full-frame transparent overlay: bottom gradient strip + persistent address /
 // price lower-third, composited over each animated clip.
-export function renderLowerThird(listing, w, h, outPath) {
+export function renderLowerThird(listing, w, h, outPath, logo) {
   const { cv, ctx } = newCanvas(w, h);
   ctx.clearRect(0, 0, w, h);
+  // persistent logo watermark, top-right (shadowed for contrast over photos)
+  drawLogo(ctx, logo, w - Math.round(w * 0.04), Math.round(h * 0.05), w * 0.15, "right", true);
   const stripH = Math.round(h * 0.22);
   const grad = ctx.createLinearGradient(0, h - stripH, 0, h);
   grad.addColorStop(0, "rgba(12,13,16,0)");
@@ -189,33 +210,56 @@ async function clipToSegment(clip, overlayPng, w, h, out) {
   return out;
 }
 
-// Stitch: intro card → each clip (with lower-third) → outro card → one mp4.
-export async function stitchShowcase({ clips, listing, dims, workDir, out }) {
+// Crossfade a list of normalized segments (with known durations) into one mp4.
+async function concatCrossfade(segs, durs, x, out) {
+  const inputs = [];
+  segs.forEach((s) => inputs.push("-i", s));
+  let label = "[0:v]", filter = "", cum = durs[0];
+  for (let i = 1; i < segs.length; i++) {
+    const off = (cum - x).toFixed(3);
+    const o = i === segs.length - 1 ? "[vout]" : `[v${i}]`;
+    filter += `${label}[${i}:v]xfade=transition=fade:duration=${x}:offset=${off}${o};`;
+    label = o;
+    cum = cum + durs[i] - x;
+  }
+  filter = filter.replace(/;$/, "");
+  await run(["-y", ...inputs, "-filter_complex", filter, "-map", "[vout]",
+    "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-an", out]);
+}
+
+// Stitch: intro → each clip (with lower-third) → details → outro, crossfaded.
+export async function stitchShowcase({ clips, listing, dims, workDir, out, clipDuration = 5 }) {
   if (!videoToolingReady()) throw new Error("Video tooling unavailable (canvas/ffmpeg).");
   const [w, h] = dims;
-  const segs = [];
+  const logo = await loadLogo(listing.logoPath);
+  const segs = [], durs = [];
+  const INTRO = 3, DETAILS = 4.5, OUTRO = 2.5;
 
-  const intro = renderTitleCard(listing, w, h, path.join(workDir, "intro.png"));
-  segs.push(await stillToSegment(intro, 3, w, h, path.join(workDir, "seg-intro.mp4")));
+  const intro = renderTitleCard(listing, w, h, path.join(workDir, "intro.png"), logo);
+  segs.push(await stillToSegment(intro, INTRO, w, h, path.join(workDir, "seg-intro.mp4"))); durs.push(INTRO);
 
-  const lower = renderLowerThird(listing, w, h, path.join(workDir, "lower.png"));
+  const lower = renderLowerThird(listing, w, h, path.join(workDir, "lower.png"), logo);
   for (let i = 0; i < clips.length; i++) {
-    segs.push(await clipToSegment(clips[i], lower, w, h, path.join(workDir, `seg-${i}.mp4`)));
+    segs.push(await clipToSegment(clips[i], lower, w, h, path.join(workDir, `seg-${i}.mp4`))); durs.push(clipDuration);
   }
 
   const hasDetails = listing.lotSqft != null || listing.parking || listing.schoolDistrict || (listing.schools && listing.schools.length);
   if (hasDetails) {
-    const det = renderDetailsCard(listing, w, h, path.join(workDir, "details.png"));
-    segs.push(await stillToSegment(det, 4.5, w, h, path.join(workDir, "seg-details.mp4")));
+    const det = renderDetailsCard(listing, w, h, path.join(workDir, "details.png"), logo);
+    segs.push(await stillToSegment(det, DETAILS, w, h, path.join(workDir, "seg-details.mp4"))); durs.push(DETAILS);
   }
 
-  const outro = renderOutroCard(listing, w, h, path.join(workDir, "outro.png"));
-  segs.push(await stillToSegment(outro, 2.5, w, h, path.join(workDir, "seg-outro.mp4")));
+  const outro = renderOutroCard(listing, w, h, path.join(workDir, "outro.png"), logo);
+  segs.push(await stillToSegment(outro, OUTRO, w, h, path.join(workDir, "seg-outro.mp4"))); durs.push(OUTRO);
 
-  // All segments share codec/params now → concat with stream copy.
-  const list = path.join(workDir, "concat.txt");
-  fs.writeFileSync(list, segs.map((s) => `file '${s.replace(/'/g, "'\\''")}'`).join("\n"));
-  await run(["-y", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy", out]);
+  // Cinematic crossfades; fall back to hard-cut concat if xfade errors.
+  try {
+    await concatCrossfade(segs, durs, 0.45, out);
+  } catch {
+    const list = path.join(workDir, "concat.txt");
+    fs.writeFileSync(list, segs.map((s) => `file '${s.replace(/'/g, "'\\''")}'`).join("\n"));
+    await run(["-y", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy", out]);
+  }
   return out;
 }
 
@@ -231,19 +275,22 @@ export function dimsFor(aspectRatio, resolution) {
 export async function kenBurnsClip(image, seconds, w, h, out, variantIdx = 0) {
   const frames = Math.max(2, Math.round(seconds * 30));
   const f = frames - 1;
+  // Each variant declares a target zoom (zt); the per-frame increment is derived
+  // so the full move completes within the clip — punchier on shorter clips.
   const variants = [
-    { z: "min(zoom+0.0010,1.20)", x: "iw/2-(iw/zoom/2)", y: "ih/2-(ih/zoom/2)" },              // zoom-in center
-    { z: "min(zoom+0.0008,1.15)", x: `(iw-iw/zoom)*on/${f}`, y: "ih/2-(ih/zoom/2)" },           // pan right
-    { z: "min(zoom+0.0008,1.15)", x: `(iw-iw/zoom)*(1-on/${f})`, y: "ih/2-(ih/zoom/2)" },       // pan left
-    { z: "min(zoom+0.0008,1.15)", x: "iw/2-(iw/zoom/2)", y: `(ih-ih/zoom)*(1-on/${f})` },       // pan up
-    { z: "min(zoom+0.0008,1.15)", x: "iw/2-(iw/zoom/2)", y: `(ih-ih/zoom)*on/${f}` },           // pan down
-    { z: "min(zoom+0.0006,1.12)", x: "iw/2-(iw/zoom/2)", y: "ih/2-(ih/zoom/2)" },               // slow zoom
+    { zt: 1.24, x: "iw/2-(iw/zoom/2)", y: "ih/2-(ih/zoom/2)" },         // zoom-in center
+    { zt: 1.14, x: `(iw-iw/zoom)*on/${f}`, y: "ih/2-(ih/zoom/2)" },     // pan right (+slow zoom)
+    { zt: 1.14, x: `(iw-iw/zoom)*(1-on/${f})`, y: "ih/2-(ih/zoom/2)" }, // pan left
+    { zt: 1.16, x: "iw/2-(iw/zoom/2)", y: `(ih-ih/zoom)*(1-on/${f})` }, // pan up
+    { zt: 1.16, x: "iw/2-(iw/zoom/2)", y: `(ih-ih/zoom)*on/${f}` },     // pan down
+    { zt: 1.20, x: "iw/2-(iw/zoom/2)", y: "ih/2-(ih/zoom/2)" },         // zoom-in
   ];
   const v = variants[variantIdx % variants.length];
+  const inc = ((v.zt - 1) / f).toFixed(6);
   const big = `${w * 2}:${h * 2}`;
   const vf =
     `scale=${big}:force_original_aspect_ratio=increase,crop=${big},` +
-    `zoompan=z='${v.z}':d=${frames}:x='${v.x}':y='${v.y}':s=${w}x${h}:fps=30,format=yuv420p`;
+    `zoompan=z='min(zoom+${inc},${v.zt})':d=${frames}:x='${v.x}':y='${v.y}':s=${w}x${h}:fps=30,format=yuv420p`;
   await run(["-y", "-loop", "1", "-i", image, "-t", String(seconds), "-vf", vf,
     "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-an", out]);
   return out;

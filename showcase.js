@@ -117,7 +117,7 @@ export async function buildShowcase({ listing, photos, opts = {}, onProgress = (
     try {
       onProgress({ step: "stitch", msg: "Stitching title card, clips, and outro…" });
       const out = path.join(runDir, "showcase.mp4");
-      await stitchShowcase({ clips: clips.map((c) => c.file), listing, dims: [w, h], workDir: runDir, out });
+      await stitchShowcase({ clips: clips.map((c) => c.file), listing, dims: [w, h], workDir: runDir, out, clipDuration: duration });
       result.final = rel(out);
       result.stitched = true;
     } catch (e) {
