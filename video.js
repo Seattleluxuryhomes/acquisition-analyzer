@@ -47,11 +47,22 @@ async function loadLogo(p) {
 }
 
 // Draw a logo (preserving aspect) at targetW, anchored center/left/right at cx.
-function drawLogo(ctx, logo, cx, topY, targetW, align = "center", shadow = false) {
+// `backing` paints a soft dark rounded panel behind it so a white logo stays
+// legible over any background (e.g. a bright sky).
+function drawLogo(ctx, logo, cx, topY, targetW, align = "center", shadow = false, backing = false) {
   if (!logo) return 0;
   const tw = targetW, th = tw * (logo.height / logo.width);
   const x = align === "right" ? cx - tw : align === "left" ? cx : cx - tw / 2;
-  if (shadow) { ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.55)"; ctx.shadowBlur = tw * 0.06; ctx.shadowOffsetY = 2; }
+  if (backing) {
+    const p = tw * 0.12, r = th * 0.35;
+    ctx.save();
+    ctx.fillStyle = "rgba(12,13,16,0.42)";
+    const bx = x - p, by = topY - p * 0.7, bw = tw + p * 2, bh = th + p * 1.4;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, r); ctx.fill(); }
+    else ctx.fillRect(bx, by, bw, bh);
+    ctx.restore();
+  }
+  if (shadow) { ctx.save(); ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = tw * 0.05; ctx.shadowOffsetY = 2; }
   ctx.drawImage(logo, x, topY, tw, th);
   if (shadow) ctx.restore();
   return th;
@@ -74,7 +85,7 @@ export function renderTitleCard(listing, w, h, outPath, logo) {
   ctx.strokeStyle = "rgba(201,163,92,0.5)"; ctx.lineWidth = Math.max(2, Math.round(h / 360));
   const m = Math.round(h * 0.07); ctx.strokeRect(m, m, w - 2 * m, h - 2 * m);
 
-  drawLogo(ctx, logo, w / 2, h * 0.13, w * 0.22, "center");
+  drawLogo(ctx, logo, w / 2, h * 0.12, w * 0.28, "center");
   ctx.textAlign = "center";
   ctx.fillStyle = SILVER; ctx.font = `${Math.round(h * 0.028)}px ${SANS}`;
   ctx.fillText("PROPERTY SHOWCASE", w / 2, h * 0.34);
@@ -100,7 +111,7 @@ export function renderTitleCard(listing, w, h, outPath, logo) {
 export function renderOutroCard(listing, w, h, outPath, logo) {
   const { cv, ctx } = newCanvas(w, h);
   ctx.fillStyle = INK; ctx.fillRect(0, 0, w, h);
-  drawLogo(ctx, logo, w / 2, h * 0.27, w * 0.3, "center");
+  drawLogo(ctx, logo, w / 2, h * 0.26, w * 0.36, "center");
   ctx.textAlign = "center";
   const [line1] = splitAddress(listing.address);
   ctx.fillStyle = GOLDB; ctx.font = `${Math.round(h * 0.06)}px ${SERIF}`;
@@ -118,7 +129,7 @@ export function renderDetailsCard(listing, w, h, outPath, logo) {
   ctx.strokeStyle = "rgba(201,163,92,0.5)"; ctx.lineWidth = Math.max(2, Math.round(h / 360));
   const m = Math.round(h * 0.07); ctx.strokeRect(m, m, w - 2 * m, h - 2 * m);
 
-  drawLogo(ctx, logo, w / 2, h * 0.1, w * 0.16, "center");
+  drawLogo(ctx, logo, w / 2, h * 0.1, w * 0.2, "center");
   ctx.textAlign = "center";
   ctx.fillStyle = GOLD; ctx.font = `${Math.round(h * 0.03)}px ${SANS}`;
   ctx.fillText("PROPERTY DETAILS", w / 2, h * 0.22);
@@ -155,8 +166,8 @@ export function renderDetailsCard(listing, w, h, outPath, logo) {
 export function renderLowerThird(listing, w, h, outPath, logo) {
   const { cv, ctx } = newCanvas(w, h);
   ctx.clearRect(0, 0, w, h);
-  // persistent logo watermark, top-right (shadowed for contrast over photos)
-  drawLogo(ctx, logo, w - Math.round(w * 0.04), Math.round(h * 0.05), w * 0.15, "right", true);
+  // persistent logo watermark, top-right (backed + shadowed so it reads on any shot)
+  drawLogo(ctx, logo, w - Math.round(w * 0.045), Math.round(h * 0.06), w * 0.18, "right", true, true);
   const stripH = Math.round(h * 0.22);
   const grad = ctx.createLinearGradient(0, h - stripH, 0, h);
   grad.addColorStop(0, "rgba(12,13,16,0)");
@@ -203,9 +214,12 @@ async function stillToSegment(png, seconds, w, h, out) {
 
 // A Seedance clip + lower-third overlay → a normalized silent segment.
 async function clipToSegment(clip, overlayPng, w, h, out) {
+  // Luxury grade: gentle contrast/saturation lift + soft vignette, then overlay.
   await run(["-y", "-i", clip, "-i", overlayPng,
     "-filter_complex",
-    `[0:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1[v];[v][1:v]overlay=0:0,format=yuv420p[o]`,
+    `[0:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1,` +
+    `eq=contrast=1.07:saturation=1.12:brightness=0.01:gamma=0.98,vignette=PI/4.5[v];` +
+    `[v][1:v]overlay=0:0,format=yuv420p[o]`,
     "-map", "[o]", "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-an", out]);
   return out;
 }
@@ -217,12 +231,13 @@ async function concatCrossfade(segs, durs, x, out) {
   let label = "[0:v]", filter = "", cum = durs[0];
   for (let i = 1; i < segs.length; i++) {
     const off = (cum - x).toFixed(3);
-    const o = i === segs.length - 1 ? "[vout]" : `[v${i}]`;
+    const o = `[v${i}]`;
     filter += `${label}[${i}:v]xfade=transition=fade:duration=${x}:offset=${off}${o};`;
     label = o;
     cum = cum + durs[i] - x;
   }
-  filter = filter.replace(/;$/, "");
+  // Cinematic bookends: fade up from black, fade out to black.
+  filter += `${label}fade=t=in:st=0:d=0.6,fade=t=out:st=${(cum - 0.9).toFixed(3)}:d=0.9[vout]`;
   await run(["-y", ...inputs, "-filter_complex", filter, "-map", "[vout]",
     "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-an", out]);
 }

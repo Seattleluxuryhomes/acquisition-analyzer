@@ -89,11 +89,13 @@ async function localClips({ photos, runDir, duration, w, h, onProgress }) {
 
 // photos: [{ buffer, mime, label? }]
 export async function buildShowcase({ listing, photos, opts = {}, onProgress = () => {} }) {
-  const duration = Math.min(15, Math.max(4, opts.duration || 5));
+  const engine = opts.engine === "arcads" || opts.engine === "local" ? opts.engine : defaultEngine();
+  // Local engine can run snappy shots; Seedance requires >= 4s.
+  const minDur = engine === "local" ? 2 : 4;
+  const duration = Math.min(15, Math.max(minDur, opts.duration || 5));
   const aspectRatio = opts.aspectRatio === "9:16" ? "9:16" : "16:9";
   const resolution = opts.resolution === "480p" ? "480p" : "720p";
   const [w, h] = dimsFor(aspectRatio, resolution);
-  const engine = opts.engine === "arcads" || opts.engine === "local" ? opts.engine : defaultEngine();
 
   const runDir = path.join(OUTPUTS_DIR, "showcase-" + Date.now());
   fs.mkdirSync(runDir, { recursive: true });
