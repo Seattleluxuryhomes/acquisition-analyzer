@@ -262,12 +262,12 @@ async function concatCrossfade(segs, durs, x, out) {
 }
 
 // Stitch: intro → each clip (with lower-third) → details → outro, crossfaded.
-export async function stitchShowcase({ clips, listing, dims, workDir, out, clipDuration = 5, labels = [] }) {
+export async function stitchShowcase({ clips, listing, dims, workDir, out, clipDuration = 5, labels = [], cards = {}, includeDetails = true }) {
   if (!videoToolingReady()) throw new Error("Video tooling unavailable (canvas/ffmpeg).");
   const [w, h] = dims;
   const logo = await loadLogo(listing.logoPath);
   const segs = [], durs = [];
-  const INTRO = 3, DETAILS = 4.5, OUTRO = 2.5;
+  const INTRO = cards.intro ?? 3, DETAILS = cards.details ?? 4.5, OUTRO = cards.outro ?? 2.5;
 
   const intro = renderTitleCard(listing, w, h, path.join(workDir, "intro.png"), logo);
   segs.push(await stillToSegment(intro, INTRO, w, h, path.join(workDir, "seg-intro.mp4"))); durs.push(INTRO);
@@ -277,7 +277,7 @@ export async function stitchShowcase({ clips, listing, dims, workDir, out, clipD
     segs.push(await clipToSegment(clips[i], ov, w, h, path.join(workDir, `seg-${i}.mp4`))); durs.push(clipDuration);
   }
 
-  const hasDetails = listing.lotSqft != null || listing.parking || listing.schoolDistrict || (listing.schools && listing.schools.length);
+  const hasDetails = includeDetails && (listing.lotSqft != null || listing.parking || listing.schoolDistrict || (listing.schools && listing.schools.length));
   if (hasDetails) {
     const det = renderDetailsCard(listing, w, h, path.join(workDir, "details.png"), logo);
     segs.push(await stillToSegment(det, DETAILS, w, h, path.join(workDir, "seg-details.mp4"))); durs.push(DETAILS);
