@@ -163,26 +163,44 @@ export function renderDetailsCard(listing, w, h, outPath, logo) {
 
 // Full-frame transparent overlay: bottom gradient strip + persistent address /
 // price lower-third, composited over each animated clip.
-export function renderLowerThird(listing, w, h, outPath, logo) {
+export function renderLowerThird(listing, w, h, outPath, logo, label) {
   const { cv, ctx } = newCanvas(w, h);
   ctx.clearRect(0, 0, w, h);
-  // persistent logo watermark, top-right (backed + shadowed so it reads on any shot)
-  drawLogo(ctx, logo, w - Math.round(w * 0.045), Math.round(h * 0.06), w * 0.18, "right", true, true);
-  const stripH = Math.round(h * 0.22);
+  const pad = Math.round(w * 0.045);
+
+  // editorial room caption, top-left
+  if (label) {
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = h * 0.02;
+    ctx.textAlign = "left"; ctx.fillStyle = GOLDB;
+    if ("letterSpacing" in ctx) ctx.letterSpacing = `${Math.round(h * 0.006)}px`;
+    ctx.font = `${Math.round(h * 0.033)}px ${SANS}`;
+    ctx.fillText(String(label).toUpperCase(), pad, Math.round(h * 0.115));
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+    ctx.strokeStyle = GOLD; ctx.lineWidth = Math.max(1, Math.round(h * 0.003));
+    ctx.beginPath(); ctx.moveTo(pad, Math.round(h * 0.14)); ctx.lineTo(pad + w * 0.07, Math.round(h * 0.14)); ctx.stroke();
+    ctx.restore();
+  }
+
+  // bottom gradient strip holds: logo (top) → address → facts, with price at right
+  const stripH = Math.round(h * 0.34);
   const grad = ctx.createLinearGradient(0, h - stripH, 0, h);
   grad.addColorStop(0, "rgba(12,13,16,0)");
-  grad.addColorStop(1, "rgba(12,13,16,0.82)");
+  grad.addColorStop(1, "rgba(12,13,16,0.85)");
   ctx.fillStyle = grad; ctx.fillRect(0, h - stripH, w, stripH);
 
-  const pad = Math.round(w * 0.045);
-  ctx.textAlign = "left";
   const [line1] = splitAddress(listing.address);
-  if (line1) { ctx.fillStyle = BONE; ctx.font = `${Math.round(h * 0.04)}px ${SERIF}`; ctx.fillText(line1, pad, h - Math.round(h * 0.09)); }
+  // logo sits directly above the address
+  const logoW = w * 0.17, logoH = logo ? logoW * (logo.height / logo.width) : 0;
+  drawLogo(ctx, logo, pad, h - Math.round(h * 0.135) - logoH, logoW, "left", true, false);
+
+  ctx.textAlign = "left";
+  if (line1) { ctx.fillStyle = BONE; ctx.font = `${Math.round(h * 0.04)}px ${SERIF}`; ctx.fillText(line1, pad, h - Math.round(h * 0.085)); }
   const facts = factsLine(listing);
-  if (facts) { ctx.fillStyle = SILVER; ctx.font = `${Math.round(h * 0.028)}px ${SANS}`; ctx.fillText(facts, pad, h - Math.round(h * 0.045)); }
+  if (facts) { ctx.fillStyle = SILVER; ctx.font = `${Math.round(h * 0.028)}px ${SANS}`; ctx.fillText(facts, pad, h - Math.round(h * 0.04)); }
   if (listing.price != null) {
     ctx.textAlign = "right"; ctx.fillStyle = GOLDB; ctx.font = `${Math.round(h * 0.05)}px ${SERIF}`;
-    ctx.fillText(money(listing.price), w - pad, h - Math.round(h * 0.06));
+    ctx.fillText(money(listing.price), w - pad, h - Math.round(h * 0.055));
   }
   fs.writeFileSync(outPath, cv.toBuffer("image/png"));
   return outPath;
@@ -218,7 +236,8 @@ async function clipToSegment(clip, overlayPng, w, h, out) {
   await run(["-y", "-i", clip, "-i", overlayPng,
     "-filter_complex",
     `[0:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1,` +
-    `eq=contrast=1.07:saturation=1.12:brightness=0.01:gamma=0.98,vignette=PI/4.5[v];` +
+    `eq=contrast=1.07:saturation=1.12:brightness=0.01:gamma=0.98,` +
+    `colorbalance=rm=0.04:gm=0.0:bm=-0.04,vignette=PI/4.5[v];` +
     `[v][1:v]overlay=0:0,format=yuv420p[o]`,
     "-map", "[o]", "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-an", out]);
   return out;
@@ -243,7 +262,7 @@ async function concatCrossfade(segs, durs, x, out) {
 }
 
 // Stitch: intro → each clip (with lower-third) → details → outro, crossfaded.
-export async function stitchShowcase({ clips, listing, dims, workDir, out, clipDuration = 5 }) {
+export async function stitchShowcase({ clips, listing, dims, workDir, out, clipDuration = 5, labels = [] }) {
   if (!videoToolingReady()) throw new Error("Video tooling unavailable (canvas/ffmpeg).");
   const [w, h] = dims;
   const logo = await loadLogo(listing.logoPath);
@@ -253,9 +272,9 @@ export async function stitchShowcase({ clips, listing, dims, workDir, out, clipD
   const intro = renderTitleCard(listing, w, h, path.join(workDir, "intro.png"), logo);
   segs.push(await stillToSegment(intro, INTRO, w, h, path.join(workDir, "seg-intro.mp4"))); durs.push(INTRO);
 
-  const lower = renderLowerThird(listing, w, h, path.join(workDir, "lower.png"), logo);
   for (let i = 0; i < clips.length; i++) {
-    segs.push(await clipToSegment(clips[i], lower, w, h, path.join(workDir, `seg-${i}.mp4`))); durs.push(clipDuration);
+    const ov = renderLowerThird(listing, w, h, path.join(workDir, `lower-${i}.png`), logo, labels[i]);
+    segs.push(await clipToSegment(clips[i], ov, w, h, path.join(workDir, `seg-${i}.mp4`))); durs.push(clipDuration);
   }
 
   const hasDetails = listing.lotSqft != null || listing.parking || listing.schoolDistrict || (listing.schools && listing.schools.length);
@@ -290,22 +309,23 @@ export function dimsFor(aspectRatio, resolution) {
 export async function kenBurnsClip(image, seconds, w, h, out, variantIdx = 0) {
   const frames = Math.max(2, Math.round(seconds * 30));
   const f = frames - 1;
-  // Each variant declares a target zoom (zt); the per-frame increment is derived
-  // so the full move completes within the clip — punchier on shorter clips.
+  // Ease-out the move (fast start, gentle settle) via a sine ramp s∈[0,1].
+  const s = `sin((on/${f})*(PI/2))`;
+  const zc = (zt) => `1+${(zt - 1).toFixed(4)}*${s}`;
+  const cx = "iw/2-(iw/zoom/2)", cy = "ih/2-(ih/zoom/2)";
   const variants = [
-    { zt: 1.24, x: "iw/2-(iw/zoom/2)", y: "ih/2-(ih/zoom/2)" },         // zoom-in center
-    { zt: 1.14, x: `(iw-iw/zoom)*on/${f}`, y: "ih/2-(ih/zoom/2)" },     // pan right (+slow zoom)
-    { zt: 1.14, x: `(iw-iw/zoom)*(1-on/${f})`, y: "ih/2-(ih/zoom/2)" }, // pan left
-    { zt: 1.16, x: "iw/2-(iw/zoom/2)", y: `(ih-ih/zoom)*(1-on/${f})` }, // pan up
-    { zt: 1.16, x: "iw/2-(iw/zoom/2)", y: `(ih-ih/zoom)*on/${f}` },     // pan down
-    { zt: 1.20, x: "iw/2-(iw/zoom/2)", y: "ih/2-(ih/zoom/2)" },         // zoom-in
+    { z: zc(1.22), x: cx, y: cy },                          // zoom-in center
+    { z: zc(1.12), x: `(iw-iw/zoom)*${s}`, y: cy },         // pan right (+zoom)
+    { z: zc(1.12), x: `(iw-iw/zoom)*(1-${s})`, y: cy },     // pan left
+    { z: zc(1.14), x: cx, y: `(ih-ih/zoom)*(1-${s})` },     // pan up
+    { z: zc(1.14), x: cx, y: `(ih-ih/zoom)*${s}` },         // pan down
+    { z: zc(1.18), x: cx, y: cy },                          // zoom-in
   ];
   const v = variants[variantIdx % variants.length];
-  const inc = ((v.zt - 1) / f).toFixed(6);
   const big = `${w * 2}:${h * 2}`;
   const vf =
     `scale=${big}:force_original_aspect_ratio=increase,crop=${big},` +
-    `zoompan=z='min(zoom+${inc},${v.zt})':d=${frames}:x='${v.x}':y='${v.y}':s=${w}x${h}:fps=30,format=yuv420p`;
+    `zoompan=z='${v.z}':d=${frames}:x='${v.x}':y='${v.y}':s=${w}x${h}:fps=30,format=yuv420p`;
   await run(["-y", "-loop", "1", "-i", image, "-t", String(seconds), "-vf", vf,
     "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-an", out]);
   return out;
