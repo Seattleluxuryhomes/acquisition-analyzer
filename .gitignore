@@ -28,3 +28,6 @@ scripts/generate-thumbnails.sh
 scripts/generate-thumbnails-*.sh
 scripts/generate-ab-variants*.sh
 scripts/regen-*.sh
+
+# Node (acquisition-analyzer app)
+node_modules/

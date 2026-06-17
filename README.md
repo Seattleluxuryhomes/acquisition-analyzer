@@ -59,7 +59,38 @@ ATTOM_API_KEY=xxx ANTHROPIC_API_KEY=yyy PORT=3000 npm start
 - Today: browser **Save as PDF** button (`window.print()`) with a print stylesheet — zero dependencies.
 - Server-side later: add `puppeteer`, render `/report/:id` to PDF in `server.js`. The report data is already a clean JSON object (`{data, report}`) ready to template.
 
-## 7. Notes
+## 7. Showcase Video Maker (Zillow → cinematic reveal)
+
+Turn a listing's photos into a branded cinematic tour video, powered by Arcads
+(Seedance 2.0 image-to-video) and stitched locally with bundled ffmpeg.
+
+**Flow:** paste a Zillow URL (or use the address above) → **Preview** pulls facts
+(ATTOM, plus Zillow price/photos if `RAPIDAPI_KEY` is set) and shows a credit
+estimate → drag in the listing photos → **Generate**. Each photo is animated with
+a slow camera move, then an intro title card + per-clip lower-thirds (address /
+price / beds·baths·sqft) + an outro are stitched into one MP4.
+
+**Why upload photos?** Zillow/Redfin/Realtor block automated scraping (HTTP 403).
+ATTOM gives the *facts* for any address but not listing *photos*. So photos are
+uploaded by hand (reliable), or auto-fetched via a RapidAPI Zillow provider if you
+add `RAPIDAPI_KEY`.
+
+**Keys:** add `ARCADS_BASIC_AUTH` (from https://app.arcads.ai/settings/api) to
+`.env`, or run `./scripts/setup.sh`. Optional: `RAPIDAPI_KEY` for Zillow auto-fetch.
+
+**Cost:** Seedance 2.0 i2v is ~48 credits/sec at 720p — e.g. 5 clips × 5s ≈ 1,200
+credits. The UI shows an estimate and requires confirmation before generating;
+credits are charged at generation time.
+
+**Endpoints:**
+- `POST /api/showcase/preview` `{zillowUrl?|address?, duration?, resolution?}` → resolved listing + estimate
+- `POST /api/showcase/start` `{zillowUrl?|address?, listing?, photos:[dataUrl], opts, confirm:true}` → `{jobId}`
+- `GET /api/showcase/job/:id` → `{status, progress[], result}` (poll; generation runs for minutes)
+
+Output MP4s land in `outputs/` (gitignored) and are served at `/outputs/...`.
+Local tooling (`ffmpeg-static`, `@napi-rs/canvas`) is bundled — no system installs.
+
+## 8. Notes
 - One Claude call per analysis; data is returned even if analysis errors.
 - ATTOM field names vary by plan/property — `attom.js` normalizes defensively (missing → `null` → "Not available" in the UI), never fabricates.
 - This is a research tool for licensed professionals — not legal/investment/appraisal advice (disclaimer rendered on every report).
