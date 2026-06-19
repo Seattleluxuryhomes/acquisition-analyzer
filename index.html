@@ -120,9 +120,33 @@ function render(d,r,analysisError){
     +fact("Owner-occupied",txt(o.ownerOccupied))
     +'</div></section>';
 
+  // comparable sales (computed from ATTOM nearby recent sales)
+  const cmp=d.comps||{};
+  if(cmp&&(cmp.count>0||cmp.arv)){
+    h+='<section class="block"><h2>Comparable sales</h2><div class="facts">'
+      +fact("Est. ARV",money(cmp.arv))
+      +fact("Median $/sqft",cmp.pricePerSqftMedian!=null?money(cmp.pricePerSqftMedian):"Not available")
+      +fact("Comps used",numf(cmp.count))
+      +fact("Search radius",cmp.radiusMi!=null?cmp.radiusMi+" mi":"Not available")
+      +fact("ARV basis",txt(cmp.arvBasis))
+      +fact("Filters",txt(cmp.filters))
+      +'</div>';
+    if(cmp.items&&cmp.items.length){
+      h+='<ul class="list">'+cmp.items.map(c=>'<li>'+esc(c.address||"Unknown address")
+        +' — '+money(c.saleAmount)+(c.saleDate?" ("+c.saleDate+")":"")
+        +(c.sqft?" · "+numf(c.sqft)+" sqft":"")
+        +(c.pricePerSqft?" · "+money(c.pricePerSqft)+"/sqft":"")
+        +(c.distanceMi!=null?" · "+c.distanceMi+" mi":"")+'</li>').join("")+'</ul>';
+    }
+    h+='</section>';
+  } else if(cmp&&cmp.status&&cmp.status!=="ok"&&cmp.status!=="not_attempted"){
+    h+='<section class="block"><h2>Comparable sales</h2><p>Comps unavailable ('+txt(cmp.status)+'). No ARV could be computed from nearby sales.</p></section>';
+  }
+
   if(r){
     h+=block("Property summary",r.propertySummary)
       +block("Ownership summary",r.ownershipSummary)
+      +block("Comps & ARV",r.compsAnalysis)
       +block("Value analysis",r.valueAnalysis)
       +block("Development potential",r.developmentPotential)
       +block("Offer strategy",r.offerStrategy)

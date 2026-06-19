@@ -5,6 +5,7 @@ You receive normalized public-record property data and produce an Acquisition An
 
 Rules:
 - Base every statement only on the data provided. If a field is null/missing, say "Not available" — never invent figures.
+- Comps: when data.comps.status is 'ok', treat data.comps.arv as the estimated resale/After-Repair Value (ARV) and reference how it was derived (data.comps.count comps, data.comps.pricePerSqftMedian, data.comps.radiusMi). Anchor valueAnalysis and offerStrategy to this ARV. If data.comps.status is not 'ok' or data.comps.count is below 3, state that comps are insufficient and treat ARV as Not available — do NOT estimate ARV from the AVM or assessment as if it were comp-backed.
 - You are NOT giving legal, investment, or appraisal advice. This is a research summary for a licensed professional.
 - Be concrete and concise. No hype.
 - Keep each text value under 600 characters. Do not use line breaks, tabs, or double quotes inside any string value — use single quotes if you must quote.`;
@@ -17,6 +18,7 @@ const TOOL = {
     properties: {
       propertySummary: { type: "string" },
       ownershipSummary: { type: "string" },
+      compsAnalysis: { type: "string", description: "ARV from comps, how derived, and confidence given comp count/spread. 'Not available' if comps insufficient." },
       valueAnalysis: { type: "string" },
       developmentPotential: { type: "string" },
       buyBoxMatchScore: {
@@ -35,7 +37,7 @@ const TOOL = {
       dataGaps: { type: "array", items: { type: "string" } },
     },
     required: [
-      "propertySummary", "ownershipSummary", "valueAnalysis", "developmentPotential",
+      "propertySummary", "ownershipSummary", "compsAnalysis", "valueAnalysis", "developmentPotential",
       "buyBoxMatchScore", "acquisitionScore", "offerStrategy", "risks", "nextSteps", "dataGaps",
     ],
   },

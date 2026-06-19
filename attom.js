@@ -54,16 +54,21 @@ export async function fetchProperty(full) {
 
   const normalized = normalize(prop, avm, assessmentProp, saleProp, ownerProp, mortgageProp);
 
-  // --- COMPS PROBE: nearby recent sales via lat/lng radius ---
+  // --- COMPS: nearby recent comparable sales via lat/lng radius, widening until enough ---
   let comps = { status: "not_attempted", count: 0, items: [], arv: null, pricePerSqftMedian: null };
   try {
     const lat = normalized.address.lat, lng = normalized.address.lng;
     if (lat && lng) {
-      const c = await attomGet("/propertyapi/v1.0.0/sale/snapshot", {
-        latitude: lat, longitude: lng, radius: 0.75,
-      });
-      const list = Array.isArray(c.json?.property) ? c.json.property : [];
-      comps = buildComps(list, normalized, c.status, c.text);
+      const tiers = [1, 2, 3]; // miles; larger radius is a strict superset of the smaller
+      for (const radius of tiers) {
+        const c = await attomGet("/propertyapi/v1.0.0/sale/snapshot", {
+          latitude: lat, longitude: lng, radius,
+        });
+        const list = Array.isArray(c.json?.property) ? c.json.property : [];
+        const probe = buildComps(list, normalized, c.status, c.text, { lat, lng, radius });
+        comps = probe;
+        if (probe.count >= 5) break; // good enough; don't keep paying for wider searches
+      }
     } else {
       comps.status = "no_geo";
     }
@@ -82,40 +87,93 @@ function median(nums) {
   return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2);
 }
 
-function buildComps(list, subject, httpStatus, rawText) {
+function haversineMiles(lat1, lon1, lat2, lon2) {
+  if ([lat1, lon1, lat2, lon2].some((v) => typeof v !== "number" || isNaN(v))) return null;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 3958.8; // Earth radius in miles
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function monthsAgoISO(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() - months);
+  return d.toISOString().slice(0, 10);
+}
+
+const NONRES = /(commercial|vacant|land|industrial|agric|office|retail|warehouse|mobile)/i;
+
+function buildComps(list, subject, httpStatus, rawText, geo) {
   const subjId = String(subject.attomId || "");
-  const items = [];
+  const subjSqft = subject.building?.livingSqft || subject.building?.sizeSqft || null;
+  const subjLat = geo?.lat ?? subject.address?.lat ?? null;
+  const subjLng = geo?.lng ?? subject.address?.lng ?? null;
+  const cutoff = monthsAgoISO(24); // recent sales only
+
+  const raw = [];
   for (const pr of list) {
     const id = pr?.identifier || {};
     if (String(id.attomId || "") === subjId) continue; // skip the subject itself
+
     const sale = pr?.sale || {};
-    const amt = sale?.amount?.saleamt ?? sale?.saleamt ?? null;
-    const date = sale?.salesearchdate ?? sale?.saleTransDate ?? sale?.amount?.salerecdate ?? null;
+    const amt = Number(sale?.amount?.saleamt ?? sale?.saleamt ?? 0) || 0;
+    if (amt < 1000) continue; // drop $0 / nominal / non-arms-length transfers
+
+    const date = sale?.amount?.salerecdate ?? sale?.salesearchdate ?? sale?.saleTransDate ?? null;
+    if (!date || String(date) < cutoff) continue; // must be a recent, dated sale
+
+    const type = pr?.summary?.propclass || pr?.summary?.proptype || pr?.summary?.propertyType || null;
+    if (type && NONRES.test(String(type))) continue; // residential-ish only
+
     const size = pr?.building?.size || {};
-    const sqft = size.universalsize ?? size.livingsize ?? size.bldgsize ?? null;
-    const addr = pr?.address?.oneLine || pr?.address?.line1 || null;
-    if (!amt) continue;
-    items.push({
-      address: addr,
-      saleAmount: Number(amt) || null,
-      saleDate: date,
-      sqft: Number(sqft) || null,
-      pricePerSqft: sqft && amt ? Math.round(Number(amt) / Number(sqft)) : null,
-      type: pr?.summary?.propclass || pr?.summary?.proptype || null,
+    const sqft = Number(size.universalsize ?? size.livingsize ?? size.bldgsize ?? 0) || null;
+    // living-area band: skip footprints far from the subject when both are known
+    if (subjSqft && sqft && (sqft < subjSqft * 0.6 || sqft > subjSqft * 1.5)) continue;
+
+    const cLat = Number(pr?.location?.latitude) || null;
+    const cLng = Number(pr?.location?.longitude) || null;
+    const dist = subjLat && subjLng ? haversineMiles(subjLat, subjLng, cLat, cLng) : null;
+
+    raw.push({
+      address: pr?.address?.oneLine || pr?.address?.line1 || null,
+      saleAmount: amt,
+      saleDate: String(date),
+      sqft,
+      pricePerSqft: sqft ? Math.round(amt / sqft) : null,
+      distanceMi: dist != null ? Math.round(dist * 100) / 100 : null,
+      type,
     });
   }
-  items.sort((a, b) => (b.saleDate || "").localeCompare(a.saleDate || ""));
-  const top = items.slice(0, 10);
+
+  // trim $/sqft outliers (a flip or teardown otherwise wrecks the ARV)
+  const ppsfAll = raw.map((r) => r.pricePerSqft).filter(Boolean);
+  const med = median(ppsfAll);
+  let filtered = raw;
+  if (med && ppsfAll.length >= 4) {
+    filtered = raw.filter((r) => !r.pricePerSqft || (r.pricePerSqft >= med * 0.5 && r.pricePerSqft <= med * 1.8));
+  }
+
+  // rank closest-and-most-recent first
+  filtered.sort((a, b) => {
+    const d = (a.distanceMi ?? 99) - (b.distanceMi ?? 99);
+    if (Math.abs(d) > 0.25) return d;
+    return (b.saleDate || "").localeCompare(a.saleDate || "");
+  });
+
+  const top = filtered.slice(0, 8);
   const ppsf = median(top.map((i) => i.pricePerSqft).filter(Boolean));
-  const subjSqft = subject.building?.livingSqft || subject.building?.sizeSqft || null;
   const arvFromPpsf = ppsf && subjSqft ? Math.round(ppsf * subjSqft) : null;
   const arvFromMedian = median(top.map((i) => i.saleAmount).filter(Boolean));
   return {
     status: top.length ? "ok" : (httpStatus === 200 ? "empty" : "http_" + httpStatus),
     count: top.length,
+    radiusMi: geo?.radius ?? null,
+    subjectSqft: subjSqft,
     pricePerSqftMedian: ppsf,
     arv: arvFromPpsf || arvFromMedian,
-    arvBasis: arvFromPpsf ? "median $/sqft × subject sqft" : (arvFromMedian ? "median comp sale price" : null),
+    arvBasis: arvFromPpsf ? "median $/sqft of comps × subject sqft" : (arvFromMedian ? "median comp sale price" : null),
+    filters: "≤" + (geo?.radius ?? "?") + "mi · last 24 mo · residential · living area within -40%/+50% of subject",
     items: top,
   };
 }
