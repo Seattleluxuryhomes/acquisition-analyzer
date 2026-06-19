@@ -1,3 +1,5 @@
+import { computeValuation } from "./valuation.js";
+
 const BASE = process.env.ATTOM_BASE || "https://api.gateway.attomdata.com";
 
 function headers() {
@@ -76,6 +78,7 @@ export async function fetchProperty(full) {
     comps.status = "error";
   }
   normalized.comps = comps;
+  normalized.valuationModel = computeValuation(normalized);
   normalized.source = "ATTOM full v7 (profile+avm+assessment+sales+owner+mortgage+comps)";
   return normalized;
 }

@@ -32,6 +32,7 @@
   .scorecard{display:flex;gap:12px;margin-bottom:22px}
   .sc{flex:1;background:linear-gradient(135deg,rgba(201,163,92,.13),var(--charcoal));border:1px solid var(--gold-dim);border-radius:14px;padding:18px 16px;text-align:center}
   .sc .v{font-family:var(--display);font-size:40px;color:var(--gold-bright);line-height:1}
+  .sc .v.val{font-size:29px;letter-spacing:.01em}
   .sc .l{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--silver);margin-top:8px}
   .sc .r{font-size:12px;color:var(--faint);margin-top:8px;line-height:1.45}
   section.block{border-top:1px solid var(--graphite);padding:18px 0}
@@ -102,6 +103,22 @@ function render(d,r,analysisError){
       +'</div>';
   } else if(analysisError){
     h+='<section class="block"><h2>Analysis unavailable</h2><p>'+txt(analysisError)+' — public-record data is shown below.</p></section>';
+  }
+
+  // estimated value + instant cash offer (reconciled from comps, AVM, assessment)
+  const vm=d.valuationModel||{};
+  if(vm.status==="ok"){
+    h+='<div class="scorecard">'
+      +'<div class="sc"><div class="v val">'+money(vm.estimate)+'</div><div class="l">Estimated value</div><div class="r">'
+        +(vm.low!=null?money(vm.low)+" – "+money(vm.high):"")
+        +(vm.pricePerSqft!=null?" · "+money(vm.pricePerSqft)+"/sqft":"")
+        +' · '+txt(vm.confidence)+' confidence · '+txt(vm.basis)+'</div></div>';
+    if(vm.offer){
+      h+='<div class="sc"><div class="v val">'+money(vm.offer.point)+'</div><div class="l">Cash offer</div><div class="r">'
+        +(vm.offer.low!=null?money(vm.offer.low)+" – "+money(vm.offer.high):"")
+        +' · after '+vm.offer.deductionPct+'% costs · excl. repairs</div></div>';
+    }
+    h+='</div>';
   }
 
   // facts (always from real ATTOM data)
