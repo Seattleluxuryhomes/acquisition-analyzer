@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<!--
+  BIDTRANSLATOR — working front-end prototype (functional reference for the build).
+  Single self-contained file: HTML + CSS + vanilla JS, no build step.
+
+  PRODUCT: a contractor captures a job conversation (voice/text), it's translated and
+  structured into a bid draft, the contractor prices it, and sends a clean client proposal.
+
+  FLOW per job: Notebook (capture/translation/scope/photos) -> Build the bid
+  (lines, fixed/hourly, who-furnishes split, private margin, upgrades) -> Client view (PDF).
+
+  DATA MODEL (see seedSample() and the job-creation functions):
+    job  = { id, title, from, to, transcript, translation, summary,
+             lines[], upgrades[], assumptions[], exclusions[], notes, margin, photos[] }
+    line = { id, desc, type:'fixed'|'hourly', price, hours, rate, furn:'you'|'client' }
+    settings = { company, name, phone, license, from, to }
+
+  KEY FILES TO READ ALONGSIDE THIS: Bidtranslator-Build-Spec.md and CLAUDE.md.
+
+  MUST CHANGE FOR PRODUCTION (do NOT keep as-is):
+    - aiExtract() calls the model directly from the browser. Move this server-side so the
+      API key is never exposed. Replace with a call to the backend /assist/build endpoint.
+    - Persistence uses local browser storage (window.storage). Replace with real accounts
+      + cloud database so jobs sync across devices.
+    - Consent/terms text is placeholder only — replace with reviewed wording.
+
+  NON-NEGOTIABLES (carry into the rebuild):
+    - margin and notes are PRIVATE and must never appear in the client view or PDF.
+    - Capture (voice/text/photos) must work offline and sync later.
+    - The app must still build bids by hand if the AI step is unavailable.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bidtranslator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#1F252C;--ink-soft:#2A323B;--ink-card:#252D36;
+    --kraft:#E7D8B6;--kraft-deep:#D9C599;--paper:#F3EEE3;
+    --amber:#EE9B2E;--amber-deep:#CF7F18;
+    --blueprint:#2E5C7E;--blueprint-deep:#1E4259;--rust:#A94E38;
+    --ok:#3E7D5A;
+    --line:rgba(243,238,227,.14);--line-ink:rgba(31,37,44,.16);
+    --muted:#9AA3AE;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"IBM Plex Sans",system-ui,sans-serif;background:var(--ink);color:var(--paper);-webkit-font-smoothing:antialiased;line-height:1.5}
+  .mono{font-family:"IBM Plex Mono",monospace}
+  .display{font-family:"Archivo",sans-serif;font-weight:800;letter-spacing:-.01em}
+  input,select,textarea,button{font-family:inherit;font-size:1rem}
+  button{cursor:pointer}
+  .app{max-width:760px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+
+  /* top bar */
+  .top{position:sticky;top:0;z-index:40;background:rgba(31,37,44,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .top-in{display:flex;align-items:center;justify-content:space-between;padding:12px 18px}
+  .brand{display:flex;align-items:center;gap:9px;font-family:"Archivo";font-weight:800;font-size:1rem}
+  .brand .mark{width:22px;height:22px;border-radius:4px;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono";font-weight:600;font-size:.78rem}
+  .brand b2{color:var(--amber)}
+  .top-actions{display:flex;gap:6px}
+  .icon-btn{background:transparent;border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:7px 12px;font-family:"IBM Plex Mono";font-size:.74rem;letter-spacing:.03em}
+  .icon-btn:hover{border-color:var(--amber);color:var(--amber)}
+  .icon-btn.active{background:var(--amber);color:var(--ink);border-color:var(--amber)}
+
+  main{flex:1;padding:18px}
+
+  /* buttons */
+  .btn{background:var(--amber);color:var(--ink);border:none;border-radius:6px;padding:13px 18px;font-family:"IBM Plex Mono";font-weight:600;font-size:.9rem;transition:transform .12s,background .12s}
+  .btn:hover{background:#FFB347;transform:translateY(-1px)}
+  .btn:disabled{opacity:.5;cursor:default;transform:none}
+  .btn.ghost{background:transparent;color:var(--paper);border:1px solid var(--line)}
+  .btn.ghost:hover{border-color:var(--amber);color:var(--amber);background:transparent}
+  .btn.blue{background:var(--blueprint);color:#fff}
+  .btn.blue:hover{background:#3a6e95}
+  .btn.full{width:100%;display:block}
+  .btn.sm{padding:8px 12px;font-size:.78rem}
+
+  /* headings */
+  .h-eyebrow{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--amber)}
+  h1.page{font-family:"Archivo";font-weight:900;font-size:1.7rem;margin:6px 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:.92rem}
+
+  /* job list */
+  .newbar{display:flex;justify-content:space-between;align-items:center;margin:18px 0 14px;gap:12px;flex-wrap:wrap}
+  .joblist{display:flex;flex-direction:column;gap:10px}
+  .jobcard{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:15px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;width:100%;color:var(--paper)}
+  .jobcard:hover{border-color:var(--amber)}
+  .jobcard .jt{font-family:"Archivo";font-weight:700;font-size:1.02rem}
+  .jobcard .jm{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted);margin-top:3px}
+  .jobcard .chev{color:var(--amber);font-family:"IBM Plex Mono"}
+  .langtag{display:inline-block;font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.06em;background:var(--blueprint-deep);color:#cfe3f0;padding:2px 7px;border-radius:3px;margin-left:6px}
+  .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
+  .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
+
+  /* forms */
+  label.fld{display:block;margin:16px 0 6px;font-family:"IBM Plex Mono";font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .input,textarea.input,select.input{width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:7px;padding:12px 13px}
+  .input:focus,textarea.input:focus,select.input:focus{outline:2px solid var(--amber);outline-offset:1px;border-color:transparent}
+  textarea.input{min-height:150px;resize:vertical;line-height:1.55}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row2 label.fld{margin-top:16px}
+
+  /* notebook sections */
+  .nb-sec{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:16px;margin-bottom:12px}
+  .nb-sec h3{font-family:"IBM Plex Mono";font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+  .nb-sec p{font-size:.95rem}
+  .nb-sec .quote{font-style:italic;color:#cdc7bb}
+  .nb-list{list-style:none;display:flex;flex-direction:column;gap:7px}
+  .nb-list li{font-size:.92rem;padding-left:16px;position:relative}
+  .nb-list li::before{content:"–";position:absolute;left:0;color:var(--blueprint)}
+  .nb-list.excl li::before{content:"\2717";color:var(--rust)}
+  .nb-list.up li::before{content:"+";color:var(--amber)}
+
+  /* bid builder */
+  .line{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:13px;margin-bottom:10px}
+  .line .ltop{display:flex;gap:8px;align-items:flex-start}
+  .line .ldesc{flex:1;background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:9px 10px;font-size:.92rem}
+  .line .del{background:transparent;border:none;color:var(--muted);font-size:1.1rem;padding:4px 8px}
+  .line .del:hover{color:var(--rust)}
+  .line .lctl{display:grid;grid-template-columns:auto 1fr 1fr auto;gap:8px;align-items:center;margin-top:9px}
+  .line select.mini,.line input.mini{background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:8px 9px;font-family:"IBM Plex Mono";font-size:.8rem;width:100%}
+  .line .lt-amt{text-align:right;font-family:"IBM Plex Mono";font-weight:600;color:var(--amber);white-space:nowrap;font-size:.9rem}
+  .furn{display:flex;gap:6px;margin-top:9px}
+  .furn button{flex:1;background:var(--ink-soft);border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:7px;font-family:"IBM Plex Mono";font-size:.72rem}
+  .furn button.on{background:var(--blueprint);color:#fff;border-color:var(--blueprint)}
+  .hourly-only{display:contents}
+
+  .totbar{background:var(--ink-soft);border:1px solid var(--line);border-radius:9px;padding:14px 16px;margin:14px 0;display:flex;justify-content:space-between;align-items:center}
+  .totbar .tl{font-family:"IBM Plex Mono";font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .totbar .tv{font-family:"Archivo";font-weight:900;font-size:1.6rem;color:var(--amber)}
+  .private{background:rgba(46,92,126,.14);border:1px solid var(--blueprint);border-radius:8px;padding:12px 14px;margin-bottom:12px}
+  .private .pl{font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:#8fb6d0}
+
+  /* client view */
+  .client{background:var(--paper);color:var(--ink);border-radius:10px;padding:0;overflow:hidden;border:1px solid var(--kraft-deep)}
+  .client-head{background:var(--ink);color:var(--paper);padding:22px 24px}
+  .client-head .co{font-family:"Archivo";font-weight:800;font-size:1.4rem}
+  .client-head .meta{font-family:"IBM Plex Mono";font-size:.74rem;color:#b9c2cc;margin-top:4px}
+  .client-body{padding:22px 24px}
+  .client-body h4{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blueprint);margin:18px 0 10px}
+  .client-body h4:first-child{margin-top:0}
+  .cline{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--line-ink);font-size:.95rem}
+  .cline .cd{color:var(--ink)}
+  .cline .cd small{display:block;color:#8a7f68;font-family:"IBM Plex Mono";font-size:.68rem;margin-top:2px}
+  .cline .ca{font-family:"IBM Plex Mono";font-weight:600;white-space:nowrap}
+  .ctotal{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:14px;border-top:2px solid var(--ink)}
+  .ctotal .l{font-family:"Archivo";font-weight:800;font-size:1.05rem}
+  .ctotal .v{font-family:"Archivo";font-weight:900;font-size:1.5rem;color:var(--blueprint-deep)}
+  .cup{display:flex;justify-content:space-between;gap:14px;padding:8px 0;font-size:.92rem;color:#3a424c;border-bottom:1px dashed var(--line-ink)}
+  .cup .ca{font-family:"IBM Plex Mono";font-weight:600;color:var(--amber-deep)}
+  .cnote{font-family:"IBM Plex Mono";font-size:.72rem;color:#8a7f68;margin-top:5px}
+  .cexcl{font-size:.88rem;color:#5a5240;padding-left:15px;position:relative;margin-top:6px}
+  .cexcl::before{content:"\2717";position:absolute;left:0;color:var(--rust)}
+  .cfoot{font-family:"IBM Plex Mono";font-size:.7rem;color:#8a7f68;border-top:1px solid var(--line-ink);padding:14px 24px;background:var(--kraft)}
+
+  /* misc */
+  .backlink{background:transparent;border:none;color:var(--muted);font-family:"IBM Plex Mono";font-size:.8rem;padding:0;margin-bottom:14px}
+  .backlink:hover{color:var(--amber)}
+  .tabbar{display:flex;gap:6px;margin:14px 0 16px;background:var(--ink-soft);padding:5px;border-radius:9px;border:1px solid var(--line)}
+  .tabbar button{flex:1;background:transparent;border:none;color:var(--muted);padding:9px;border-radius:6px;font-family:"IBM Plex Mono";font-size:.76rem;letter-spacing:.04em}
+  .tabbar button.on{background:var(--amber);color:var(--ink);font-weight:600}
+  .loadingbox{text-align:center;padding:30px;border:1px dashed var(--line);border-radius:10px}
+  .spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--amber);border-radius:50%;margin:0 auto 12px;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .err{background:rgba(169,78,56,.16);border:1px solid var(--rust);border-radius:8px;padding:12px 14px;font-size:.88rem;margin-top:12px}
+  .hint{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted);margin-top:8px}
+  .addline{margin-top:4px}
+
+  @media(max-width:520px){
+    .row2{grid-template-columns:1fr}
+    .line .lctl{grid-template-columns:auto 1fr 1fr;}
+    .line .lt-amt{grid-column:1/-1;text-align:left;margin-top:4px}
+  }
+
+  /* voice + photos */
+  .cap-tools{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .mic{display:inline-flex;align-items:center;gap:9px;background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:11px 16px;font-family:"IBM Plex Mono";font-size:.84rem}
+  .mic:hover{border-color:var(--amber);color:var(--amber)}
+  .mic.rec{background:var(--rust);border-color:var(--rust);color:#fff}
+  .mic .dot{width:9px;height:9px;border-radius:50%;background:currentColor}
+  .mic.rec .dot{animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+  .mic-note{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted)}
+  .photogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:2px}
+  .thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .x{position:absolute;top:3px;right:3px;background:rgba(31,37,44,.82);color:#fff;border:none;border-radius:50%;width:23px;height:23px;font-size:.78rem;line-height:1;display:flex;align-items:center;justify-content:center}
+  .addphoto{display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;aspect-ratio:1;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-family:"IBM Plex Mono";font-size:.72rem;background:transparent}
+  .addphoto:hover{border-color:var(--amber);color:var(--amber)}
+
+  .consent{margin-top:14px;background:var(--ink-card);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .consent label{display:flex;gap:10px;align-items:flex-start;font-size:.86rem;color:#cdc7bb;cursor:pointer}
+  .consent input{margin-top:3px;width:17px;height:17px;accent-color:var(--amber);flex-shrink:0}
+  .consent-fine{font-family:"IBM Plex Mono";font-size:.66rem;color:var(--muted);margin-top:8px;padding-left:27px}
+  .legalbox{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:16px;margin-top:18px}
+  .legalbox h3{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+  .legalbox p{font-size:.84rem;color:#cdc7bb;margin-bottom:8px}
+  .legalbox .consent-fine{padding-left:0}
+
+  /* PRINT */
+  #printArea{display:none}
+  @media print{
+    body{background:#fff}
+    .app,.top,main{all:unset}
+    body *{visibility:hidden}
+    #printArea,#printArea *{visibility:visible}
+    #printArea{display:block;position:absolute;left:0;top:0;width:100%}
+    .client{border:none;border-radius:0}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="top-in">
+      <div class="brand"><span class="mark">B</span>Bid<b2>translator</b2></div>
+      <div class="top-actions">
+        <button class="icon-btn" id="navJobs" onclick="go('home')">Jobs</button>
+        <button class="icon-btn" id="navSet" onclick="go('settings')">Setup</button>
+      </div>
+    </div>
+  </div>
+  <main id="view"></main>
+</div>
+<div id="printArea"></div>
+
+<script>
+/* ============ state ============ */
+const HAS_STORE = typeof window!=='undefined' && window.storage && typeof window.storage.get==='function';
+const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'' };
+let JOBS = [];
+let SETTINGS = { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en' };
+
+const LANGS = {en:'English', es:'Español', ru:'Русский', pt:'Português', fr:'Français', zh:'中文'};
+const uid = () => Math.random().toString(36).slice(2,9);
+const money = n => '$' + (Math.round((+n||0))).toLocaleString('en-US');
+
+/* ============ persistence ============ */
+async function loadAll(){
+  if(!HAS_STORE) return;
+  try{ const r = await window.storage.get('bt_jobs'); if(r&&r.value) JOBS = JSON.parse(r.value); }catch(e){}
+  try{ const s = await window.storage.get('bt_settings'); if(s&&s.value) SETTINGS = Object.assign(SETTINGS, JSON.parse(s.value)); }catch(e){}
+}
+let saveT;
+function saveJobs(){ if(!HAS_STORE) return; clearTimeout(saveT); saveT=setTimeout(async()=>{ try{ await window.storage.set('bt_jobs', JSON.stringify(JOBS)); }catch(e){} },400); }
+async function saveSettings(){ if(!HAS_STORE) return; try{ await window.storage.set('bt_settings', JSON.stringify(SETTINGS)); }catch(e){} }
+
+/* ============ sample seed ============ */
+function seedSample(){
+  JOBS.push({
+    id:uid(), title:'Martinez — Kitchen & Bath', created:Date.now(),
+    from:'es', to:'en',
+    transcript:'El cliente quiere rehacer el baño completo: azulejo nuevo en piso y pared, cambiar el lavabo y el inodoro. En la cocina, pintar todo y poner una isla nueva. Pregunta si podemos terminar en tres semanas. Él va a comprar los azulejos y el lavabo.',
+    translation:'The client wants to redo the full bathroom: new tile on floor and walls, replace the sink and toilet. In the kitchen, paint everything and add a new island. He asks if we can finish in three weeks. He will buy the tile and the sink himself.',
+    summary:'Full bathroom remodel (tile, sink, toilet) plus kitchen paint and a new island. Three-week target. Client is supplying tile and bathroom sink.',
+    lines:[
+      {id:uid(),desc:'Demo existing bathroom',type:'fixed',price:640,hours:0,rate:0,furn:'you'},
+      {id:uid(),desc:'Install tile — floor & walls',type:'fixed',price:2150,hours:0,rate:0,furn:'you'},
+      {id:uid(),desc:'Install client-supplied sink & new toilet',type:'fixed',price:880,hours:0,rate:0,furn:'you'},
+      {id:uid(),desc:'Paint kitchen',type:'hourly',price:0,hours:14,rate:55,furn:'you'},
+      {id:uid(),desc:'Build & install kitchen island',type:'fixed',price:1850,hours:0,rate:0,furn:'you'},
+      {id:uid(),desc:'Bathroom tile (material)',type:'fixed',price:0,hours:0,rate:0,furn:'client'}
+    ],
+    upgrades:[
+      {desc:'Heated bathroom floor',price:1200},
+      {desc:'Upgraded island countertop (quartz)',price:950}
+    ],
+    assumptions:['Work completed within 3 weeks of start','Standard fixtures unless noted','Client-supplied items on site before install'],
+    exclusions:['Bathroom tile and sink (client-supplied)','Permits','Electrical beyond existing circuits'],
+    notes:'', margin:20, photos:[]
+  });
+  saveJobs();
+}
+
+/* ============ routing ============ */
+function go(v, jobId){ state.view=v; if(jobId!==undefined) state.jobId=jobId; state.error=''; render(); window.scrollTo(0,0); }
+function currentJob(){ return JOBS.find(j=>j.id===state.jobId); }
+
+/* ============ render ============ */
+function render(){
+  document.getElementById('navJobs').classList.toggle('active', state.view==='home'||state.view==='capture'||state.view==='job');
+  document.getElementById('navSet').classList.toggle('active', state.view==='settings');
+  const v = document.getElementById('view');
+  if(state.view==='home') v.innerHTML = viewHome();
+  else if(state.view==='capture') v.innerHTML = viewCapture();
+  else if(state.view==='job') v.innerHTML = viewJob();
+  else if(state.view==='settings') v.innerHTML = viewSettings();
+  bindDynamic();
+}
+
+/* ---------- HOME ---------- */
+function viewHome(){
+  let list;
+  if(JOBS.length===0){
+    list = `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="go('capture','new')">+ New job</button></div></div>`;
+  } else {
+    list = '<div class="joblist">' + JOBS.slice().reverse().map(j=>{
+      const total = bidTotal(j);
+      return `<button class="jobcard" onclick="go('job','${j.id}')">
+        <div><div class="jt">${esc(j.title)||'Untitled job'}</div>
+        <div class="jm">${money(total)} · ${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}<span class="langtag">${(j.lines||[]).length} lines</span></div></div>
+        <span class="chev">→</span></button>`;
+    }).join('') + '</div>';
+  }
+  return `<div class="h-eyebrow">Job notebook</div><h1 class="page">Your jobs</h1>
+    <div class="newbar"><div class="sub">${JOBS.length} ${JOBS.length===1?'job':'jobs'}</div>
+    <button class="btn sm" onclick="go('capture','new')">+ New job</button></div>${list}`;
+}
+
+/* ---------- CAPTURE ---------- */
+function viewCapture(){
+  if(state.loading){
+    return `<button class="backlink" onclick="go('home')">← Jobs</button>
+    <div class="loadingbox"><div class="spinner"></div>
+    <div class="mono" style="font-size:.84rem">Translating and building your bid draft…</div>
+    <div class="hint">Reading the conversation, structuring the scope.</div></div>`;
+  }
+  return `<button class="backlink" onclick="go('home')">← Jobs</button>
+    <div class="h-eyebrow">Step 1 · Capture</div><h1 class="page">Talk through the job</h1>
+    <div class="sub">Type or paste the conversation in your language. We'll translate it and turn it into a bid draft.</div>
+
+    <label class="fld">Job name</label>
+    <input id="capTitle" class="input" placeholder="e.g. Martinez — Kitchen remodel" />
+
+    <div class="row2">
+      <div><label class="fld">You speak</label>
+      <select id="capFrom" class="input">${langOpts(SETTINGS.from)}</select></div>
+      <div><label class="fld">Client reads</label>
+      <select id="capTo" class="input">${langOpts(SETTINGS.to)}</select></div>
+    </div>
+
+    <label class="fld">The conversation</label>
+    <textarea id="capText" class="input" placeholder="Describe the job the way you'd say it on site…"></textarea>
+    <div class="cap-tools">
+      ${speechSupported()
+        ? `<button class="mic" id="micBtn" onclick="toggleMic()"><span class="dot"></span><span class="lbl">Dictate</span></button><span class="mic-note">Speak — it types for you.</span>`
+        : `<span class="mic-note">Voice input isn't supported in this browser — type or paste instead.</span>`}
+    </div>
+
+    <div class="hint">Tip: include what they want, anything they'll supply, and any deadline.</div>
+
+    <div class="consent">
+      <label><input type="checkbox" id="capConsent"/> <span>When my area requires it, I'll let the other person know the conversation is being captured.</span></label>
+      <div class="consent-fine">Placeholder wording — not legal advice. Final consent terms to be reviewed before launch.</div>
+    </div>
+    ${state.error?`<div class="err">${esc(state.error)}</div>`:''}
+
+    <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="buildFromConversation()">Build the bid draft →</button>
+      <button class="btn ghost" onclick="buildManual()">Skip — build manually</button>
+    </div>
+    <div class="hint" style="margin-top:14px">Or <a href="#" onclick="loadSampleAndBuild();return false;" style="color:var(--amber)">load a sample conversation</a> to see it work.</div>`;
+}
+function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join(''); }
+
+function loadSampleAndBuild(){
+  document.getElementById('capTitle').value='Reyes — Bathroom remodel';
+  document.getElementById('capFrom').value='es';
+  document.getElementById('capTo').value='en';
+  document.getElementById('capText').value='La señora quiere un baño nuevo. Quitar la bañera vieja y poner una ducha grande con azulejo. Cambiar el lavabo y las luces. También arreglar el piso que está dañado. Ella compra la grifería. Quiere terminar antes de las fiestas.';
+}
+
+function newJobFromForm(){
+  const title=(document.getElementById('capTitle').value||'').trim();
+  const from=document.getElementById('capFrom').value, to=document.getElementById('capTo').value;
+  const text=(document.getElementById('capText').value||'').trim();
+  return {title,from,to,text};
+}
+
+function buildManual(){
+  const f=newJobFromForm();
+  const job={id:uid(),title:f.title||'Untitled job',created:Date.now(),from:f.from,to:f.to,
+    transcript:f.text,translation:'',summary:'',lines:[],upgrades:[],assumptions:[],exclusions:[],notes:'',margin:20,photos:[]};
+  JOBS.push(job); saveJobs(); state.bidTab='build'; go('job',job.id);
+}
+
+async function buildFromConversation(){
+  const f=newJobFromForm();
+  if(!f.text){ state.error='Add the conversation first, or choose “build manually”.'; render(); return; }
+  state.loading=true; state.error=''; render();
+  let data=null;
+  try{ data = await aiExtract(f.text, f.from, f.to); }
+  catch(e){ data=null; state.error='Could not reach the assistant. Your job was created — you can fill it in by hand.'; }
+  const job={id:uid(),title:f.title||'Untitled job',created:Date.now(),from:f.from,to:f.to,
+    transcript:f.text,
+    translation:data?data.translation||'':'',
+    summary:data?data.summary||'':'',
+    lines:(data&&Array.isArray(data.lines)?data.lines:[]).slice(0,8).map(l=>({
+      id:uid(),desc:String(l.desc||'').slice(0,120),
+      type:(l.type==='hourly'?'hourly':'fixed'),
+      price:+l.price||0, hours:+l.hours||0, rate:+l.rate||0, furn:'you'
+    })),
+    upgrades:(data&&Array.isArray(data.upgrades)?data.upgrades:[]).slice(0,4).map(u=>({desc:String(u.desc||''),price:+u.price||0})),
+    assumptions:(data&&Array.isArray(data.assumptions)?data.assumptions:[]).map(String),
+    exclusions:(data&&Array.isArray(data.exclusions)?data.exclusions:[]).map(String),
+    notes:'', margin:20, photos:[]
+  };
+  JOBS.push(job); saveJobs();
+  state.loading=false; state.bidTab='notebook'; go('job',job.id);
+}
+
+/* ---------- AI extract via in-Claude API ---------- */
+async function aiExtract(text, from, to){
+  const sys = 'You are an estimating assistant for construction contractors. Translate the field conversation and turn it into a structured bid draft. Respond with ONLY valid minified JSON, no markdown fences and no commentary, matching exactly: {"translation":string,"summary":string,"lines":[{"desc":string,"type":"fixed"|"hourly","price":number,"hours":number,"rate":number}],"assumptions":[string],"exclusions":[string],"upgrades":[{"desc":string,"price":number}]}. Rules: at most 6 lines, at most 4 upgrades. For a fixed line set price and use hours 0 and rate 0. For an hourly line set hours and rate and price 0. Prices are rough USD placeholders the contractor will edit. If the client is supplying a material, add it as an exclusion. Translate from '+(LANGS[from]||from)+' to '+(LANGS[to]||to)+'. The "translation" field is the conversation rendered in '+(LANGS[to]||to)+'.';
+  const res = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000,
+      messages:[{role:'user',content:sys+'\n\nCONVERSATION:\n'+text}] })
+  });
+  if(!res.ok) throw new Error('http '+res.status);
+  const out = await res.json();
+  let txt = (out.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+  txt = txt.replace(/```json/gi,'').replace(/```/g,'').trim();
+  try{ return JSON.parse(txt); }
+  catch(e){
+    const a=txt.indexOf('{'), b=txt.lastIndexOf('}');
+    if(a>=0&&b>a) return JSON.parse(txt.slice(a,b+1));
+    throw e;
+  }
+}
+
+/* ---------- JOB (notebook / build / client) ---------- */
+function viewJob(){
+  const j=currentJob(); if(!j) return viewHome();
+  const tabs=`<div class="tabbar">
+    <button class="${state.bidTab==='notebook'?'on':''}" onclick="setTab('notebook')">Notebook</button>
+    <button class="${state.bidTab==='build'?'on':''}" onclick="setTab('build')">Build the bid</button>
+    <button class="${state.bidTab==='client'?'on':''}" onclick="setTab('client')">Client view</button></div>`;
+  const head=`<button class="backlink" onclick="go('home')">← Jobs</button>
+    <h1 class="page" style="font-size:1.4rem">${esc(j.title)||'Untitled job'}</h1>
+    <div class="sub">${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}</div>${tabs}`;
+  let body='';
+  if(state.bidTab==='notebook') body=tabNotebook(j);
+  else if(state.bidTab==='build') body=tabBuild(j);
+  else body=tabClient(j);
+  return head+body;
+}
+function setTab(t){ state.bidTab=t; render(); window.scrollTo(0,0); }
+
+function tabNotebook(j){
+  const sec=(label,html)=>`<div class="nb-sec"><h3>${label}</h3>${html}</div>`;
+  let out='';
+  out+=sec('What you captured · '+(LANGS[j.from]||j.from), `<p class="quote">${esc(j.transcript)||'—'}</p>`);
+  if(j.translation) out+=sec('In '+(LANGS[j.to]||j.to), `<p>${esc(j.translation)}</p>`);
+  if(j.summary) out+=sec('Scope summary', `<p>${esc(j.summary)}</p>`);
+  if(j.assumptions&&j.assumptions.length) out+=sec('Assumptions', `<ul class="nb-list">${j.assumptions.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>`);
+  if(j.exclusions&&j.exclusions.length) out+=sec('Exclusions', `<ul class="nb-list excl">${j.exclusions.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>`);
+  if(j.upgrades&&j.upgrades.length) out+=sec('Upgrade opportunities', `<ul class="nb-list up">${j.upgrades.map(u=>`<li>${esc(u.desc)} — ${money(u.price)}</li>`).join('')}</ul>`);
+  const photos=j.photos||[];
+  out+=`<div class="nb-sec"><h3>Photos</h3><div class="photogrid">${
+    photos.map((p,i)=>`<div class="thumb"><img src="${p}" alt="job photo"/><button class="x" onclick="delPhoto(${i})" title="Remove">✕</button></div>`).join('')
+  }<button class="addphoto" onclick="pickPhoto()"><span style="font-size:1.3rem;line-height:1">+</span>Add</button></div>
+  <input id="photoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="handlePhotos(this)"/></div>`;
+  out+=`<div style="margin-top:14px"><button class="btn full" onclick="setTab('build')">Build the bid →</button></div>`;
+  return out;
+}
+
+function lineAmt(l){ return l.type==='hourly' ? (+l.hours||0)*(+l.rate||0) : (+l.price||0); }
+function bidTotal(j){ return (j.lines||[]).filter(l=>l.furn!=='client').reduce((s,l)=>s+lineAmt(l),0); }
+
+function tabBuild(j){
+  let lines = (j.lines||[]).map((l,i)=>{
+    const isH = l.type==='hourly';
+    return `<div class="line">
+      <div class="ltop">
+        <input class="ldesc" value="${escAttr(l.desc)}" oninput="updLine('${l.id}','desc',this.value)" placeholder="Describe the work or item"/>
+        <button class="del" onclick="delLine('${l.id}')" title="Remove">✕</button>
+      </div>
+      <div class="lctl">
+        <select class="mini" onchange="updLine('${l.id}','type',this.value)">
+          <option value="fixed" ${!isH?'selected':''}>Fixed</option>
+          <option value="hourly" ${isH?'selected':''}>Hourly</option>
+        </select>
+        ${ isH
+          ? `<input class="mini" type="number" min="0" value="${l.hours||0}" oninput="updLine('${l.id}','hours',this.value)" placeholder="hrs"/>
+             <input class="mini" type="number" min="0" value="${l.rate||0}" oninput="updLine('${l.id}','rate',this.value)" placeholder="$/hr"/>`
+          : `<input class="mini" type="number" min="0" value="${l.price||0}" oninput="updLine('${l.id}','price',this.value)" placeholder="price"/>
+             <span></span>` }
+        <span class="lt-amt" data-lid="${l.id}">${l.furn==='client'?'by client':money(lineAmt(l))}</span>
+      </div>
+      <div class="furn">
+        <button class="${l.furn!=='client'?'on':''}" onclick="updLine('${l.id}','furn','you')">You furnish</button>
+        <button class="${l.furn==='client'?'on':''}" onclick="updLine('${l.id}','furn','client')">Client furnishes</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const total=bidTotal(j);
+  const withMargin = Math.round(total*(1+(+j.margin||0)/100));
+  const ups=(j.upgrades||[]).map((u,i)=>`<div class="line"><div class="ltop">
+      <input class="ldesc" value="${escAttr(u.desc)}" oninput="updUp(${i},'desc',this.value)" placeholder="Optional upgrade"/>
+      <button class="del" onclick="delUp(${i})">✕</button></div>
+      <div class="lctl"><span class="mono" style="font-size:.74rem;color:var(--muted)">add-on</span>
+      <input class="mini" type="number" min="0" value="${u.price||0}" oninput="updUp(${i},'price',this.value)"/>
+      <span></span><span class="lt-amt">${money(u.price)}</span></div></div>`).join('');
+
+  return `<div class="h-eyebrow" style="margin-bottom:8px">Step 2 · Private estimating</div>
+    ${lines||'<div class="hint">No line items yet.</div>'}
+    <button class="btn ghost full addline" onclick="addLine()">+ Add line</button>
+
+    <div class="totbar"><span class="tl">Bid total</span><span class="tv">${money(total)}</span></div>
+
+    <div class="private"><div class="pl">Private — not shown to client</div>
+      <label class="fld" style="margin-top:8px">Target margin %</label>
+      <input class="input" type="number" min="0" value="${j.margin||0}" oninput="updJob('margin',this.value)" style="max-width:140px"/>
+      <div class="hint">At ${(+j.margin||0)}% margin, target ≈ <b style="color:var(--paper)">${money(withMargin)}</b>. Adjust your line prices to hit it.</div>
+    </div>
+
+    <h3 style="font-family:'IBM Plex Mono';font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin:18px 0 10px">Optional upgrades</h3>
+    ${ups||'<div class="hint">No upgrades yet — these show as options on the proposal.</div>'}
+    <button class="btn ghost full addline" onclick="addUp()">+ Add upgrade</button>
+
+    <div style="margin-top:18px"><button class="btn blue full" onclick="setTab('client')">Preview client view →</button></div>`;
+}
+
+function tabClient(j){
+  const html = clientHTML(j);
+  return `<div class="h-eyebrow" style="margin-bottom:8px">Step 3 · What the client sees</div>
+    ${html}
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="printClient()">Save / Print PDF</button>
+      <button class="btn ghost" onclick="setTab('build')">← Edit bid</button>
+    </div>
+    <div class="hint" style="margin-top:10px">On your phone: tap Save / Print, then choose “Save as PDF” to email it.</div>`;
+}
+
+function clientHTML(j){
+  const baseLines=(j.lines||[]).filter(l=>l.furn!=='client');
+  const clientLines=(j.lines||[]).filter(l=>l.furn==='client');
+  const total=bidTotal(j);
+  const dt=new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+  return `<div class="client">
+    <div class="client-head">
+      <div class="co">${esc(SETTINGS.company)||'Your Company'}</div>
+      <div class="meta">${[SETTINGS.name,SETTINGS.phone,SETTINGS.license?('Lic. '+SETTINGS.license):''].filter(Boolean).map(esc).join(' · ')||'Add your details in Setup'}</div>
+    </div>
+    <div class="client-body">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div><h4 style="margin-top:0">Proposal for</h4><div style="font-weight:600">${esc(j.title)||'Project'}</div></div>
+        <div class="cnote">${dt}</div>
+      </div>
+      <h4>Scope of work</h4>
+      ${baseLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${l.type==='hourly'?`<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`:''}</div><div class="ca">${money(lineAmt(l))}</div></div>`).join('')||'<div class="cnote">No items yet.</div>'}
+      <div class="ctotal"><span class="l">Total</span><span class="v">${money(total)}</span></div>
+
+      ${clientLines.length?`<h4>Provided by client</h4>${clientLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)}</div><div class="ca" style="color:#8a7f68">by client</div></div>`).join('')}`:''}
+
+      ${(j.upgrades||[]).length?`<h4>Optional upgrades</h4>${j.upgrades.map(u=>`<div class="cup"><span>${esc(u.desc)}</span><span class="ca">+ ${money(u.price)}</span></div>`).join('')}`:''}
+
+      ${(j.exclusions||[]).length?`<h4>Not included</h4>${j.exclusions.map(e=>`<div class="cexcl">${esc(e)}</div>`).join('')}`:''}
+      ${(j.assumptions||[]).length?`<h4>Notes</h4>${j.assumptions.map(a=>`<div class="cnote">• ${esc(a)}</div>`).join('')}`:''}
+    </div>
+    <div class="cfoot">This is an estimate, not a contract. Pricing valid 30 days from the date above.</div>
+  </div>`;
+}
+
+function printClient(){
+  const j=currentJob(); if(!j) return;
+  document.getElementById('printArea').innerHTML = clientHTML(j);
+  window.print();
+}
+
+/* ---------- SETTINGS ---------- */
+function viewSettings(){
+  return `<div class="h-eyebrow">Setup</div><h1 class="page">Your business</h1>
+    <div class="sub">This appears on the proposals you send. Stored on this device.</div>
+    <label class="fld">Company name</label>
+    <input class="input" value="${escAttr(SETTINGS.company)}" oninput="setS('company',this.value)"/>
+    <div class="row2">
+      <div><label class="fld">Your name</label><input class="input" value="${escAttr(SETTINGS.name)}" oninput="setS('name',this.value)"/></div>
+      <div><label class="fld">Phone</label><input class="input" value="${escAttr(SETTINGS.phone)}" oninput="setS('phone',this.value)"/></div>
+    </div>
+    <label class="fld">License # (optional)</label>
+    <input class="input" value="${escAttr(SETTINGS.license)}" oninput="setS('license',this.value)" style="max-width:240px"/>
+    <div class="row2">
+      <div><label class="fld">Default — you speak</label><select class="input" onchange="setS('from',this.value)">${langOpts(SETTINGS.from)}</select></div>
+      <div><label class="fld">Default — client reads</label><select class="input" onchange="setS('to',this.value)">${langOpts(SETTINGS.to)}</select></div>
+    </div>
+    <div class="legalbox">
+      <h3>Terms &amp; privacy (placeholder)</h3>
+      <p>Conversations, transcripts, photos, and bids you create belong to you. They're stored for your use, and you can delete them at any time. Bidtranslator is a tool for preparing estimates — bids you send are agreements between you and your client, not us.</p>
+      <p>Where your area requires it, let the other party know when a conversation is being captured.</p>
+      <label style="display:flex;gap:10px;align-items:flex-start;font-size:.86rem;color:#cdc7bb;cursor:pointer;margin-top:6px">
+        <input type="checkbox" id="setTerms" style="margin-top:3px;width:17px;height:17px;accent-color:var(--amber);flex-shrink:0"/>
+        <span>I understand and agree to the terms above.</span>
+      </label>
+      <div class="consent-fine">Placeholder language only — replace with reviewed terms before launch.</div>
+    </div>
+
+    <div style="margin-top:20px"><button class="btn" onclick="go('home')">Done</button></div>`;
+}
+function setS(k,v){ SETTINGS[k]=v; saveSettings(); }
+
+/* ---------- mutations ---------- */
+function addLine(){ const j=currentJob(); j.lines.push({id:uid(),desc:'',type:'fixed',price:0,hours:0,rate:0,furn:'you'}); saveJobs(); render(); }
+function delLine(id){ const j=currentJob(); j.lines=j.lines.filter(l=>l.id!==id); saveJobs(); render(); }
+function updLine(id,k,v){ const j=currentJob(); const l=j.lines.find(x=>x.id===id); if(!l)return;
+  if(k==='price'||k==='hours'||k==='rate') l[k]=+v||0; else l[k]=v;
+  saveJobs();
+  if(k==='type'||k==='furn') render(); else refreshTotals(j);
+}
+function addUp(){ const j=currentJob(); j.upgrades.push({desc:'',price:0}); saveJobs(); render(); }
+function delUp(i){ const j=currentJob(); j.upgrades.splice(i,1); saveJobs(); render(); }
+function updUp(i,k,v){ const j=currentJob(); if(k==='price') j.upgrades[i][k]=+v||0; else j.upgrades[i][k]=v; saveJobs(); }
+function updJob(k,v){ const j=currentJob(); j[k]=(k==='margin')?(+v||0):v; saveJobs(); if(k==='margin') refreshTotals(j); }
+
+function refreshTotals(j){
+  // light update of total + each line amount without full re-render (keeps inputs focused)
+  const tot=document.querySelector('.totbar .tv'); if(tot) tot.textContent=money(bidTotal(j));
+  (j.lines||[]).forEach(l=>{ const el=document.querySelector('.lt-amt[data-lid="'+l.id+'"]'); if(el) el.textContent = l.furn==='client'?'by client':money(lineAmt(l)); });
+}
+
+/* ---------- helpers ---------- */
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escAttr(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function bindDynamic(){}
+
+/* ---------- voice dictation ---------- */
+const SPEECH_LANG={en:'en-US',es:'es-US',ru:'ru-RU',pt:'pt-BR',fr:'fr-FR',zh:'zh-CN'};
+let rec=null, recording=false;
+function speechSupported(){ return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window); }
+function updateMic(){ const b=document.getElementById('micBtn'); if(!b)return; b.classList.toggle('rec',recording); const l=b.querySelector('.lbl'); if(l) l.textContent=recording?'Stop':'Dictate'; }
+function toggleMic(){
+  if(!speechSupported()) return;
+  if(recording){ if(rec) rec.stop(); recording=false; updateMic(); return; }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  rec=new SR();
+  const sel=document.getElementById('capFrom');
+  rec.lang=SPEECH_LANG[sel?sel.value:'es']||'es-US';
+  rec.continuous=true; rec.interimResults=true;
+  rec.onresult=(e)=>{ let fin=''; for(let i=e.resultIndex;i<e.results.length;i++){ if(e.results[i].isFinal) fin+=e.results[i][0].transcript; }
+    if(fin){ const ta=document.getElementById('capText'); if(ta) ta.value=(ta.value?ta.value.trim()+' ':'')+fin.trim(); } };
+  rec.onend=()=>{ recording=false; updateMic(); };
+  rec.onerror=()=>{ recording=false; updateMic(); };
+  try{ rec.start(); recording=true; updateMic(); }catch(e){ recording=false; updateMic(); }
+}
+
+/* ---------- photos ---------- */
+function pickPhoto(){ const el=document.getElementById('photoInput'); if(el) el.click(); }
+async function handlePhotos(input){
+  const j=currentJob(); if(!j) return; j.photos=j.photos||[];
+  const files=Array.from(input.files||[]);
+  for(const f of files){ if(j.photos.length>=8) break; try{ j.photos.push(await downscale(f)); }catch(e){} }
+  input.value=''; saveJobs(); render();
+}
+function downscale(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>{ const img=new Image();
+      img.onload=()=>{ const max=900; let w=img.width,h=img.height;
+        if(w>h&&w>max){h=Math.round(h*max/w);w=max;} else if(h>=w&&h>max){w=Math.round(w*max/h);h=max;}
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        res(c.toDataURL('image/jpeg',0.7)); };
+      img.onerror=rej; img.src=r.result; };
+    r.onerror=rej; r.readAsDataURL(file);
+  });
+}
+function delPhoto(i){ const j=currentJob(); if(!j)return; j.photos.splice(i,1); saveJobs(); render(); }
+
+/* ============ boot ============ */
+(async function(){
+  await loadAll();
+  if(JOBS.length===0) seedSample();
+  render();
+})();
+</script>
+</body>
+</html>
