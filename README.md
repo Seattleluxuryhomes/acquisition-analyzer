@@ -1,96 +1,136 @@
-# Acquisition Analyzer — Builder Buy Box MVP
+# Bidtranslator — Phase 1 (hosted core)
 
-Enter an address → ATTOM public records → Claude analysis → professional report. Print-to-PDF built in.
+A field notebook + bilingual bid builder for small contractors. Capture a job
+conversation (voice/text), translate + structure it into a bid draft, price it
+privately, and send a clean client proposal PDF — with accounts, cloud sync, and
+offline capture.
 
-## 0. SECURITY FIRST
-The ATTOM key you shared was exposed in plain text. **Rotate it in your ATTOM dashboard before deploying.** Keys live ONLY in `.env` (gitignored) — never in code, never in the browser, never committed.
+Built from the tested prototype (`bidtranslator-app.html`) per the handoff spec.
+The UI and flow are kept; persistence moved to a real backend and the AI call
+moved server-side.
 
-## 1. Run locally (5 minutes)
+## Stack
+
+- **Backend:** Node 22 + Express, `node:sqlite` (built-in — no native build), `pdfkit`.
+- **Auth:** scrypt-hashed passwords + opaque server-side session tokens (`node:crypto`).
+- **AI:** server-side proxy to Anthropic at `POST /api/assist/build` — the key never reaches the browser.
+- **Billing:** Stripe subscriptions (Checkout + customer portal + webhooks) via `fetch` — no SDK dependency. Optional: off by default, app runs fully without it.
+- **Front end:** the prototype's HTML/CSS/JS, refactored onto an offline-first sync layer.
+
+No third-party account is required to run it. (This is "Path B" from the build
+spec; the REST surface matches the spec, so it could be swapped to Supabase later.)
+
+## Run it
+
 ```bash
+cd bidtranslator
 npm install
-cp .env.example .env
-# edit .env: paste your ROTATED ATTOM_API_KEY and your ANTHROPIC_API_KEY
-npm start
-# open http://localhost:3000
-```
-Check keys loaded: `curl http://localhost:3000/api/health` → `{"attomKey":true,"anthropicKey":true}`
-
-## 2. Folder structure
-```
-acquisition-analyzer/
-├── package.json
-├── .env.example        # template — copy to .env
-├── .env                # YOUR KEYS (gitignored, never commit)
-├── .gitignore
-├── src/
-│   ├── server.js       # Express: serves UI + /api/analyze, keeps keys server-side
-│   ├── attom.js        # ATTOM call (expandedprofile + attomavm) + normalization
-│   └── analyze.js      # Claude → structured JSON report
-└── public/
-    └── index.html      # one search box + report + Save as PDF
+cp .env.example .env        # then add your ANTHROPIC_API_KEY and a BT_SIGNING_SECRET
+npm start                   # http://localhost:4000
 ```
 
-## 3. ATTOM endpoints used
-- `GET /propertyapi/v1.0.0/property/expandedprofile?address1=&address2=` — profile, ownership, lot, building, assessment, tax, last sale, mortgage
-- `GET /propertyapi/v1.0.0/attomavm/detail?address1=&address2=` — AVM value estimate (optional; non-fatal if absent)
+Without `ANTHROPIC_API_KEY` the app still runs — the AI "Build the bid draft"
+step returns a clear error and the contractor builds the bid by hand (the app
+never blocks on the AI).
 
-Address is split on the first comma: `address1` = street, `address2` = "City, ST ZIP".
+### Environment
 
-## 4. Error handling
-| Case | Response |
-|---|---|
-| Empty address | 400 "Enter a property address." |
-| Street-only (no city) | 400 with example format |
-| No match | 404 "No property found… add the ZIP" |
-| Bad/expired key | 502 "ATTOM rejected the API key (401). Rotate…" |
-| Claude fails | 200 with raw data + `analysisError` (data still valuable) |
+| Var | Required | Purpose |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | for AI build | Server-side translate/structure. Omit and the app degrades to manual entry. |
+| `BT_SIGNING_SECRET` | in production | Signs private photo URLs. Set a long random string (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). |
+| `BT_AI_MODEL` | no | Defaults to `claude-sonnet-4-6`. |
+| `BT_AI_MONTHLY_CAP` | no | Per-user monthly AI-build cap (default 200). |
+| `BT_PORT` | no | Default 4000. |
+| `BT_DATA_DIR` | no | Where the SQLite db + photos live (default `./data`). |
+| `STRIPE_SECRET_KEY` | for billing | Enables subscriptions. Omit and billing is off (every user has full access). |
+| `STRIPE_PRICE_ID` | for billing | The recurring monthly Price object in Stripe. |
+| `STRIPE_WEBHOOK_SECRET` | for billing | Signing secret for the `/api/billing/webhook` endpoint. |
+| `BT_TRIAL_DAYS` | no | Free-trial length on signup (default 14). |
+| `BT_PUBLIC_URL` | for billing | Base URL for Stripe success/return links (e.g. your hosted domain). |
 
-## 5. Deploy (pick one, ~15 min)
-**Render / Railway / Fly:** push repo, set start command `npm start`, add env vars `ATTOM_API_KEY`, `ANTHROPIC_API_KEY` in the dashboard (NOT in the repo). Done.
+## API
 
-**A VPS:**
-```bash
-npm install --omit=dev
-ATTOM_API_KEY=xxx ANTHROPIC_API_KEY=yyy PORT=3000 npm start
-# put nginx in front for TLS
+```
+POST   /api/auth/signup | signin | signout | reset
+GET    /api/me            PATCH /api/me                  settings
+GET    /api/jobs          POST /api/jobs
+GET    /api/jobs/:id      PATCH /api/jobs/:id            DELETE /api/jobs/:id
+POST   /api/jobs/:id/photos        GET .../photos/:pid (signed)   DELETE .../photos/:pid
+POST   /api/assist/build           AI translate + structure
+GET    /api/jobs/:id/pdf           server-rendered client proposal
+GET    /api/billing/status         subscription/trial state
+POST   /api/billing/checkout       -> Stripe Checkout URL
+POST   /api/billing/portal         -> Stripe customer-portal URL
+POST   /api/billing/webhook        Stripe events (raw body, signature-verified)
 ```
 
-## 6. Future PDF generation (already prepped)
-- Today: browser **Save as PDF** button (`window.print()`) with a print stylesheet — zero dependencies.
-- Server-side later: add `puppeteer`, render `/report/:id` to PDF in `server.js`. The report data is already a clean JSON object (`{data, report}`) ready to template.
+## Payments / subscriptions
 
-## 7. Showcase Video Maker (Zillow → cinematic reveal)
+Contractor subscription is the revenue model (per the founder brief). Implemented
+with Stripe and **off by default** — set the `STRIPE_*` vars to turn it on.
 
-Turn a listing's photos into a branded cinematic tour video, powered by Arcads
-(Seedance 2.0 image-to-video) and stitched locally with bundled ffmpeg.
+- **Free trial → paywall.** New signups get a 14-day trial (`BT_TRIAL_DAYS`). During
+  the trial the app is fully usable, so onboarding can end in a real sent bid.
+- **What the paywall gates.** After the trial ends without an active subscription,
+  *existing jobs stay viewable and editable*, but **creating a new job, running the
+  AI build, and exporting/sending the PDF** return `402 SUBSCRIPTION_REQUIRED`. The
+  front end catches that and shows a subscribe screen.
+- **Entitlement** = billing-not-configured, OR an `active`/`trialing` Stripe
+  subscription, OR still inside the local trial window. Enforced server-side via
+  `requireEntitled` on the gated routes — not just in the UI.
+- **Checkout & management.** `POST /api/billing/checkout` opens Stripe Checkout;
+  `POST /api/billing/portal` opens Stripe's customer portal (update card, cancel).
+- **Webhooks.** `POST /api/billing/webhook` verifies the Stripe signature with
+  `node:crypto` (HMAC-SHA256, 5-min replay window) and syncs subscription status.
 
-**Flow:** paste a Zillow URL (or use the address above) → **Preview** pulls facts
-(ATTOM, plus Zillow price/photos if `RAPIDAPI_KEY` is set) and shows a credit
-estimate → drag in the listing photos → **Generate**. Each photo is animated with
-a slow camera move, then an intro title card + per-clip lower-thirds (address /
-price / beds·baths·sqft) + an outro are stitched into one MP4.
+**To wire it up in Stripe:** create a recurring Price → put its id in `STRIPE_PRICE_ID`;
+add a webhook endpoint pointing at `…/api/billing/webhook` subscribed to
+`checkout.session.completed` and `customer.subscription.*`, and put its signing
+secret in `STRIPE_WEBHOOK_SECRET`. The monthly amount lives in Stripe, not the code.
 
-**Why upload photos?** Zillow/Redfin/Realtor block automated scraping (HTTP 403).
-ATTOM gives the *facts* for any address but not listing *photos*. So photos are
-uploaded by hand (reliable), or auto-fetched via a RapidAPI Zillow provider if you
-add `RAPIDAPI_KEY`.
+## How the hard rules are enforced
 
-**Keys:** add `ARCADS_BASIC_AUTH` (from https://app.arcads.ai/settings/api) to
-`.env`, or run `./scripts/setup.sh`. Optional: `RAPIDAPI_KEY` for Zillow auto-fetch.
+1. **AI key server-side only** — `src/assist.js` holds the key; the browser calls `/api/assist/build`. The prototype's browser-side `aiExtract()` is gone.
+2. **`margin`/`notes` never client-facing** — both the in-app client view and the PDF go through `src/proposal.js` `buildProposal()`, which whitelists fields. The PDF is rendered server-side from that output. (Verified: the rendered PDF contains the total and scope but not the margin or private notes.)
+3. **Offline capture + sync** — every capture/edit writes to `localStorage` first (instant, works with no network) and syncs when online; last-write-wins by `updated_at`. Photos captured offline queue locally and upload on reconnect.
+4. **Works if AI is down** — `/assist/build` failure (or missing key) surfaces a clear message and the job is still created for manual entry.
+5. **Per-user isolation** — every job/photo/PDF query is scoped to the owner; cross-user access returns 404.
+6. **Private files** — photos live outside the web root and are served only via HMAC-signed, expiring URLs (tampered/missing signatures → 403).
+7. **AI prices are placeholders** — the Build tab states it; the contractor sets real numbers.
+8. **Consent/terms text is placeholder** — flagged in-app; needs legal review before launch.
 
-**Cost:** Seedance 2.0 i2v is ~48 credits/sec at 720p — e.g. 5 clips × 5s ≈ 1,200
-credits. The UI shows an estimate and requires confirmation before generating;
-credits are charged at generation time.
+## Phase 1 acceptance criteria → where it's met
 
-**Endpoints:**
-- `POST /api/showcase/preview` `{zillowUrl?|address?, duration?, resolution?}` → resolved listing + estimate
-- `POST /api/showcase/start` `{zillowUrl?|address?, listing?, photos:[dataUrl], opts, confirm:true}` → `{jobId}`
-- `GET /api/showcase/job/:id` → `{status, progress[], result}` (poll; generation runs for minutes)
+- Sign up / sign in on a second device, see the same jobs → auth + `GET /api/jobs` sync (verified).
+- Capture offline (voice/text), syncs when back online → offline-first store in `public/index.html`.
+- AI build translates + structures; falls back to manual → `/assist/build` + `buildFromConversation()`.
+- Edit lines (fixed/hourly), who-furnishes, private margin, upgrades → Build tab.
+- Client view + PDF show only client-facing data with business header + estimate/validity footer → `buildProposal()` + `src/pdf.js`.
+- Photos attach and survive refresh/device switch → `photo` table + signed URLs + `refreshJob()`.
+- No user can access another user's data → ownership checks on every endpoint (verified).
 
-Output MP4s land in `outputs/` (gitignored) and are served at `/outputs/...`.
-Local tooling (`ffmpeg-static`, `@napi-rs/canvas`) is bundled — no system installs.
+## Not in this build (later phases, per spec)
 
-## 8. Notes
-- One Claude call per analysis; data is returned even if analysis errors.
-- ATTOM field names vary by plan/property — `attom.js` normalizes defensively (missing → `null` → "Not available" in the UI), never fabricates.
-- This is a research tool for licensed professionals — not legal/investment/appraisal advice (disclaimer rendered on every report).
+Contractor logo on the proposal, "sent" snapshot/versioning, client-language
+proposal, saved reusable rates, e-signature, standby-cost clause, product links,
+and any marketplace features.
+
+## Layout
+
+```
+bidtranslator/
+  server.js            Express app + routes
+  src/
+    db.js              SQLite schema
+    auth.js            signup/signin/sessions (scrypt)
+    jobs.js            job CRUD + ownership
+    assist.js          server-side AI proxy (rate limit, validation, caps)
+    proposal.js        buildProposal() — the client-facing whitelist
+    pdf.js             server-rendered proposal PDF
+    files.js           signed expiring photo URLs
+    billing.js         Stripe subscriptions + trial/entitlement gating
+  public/index.html    the app (offline-first front end)
+  scripts/build-demo.mjs  regenerates the offline demo from public/index.html
+  docs/                build spec, founder brief, rules, prototype, clickable demo, sample PDF
+```

@@ -13,11 +13,10 @@ is included, so there's nothing to build by hand.
 ## Path A — Starlight Hyperlift (recommended)
 
 1. In Spaceship, open **Hosting → Starlight Hyperlift → New app**.
-2. **Connect GitHub** and pick the repo **`seattleluxuryhomes/acquisition-analyzer`**, branch `main` (merge the build there first) or the feature branch.
-3. **Root directory:** set to **`bidtranslator`** (the app lives in that subfolder; the Dockerfile is there). If Hyperlift can't target a subdirectory, see "If subfolders aren't supported" below.
-4. It auto-detects the `Dockerfile`. No build command needed.
-5. **Add a persistent volume** mounted at **`/app/data`** (this holds the SQLite database and uploaded photos — without it, data resets on every redeploy).
-6. **Environment variables** — at minimum set the signing secret:
+2. **Connect GitHub** and pick the repo **`seattleluxuryhomes/acquisition-analyzer`**, branch `main`.
+3. The app is at the **repo root** — Hyperlift auto-detects the `Dockerfile`. No root-directory and no build command needed.
+4. **Add a persistent volume** mounted at **`/app/data`** (this holds the SQLite database and uploaded photos — without it, data resets on every redeploy).
+5. **Environment variables** — at minimum set the signing secret:
 
    | Key | Value |
    |---|---|
@@ -34,11 +33,8 @@ is included, so there's nothing to build by hand.
    | `STRIPE_WEBHOOK_SECRET` | from the Stripe webhook endpoint |
    | `BT_TRIAL_DAYS` | `14` (default; omit to keep 14) |
 
-7. **Deploy.** Hyperlift builds the image and gives you a URL. Open it — you should see the sign-in screen.
-8. **Point the domain.** In Spaceship's domain settings for **bidtranslator.com**, follow Hyperlift's "custom domain" instructions (usually a CNAME or A record to the app, plus automatic HTTPS). Once it resolves, sign up on two phones and you'll see the same jobs sync.
-
-### If subfolders aren't supported
-Two options: (a) move the contents of `bidtranslator/` to the repo root and point Hyperlift at root, or (b) extract `bidtranslator/` into its own GitHub repo (cleaner long-term). I can do either on request.
+6. **Deploy.** Hyperlift builds the image and gives you a URL. Open it — you should see the sign-in screen.
+7. **Point the domain.** In Spaceship's domain settings for **bidtranslator.com**, follow Hyperlift's "custom domain" instructions (usually a CNAME or A record to the app, plus automatic HTTPS). Once it resolves, sign up on two phones and you'll see the same jobs sync.
 
 ---
 
@@ -48,7 +44,7 @@ If you'd rather use the cPanel-style hosting:
 
 1. **Hosting Manager → Manage → Advanced → Development Tools → Node.js App → Create.**
 2. **Node.js version:** 22 or newer (the app needs the built-in `node:sqlite`, which requires Node ≥ 22).
-3. **Application root:** upload the contents of `bidtranslator/`. **Startup file:** `server.js`.
+3. **Application root:** upload the repo contents. **Startup file:** `server.js`.
 4. Open the app's terminal/SSH and run `npm ci --omit=dev` in the app root.
 5. Set the same environment variables as above in the Node.js App panel.
 6. Make sure the app's data directory is on persistent storage (it is, on shared hosting — `./data` under the app root).
