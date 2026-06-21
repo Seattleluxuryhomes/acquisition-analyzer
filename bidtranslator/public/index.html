@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<!--
+  BIDTRANSLATOR — Phase 1 front end. Same UI/flow/visual language as the prototype,
+  refactored onto the hosted backend:
+    - Accounts + sign-in (replaces local-only persistence).
+    - Offline-first store: every capture/edit writes locally first (instant, works
+      offline) and syncs to the server when a connection is available (last-write-wins).
+    - aiExtract() is gone — the AI build calls the server's /api/assist/build, so the
+      provider key never touches the browser.
+    - margin/notes never reach the PDF (the server builds it) and aren't shown to clients.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bidtranslator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#1F252C;--ink-soft:#2A323B;--ink-card:#252D36;
+    --kraft:#E7D8B6;--kraft-deep:#D9C599;--paper:#F3EEE3;
+    --amber:#EE9B2E;--amber-deep:#CF7F18;
+    --blueprint:#2E5C7E;--blueprint-deep:#1E4259;--rust:#A94E38;
+    --ok:#3E7D5A;
+    --line:rgba(243,238,227,.14);--line-ink:rgba(31,37,44,.16);
+    --muted:#9AA3AE;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"IBM Plex Sans",system-ui,sans-serif;background:var(--ink);color:var(--paper);-webkit-font-smoothing:antialiased;line-height:1.5}
+  .mono{font-family:"IBM Plex Mono",monospace}
+  .display{font-family:"Archivo",sans-serif;font-weight:800;letter-spacing:-.01em}
+  input,select,textarea,button{font-family:inherit;font-size:1rem}
+  button{cursor:pointer}
+  .app{max-width:760px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+
+  .top{position:sticky;top:0;z-index:40;background:rgba(31,37,44,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .top-in{display:flex;align-items:center;justify-content:space-between;padding:12px 18px}
+  .brand{display:flex;align-items:center;gap:9px;font-family:"Archivo";font-weight:800;font-size:1rem}
+  .brand .mark{width:22px;height:22px;border-radius:4px;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono";font-weight:600;font-size:.78rem}
+  .brand b2{color:var(--amber)}
+  .top-actions{display:flex;gap:6px;align-items:center}
+  .icon-btn{background:transparent;border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:7px 12px;font-family:"IBM Plex Mono";font-size:.74rem;letter-spacing:.03em}
+  .icon-btn:hover{border-color:var(--amber);color:var(--amber)}
+  .icon-btn.active{background:var(--amber);color:var(--ink);border-color:var(--amber)}
+
+  /* sync + offline status */
+  .sync{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.04em;color:var(--muted);padding:5px 9px;border:1px solid var(--line);border-radius:6px}
+  .sync .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .sync.online .dot{background:var(--ok)}
+  .sync.offline .dot{background:var(--amber-deep)}
+  .sync.saving .dot{background:var(--blueprint);animation:pulse 1s infinite}
+  .offline-banner{background:rgba(207,127,24,.16);border-bottom:1px solid var(--amber-deep);color:#f0d8af;font-family:"IBM Plex Mono";font-size:.74rem;text-align:center;padding:7px 12px}
+
+  main{flex:1;padding:18px}
+
+  .btn{background:var(--amber);color:var(--ink);border:none;border-radius:6px;padding:13px 18px;font-family:"IBM Plex Mono";font-weight:600;font-size:.9rem;transition:transform .12s,background .12s}
+  .btn:hover{background:#FFB347;transform:translateY(-1px)}
+  .btn:disabled{opacity:.5;cursor:default;transform:none}
+  .btn.ghost{background:transparent;color:var(--paper);border:1px solid var(--line)}
+  .btn.ghost:hover{border-color:var(--amber);color:var(--amber);background:transparent}
+  .btn.blue{background:var(--blueprint);color:#fff}
+  .btn.blue:hover{background:#3a6e95}
+  .btn.full{width:100%;display:block}
+  .btn.sm{padding:8px 12px;font-size:.78rem}
+
+  .h-eyebrow{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--amber)}
+  h1.page{font-family:"Archivo";font-weight:900;font-size:1.7rem;margin:6px 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:.92rem}
+
+  .newbar{display:flex;justify-content:space-between;align-items:center;margin:18px 0 14px;gap:12px;flex-wrap:wrap}
+  .joblist{display:flex;flex-direction:column;gap:10px}
+  .jobcard{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:15px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;width:100%;color:var(--paper)}
+  .jobcard:hover{border-color:var(--amber)}
+  .jobcard .jt{font-family:"Archivo";font-weight:700;font-size:1.02rem}
+  .jobcard .jm{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted);margin-top:3px}
+  .jobcard .chev{color:var(--amber);font-family:"IBM Plex Mono"}
+  .langtag{display:inline-block;font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.06em;background:var(--blueprint-deep);color:#cfe3f0;padding:2px 7px;border-radius:3px;margin-left:6px}
+  .pendtag{display:inline-block;font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.06em;background:rgba(207,127,24,.2);color:#f0d8af;padding:2px 7px;border-radius:3px;margin-left:6px}
+  .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
+  .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
+
+  label.fld{display:block;margin:16px 0 6px;font-family:"IBM Plex Mono";font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .input,textarea.input,select.input{width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:7px;padding:12px 13px}
+  .input:focus,textarea.input:focus,select.input:focus{outline:2px solid var(--amber);outline-offset:1px;border-color:transparent}
+  textarea.input{min-height:150px;resize:vertical;line-height:1.55}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row2 label.fld{margin-top:16px}
+
+  .nb-sec{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:16px;margin-bottom:12px}
+  .nb-sec h3{font-family:"IBM Plex Mono";font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+  .nb-sec p{font-size:.95rem}
+  .nb-sec .quote{font-style:italic;color:#cdc7bb}
+  .nb-list{list-style:none;display:flex;flex-direction:column;gap:7px}
+  .nb-list li{font-size:.92rem;padding-left:16px;position:relative}
+  .nb-list li::before{content:"–";position:absolute;left:0;color:var(--blueprint)}
+  .nb-list.excl li::before{content:"\2717";color:var(--rust)}
+  .nb-list.up li::before{content:"+";color:var(--amber)}
+  .editarea{width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:7px;padding:10px 12px;line-height:1.55;min-height:70px;resize:vertical;margin-top:4px}
+  .machine-tag{display:inline-block;font-family:"IBM Plex Mono";font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--blueprint);border:1px solid var(--blueprint);border-radius:3px;padding:1px 6px;margin-left:8px;vertical-align:middle}
+
+  .line{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:13px;margin-bottom:10px}
+  .line .ltop{display:flex;gap:8px;align-items:flex-start}
+  .line .ldesc{flex:1;background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:9px 10px;font-size:.92rem}
+  .line .del{background:transparent;border:none;color:var(--muted);font-size:1.1rem;padding:4px 8px}
+  .line .del:hover{color:var(--rust)}
+  .line .lctl{display:grid;grid-template-columns:auto 1fr 1fr auto;gap:8px;align-items:center;margin-top:9px}
+  .line select.mini,.line input.mini{background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:8px 9px;font-family:"IBM Plex Mono";font-size:.8rem;width:100%}
+  .line .lt-amt{text-align:right;font-family:"IBM Plex Mono";font-weight:600;color:var(--amber);white-space:nowrap;font-size:.9rem}
+  .furn{display:flex;gap:6px;margin-top:9px}
+  .furn button{flex:1;background:var(--ink-soft);border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:7px;font-family:"IBM Plex Mono";font-size:.72rem}
+  .furn button.on{background:var(--blueprint);color:#fff;border-color:var(--blueprint)}
+
+  .totbar{background:var(--ink-soft);border:1px solid var(--line);border-radius:9px;padding:14px 16px;margin:14px 0;display:flex;justify-content:space-between;align-items:center}
+  .totbar .tl{font-family:"IBM Plex Mono";font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .totbar .tv{font-family:"Archivo";font-weight:900;font-size:1.6rem;color:var(--amber)}
+  .private{background:rgba(46,92,126,.14);border:1px solid var(--blueprint);border-radius:8px;padding:12px 14px;margin-bottom:12px}
+  .private .pl{font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:#8fb6d0}
+
+  .client{background:var(--paper);color:var(--ink);border-radius:10px;padding:0;overflow:hidden;border:1px solid var(--kraft-deep)}
+  .client-head{background:var(--ink);color:var(--paper);padding:22px 24px}
+  .client-head .co{font-family:"Archivo";font-weight:800;font-size:1.4rem}
+  .client-head .meta{font-family:"IBM Plex Mono";font-size:.74rem;color:#b9c2cc;margin-top:4px}
+  .client-body{padding:22px 24px}
+  .client-body h4{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blueprint);margin:18px 0 10px}
+  .client-body h4:first-child{margin-top:0}
+  .cline{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--line-ink);font-size:.95rem}
+  .cline .cd{color:var(--ink)}
+  .cline .cd small{display:block;color:#8a7f68;font-family:"IBM Plex Mono";font-size:.68rem;margin-top:2px}
+  .cline .ca{font-family:"IBM Plex Mono";font-weight:600;white-space:nowrap}
+  .ctotal{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:14px;border-top:2px solid var(--ink)}
+  .ctotal .l{font-family:"Archivo";font-weight:800;font-size:1.05rem}
+  .ctotal .v{font-family:"Archivo";font-weight:900;font-size:1.5rem;color:var(--blueprint-deep)}
+  .cup{display:flex;justify-content:space-between;gap:14px;padding:8px 0;font-size:.92rem;color:#3a424c;border-bottom:1px dashed var(--line-ink)}
+  .cup .ca{font-family:"IBM Plex Mono";font-weight:600;color:var(--amber-deep)}
+  .cnote{font-family:"IBM Plex Mono";font-size:.72rem;color:#8a7f68;margin-top:5px}
+  .cexcl{font-size:.88rem;color:#5a5240;padding-left:15px;position:relative;margin-top:6px}
+  .cexcl::before{content:"\2717";position:absolute;left:0;color:var(--rust)}
+  .cfoot{font-family:"IBM Plex Mono";font-size:.7rem;color:#8a7f68;border-top:1px solid var(--line-ink);padding:14px 24px;background:var(--kraft)}
+
+  .backlink{background:transparent;border:none;color:var(--muted);font-family:"IBM Plex Mono";font-size:.8rem;padding:0;margin-bottom:14px}
+  .backlink:hover{color:var(--amber)}
+  .tabbar{display:flex;gap:6px;margin:14px 0 16px;background:var(--ink-soft);padding:5px;border-radius:9px;border:1px solid var(--line)}
+  .tabbar button{flex:1;background:transparent;border:none;color:var(--muted);padding:9px;border-radius:6px;font-family:"IBM Plex Mono";font-size:.76rem;letter-spacing:.04em}
+  .tabbar button.on{background:var(--amber);color:var(--ink);font-weight:600}
+  .loadingbox{text-align:center;padding:30px;border:1px dashed var(--line);border-radius:10px}
+  .spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--amber);border-radius:50%;margin:0 auto 12px;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .err{background:rgba(169,78,56,.16);border:1px solid var(--rust);border-radius:8px;padding:12px 14px;font-size:.88rem;margin-top:12px}
+  .note{background:rgba(46,92,126,.14);border:1px solid var(--blueprint);border-radius:8px;padding:11px 14px;font-size:.84rem;margin-top:12px;color:#cfe3f0}
+  .hint{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted);margin-top:8px}
+  .addline{margin-top:4px}
+
+  @media(max-width:520px){
+    .row2{grid-template-columns:1fr}
+    .line .lctl{grid-template-columns:auto 1fr 1fr;}
+    .line .lt-amt{grid-column:1/-1;text-align:left;margin-top:4px}
+  }
+
+  .cap-tools{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .mic{display:inline-flex;align-items:center;gap:9px;background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:11px 16px;font-family:"IBM Plex Mono";font-size:.84rem}
+  .mic:hover{border-color:var(--amber);color:var(--amber)}
+  .mic.rec{background:var(--rust);border-color:var(--rust);color:#fff}
+  .mic .dot{width:9px;height:9px;border-radius:50%;background:currentColor}
+  .mic.rec .dot{animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+  .mic-note{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted)}
+  .photogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:2px}
+  .thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .x{position:absolute;top:3px;right:3px;background:rgba(31,37,44,.82);color:#fff;border:none;border-radius:50%;width:23px;height:23px;font-size:.78rem;line-height:1;display:flex;align-items:center;justify-content:center}
+  .thumb .pend{position:absolute;bottom:3px;left:3px;background:rgba(207,127,24,.9);color:#1F252C;font-family:"IBM Plex Mono";font-size:.55rem;padding:1px 5px;border-radius:3px}
+  .addphoto{display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;aspect-ratio:1;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-family:"IBM Plex Mono";font-size:.72rem;background:transparent}
+  .addphoto:hover{border-color:var(--amber);color:var(--amber)}
+
+  .consent{margin-top:14px;background:var(--ink-card);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .consent label{display:flex;gap:10px;align-items:flex-start;font-size:.86rem;color:#cdc7bb;cursor:pointer}
+  .consent input{margin-top:3px;width:17px;height:17px;accent-color:var(--amber);flex-shrink:0}
+  .consent-fine{font-family:"IBM Plex Mono";font-size:.66rem;color:var(--muted);margin-top:8px;padding-left:27px}
+  .legalbox{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:16px;margin-top:18px}
+  .legalbox h3{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+  .legalbox p{font-size:.84rem;color:#cdc7bb;margin-bottom:8px}
+  .legalbox .consent-fine{padding-left:0}
+
+  /* auth */
+  .auth{max-width:380px;margin:6vh auto 0;padding:0 4px}
+  .auth h1{font-family:"Archivo";font-weight:900;font-size:1.8rem;letter-spacing:-.02em;margin:10px 0 4px}
+  .auth-card{background:var(--ink-card);border:1px solid var(--line);border-radius:11px;padding:22px;margin-top:18px}
+  .auth-switch{text-align:center;margin-top:16px;font-size:.86rem;color:var(--muted)}
+  .auth-switch a{color:var(--amber);cursor:pointer}
+  .brand-big{display:flex;align-items:center;gap:10px;justify-content:center;font-family:"Archivo";font-weight:800;font-size:1.3rem}
+  .brand-big .mark{width:28px;height:28px;border-radius:5px;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono";font-weight:600}
+  .tagline{text-align:center;color:var(--muted);font-size:.9rem;margin-top:8px}
+
+  #printArea{display:none}
+  @media print{
+    body{background:#fff}
+    .app,.top,main{all:unset}
+    body *{visibility:hidden}
+    #printArea,#printArea *{visibility:visible}
+    #printArea{display:block;position:absolute;left:0;top:0;width:100%}
+    .client{border:none;border-radius:0}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top" id="topbar" style="display:none">
+    <div class="top-in">
+      <div class="brand"><span class="mark">B</span>Bid<b2>translator</b2></div>
+      <div class="top-actions">
+        <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
+        <button class="icon-btn" id="navJobs" onclick="go('home')">Jobs</button>
+        <button class="icon-btn" id="navSet" onclick="go('settings')">Setup</button>
+      </div>
+    </div>
+    <div class="offline-banner" id="offlineBanner" style="display:none">Offline — your work is saved on this device and will sync when you reconnect.</div>
+  </div>
+  <main id="view"></main>
+</div>
+<div id="printArea"></div>
+
+<script>
+/* ============ config / state ============ */
+const API = '';
+const LANGS = {en:'English', es:'Español', ru:'Русский', pt:'Português', fr:'Français', zh:'中文'};
+const SPEECH_LANG={en:'en-US',es:'es-US',ru:'ru-RU',pt:'pt-BR',fr:'fr-FR',zh:'zh-CN'};
+const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
+const money = n => '$' + (Math.round((+n||0))).toLocaleString('en-US');
+
+const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:'signin', authError:'', booted:false };
+let TOKEN = localStorage.getItem('bt_token') || null;
+let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
+let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en' };
+let JOBS = JSON.parse(localStorage.getItem('bt_jobs')||'[]');
+let settingsDirty = false;
+let online = navigator.onLine;
+let syncing = false;
+
+/* ============ local persistence ============ */
+function persist(){ localStorage.setItem('bt_jobs', JSON.stringify(JOBS)); }
+function persistSettings(){ localStorage.setItem('bt_settings', JSON.stringify(SETTINGS)); }
+function persistAuth(){
+  if(TOKEN) localStorage.setItem('bt_token', TOKEN); else localStorage.removeItem('bt_token');
+  if(USER) localStorage.setItem('bt_user', JSON.stringify(USER)); else localStorage.removeItem('bt_user');
+}
+function touch(job){ job.updated_at = Date.now(); job._dirty = true; }
+let saveT;
+function saveJobs(){ persist(); clearTimeout(saveT); saveT=setTimeout(()=>syncNow(), 600); }
+
+/* ============ API helper ============ */
+async function api(path, opts={}){
+  const headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  if(TOKEN) headers['Authorization'] = 'Bearer '+TOKEN;
+  const res = await fetch(API+path, Object.assign({}, opts, { headers }));
+  let body=null; try{ body = await res.json(); }catch(e){}
+  if(res.status===401){ // session gone — drop to auth, keep local data
+    TOKEN=null; USER=null; persistAuth(); throw Object.assign(new Error((body&&body.error)||'Session expired'),{status:401});
+  }
+  if(!res.ok) throw Object.assign(new Error((body&&body.error)||('Error '+res.status)),{status:res.status, code:body&&body.code});
+  return body;
+}
+
+/* ============ auth ============ */
+async function doAuth(){
+  const email=(document.getElementById('authEmail').value||'').trim();
+  const pass=document.getElementById('authPass').value||'';
+  state.authError='';
+  const path = state.authMode==='signup' ? '/api/auth/signup' : '/api/auth/signin';
+  try{
+    const r = await api(path, { method:'POST', body:JSON.stringify({email, password:pass}) });
+    TOKEN=r.token; USER=r.user; persistAuth();
+    if(r.user){ SETTINGS=Object.assign({}, SETTINGS, {
+      company:r.user.company||SETTINGS.company, name:r.user.name||'', phone:r.user.phone||'',
+      license:r.user.license||'', from:r.user.default_from_lang||'es', to:r.user.default_to_lang||'en'
+    }); persistSettings(); }
+    state.view='home';
+    render();
+    await syncNow(true);
+    render();
+  }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
+}
+function setAuthMode(m){ state.authMode=m; state.authError=''; render(); }
+async function signOut(){
+  try{ if(TOKEN) await api('/api/auth/signout',{method:'POST'}); }catch(e){}
+  TOKEN=null; USER=null; persistAuth();
+  state.view='home'; render();
+}
+
+/* ============ sync engine (offline-first, last-write-wins) ============ */
+function setSync(s){ syncing=s; paintSync(); }
+function paintSync(){
+  const b=document.getElementById('syncBadge'); if(!b) return;
+  const pending = JOBS.some(j=>j._dirty||j._deleted) || settingsDirty;
+  b.classList.remove('online','offline','saving');
+  let label;
+  if(!online){ b.classList.add('offline'); label='Offline'; }
+  else if(syncing){ b.classList.add('saving'); label='Syncing…'; }
+  else if(pending){ b.classList.add('saving'); label='Pending'; }
+  else { b.classList.add('online'); label='Synced'; }
+  const l=b.querySelector('.lbl'); if(l) l.textContent=label;
+  const banner=document.getElementById('offlineBanner'); if(banner) banner.style.display = online?'none':'block';
+}
+
+async function syncNow(force){
+  if(!TOKEN || !online || syncing) { paintSync(); return; }
+  setSync(true);
+  try{
+    // 1) push settings if changed
+    if(settingsDirty){
+      try{ await api('/api/me',{method:'PATCH', body:JSON.stringify({
+        company:SETTINGS.company, name:SETTINGS.name, phone:SETTINGS.phone,
+        license:SETTINGS.license, from:SETTINGS.from, to:SETTINGS.to })}); settingsDirty=false; }catch(e){}
+    }
+    // 2) pull server jobs
+    let server=[];
+    try{ server = (await api('/api/jobs')).jobs || []; }catch(e){ server=[]; }
+    const serverById = new Map(server.map(j=>[j.id,j]));
+
+    // 3) reconcile each local job
+    for(const local of JOBS.slice()){
+      if(local._deleted){
+        try{ await api('/api/jobs/'+local.id,{method:'DELETE'}); }catch(e){ if(e.status!==404) continue; }
+        JOBS = JOBS.filter(j=>j!==local); continue;
+      }
+      if(local._dirty){
+        const payload = jobPayload(local);
+        try{
+          if(serverById.has(local.id)) await api('/api/jobs/'+local.id,{method:'PATCH', body:JSON.stringify(payload)});
+          else await api('/api/jobs',{method:'POST', body:JSON.stringify(payload)});
+          await uploadPendingPhotos(local);
+          local._dirty=false;
+        }catch(e){ /* leave dirty; retry next sync */ }
+      } else if(serverById.has(local.id)){
+        const s=serverById.get(local.id);
+        if((s.updated_at||0) > (local.updated_at||0)) replaceJob(local.id, hydrate(s));
+      }
+    }
+    // 4) add server jobs we don't have locally
+    for(const s of server){
+      if(!JOBS.find(j=>j.id===s.id)) JOBS.push(hydrate(s));
+    }
+    JOBS.sort((a,b)=>(b.updated_at||b.created||0)-(a.updated_at||a.created||0));
+    persist();
+  } finally {
+    setSync(false);
+    if(state.booted) render();
+  }
+}
+
+function jobPayload(j){
+  return { id:j.id, title:j.title, from:j.from, to:j.to, transcript:j.transcript, translation:j.translation,
+    summary:j.summary, assumptions:j.assumptions, exclusions:j.exclusions, lines:j.lines, upgrades:j.upgrades,
+    notes:j.notes, margin:j.margin, status:j.status, updated_at:j.updated_at, created_at:j.created };
+}
+function hydrate(s){
+  return { id:s.id, title:s.title, created:s.created_at, updated_at:s.updated_at, from:s.from, to:s.to,
+    transcript:s.transcript||'', translation:s.translation||'', summary:s.summary||'',
+    assumptions:s.assumptions||[], exclusions:s.exclusions||[], lines:s.lines||[], upgrades:s.upgrades||[],
+    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft',
+    photos:(s.photos||[]).map(p=>({id:p.id, url:p.url})), _dirty:false };
+}
+function replaceJob(id, fresh){
+  const i=JOBS.findIndex(j=>j.id===id);
+  // keep any locally-pending photos that haven't uploaded yet
+  if(i>=0){ const pend=(JOBS[i].photos||[]).filter(p=>p._pending); fresh.photos=(fresh.photos||[]).concat(pend); JOBS[i]=fresh; }
+}
+
+async function uploadPendingPhotos(job){
+  const pend=(job.photos||[]).filter(p=>p._pending);
+  for(const p of pend){
+    try{
+      const r=await api('/api/jobs/'+job.id+'/photos',{method:'POST', body:JSON.stringify({dataUrl:p.dataUrl})});
+      p.id=r.photo.id; p.url=r.photo.url; delete p.dataUrl; delete p._pending;
+    }catch(e){ /* retry next sync */ }
+  }
+}
+
+window.addEventListener('online', ()=>{ online=true; paintSync(); syncNow(); });
+window.addEventListener('offline', ()=>{ online=false; paintSync(); });
+
+/* ============ routing ============ */
+function go(v, jobId){ state.view=v; if(jobId!==undefined) state.jobId=jobId; state.error=''; render(); window.scrollTo(0,0);
+  if(v==='job' && state.jobId && state.jobId!=='new') refreshJob(state.jobId); }
+function currentJob(){ return JOBS.find(j=>j.id===state.jobId); }
+
+// Pull the full job (the list endpoint omits photo URLs). Refreshes signed photo
+// links + server fields when the local copy isn't dirty. Fire-and-forget.
+async function refreshJob(id){
+  if(!online || !TOKEN) return;
+  let r; try{ r = await api('/api/jobs/'+id); }catch(e){ return; }
+  const s = r.job; const local = JOBS.find(j=>j.id===id); if(!local || !s) return;
+  const pend = (local.photos||[]).filter(p=>p._pending);
+  const serverPhotos = (s.photos||[]).map(p=>({id:p.id, url:p.url}));
+  if(!local._dirty && (s.updated_at||0) >= (local.updated_at||0)){
+    Object.assign(local, hydrate(s));
+  }
+  local.photos = serverPhotos.concat(pend);
+  persist();
+  if(state.view==='job' && state.jobId===id) render();
+}
+
+/* ============ render ============ */
+function render(){
+  const authed = !!TOKEN;
+  document.getElementById('topbar').style.display = authed ? 'block' : 'none';
+  const v = document.getElementById('view');
+  if(!authed){ v.innerHTML = viewAuth(); paintSync(); return; }
+  document.getElementById('navJobs').classList.toggle('active', state.view==='home'||state.view==='capture'||state.view==='job');
+  document.getElementById('navSet').classList.toggle('active', state.view==='settings');
+  if(state.view==='home') v.innerHTML = viewHome();
+  else if(state.view==='capture') v.innerHTML = viewCapture();
+  else if(state.view==='job') v.innerHTML = viewJob();
+  else if(state.view==='settings') v.innerHTML = viewSettings();
+  paintSync();
+}
+
+/* ---------- AUTH ---------- */
+function viewAuth(){
+  const isUp = state.authMode==='signup';
+  return `<div class="auth">
+    <div class="brand-big"><span class="mark">B</span>Bid<span style="color:var(--amber)">translator</span></div>
+    <div class="tagline">Capture the job. Build the bid. Send it from your phone.</div>
+    <div class="auth-card">
+      <div class="h-eyebrow">${isUp?'Create your account':'Welcome back'}</div>
+      <h1>${isUp?'Get started':'Sign in'}</h1>
+      <label class="fld">Email</label>
+      <input id="authEmail" class="input" type="email" autocomplete="email" placeholder="you@yourcompany.com" value="${escAttr(USER&&USER.email||'')}"/>
+      <label class="fld">Password</label>
+      <input id="authPass" class="input" type="password" autocomplete="${isUp?'new-password':'current-password'}" placeholder="${isUp?'At least 8 characters':'Your password'}" onkeydown="if(event.key==='Enter')doAuth()"/>
+      ${state.authError?`<div class="err">${esc(state.authError)}</div>`:''}
+      <div style="margin-top:18px"><button class="btn full" onclick="doAuth()">${isUp?'Create account':'Sign in'}</button></div>
+      <div class="auth-switch">${isUp
+        ? `Already have an account? <a onclick="setAuthMode('signin')">Sign in</a>`
+        : `New here? <a onclick="setAuthMode('signup')">Create an account</a>`}</div>
+    </div>
+    <div class="hint" style="text-align:center;margin-top:14px">One account = your jobs, synced across your devices.</div>
+  </div>`;
+}
+
+/* ---------- HOME ---------- */
+function viewHome(){
+  const visible = JOBS.filter(j=>!j._deleted);
+  let list;
+  if(visible.length===0){
+    list = `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="go('capture','new')">+ New job</button></div></div>`;
+  } else {
+    list = '<div class="joblist">' + visible.map(j=>{
+      const total = bidTotal(j);
+      const pend = j._dirty ? `<span class="pendtag">unsynced</span>` : '';
+      return `<button class="jobcard" onclick="go('job','${j.id}')">
+        <div><div class="jt">${esc(j.title)||'Untitled job'}</div>
+        <div class="jm">${money(total)} · ${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}<span class="langtag">${(j.lines||[]).length} lines</span>${pend}</div></div>
+        <span class="chev">→</span></button>`;
+    }).join('') + '</div>';
+  }
+  return `<div class="h-eyebrow">Job notebook</div><h1 class="page">Your jobs</h1>
+    <div class="newbar"><div class="sub">${visible.length} ${visible.length===1?'job':'jobs'}</div>
+    <button class="btn sm" onclick="go('capture','new')">+ New job</button></div>${list}`;
+}
+
+/* ---------- CAPTURE ---------- */
+function viewCapture(){
+  if(state.loading){
+    return `<button class="backlink" onclick="go('home')">← Jobs</button>
+    <div class="loadingbox"><div class="spinner"></div>
+    <div class="mono" style="font-size:.84rem">Translating and building your bid draft…</div>
+    <div class="hint">Reading the conversation, structuring the scope.</div></div>`;
+  }
+  return `<button class="backlink" onclick="go('home')">← Jobs</button>
+    <div class="h-eyebrow">Step 1 · Capture</div><h1 class="page">Talk through the job</h1>
+    <div class="sub">Type or paste the conversation in your language. We'll translate it and turn it into a bid draft.</div>
+
+    <label class="fld">Job name</label>
+    <input id="capTitle" class="input" placeholder="e.g. Martinez — Kitchen remodel" />
+
+    <div class="row2">
+      <div><label class="fld">You speak</label>
+      <select id="capFrom" class="input">${langOpts(SETTINGS.from)}</select></div>
+      <div><label class="fld">Client reads</label>
+      <select id="capTo" class="input">${langOpts(SETTINGS.to)}</select></div>
+    </div>
+
+    <label class="fld">The conversation</label>
+    <textarea id="capText" class="input" placeholder="Describe the job the way you'd say it on site…"></textarea>
+    <div class="cap-tools">
+      ${speechSupported()
+        ? `<button class="mic" id="micBtn" onclick="toggleMic()"><span class="dot"></span><span class="lbl">Dictate</span></button><span class="mic-note">Speak — it types for you.</span>`
+        : `<span class="mic-note">Voice input isn't supported in this browser — type or paste instead.</span>`}
+    </div>
+
+    <div class="hint">Tip: include what they want, anything they'll supply, and any deadline. Capture works offline — you can build the draft later.</div>
+
+    <div class="consent">
+      <label><input type="checkbox" id="capConsent"/> <span>When my area requires it, I'll let the other person know the conversation is being captured.</span></label>
+      <div class="consent-fine">Placeholder wording — not legal advice. Final consent terms to be reviewed before launch.</div>
+    </div>
+    ${state.error?`<div class="err">${esc(state.error)}</div>`:''}
+
+    <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="buildFromConversation()">Build the bid draft →</button>
+      <button class="btn ghost" onclick="buildManual()">Skip — build manually</button>
+    </div>
+    <div class="hint" style="margin-top:14px">Or <a href="#" onclick="loadSample();return false;" style="color:var(--amber)">load a sample conversation</a> to see it work.</div>`;
+}
+function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join(''); }
+
+function loadSample(){
+  document.getElementById('capTitle').value='Reyes — Bathroom remodel';
+  document.getElementById('capFrom').value='es';
+  document.getElementById('capTo').value='en';
+  document.getElementById('capText').value='La señora quiere un baño nuevo. Quitar la bañera vieja y poner una ducha grande con azulejo. Cambiar el lavabo y las luces. También arreglar el piso que está dañado. Ella compra la grifería. Quiere terminar antes de las fiestas.';
+}
+
+function newJobFromForm(){
+  const title=(document.getElementById('capTitle').value||'').trim();
+  const from=document.getElementById('capFrom').value, to=document.getElementById('capTo').value;
+  const text=(document.getElementById('capText').value||'').trim();
+  return {title,from,to,text};
+}
+
+function makeLocalJob(f, data){
+  const now=Date.now();
+  return {
+    id:uid(), title:f.title||'Untitled job', created:now, updated_at:now, from:f.from, to:f.to,
+    transcript:f.text,
+    translation:data?data.translation||'':'',
+    summary:data?data.summary||'':'',
+    lines:(data&&Array.isArray(data.lines)?data.lines:[]).slice(0,8).map(l=>({
+      id:uid(),desc:String(l.desc||'').slice(0,120),
+      type:(l.type==='hourly'?'hourly':'fixed'),
+      price:+l.price||0, hours:+l.hours||0, rate:+l.rate||0, furn:'you'
+    })),
+    upgrades:(data&&Array.isArray(data.upgrades)?data.upgrades:[]).slice(0,4).map(u=>({id:uid(),desc:String(u.desc||''),price:+u.price||0})),
+    assumptions:(data&&Array.isArray(data.assumptions)?data.assumptions:[]).map(String),
+    exclusions:(data&&Array.isArray(data.exclusions)?data.exclusions:[]).map(String),
+    notes:'', margin:20, photos:[], status:'draft', _dirty:true
+  };
+}
+
+function buildManual(){
+  const f=newJobFromForm();
+  const job=makeLocalJob(f, null);
+  JOBS.unshift(job); saveJobs(); state.bidTab='build'; go('job',job.id);
+}
+
+async function buildFromConversation(){
+  const f=newJobFromForm();
+  if(!f.text){ state.error='Add the conversation first, or choose “build manually”.'; render(); return; }
+  if(!online){ state.error='You’re offline — the AI build needs a connection. Your job will be created so you can fill it in by hand now and build later.'; const job=makeLocalJob(f,null); JOBS.unshift(job); saveJobs(); state.bidTab='notebook'; go('job',job.id); return; }
+  state.loading=true; state.error=''; render();
+  let data=null;
+  try{
+    data = await api('/api/assist/build',{ method:'POST', body:JSON.stringify({ text:f.text, from_lang:f.from, to_lang:f.to }) });
+  }catch(e){
+    data=null;
+    state.error = e.code==='AI_UNCONFIGURED'
+      ? 'The AI build isn’t set up on the server yet — your job was created, fill it in by hand.'
+      : 'Could not build the draft ('+(e.message||'error')+'). Your job was created — you can fill it in by hand.';
+  }
+  const job=makeLocalJob(f, data);
+  JOBS.unshift(job); saveJobs();
+  state.loading=false; state.bidTab='notebook'; go('job',job.id);
+}
+
+/* ---------- JOB (notebook / build / client) ---------- */
+function viewJob(){
+  const j=currentJob(); if(!j) return viewHome();
+  const tabs=`<div class="tabbar">
+    <button class="${state.bidTab==='notebook'?'on':''}" onclick="setTab('notebook')">Notebook</button>
+    <button class="${state.bidTab==='build'?'on':''}" onclick="setTab('build')">Build the bid</button>
+    <button class="${state.bidTab==='client'?'on':''}" onclick="setTab('client')">Client view</button></div>`;
+  const head=`<button class="backlink" onclick="go('home')">← Jobs</button>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div><h1 class="page" style="font-size:1.4rem">${esc(j.title)||'Untitled job'}</h1>
+      <div class="sub">${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}</div></div>
+      <button class="btn ghost sm" onclick="deleteJob('${j.id}')" title="Delete job">Delete</button>
+    </div>${tabs}`;
+  let body='';
+  if(state.bidTab==='notebook') body=tabNotebook(j);
+  else if(state.bidTab==='build') body=tabBuild(j);
+  else body=tabClient(j);
+  return head+body;
+}
+function setTab(t){ state.bidTab=t; render(); window.scrollTo(0,0); }
+
+function tabNotebook(j){
+  const sec=(label,html)=>`<div class="nb-sec"><h3>${label}</h3>${html}</div>`;
+  let out='';
+  out+=sec('What you captured · '+(LANGS[j.from]||j.from),
+    `<textarea class="editarea" oninput="updJob('transcript',this.value)" placeholder="Captured conversation…">${esc(j.transcript)}</textarea>`);
+  const machine = j.summary || j.translation;
+  out+=sec('In '+(LANGS[j.to]||j.to)+(j.translation?'<span class="machine-tag">machine</span>':''),
+    `<textarea class="editarea" oninput="updJob('translation',this.value)" placeholder="Translation (editable)…">${esc(j.translation)}</textarea>`);
+  out+=sec('Scope summary'+(j.summary?'<span class="machine-tag">machine</span>':''),
+    `<textarea class="editarea" oninput="updJob('summary',this.value)" placeholder="Cleaned-up scope (editable)…">${esc(j.summary)}</textarea>`);
+  out+=sec('Assumptions',
+    `<textarea class="editarea" oninput="updList('assumptions',this.value)" placeholder="One per line…">${esc((j.assumptions||[]).join('\n'))}</textarea>
+     <div class="hint">One per line. Edit freely — confirm anything machine-generated.</div>`);
+  out+=sec('Exclusions',
+    `<textarea class="editarea" oninput="updList('exclusions',this.value)" placeholder="One per line…">${esc((j.exclusions||[]).join('\n'))}</textarea>
+     <div class="hint">One per line. Client-supplied items belong here.</div>`);
+  out+=sec('Private reminders<span class="machine-tag" style="border-color:var(--rust);color:#d99">private</span>',
+    `<textarea class="editarea" oninput="updJob('notes',this.value)" placeholder="Just for you — never shown to the client.">${esc(j.notes)}</textarea>`);
+  if(j.upgrades&&j.upgrades.length) out+=sec('Upgrade opportunities', `<ul class="nb-list up">${j.upgrades.map(u=>`<li>${esc(u.desc)} — ${money(u.price)}</li>`).join('')}</ul>`);
+  const photos=j.photos||[];
+  out+=`<div class="nb-sec"><h3>Photos</h3><div class="photogrid">${
+    photos.map((p,i)=>`<div class="thumb"><img src="${p._pending?p.dataUrl:p.url}" alt="job photo"/><button class="x" onclick="delPhoto(${i})" title="Remove">✕</button>${p._pending?'<span class="pend">offline</span>':''}</div>`).join('')
+  }<button class="addphoto" onclick="pickPhoto()"><span style="font-size:1.3rem;line-height:1">+</span>Add</button></div>
+  <input id="photoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="handlePhotos(this)"/></div>`;
+  out+=`<div style="margin-top:14px"><button class="btn full" onclick="setTab('build')">Build the bid →</button></div>`;
+  return out;
+}
+
+function lineAmt(l){ return l.type==='hourly' ? (+l.hours||0)*(+l.rate||0) : (+l.price||0); }
+function bidTotal(j){ return (j.lines||[]).filter(l=>l.furn!=='client').reduce((s,l)=>s+lineAmt(l),0); }
+
+function tabBuild(j){
+  let lines = (j.lines||[]).map((l,i)=>{
+    const isH = l.type==='hourly';
+    return `<div class="line">
+      <div class="ltop">
+        <input class="ldesc" value="${escAttr(l.desc)}" oninput="updLine('${l.id}','desc',this.value)" placeholder="Describe the work or item"/>
+        <button class="del" onclick="delLine('${l.id}')" title="Remove">✕</button>
+      </div>
+      <div class="lctl">
+        <select class="mini" onchange="updLine('${l.id}','type',this.value)">
+          <option value="fixed" ${!isH?'selected':''}>Fixed</option>
+          <option value="hourly" ${isH?'selected':''}>Hourly</option>
+        </select>
+        ${ isH
+          ? `<input class="mini" type="number" min="0" value="${l.hours||0}" oninput="updLine('${l.id}','hours',this.value)" placeholder="hrs"/>
+             <input class="mini" type="number" min="0" value="${l.rate||0}" oninput="updLine('${l.id}','rate',this.value)" placeholder="$/hr"/>`
+          : `<input class="mini" type="number" min="0" value="${l.price||0}" oninput="updLine('${l.id}','price',this.value)" placeholder="price"/>
+             <span></span>` }
+        <span class="lt-amt" data-lid="${l.id}">${l.furn==='client'?'by client':money(lineAmt(l))}</span>
+      </div>
+      <div class="furn">
+        <button class="${l.furn!=='client'?'on':''}" onclick="updLine('${l.id}','furn','you')">You furnish</button>
+        <button class="${l.furn==='client'?'on':''}" onclick="updLine('${l.id}','furn','client')">Client furnishes</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const total=bidTotal(j);
+  const withMargin = Math.round(total*(1+(+j.margin||0)/100));
+  const ups=(j.upgrades||[]).map((u,i)=>`<div class="line"><div class="ltop">
+      <input class="ldesc" value="${escAttr(u.desc)}" oninput="updUp(${i},'desc',this.value)" placeholder="Optional upgrade"/>
+      <button class="del" onclick="delUp(${i})">✕</button></div>
+      <div class="lctl"><span class="mono" style="font-size:.74rem;color:var(--muted)">add-on</span>
+      <input class="mini" type="number" min="0" value="${u.price||0}" oninput="updUp(${i},'price',this.value)"/>
+      <span></span><span class="lt-amt">${money(u.price)}</span></div></div>`).join('');
+
+  return `<div class="h-eyebrow" style="margin-bottom:8px">Step 2 · Private estimating</div>
+    <div class="note">AI prices are rough placeholders — you set the real numbers here.</div>
+    ${lines||'<div class="hint">No line items yet.</div>'}
+    <button class="btn ghost full addline" onclick="addLine()">+ Add line</button>
+
+    <div class="totbar"><span class="tl">Bid total</span><span class="tv">${money(total)}</span></div>
+
+    <div class="private"><div class="pl">Private — not shown to client</div>
+      <label class="fld" style="margin-top:8px">Target margin %</label>
+      <input class="input" type="number" min="0" value="${j.margin||0}" oninput="updJob('margin',this.value)" style="max-width:140px"/>
+      <div class="hint">At ${(+j.margin||0)}% margin, target ≈ <b style="color:var(--paper)">${money(withMargin)}</b>. Adjust your line prices to hit it.</div>
+    </div>
+
+    <h3 style="font-family:'IBM Plex Mono';font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin:18px 0 10px">Optional upgrades</h3>
+    ${ups||'<div class="hint">No upgrades yet — these show as options on the proposal.</div>'}
+    <button class="btn ghost full addline" onclick="addUp()">+ Add upgrade</button>
+
+    <div style="margin-top:18px"><button class="btn blue full" onclick="setTab('client')">Preview client view →</button></div>`;
+}
+
+function tabClient(j){
+  const html = clientHTML(j);
+  return `<div class="h-eyebrow" style="margin-bottom:8px">Step 3 · What the client sees</div>
+    ${html}
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" id="pdfBtn" onclick="sendPDF()">Save / Send PDF</button>
+      <button class="btn ghost" onclick="setTab('build')">← Edit bid</button>
+    </div>
+    <div class="hint" style="margin-top:10px">We render a clean PDF on the server. Offline, this falls back to your phone's print → “Save as PDF”.</div>`;
+}
+
+// Client preview — mirrors the server PDF. margin & notes are never referenced here.
+function clientHTML(j){
+  const baseLines=(j.lines||[]).filter(l=>l.furn!=='client');
+  const clientLines=(j.lines||[]).filter(l=>l.furn==='client');
+  const total=bidTotal(j);
+  const dt=new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+  return `<div class="client">
+    <div class="client-head">
+      <div class="co">${esc(SETTINGS.company)||'Your Company'}</div>
+      <div class="meta">${[SETTINGS.name,SETTINGS.phone,SETTINGS.license?('Lic. '+SETTINGS.license):''].filter(Boolean).map(esc).join(' · ')||'Add your details in Setup'}</div>
+    </div>
+    <div class="client-body">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div><h4 style="margin-top:0">Proposal for</h4><div style="font-weight:600">${esc(j.title)||'Project'}</div></div>
+        <div class="cnote">${dt}</div>
+      </div>
+      <h4>Scope of work</h4>
+      ${baseLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${l.type==='hourly'?`<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`:''}</div><div class="ca">${money(lineAmt(l))}</div></div>`).join('')||'<div class="cnote">No items yet.</div>'}
+      <div class="ctotal"><span class="l">Total</span><span class="v">${money(total)}</span></div>
+
+      ${clientLines.length?`<h4>Provided by client</h4>${clientLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)}</div><div class="ca" style="color:#8a7f68">by client</div></div>`).join('')}`:''}
+
+      ${(j.upgrades||[]).length?`<h4>Optional upgrades</h4>${j.upgrades.map(u=>`<div class="cup"><span>${esc(u.desc)}</span><span class="ca">+ ${money(u.price)}</span></div>`).join('')}`:''}
+
+      ${(j.exclusions||[]).length?`<h4>Not included</h4>${j.exclusions.map(e=>`<div class="cexcl">${esc(e)}</div>`).join('')}`:''}
+      ${(j.assumptions||[]).length?`<h4>Notes</h4>${j.assumptions.map(a=>`<div class="cnote">• ${esc(a)}</div>`).join('')}`:''}
+    </div>
+    <div class="cfoot">This is an estimate, not a contract. Pricing valid 30 days from the date above.</div>
+  </div>`;
+}
+
+async function sendPDF(){
+  const j=currentJob(); if(!j) return;
+  const btn=document.getElementById('pdfBtn');
+  // mark as sent + ensure the server has the latest version before it renders
+  j.status='sent'; touch(j); persist();
+  if(online && TOKEN){
+    if(btn){ btn.disabled=true; btn.textContent='Preparing…'; }
+    try{
+      await syncNow(true);
+      const res = await fetch(API+'/api/jobs/'+j.id+'/pdf', { headers:{'Authorization':'Bearer '+TOKEN} });
+      if(!res.ok) throw new Error('pdf '+res.status);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(()=>URL.revokeObjectURL(url), 60000);
+      if(btn){ btn.disabled=false; btn.textContent='Save / Send PDF'; }
+      return;
+    }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Save / Send PDF'; } }
+  }
+  // Offline / failed → browser print fallback (spec allows this).
+  printClient();
+}
+function printClient(){
+  const j=currentJob(); if(!j) return;
+  document.getElementById('printArea').innerHTML = clientHTML(j);
+  window.print();
+}
+
+/* ---------- SETTINGS ---------- */
+function viewSettings(){
+  return `<div class="h-eyebrow">Setup</div><h1 class="page">Your business</h1>
+    <div class="sub">This appears on the proposals you send. Synced to your account.</div>
+    <label class="fld">Company name</label>
+    <input class="input" value="${escAttr(SETTINGS.company)}" oninput="setS('company',this.value)"/>
+    <div class="row2">
+      <div><label class="fld">Your name</label><input class="input" value="${escAttr(SETTINGS.name)}" oninput="setS('name',this.value)"/></div>
+      <div><label class="fld">Phone</label><input class="input" value="${escAttr(SETTINGS.phone)}" oninput="setS('phone',this.value)"/></div>
+    </div>
+    <label class="fld">License # (optional)</label>
+    <input class="input" value="${escAttr(SETTINGS.license)}" oninput="setS('license',this.value)" style="max-width:240px"/>
+    <div class="row2">
+      <div><label class="fld">Default — you speak</label><select class="input" onchange="setS('from',this.value)">${langOpts(SETTINGS.from)}</select></div>
+      <div><label class="fld">Default — client reads</label><select class="input" onchange="setS('to',this.value)">${langOpts(SETTINGS.to)}</select></div>
+    </div>
+    <div class="legalbox">
+      <h3>Terms &amp; privacy (placeholder)</h3>
+      <p>Conversations, transcripts, photos, and bids you create belong to you. They're stored for your use, and you can delete them at any time. Bidtranslator is a tool for preparing estimates — bids you send are agreements between you and your client, not us.</p>
+      <p>Where your area requires it, let the other party know when a conversation is being captured.</p>
+      <label style="display:flex;gap:10px;align-items:flex-start;font-size:.86rem;color:#cdc7bb;cursor:pointer;margin-top:6px">
+        <input type="checkbox" id="setTerms" style="margin-top:3px;width:17px;height:17px;accent-color:var(--amber);flex-shrink:0"/>
+        <span>I understand and agree to the terms above.</span>
+      </label>
+      <div class="consent-fine">Placeholder language only — replace with reviewed terms before launch.</div>
+    </div>
+
+    <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="go('home')">Done</button>
+      <button class="btn ghost" onclick="signOut()">Sign out${USER&&USER.email?` (${esc(USER.email)})`:''}</button>
+    </div>`;
+}
+let setT;
+function setS(k,v){ SETTINGS[k]=v; persistSettings(); settingsDirty=true; paintSync(); clearTimeout(setT); setT=setTimeout(()=>syncNow(), 700); }
+
+/* ---------- mutations ---------- */
+function addLine(){ const j=currentJob(); j.lines.push({id:uid(),desc:'',type:'fixed',price:0,hours:0,rate:0,furn:'you'}); touch(j); saveJobs(); render(); }
+function delLine(id){ const j=currentJob(); j.lines=j.lines.filter(l=>l.id!==id); touch(j); saveJobs(); render(); }
+function updLine(id,k,v){ const j=currentJob(); const l=j.lines.find(x=>x.id===id); if(!l)return;
+  if(k==='price'||k==='hours'||k==='rate') l[k]=+v||0; else l[k]=v;
+  touch(j); saveJobs();
+  if(k==='type'||k==='furn') render(); else refreshTotals(j);
+}
+function addUp(){ const j=currentJob(); j.upgrades.push({id:uid(),desc:'',price:0}); touch(j); saveJobs(); render(); }
+function delUp(i){ const j=currentJob(); j.upgrades.splice(i,1); touch(j); saveJobs(); render(); }
+function updUp(i,k,v){ const j=currentJob(); if(k==='price') j.upgrades[i][k]=+v||0; else j.upgrades[i][k]=v; touch(j); saveJobs(); }
+function updJob(k,v){ const j=currentJob(); j[k]=(k==='margin')?(+v||0):v; touch(j); saveJobs(); if(k==='margin') refreshTotals(j); }
+function updList(k,v){ const j=currentJob(); j[k]=String(v).split('\n').map(s=>s.trim()).filter(Boolean); touch(j); saveJobs(); }
+function deleteJob(id){
+  if(!confirm('Delete this job? This removes it from all your devices.')) return;
+  const j=JOBS.find(x=>x.id===id); if(!j) return;
+  j._deleted=true; j._dirty=true; persist();
+  state.view='home'; render(); syncNow();
+}
+
+function refreshTotals(j){
+  const tot=document.querySelector('.totbar .tv'); if(tot) tot.textContent=money(bidTotal(j));
+  (j.lines||[]).forEach(l=>{ const el=document.querySelector('.lt-amt[data-lid="'+l.id+'"]'); if(el) el.textContent = l.furn==='client'?'by client':money(lineAmt(l)); });
+}
+
+/* ---------- helpers ---------- */
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escAttr(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- voice dictation ---------- */
+let rec=null, recording=false;
+function speechSupported(){ return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window); }
+function updateMic(){ const b=document.getElementById('micBtn'); if(!b)return; b.classList.toggle('rec',recording); const l=b.querySelector('.lbl'); if(l) l.textContent=recording?'Stop':'Dictate'; }
+function toggleMic(){
+  if(!speechSupported()) return;
+  if(recording){ if(rec) rec.stop(); recording=false; updateMic(); return; }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  rec=new SR();
+  const sel=document.getElementById('capFrom');
+  rec.lang=SPEECH_LANG[sel?sel.value:'es']||'es-US';
+  rec.continuous=true; rec.interimResults=true;
+  rec.onresult=(e)=>{ let fin=''; for(let i=e.resultIndex;i<e.results.length;i++){ if(e.results[i].isFinal) fin+=e.results[i][0].transcript; }
+    if(fin){ const ta=document.getElementById('capText'); if(ta) ta.value=(ta.value?ta.value.trim()+' ':'')+fin.trim(); } };
+  rec.onend=()=>{ recording=false; updateMic(); };
+  rec.onerror=()=>{ recording=false; updateMic(); };
+  try{ rec.start(); recording=true; updateMic(); }catch(e){ recording=false; updateMic(); }
+}
+
+/* ---------- photos (offline-capable: queued locally, uploaded on sync) ---------- */
+function pickPhoto(){ const el=document.getElementById('photoInput'); if(el) el.click(); }
+async function handlePhotos(input){
+  const j=currentJob(); if(!j) return; j.photos=j.photos||[];
+  const files=Array.from(input.files||[]);
+  for(const f of files){ if(j.photos.length>=8) break; try{ const dataUrl=await downscale(f); j.photos.push({localId:uid(), dataUrl, _pending:true}); }catch(e){} }
+  input.value=''; touch(j); saveJobs(); render();
+}
+function downscale(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>{ const img=new Image();
+      img.onload=()=>{ const max=900; let w=img.width,h=img.height;
+        if(w>h&&w>max){h=Math.round(h*max/w);w=max;} else if(h>=w&&h>max){w=Math.round(w*max/h);h=max;}
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        res(c.toDataURL('image/jpeg',0.7)); };
+      img.onerror=rej; img.src=r.result; };
+    r.onerror=rej; r.readAsDataURL(file);
+  });
+}
+async function delPhoto(i){
+  const j=currentJob(); if(!j)return; const p=j.photos[i]; if(!p) return;
+  if(p.id && !p._pending && online && TOKEN){ try{ await api('/api/jobs/'+j.id+'/photos/'+p.id,{method:'DELETE'}); }catch(e){} }
+  j.photos.splice(i,1); touch(j); saveJobs(); render();
+}
+
+/* ============ boot ============ */
+(async function(){
+  state.booted=true;
+  render();
+  if(TOKEN){ await syncNow(true); render(); }
+})();
+</script>
+</body>
+</html>

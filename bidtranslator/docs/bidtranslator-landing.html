@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bidtranslator — Speak the job. Send the bid.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#1F252C;
+    --ink-soft:#2A323B;
+    --kraft:#E7D8B6;
+    --kraft-deep:#D9C599;
+    --paper:#F3EEE3;
+    --amber:#EE9B2E;
+    --amber-deep:#CF7F18;
+    --blueprint:#2E5C7E;
+    --blueprint-deep:#1E4259;
+    --rust:#A94E38;
+    --line:rgba(31,37,44,.16);
+    --line-light:rgba(243,238,227,.16);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    background:var(--ink);
+    color:var(--paper);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px}
+
+  /* ---------- type ---------- */
+  .display{font-family:"Archivo",sans-serif;font-weight:900;line-height:.96;letter-spacing:-.02em;font-stretch:expanded}
+  .mono{font-family:"IBM Plex Mono",monospace}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+    font-weight:500;
+  }
+
+  /* ---------- nav ---------- */
+  nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(31,37,44,.82);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line-light);
+  }
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Archivo";font-weight:800;letter-spacing:-.01em;font-size:1.05rem}
+  .brand .mark{
+    width:24px;height:24px;border-radius:3px;
+    background:var(--amber);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--ink);font-family:"IBM Plex Mono";font-weight:600;font-size:.8rem;
+    flex-shrink:0;
+  }
+  .brand span.b2{color:var(--amber)}
+  .nav-cta{
+    font-family:"IBM Plex Mono";font-size:.8rem;letter-spacing:.04em;
+    color:var(--ink);background:var(--paper);
+    padding:9px 16px;border-radius:4px;text-decoration:none;font-weight:500;
+    transition:transform .15s ease, background .15s ease;
+  }
+  .nav-cta:hover{background:var(--amber);transform:translateY(-1px)}
+
+  /* ---------- hero ---------- */
+  .hero{position:relative;padding:74px 0 70px;overflow:hidden}
+  .hero::before{
+    content:"";position:absolute;inset:0;
+    background-image:
+      linear-gradient(var(--line-light) 1px,transparent 1px),
+      linear-gradient(90deg,var(--line-light) 1px,transparent 1px);
+    background-size:34px 34px;
+    -webkit-mask-image:radial-gradient(ellipse 80% 70% at 70% 30%,#000 30%,transparent 75%);
+            mask-image:radial-gradient(ellipse 80% 70% at 70% 30%,#000 30%,transparent 75%);
+    opacity:.5;pointer-events:none;
+  }
+  .hero .wrap{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
+  .hero-eyebrow{color:var(--amber);margin-bottom:22px;display:flex;align-items:center;gap:10px}
+  .hero-eyebrow::before{content:"";width:26px;height:2px;background:var(--amber)}
+  h1.display{font-size:clamp(2.7rem,6.2vw,4.6rem)}
+  h1 .l2{color:var(--amber)}
+  .hero p.lede{
+    font-size:1.12rem;color:#D8D2C6;margin-top:24px;max-width:34ch;
+  }
+  .signup{margin-top:32px;display:flex;gap:10px;flex-wrap:wrap;max-width:430px}
+  .signup input{
+    flex:1;min-width:180px;
+    font-family:"IBM Plex Mono";font-size:.92rem;
+    padding:13px 15px;border-radius:5px;border:1px solid var(--line-light);
+    background:var(--ink-soft);color:var(--paper);
+  }
+  .signup input::placeholder{color:#8A93A0}
+  .signup input:focus{outline:2px solid var(--amber);outline-offset:1px;border-color:transparent}
+  .btn{
+    font-family:"IBM Plex Mono";font-weight:600;font-size:.9rem;letter-spacing:.02em;
+    padding:13px 22px;border-radius:5px;border:none;cursor:pointer;
+    background:var(--amber);color:var(--ink);
+    transition:transform .15s ease,background .15s ease;white-space:nowrap;
+  }
+  .btn:hover{background:#FFB347;transform:translateY(-1px)}
+  .btn:focus-visible{outline:2px solid var(--paper);outline-offset:2px}
+  .signup-note{font-family:"IBM Plex Mono";font-size:.72rem;color:#8A93A0;margin-top:12px;letter-spacing:.02em}
+  .signup-success{
+    margin-top:32px;max-width:430px;
+    background:rgba(46,92,126,.18);border:1px solid var(--blueprint);
+    border-radius:6px;padding:16px 18px;display:none;
+  }
+  .signup-success.show{display:block;animation:stampIn .4s ease both}
+  .signup-success .mono{font-size:.82rem;color:var(--paper)}
+  .signup-success strong{color:var(--amber)}
+
+  /* ---------- the transform card (signature) ---------- */
+  .ticket{
+    background:var(--kraft);color:var(--ink);
+    border-radius:10px;padding:8px;
+    box-shadow:0 24px 60px -24px rgba(0,0,0,.6);
+    transform:rotate(-1.1deg);
+  }
+  .ticket-inner{border:1.5px dashed rgba(31,37,44,.32);border-radius:7px;overflow:hidden}
+  .ticket-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:11px 15px;border-bottom:1.5px dashed rgba(31,37,44,.32);
+    background:var(--kraft-deep);
+  }
+  .ticket-head .mono{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+  .ticket-no{font-family:"IBM Plex Mono";font-size:.7rem;opacity:.6}
+  .ticket-row{padding:15px 16px}
+  .lang-chip{
+    display:inline-block;font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.1em;
+    text-transform:uppercase;padding:3px 8px;border-radius:3px;font-weight:600;margin-bottom:9px;
+  }
+  .chip-say{background:var(--ink);color:var(--kraft)}
+  .chip-send{background:var(--blueprint);color:#fff}
+  .say-text{font-size:.98rem;font-style:italic;color:#3A424C}
+  .divider-stamp{
+    display:flex;align-items:center;gap:12px;padding:4px 16px;
+  }
+  .divider-stamp .ln{flex:1;height:1.5px;background:rgba(31,37,44,.22)}
+  .divider-stamp .tag{
+    font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--amber-deep);font-weight:600;
+  }
+  .bidline{
+    display:flex;justify-content:space-between;gap:12px;
+    font-family:"IBM Plex Mono";font-size:.82rem;
+    padding:7px 0;border-bottom:1px solid rgba(31,37,44,.12);
+    opacity:0;transform:translateY(6px);
+  }
+  .bidline.in{animation:lineIn .45s ease forwards}
+  .bidline:last-child{border-bottom:none}
+  .bidline .desc{color:var(--ink)}
+  .bidline .amt{color:var(--blueprint-deep);font-weight:600;white-space:nowrap}
+  .bidline.excl .desc{color:#7A6F58;font-style:italic}
+  .bidline.excl .amt{color:#7A6F58}
+  @keyframes lineIn{to{opacity:1;transform:translateY(0)}}
+  @keyframes stampIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+
+  /* ---------- section frame ---------- */
+  section{padding:84px 0}
+  .sec-kraft{background:var(--kraft);color:var(--ink)}
+  .sec-head{max-width:62ch;margin-bottom:48px}
+  .sec-head .eyebrow{color:var(--amber-deep)}
+  .sec-kraft .sec-head .eyebrow{color:var(--amber-deep)}
+  .sec-head h2{font-family:"Archivo";font-weight:800;font-size:clamp(1.8rem,3.6vw,2.7rem);line-height:1.04;letter-spacing:-.02em;margin-top:16px}
+  .sec-head p{font-size:1.05rem;margin-top:16px;color:#3A424C;max-width:54ch}
+  .sec-dark .sec-head p{color:#C9C3B7}
+
+  /* ---------- steps (true sequence) ---------- */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line)}
+  .step{padding:26px 22px;border-right:1px solid var(--line);position:relative}
+  .step:last-child{border-right:none}
+  .step .num{font-family:"IBM Plex Mono";font-size:.8rem;color:var(--amber-deep);font-weight:600;letter-spacing:.08em}
+  .step h3{font-family:"Archivo";font-weight:700;font-size:1.18rem;margin:14px 0 8px}
+  .step p{font-size:.92rem;color:#4A5159}
+  @media(max-width:740px){
+    .steps{grid-template-columns:1fr 1fr}
+    .step:nth-child(2){border-right:none}
+    .step:nth-child(1),.step:nth-child(2){border-bottom:1px solid var(--line)}
+  }
+
+  /* ---------- three sections panels ---------- */
+  .panels{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .panel{
+    background:var(--ink-soft);border:1px solid var(--line-light);border-radius:9px;
+    padding:26px 24px;position:relative;overflow:hidden;
+  }
+  .panel .pmark{font-family:"IBM Plex Mono";font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+  .panel h3{font-family:"Archivo";font-weight:800;font-size:1.35rem;margin:12px 0 12px}
+  .panel ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+  .panel li{font-family:"IBM Plex Mono";font-size:.82rem;color:#CDC7BB;padding-left:18px;position:relative}
+  .panel li::before{content:"+";position:absolute;left:0;color:var(--blueprint);font-weight:600}
+  .panel.send li::before{content:"\2713";color:var(--amber)}
+
+  /* ---------- problems / estimate checklist ---------- */
+  .checklist{display:grid;grid-template-columns:1fr 1fr;gap:0 40px;max-width:760px}
+  .check{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)}
+  .check .box{
+    width:22px;height:22px;flex-shrink:0;border:2px solid var(--ink);border-radius:3px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--amber-deep);font-family:"IBM Plex Mono";font-weight:700;font-size:.9rem;margin-top:1px;
+  }
+  .check p{font-size:.98rem;color:#2C343D}
+  .check p b{font-weight:600}
+  @media(max-width:640px){.checklist{grid-template-columns:1fr}}
+
+  /* ---------- bilingual band ---------- */
+  .sec-blue{background:var(--blueprint-deep);color:var(--paper)}
+  .bilingual{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:center}
+  .bcol{background:rgba(243,238,227,.06);border:1px solid var(--line-light);border-radius:8px;padding:24px}
+  .bcol .lang-chip{margin-bottom:14px}
+  .bcol .chip-say{background:var(--paper);color:var(--blueprint-deep)}
+  .bcol .big{font-family:"Archivo";font-weight:700;font-size:1.5rem;line-height:1.15}
+  .barrow{font-family:"IBM Plex Mono";color:var(--amber);font-size:1.6rem;font-weight:600}
+  @media(max-width:740px){.bilingual{grid-template-columns:1fr}.barrow{transform:rotate(90deg);justify-self:center}}
+
+  /* ---------- final cta ---------- */
+  .final{text-align:center;padding:96px 0}
+  .final h2{font-family:"Archivo";font-weight:900;font-stretch:expanded;font-size:clamp(2rem,5vw,3.4rem);line-height:1;letter-spacing:-.02em}
+  .final h2 .am{color:var(--amber)}
+  .final .signup{margin:34px auto 0;justify-content:center}
+  .final .signup-success{margin-left:auto;margin-right:auto}
+
+  /* ---------- footer ---------- */
+  footer{border-top:1px solid var(--line-light);padding:34px 0}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  footer .mono{font-size:.74rem;color:#8A93A0;letter-spacing:.04em}
+
+  @media(max-width:860px){
+    .hero .wrap{grid-template-columns:1fr;gap:44px}
+    .ticket{transform:rotate(-1deg);max-width:440px}
+    .panels{grid-template-columns:1fr}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+    .bidline{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="mark">B</span>Bid<span class="b2">translator</span></div>
+    <a href="#access" class="nav-cta">Get early access</a>
+  </div>
+</nav>
+
+<header class="hero sec-dark">
+  <div class="wrap">
+    <div>
+      <div class="hero-eyebrow eyebrow">Field notebook · Bid builder</div>
+      <h1 class="display">Speak the job.<br><span class="l2">Send the bid.</span></h1>
+      <p class="lede">Talk through the job in your language. Bidtranslator turns it into a clean bid in theirs — ready to send before you leave the driveway.</p>
+
+      <div class="signup" id="hero-form">
+        <input type="email" id="hero-email" placeholder="you@yourcompany.com" aria-label="Your email" />
+        <button class="btn" onclick="signup('hero')">Get early access</button>
+      </div>
+      <div class="signup-note mono">For contractors. Spanish, Russian, and more. No desk required.</div>
+      <div class="signup-success" id="hero-success">
+        <div class="mono">✓ <strong>You're on the list.</strong> We'll reach out before launch.</div>
+      </div>
+    </div>
+
+    <!-- SIGNATURE: spoken job → clean bid -->
+    <div class="ticket" role="img" aria-label="A spoken job in Spanish converted into structured English bid lines">
+      <div class="ticket-inner">
+        <div class="ticket-head">
+          <span class="mono">Job Notebook</span>
+          <span class="ticket-no">#0412 · KITCHEN + BATH</span>
+        </div>
+        <div class="ticket-row">
+          <span class="lang-chip chip-say">What you say · ES</span>
+          <div class="say-text">"El cliente quiere rehacer el baño completo — azulejo nuevo, cambiar el lavabo, y pintar la cocina."</div>
+        </div>
+        <div class="divider-stamp"><span class="ln"></span><span class="tag">→ builds</span><span class="ln"></span></div>
+        <div class="ticket-row">
+          <span class="lang-chip chip-send">What you send · EN</span>
+          <div id="bidlines">
+            <div class="bidline"><span class="desc">Demo existing bathroom</span><span class="amt">$640</span></div>
+            <div class="bidline"><span class="desc">Install new tile, full bath</span><span class="amt">$2,150</span></div>
+            <div class="bidline"><span class="desc">Replace vanity &amp; sink</span><span class="amt">$880</span></div>
+            <div class="bidline"><span class="desc">Paint kitchen</span><span class="amt">$520</span></div>
+            <div class="bidline excl"><span class="desc">Excl: fixtures client-supplied</span><span class="amt">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- FOUR STEPS (true sequence) -->
+<section class="sec-kraft" id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">How it works</div>
+      <h2>Four steps, start to sent.</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="num">01</div><h3>Record</h3><p>Capture the conversation by voice or text, right there on the job.</p></div>
+      <div class="step"><div class="num">02</div><h3>Review in both languages</h3><p>It transcribes and translates, so nothing gets lost between you and the client.</p></div>
+      <div class="step"><div class="num">03</div><h3>Build the bid</h3><p>Turn the notebook into priced line items, upgrades, and exclusions.</p></div>
+      <div class="step"><div class="num">04</div><h3>Send</h3><p>Email or print a clean proposal from your phone.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- THREE SECTIONS -->
+<section class="sec-dark" id="inside">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">What's inside</div>
+      <h2>One job, three screens.</h2>
+      <p>Capture it, price it, send it. The notebook is the center — everything else feeds it or comes out of it.</p>
+    </div>
+    <div class="panels">
+      <div class="panel">
+        <div class="pmark">01 · Notebook</div>
+        <h3>The job record</h3>
+        <ul>
+          <li>Voice &amp; text capture</li>
+          <li>Transcript + translation</li>
+          <li>Photos</li>
+          <li>Scope, assumptions, exclusions</li>
+          <li>Upgrade reminders</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="pmark">02 · Build the bid</div>
+        <h3>Your pricing side</h3>
+        <ul>
+          <li>Base bid &amp; line items</li>
+          <li>Hourly or fixed per item</li>
+          <li>Add-ons, upgrades, alternates</li>
+          <li>Margin &amp; markup (private)</li>
+          <li>Who furnishes each line</li>
+        </ul>
+      </div>
+      <div class="panel send">
+        <div class="pmark">03 · Client view</div>
+        <h3>The clean proposal</h3>
+        <ul>
+          <li>Polished preview</li>
+          <li>Your branding on it</li>
+          <li>Export to clean PDF</li>
+          <li>Email or print from the phone</li>
+          <li>Simple and trustworthy</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEMS -->
+<section class="sec-kraft" id="why">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Why it helps</div>
+      <h2>Stop losing the job between the site and the send.</h2>
+    </div>
+    <div class="checklist">
+      <div class="check"><span class="box">✓</span><p><b>Forgotten scope.</b> The whole conversation is captured, not half-remembered.</p></div>
+      <div class="check"><span class="box">✓</span><p><b>Language confusion.</b> Talk in one language, send in another, no mix-ups.</p></div>
+      <div class="check"><span class="box">✓</span><p><b>Slow bids.</b> Send a clean proposal the same day, from the field.</p></div>
+      <div class="check"><span class="box">✓</span><p><b>Missed upgrades.</b> Add-ons and upsells get flagged while you capture.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- BILINGUAL BAND -->
+<section class="sec-blue" id="lang">
+  <div class="wrap">
+    <div class="sec-head" style="max-width:54ch">
+      <div class="eyebrow" style="color:var(--amber)">Built for the language gap</div>
+      <h2>Describe the job in your language.<br>Send the bid in theirs.</h2>
+    </div>
+    <div class="bilingual">
+      <div class="bcol">
+        <span class="lang-chip chip-say">You speak</span>
+        <div class="big">Español · Русский · and more</div>
+      </div>
+      <div class="barrow">→</div>
+      <div class="bcol">
+        <span class="lang-chip chip-send" style="background:var(--amber);color:var(--ink)">They receive</span>
+        <div class="big">A clean, professional bid in English</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="sec-dark final" id="access">
+  <div class="wrap">
+    <div class="eyebrow" style="color:var(--amber);justify-content:center;display:flex">Early access</div>
+    <h2 style="margin-top:18px">Be one of the first<br>to <span class="am">speak the job.</span></h2>
+    <div class="signup" id="final-form">
+      <input type="email" id="final-email" placeholder="you@yourcompany.com" aria-label="Your email" />
+      <button class="btn" onclick="signup('final')">Get early access</button>
+    </div>
+    <div class="signup-note mono" style="text-align:center">We're onboarding a small first group of contractors. No spam.</div>
+    <div class="signup-success" id="final-success">
+      <div class="mono">✓ <strong>You're on the list.</strong> We'll reach out before launch.</div>
+    </div>
+  </div>
+</section>
+
+<footer class="sec-dark">
+  <div class="wrap">
+    <div class="brand"><span class="mark">B</span>Bid<span class="b2">translator</span></div>
+    <div class="mono">Bidtranslator.com · A field tool for contractors</div>
+  </div>
+</footer>
+
+<script>
+  // Email capture — front-end demo only. Wire this to a real list (e.g. an email
+  // service or form backend) before launch; nothing is stored or sent yet.
+  const captured = [];
+  function signup(which){
+    const input = document.getElementById(which + '-email');
+    const val = (input.value || '').trim();
+    const ok = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val);
+    if(!ok){
+      input.focus();
+      input.style.outline = '2px solid var(--rust)';
+      return;
+    }
+    captured.push(val);
+    document.getElementById(which + '-form').style.display = 'none';
+    document.getElementById(which + '-success').classList.add('show');
+  }
+
+  // Stamp in the bid lines on load (skipped under reduced-motion via CSS)
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!reduce){
+    window.addEventListener('load', () => {
+      document.querySelectorAll('#bidlines .bidline').forEach((el,i) => {
+        el.style.animationDelay = (0.25 + i*0.13) + 's';
+        el.classList.add('in');
+      });
+    });
+  } else {
+    document.querySelectorAll('#bidlines .bidline').forEach(el => el.classList.add('in'));
+  }
+</script>
+</body>
+</html>
