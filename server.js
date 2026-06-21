@@ -1,130 +1,191 @@
-import "dotenv/config";
+// Bidtranslator backend (Phase 1). Express + node:sqlite. The client talks only
+// to this API; the AI provider key never leaves the server.
+try { process.loadEnvFile(); } catch { /* no .env file — rely on real env vars */ }
 import express from "express";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchProperty } from "./attom.js";
-import { analyze } from "./analyze.js";
-import { arcadsReady } from "./arcads.js";
-import { resolveListing } from "./zillow.js";
-import { buildShowcase, estimate, OUTPUTS_DIR } from "./showcase.js";
-import { videoToolingReady } from "./video.js";
+
+import db, { PHOTO_DIR } from "./src/db.js";
+import { signup, signin, signout, requireAuth, publicUser } from "./src/auth.js";
+import * as Jobs from "./src/jobs.js";
+import { assistBuild, aiConfigured } from "./src/assist.js";
+import { buildProposal } from "./src/proposal.js";
+import { renderProposalPDF } from "./src/pdf.js";
+import { signPhotoUrl, verifyPhotoSig } from "./src/files.js";
+import * as Billing from "./src/billing.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uid = () => crypto.randomBytes(9).toString("base64url");
 const app = express();
-app.use(express.json({ limit: "256kb" }));
-app.use(express.static(__dirname));
 
-// Serve generated showcase media.
-fs.mkdirSync(OUTPUTS_DIR, { recursive: true });
-app.use("/outputs", express.static(OUTPUTS_DIR));
-
-app.get("/api/health", (_req, res) => {
-  res.json({
-    ok: true,
-    attomKey: !!process.env.ATTOM_API_KEY,
-    anthropicKey: !!process.env.ANTHROPIC_API_KEY,
-    arcadsKey: arcadsReady(),
-    rapidApiKey: !!process.env.RAPIDAPI_KEY,
-    videoTooling: videoToolingReady(),
-  });
-});
-
-app.post("/api/analyze", async (req, res) => {
-  const address = (req.body?.address || "").trim();
-  if (!address) return res.status(400).json({ error: "Enter a property address." });
-
-  let normalized;
+// Stripe webhook needs the RAW body for signature verification — register it
+// before any JSON parsing so the bytes are untouched.
+app.post("/api/billing/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => {
   try {
-    normalized = await fetchProperty(address);
+    const event = Billing.verifyWebhook(req.body.toString("utf8"), req.headers["stripe-signature"]);
+    Billing.handleEvent(event);
+    res.json({ received: true });
   } catch (err) {
-    const map = { BAD_ADDRESS: 400, NOT_FOUND: 404, AUTH: 502, UPSTREAM: 502 };
-    const code = map[err.code] || 500;
-    return res.status(code).json({ error: err.message, stage: "attom", detail: err.detail || err.attomStatus || null });
-  }
-
-  let report;
-  try {
-    report = await analyze(normalized);
-  } catch (err) {
-    return res.status(200).json({ data: normalized, report: null, analysisError: err.message });
-  }
-
-  res.json({ data: normalized, report });
-});
-
-// ---- Showcase video maker ----
-
-// Resolve a listing (facts + any auto-fetched photos) and estimate cost.
-app.post("/api/showcase/preview", async (req, res) => {
-  const zillowUrl = (req.body?.zillowUrl || "").trim();
-  const address = (req.body?.address || "").trim();
-  if (!zillowUrl && !address) return res.status(400).json({ error: "Provide a Zillow URL or an address." });
-  try {
-    const listing = await resolveListing({ zillowUrl, address });
-    const photoCount = Math.max(1, Number(req.body?.photoCount) || listing.photos.length || 5);
-    const est = estimate({ photoCount, duration: Number(req.body?.duration) || 5, resolution: req.body?.resolution || "720p" });
-    res.json({ listing, estimate: est, arcadsKey: arcadsReady(), videoTooling: videoToolingReady() });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 400).json({ error: err.message });
   }
 });
 
-// In-memory job store (showcase generation runs for minutes).
-const jobs = new Map();
+// Global JSON parser, but skip the photo-upload route so its own larger limit
+// applies (otherwise this 256kb cap would reject photos before they're reached).
+const smallJson = express.json({ limit: "256kb" });
+const isPhotoUpload = (req) => req.method === "POST" && /^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path);
+app.use((req, res, next) => (isPhotoUpload(req) ? next() : smallJson(req, res, next)));
+app.use(express.static(path.join(__dirname, "public")));
 
-function decodePhotos(arr) {
-  const out = [];
-  for (const p of arr || []) {
-    const dataUrl = typeof p === "string" ? p : p?.dataUrl;
-    const m = /^data:(image\/[a-z.+-]+);base64,(.+)$/i.exec(dataUrl || "");
-    if (!m) continue;
-    out.push({ mime: m[1], buffer: Buffer.from(m[2], "base64"), label: p?.label || null });
+const baseUrl = (req) => process.env.BT_PUBLIC_URL || `${req.protocol}://${req.get("host")}`;
+
+// Deferring fn into .then() means synchronous throws become rejections too.
+const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((err) => {
+  res.status(err.status || 500).json({ error: err.message || "Server error.", code: err.code });
+});
+
+// Clean JSON for malformed request bodies (instead of an HTML stack trace).
+app.use((err, _req, res, next) => {
+  if (err && (err.type === "entity.parse.failed" || err instanceof SyntaxError)) {
+    return res.status(400).json({ error: "Invalid JSON in request body." });
   }
-  return out;
+  if (err && err.type === "entity.too.large") {
+    return res.status(413).json({ error: "Request body too large." });
+  }
+  next(err);
+});
+
+function settingsOf(user) {
+  return {
+    company: user.company, name: user.name, phone: user.phone, license: user.license,
+    from: user.default_from_lang, to: user.default_to_lang,
+  };
 }
 
-// Start a showcase job. Body: { zillowUrl?, address?, listing?, photos:[dataUrl|{dataUrl,label}], opts, confirm }
-// Photos arrive as base64 data URLs, so this route gets a larger body limit.
-app.post("/api/showcase/start", express.json({ limit: "60mb" }), async (req, res) => {
-  if (!arcadsReady()) return res.status(400).json({ error: "Arcads credentials not set — add ARCADS_BASIC_AUTH to .env (run ./scripts/setup.sh)." });
-  if (req.body?.confirm !== true) return res.status(400).json({ error: "Cost not confirmed — set confirm:true to proceed." });
+function attachPhotos(userId, job) {
+  if (!job) return job;
+  const rows = db.prepare("SELECT id FROM photo WHERE job_id=? AND user_id=? ORDER BY created_at").all(job.id, userId);
+  job.photos = rows.map((r) => ({ id: r.id, url: signPhotoUrl(job.id, r.id) }));
+  return job;
+}
 
-  const photos = decodePhotos(req.body?.photos);
-  if (!photos.length) return res.status(400).json({ error: "Upload at least one listing photo." });
-  if (photos.length > 8) return res.status(400).json({ error: "Max 8 photos per showcase." });
+// ---- Health ----
+app.get("/api/health", (_req, res) => res.json({ ok: true, ai: aiConfigured(), billing: Billing.billingConfigured() }));
 
-  const opts = req.body?.opts || {};
-  let listing = req.body?.listing;
-  if (!listing) {
-    try { listing = await resolveListing({ zillowUrl: req.body?.zillowUrl, address: req.body?.address }); }
-    catch (e) { listing = { address: (req.body?.address || null), price: null, beds: null, baths: null, sqft: null, photos: [], warnings: ["resolve failed: " + e.message] }; }
+// ---- Auth ----
+app.post("/api/auth/signup", wrap((req, res) => { res.json(signup(req.body || {})); }));
+app.post("/api/auth/signin", wrap((req, res) => { res.json(signin(req.body || {})); }));
+app.post("/api/auth/signout", requireAuth, wrap((req, res) => { signout(req.token); res.json({ ok: true }); }));
+// Password reset by email is stubbed for Phase 1 (no mail provider wired). Always
+// returns ok so the endpoint can't be used to probe which emails exist.
+app.post("/api/auth/reset", wrap((req, res) => res.json({ ok: true, note: "Email reset not configured in this build." })));
+
+// ---- Billing ----
+app.get("/api/billing/status", requireAuth, (req, res) => res.json(Billing.billingStatus(req.user)));
+app.post("/api/billing/checkout", requireAuth, wrap(async (req, res) => {
+  res.json({ url: await Billing.createCheckout(req.user, baseUrl(req)) });
+}));
+app.post("/api/billing/portal", requireAuth, wrap(async (req, res) => {
+  res.json({ url: await Billing.createPortal(req.user, baseUrl(req)) });
+}));
+
+// ---- Me / settings ----
+app.get("/api/me", requireAuth, (req, res) =>
+  res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user) }));
+app.patch("/api/me", requireAuth, wrap((req, res) => {
+  const b = req.body || {};
+  const map = { company: "company", name: "name", phone: "phone", license: "license",
+    from: "default_from_lang", to: "default_to_lang" };
+  const sets = [], vals = [];
+  for (const [k, col] of Object.entries(map)) {
+    if (k in b) { sets.push(`${col}=?`); vals.push(String(b[k] ?? "")); }
   }
+  if (sets.length) { vals.push(req.user.id); db.prepare(`UPDATE user SET ${sets.join(", ")} WHERE id=?`).run(...vals); }
+  const fresh = db.prepare("SELECT * FROM user WHERE id=?").get(req.user.id);
+  res.json({ user: publicUser(fresh), settings: settingsOf(fresh) });
+}));
 
-  const id = crypto.randomUUID();
-  const job = { id, status: "running", progress: [], result: null, error: null, startedAt: Date.now() };
-  jobs.set(id, job);
-
-  buildShowcase({
-    listing,
-    photos,
-    opts,
-    onProgress: (p) => { job.progress.push({ t: Date.now(), ...p }); if (job.progress.length > 200) job.progress.shift(); },
-  })
-    .then((result) => { job.result = result; job.status = "done"; })
-    .catch((err) => { job.error = err.message; job.status = "error"; });
-
-  res.json({ jobId: id });
-});
-
-app.get("/api/showcase/job/:id", (req, res) => {
-  const job = jobs.get(req.params.id);
+// ---- Jobs ----
+app.get("/api/jobs", requireAuth, (req, res) => res.json({ jobs: Jobs.listJobs(req.user.id) }));
+app.post("/api/jobs", requireAuth, Billing.requireEntitled, wrap((req, res) => res.json({ job: attachPhotos(req.user.id, Jobs.createJob(req.user.id, req.body || {})) })));
+app.get("/api/jobs/:id", requireAuth, wrap((req, res) => {
+  const job = Jobs.getJob(req.user.id, req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found." });
-  res.json({ id: job.id, status: job.status, progress: job.progress, result: job.result, error: job.error });
+  res.json({ job: attachPhotos(req.user.id, job) });
+}));
+app.patch("/api/jobs/:id", requireAuth, wrap((req, res) => {
+  const job = Jobs.updateJob(req.user.id, req.params.id, req.body || {});
+  if (!job) return res.status(404).json({ error: "Job not found." });
+  res.json({ job: attachPhotos(req.user.id, job) });
+}));
+app.delete("/api/jobs/:id", requireAuth, wrap((req, res) => {
+  if (!Jobs.deleteJob(req.user.id, req.params.id)) return res.status(404).json({ error: "Job not found." });
+  res.json({ ok: true });
+}));
+
+// ---- Photos (private; signed expiring URLs) ----
+const photoJson = express.json({ limit: "12mb" });
+app.post("/api/jobs/:id/photos", requireAuth, photoJson, wrap((req, res) => {
+  if (!Jobs.ownsJob(req.user.id, req.params.id)) return res.status(404).json({ error: "Job not found." });
+  const m = /^data:(image\/[a-z.+-]+);base64,(.+)$/i.exec(String(req.body?.dataUrl || ""));
+  if (!m) return res.status(400).json({ error: "Expected an image data URL." });
+  const buf = Buffer.from(m[2], "base64");
+  if (buf.length > 8 * 1024 * 1024) return res.status(413).json({ error: "Image too large." });
+  const ext = m[1].split("/")[1].replace(/[^a-z0-9]/gi, "").slice(0, 5) || "jpg";
+  const pid = uid();
+  const filename = `${pid}.${ext}`;
+  fs.writeFileSync(path.join(PHOTO_DIR, filename), buf);
+  db.prepare("INSERT INTO photo (id, job_id, user_id, filename, mime, created_at) VALUES (?,?,?,?,?,?)")
+    .run(pid, req.params.id, req.user.id, filename, m[1], Date.now());
+  res.json({ photo: { id: pid, url: signPhotoUrl(req.params.id, pid) } });
+}));
+
+// Served via signature, not bearer auth, so <img> tags work. Signature + expiry
+// are the access grant; we still confirm the photo belongs to the job in the URL.
+app.get("/api/jobs/:id/photos/:pid", (req, res) => {
+  const { id, pid } = req.params;
+  if (!verifyPhotoSig(pid, req.query.exp, req.query.sig)) return res.status(403).send("Forbidden");
+  const row = db.prepare("SELECT * FROM photo WHERE id=? AND job_id=?").get(pid, id);
+  if (!row) return res.status(404).send("Not found");
+  res.type(row.mime);
+  res.setHeader("Cache-Control", "private, max-age=3600");
+  fs.createReadStream(path.join(PHOTO_DIR, row.filename)).pipe(res);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Acquisition Analyzer on http://localhost:${PORT}`);
+app.delete("/api/jobs/:id/photos/:pid", requireAuth, wrap((req, res) => {
+  const row = db.prepare("SELECT * FROM photo WHERE id=? AND job_id=? AND user_id=?")
+    .get(req.params.pid, req.params.id, req.user.id);
+  if (!row) return res.status(404).json({ error: "Photo not found." });
+  db.prepare("DELETE FROM photo WHERE id=?").run(req.params.pid);
+  try { fs.unlinkSync(path.join(PHOTO_DIR, row.filename)); } catch {}
+  res.json({ ok: true });
+}));
+
+// ---- AI build (server-side proxy) ----
+app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const { text, from_lang, to_lang } = req.body || {};
+  const data = await assistBuild(req.user, { text, from_lang, to_lang });
+  res.json(data);
+}));
+
+// ---- Client proposal PDF (margin/notes stripped by buildProposal) ----
+app.get("/api/jobs/:id/pdf", requireAuth, Billing.requireEntitled, wrap((req, res) => {
+  const job = Jobs.getJob(req.user.id, req.params.id);
+  if (!job) return res.status(404).json({ error: "Job not found." });
+  const proposal = buildProposal(job, settingsOf(req.user));
+  const safe = (job.title || "proposal").replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 40);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="bid-${safe}.pdf"`);
+  renderProposalPDF(proposal, res);
+}));
+
+// SPA fallback for the single-page app.
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api/")) return next();
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
+
+const PORT = process.env.BT_PORT || process.env.PORT || 4000;
+app.listen(PORT, () => console.log(`Bidtranslator on http://localhost:${PORT}`));
