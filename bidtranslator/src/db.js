@@ -29,6 +29,11 @@ CREATE TABLE IF NOT EXISTS user (
   default_to_lang TEXT DEFAULT 'en',
   ai_calls_month INTEGER DEFAULT 0,
   ai_calls_period TEXT DEFAULT '',
+  trial_ends_at INTEGER,
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  subscription_status TEXT DEFAULT 'none',
+  current_period_end INTEGER,
   created_at INTEGER NOT NULL
 );
 
@@ -71,5 +76,20 @@ CREATE TABLE IF NOT EXISTS photo (
 );
 CREATE INDEX IF NOT EXISTS photo_job_idx ON photo(job_id);
 `);
+
+// Migrate older databases that predate the billing columns.
+function ensureColumns(table, cols) {
+  const existing = new Set(db.prepare(`PRAGMA table_info(${table})`).all().map((r) => r.name));
+  for (const [name, ddl] of cols) {
+    if (!existing.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${ddl}`);
+  }
+}
+ensureColumns("user", [
+  ["trial_ends_at", "INTEGER"],
+  ["stripe_customer_id", "TEXT"],
+  ["stripe_subscription_id", "TEXT"],
+  ["subscription_status", "TEXT DEFAULT 'none'"],
+  ["current_period_end", "INTEGER"],
+]);
 
 export default db;

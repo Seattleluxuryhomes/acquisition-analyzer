@@ -52,6 +52,24 @@
   .sync.offline .dot{background:var(--amber-deep)}
   .sync.saving .dot{background:var(--blueprint);animation:pulse 1s infinite}
   .offline-banner{background:rgba(207,127,24,.16);border-bottom:1px solid var(--amber-deep);color:#f0d8af;font-family:"IBM Plex Mono";font-size:.74rem;text-align:center;padding:7px 12px}
+  .trial-chip{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.04em;color:var(--ink);background:var(--amber);border:none;border-radius:6px;padding:6px 10px;font-weight:600}
+  .trial-chip.warn{background:var(--rust);color:#fff}
+
+  /* billing / paywall */
+  .pricecard{background:var(--ink-card);border:1px solid var(--line);border-radius:12px;padding:24px;margin-top:18px;text-align:center}
+  .pricecard .amt{font-family:"Archivo";font-weight:900;font-size:2.6rem;letter-spacing:-.02em;margin:6px 0}
+  .pricecard .amt span{font-family:"IBM Plex Mono";font-size:.9rem;font-weight:500;color:var(--muted)}
+  .feat{list-style:none;text-align:left;max-width:340px;margin:16px auto;display:flex;flex-direction:column;gap:9px}
+  .feat li{font-size:.92rem;padding-left:24px;position:relative}
+  .feat li::before{content:"\2713";position:absolute;left:0;color:var(--ok);font-weight:700}
+  .billbox{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:16px;margin-top:18px}
+  .billbox h3{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+  .statline{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .badge{font-family:"IBM Plex Mono";font-size:.7rem;padding:3px 9px;border-radius:4px}
+  .badge.active{background:rgba(62,125,90,.2);color:#8fd0a8}
+  .badge.trial{background:rgba(207,127,24,.2);color:#f0d8af}
+  .badge.none{background:rgba(154,163,174,.15);color:var(--muted)}
+  .badge.past_due,.badge.canceled{background:rgba(169,78,56,.2);color:#e3a08f}
 
   main{flex:1;padding:18px}
 
@@ -210,6 +228,7 @@
     <div class="top-in">
       <div class="brand"><span class="mark">B</span>Bid<b2>translator</b2></div>
       <div class="top-actions">
+        <button class="trial-chip" id="trialChip" style="display:none" onclick="go('paywall')"></button>
         <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
         <button class="icon-btn" id="navJobs" onclick="go('home')">Jobs</button>
         <button class="icon-btn" id="navSet" onclick="go('settings')">Setup</button>
@@ -224,17 +243,19 @@
 
 <script>
 /* ===== OFFLINE DEMO SHIM — mocks the backend in-browser so this single file
-   shows the finished UI with sample data. The app code below is byte-for-byte
-   the real public/index.html. Only window.fetch + seeded auth are injected. ===== */
+   shows the finished UI with sample data + a simulated free trial. The app code
+   below is byte-for-byte the real public/index.html. ===== */
 (function(){
   localStorage.setItem('bt_token','demo-token');
   localStorage.setItem('bt_user', JSON.stringify({id:'u1',email:'demo@bidtranslator.com',company:'Martinez & Sons Remodeling',name:'Luis Martinez',phone:'(206) 555-0142',license:'WA-CCB-218845',default_from_lang:'es',default_to_lang:'en'}));
   localStorage.setItem('bt_settings', JSON.stringify({company:'Martinez & Sons Remodeling',name:'Luis Martinez',phone:'(206) 555-0142',license:'WA-CCB-218845',from:'es',to:'en'}));
-  localStorage.removeItem('bt_jobs');
+  localStorage.removeItem('bt_jobs'); localStorage.removeItem('bt_billing');
   const rid=()=>Math.random().toString(36).slice(2,10);
   function USER(){return {id:'u1',email:'demo@bidtranslator.com',company:STORE.settings.company,name:STORE.settings.name,phone:STORE.settings.phone,license:STORE.settings.license,default_from_lang:STORE.settings.from,default_to_lang:STORE.settings.to};}
+  const TRIAL_END=1782081870023+9*86400000; // ~9 days left, in trial
   const STORE = {
     settings:{company:'Martinez & Sons Remodeling',name:'Luis Martinez',phone:'(206) 555-0142',license:'WA-CCB-218845',from:'es',to:'en'},
+    billing:{configured:true,entitled:true,status:'none',in_trial:true,trial_ends_at:TRIAL_END,current_period_end:null,has_subscription:false},
     jobs:[
       { id:'reyes01', title:'Reyes — Bathroom Remodel', from:'es', to:'en',
         transcript:'La señora quiere un baño nuevo. Quitar la bañera vieja y poner una ducha grande con azulejo. Cambiar el lavabo y las luces. Ella compra la grifería.',
@@ -249,7 +270,7 @@
           {id:rid(),desc:'Client-supplied faucet & fixtures',type:'fixed',price:0,hours:0,rate:0,furn:'client'}],
         upgrades:[{id:rid(),desc:'Heated tile floor',price:1200},{id:rid(),desc:'Frameless glass shower door',price:950}],
         notes:'PRIVATE: tight budget — hold firm on shower price.', margin:28, status:'draft',
-        created_at:1782081083301-86400000, updated_at:1782081083301-86400000,
+        created_at:1782081870023-86400000, updated_at:1782081870023-86400000,
         photos:[{id:rid(), url:"data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'240'%20height%3D'240'%3E%3Crect%20width%3D'240'%20height%3D'240'%20fill%3D'%232E5C7E'%2F%3E%3Crect%20x%3D'30'%20y%3D'150'%20width%3D'180'%20height%3D'70'%20fill%3D'%231E4259'%2F%3E%3Ccircle%20cx%3D'180'%20cy%3D'60'%20r%3D'28'%20fill%3D'%23EE9B2E'%2F%3E%3Ctext%20x%3D'20'%20y%3D'130'%20font-family%3D'monospace'%20font-size%3D'15'%20fill%3D'%23E7D8B6'%3Ebathroom%20%C2%B7%20before%3C%2Ftext%3E%3C%2Fsvg%3E"}] },
       { id:'martinez01', title:'Martinez — Kitchen & Bath', from:'es', to:'en',
         transcript:'El cliente quiere rehacer el baño completo y pintar la cocina con una isla nueva. Él compra los azulejos.',
@@ -261,7 +282,7 @@
           {id:rid(),desc:'Paint kitchen',type:'hourly',price:0,hours:14,rate:55,furn:'you'},
           {id:rid(),desc:'Build & install kitchen island',type:'fixed',price:1850,hours:0,rate:0,furn:'you'}],
         upgrades:[{id:rid(),desc:'Quartz island countertop',price:950}],
-        notes:'', margin:22, status:'sent', created_at:1782081083301-3600000, updated_at:1782081083301-3600000, photos:[] }
+        notes:'', margin:22, status:'sent', created_at:1782081870023-3600000, updated_at:1782081870023-3600000, photos:[] }
     ]
   };
   const find=(id)=>STORE.jobs.find(j=>j.id===id);
@@ -290,11 +311,13 @@
     const method=(opts.method||'GET').toUpperCase();
     let body=null; try{ body=opts.body?JSON.parse(opts.body):null; }catch(e){}
     const q=u.indexOf('?'); const p=q>=0?u.slice(0,q):u;
-    if(p==='/api/health') return Promise.resolve(J({ok:true,ai:true}));
+    if(p==='/api/health') return Promise.resolve(J({ok:true,ai:true,billing:true}));
     if(p==='/api/auth/signin'||p==='/api/auth/signup') return Promise.resolve(J({token:'demo-token',user:USER()}));
-    if(p==='/api/auth/signout') return Promise.resolve(J({ok:true}));
-    if(p==='/api/auth/reset') return Promise.resolve(J({ok:true}));
-    if(p==='/api/me'&&method==='GET') return Promise.resolve(J({user:USER(),settings:STORE.settings}));
+    if(p==='/api/auth/signout'||p==='/api/auth/reset') return Promise.resolve(J({ok:true}));
+    if(p==='/api/billing/status') return Promise.resolve(J(STORE.billing));
+    if(p==='/api/billing/checkout') return Promise.resolve(J({error:'This is a static demo — in the live app, Stripe Checkout opens here to start the subscription.'},400));
+    if(p==='/api/billing/portal') return Promise.resolve(J({error:'This is a static demo — in the live app, the Stripe billing portal opens here.'},400));
+    if(p==='/api/me'&&method==='GET') return Promise.resolve(J({user:USER(),settings:STORE.settings,billing:STORE.billing}));
     if(p==='/api/me'&&method==='PATCH'){ Object.assign(STORE.settings,body||{}); return Promise.resolve(J({user:USER(),settings:STORE.settings})); }
     if(p==='/api/jobs'&&method==='GET') return Promise.resolve(J({jobs:STORE.jobs.map(summ)}));
     if(p==='/api/jobs'&&method==='POST'){ const j=fromPayload(body); STORE.jobs.unshift(j); return Promise.resolve(J({job:full(j)})); }
@@ -327,6 +350,30 @@ let JOBS = JSON.parse(localStorage.getItem('bt_jobs')||'[]');
 let settingsDirty = false;
 let online = navigator.onLine;
 let syncing = false;
+let BILLING = JSON.parse(localStorage.getItem('bt_billing')||'null'); // {configured,entitled,status,in_trial,trial_ends_at,...}
+
+/* ============ billing ============ */
+function entitled(){ return !BILLING || BILLING.entitled !== false; }
+async function loadBilling(){
+  if(!TOKEN || !online) return;
+  try{ BILLING = await api('/api/billing/status'); localStorage.setItem('bt_billing', JSON.stringify(BILLING)); }catch(e){}
+}
+function trialDaysLeft(){
+  if(!BILLING || !BILLING.trial_ends_at) return 0;
+  return Math.max(0, Math.ceil((BILLING.trial_ends_at - Date.now())/86400000));
+}
+async function startCheckout(btn){
+  if(btn){ btn.disabled=true; btn.textContent='Opening checkout…'; }
+  try{ const r=await api('/api/billing/checkout',{method:'POST'}); window.location.href=r.url; }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Subscribe'; } alert(e.message||'Could not start checkout.'); }
+}
+async function openPortal(btn){
+  if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
+  try{ const r=await api('/api/billing/portal',{method:'POST'}); window.location.href=r.url; }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Manage billing'; } alert(e.message||'Could not open billing.'); }
+}
+// Route gated 402s to the paywall.
+function gate402(e){ if(e && e.status===402){ loadBilling().then(()=>go('paywall')); return true; } return false; }
 
 /* ============ local persistence ============ */
 function persist(){ localStorage.setItem('bt_jobs', JSON.stringify(JOBS)); }
@@ -367,14 +414,14 @@ async function doAuth(){
     }); persistSettings(); }
     state.view='home';
     render();
-    await syncNow(true);
+    await Promise.all([syncNow(true), loadBilling()]);
     render();
   }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
 }
 function setAuthMode(m){ state.authMode=m; state.authError=''; render(); }
 async function signOut(){
   try{ if(TOKEN) await api('/api/auth/signout',{method:'POST'}); }catch(e){}
-  TOKEN=null; USER=null; persistAuth();
+  TOKEN=null; USER=null; BILLING=null; localStorage.removeItem('bt_billing'); persistAuth();
   state.view='home'; render();
 }
 
@@ -473,6 +520,7 @@ window.addEventListener('offline', ()=>{ online=false; paintSync(); });
 /* ============ routing ============ */
 function go(v, jobId){ state.view=v; if(jobId!==undefined) state.jobId=jobId; state.error=''; render(); window.scrollTo(0,0);
   if(v==='job' && state.jobId && state.jobId!=='new') refreshJob(state.jobId); }
+function newJob(){ if(!entitled()){ go('paywall'); return; } go('capture','new'); }
 function currentJob(){ return JOBS.find(j=>j.id===state.jobId); }
 
 // Pull the full job (the list endpoint omits photo URLs). Refreshes signed photo
@@ -503,7 +551,44 @@ function render(){
   else if(state.view==='capture') v.innerHTML = viewCapture();
   else if(state.view==='job') v.innerHTML = viewJob();
   else if(state.view==='settings') v.innerHTML = viewSettings();
+  else if(state.view==='paywall') v.innerHTML = viewPaywall();
   paintSync();
+  paintTrialChip();
+}
+
+function paintTrialChip(){
+  const chip=document.getElementById('trialChip'); if(!chip) return;
+  if(!BILLING || !BILLING.configured || BILLING.status==='active'){ chip.style.display='none'; return; }
+  const days=trialDaysLeft();
+  if(BILLING.entitled && BILLING.in_trial){ chip.style.display=''; chip.className='trial-chip'+(days<=3?' warn':''); chip.textContent=days+' day'+(days===1?'':'s')+' left'; }
+  else if(!BILLING.entitled){ chip.style.display=''; chip.className='trial-chip warn'; chip.textContent='Subscribe'; }
+  else { chip.style.display='none'; }
+}
+
+/* ---------- PAYWALL ---------- */
+function viewPaywall(){
+  const expired = BILLING && !BILLING.entitled;
+  const days = trialDaysLeft();
+  return `<button class="backlink" onclick="go('home')">← Jobs</button>
+    <div class="h-eyebrow">${expired?'Trial ended':'Bidtranslator Pro'}</div>
+    <h1 class="page">${expired?'Subscribe to keep building bids':'Go unlimited'}</h1>
+    <div class="sub">${expired
+      ? 'Your free trial is over. Your saved jobs are still here — subscribe to create and send new bids.'
+      : (BILLING&&BILLING.in_trial ? `You have ${days} day${days===1?'':'s'} left in your free trial.` : 'Subscribe for full access.')}</div>
+    <div class="pricecard">
+      <div class="h-eyebrow">Contractor plan</div>
+      <div class="amt" id="priceAmt">Monthly<span></span></div>
+      <ul class="feat">
+        <li>Unlimited job notebooks</li>
+        <li>Voice capture &amp; English ⇄ Spanish translation</li>
+        <li>AI bid drafting from the conversation</li>
+        <li>Clean client proposals &amp; PDF</li>
+        <li>Cloud sync across your devices</li>
+      </ul>
+      <button class="btn full" onclick="startCheckout(this)">Subscribe</button>
+      <div class="hint" style="margin-top:10px">Secure checkout by Stripe. Cancel anytime.</div>
+    </div>
+    ${BILLING&&BILLING.has_subscription?`<div style="margin-top:14px;text-align:center"><button class="btn ghost" onclick="openPortal(this)">Manage billing</button></div>`:''}`;
 }
 
 /* ---------- AUTH ---------- */
@@ -534,7 +619,7 @@ function viewHome(){
   const visible = JOBS.filter(j=>!j._deleted);
   let list;
   if(visible.length===0){
-    list = `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="go('capture','new')">+ New job</button></div></div>`;
+    list = `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
   } else {
     list = '<div class="joblist">' + visible.map(j=>{
       const total = bidTotal(j);
@@ -547,7 +632,7 @@ function viewHome(){
   }
   return `<div class="h-eyebrow">Job notebook</div><h1 class="page">Your jobs</h1>
     <div class="newbar"><div class="sub">${visible.length} ${visible.length===1?'job':'jobs'}</div>
-    <button class="btn sm" onclick="go('capture','new')">+ New job</button></div>${list}`;
+    <button class="btn sm" onclick="newJob()">+ New job</button></div>${list}`;
 }
 
 /* ---------- CAPTURE ---------- */
@@ -630,12 +715,14 @@ function makeLocalJob(f, data){
 }
 
 function buildManual(){
+  if(!entitled()){ go('paywall'); return; }
   const f=newJobFromForm();
   const job=makeLocalJob(f, null);
   JOBS.unshift(job); saveJobs(); state.bidTab='build'; go('job',job.id);
 }
 
 async function buildFromConversation(){
+  if(!entitled()){ go('paywall'); return; }
   const f=newJobFromForm();
   if(!f.text){ state.error='Add the conversation first, or choose “build manually”.'; render(); return; }
   if(!online){ state.error='You’re offline — the AI build needs a connection. Your job will be created so you can fill it in by hand now and build later.'; const job=makeLocalJob(f,null); JOBS.unshift(job); saveJobs(); state.bidTab='notebook'; go('job',job.id); return; }
@@ -644,6 +731,7 @@ async function buildFromConversation(){
   try{
     data = await api('/api/assist/build',{ method:'POST', body:JSON.stringify({ text:f.text, from_lang:f.from, to_lang:f.to }) });
   }catch(e){
+    if(e.status===402){ state.loading=false; gate402(e); return; }
     data=null;
     state.error = e.code==='AI_UNCONFIGURED'
       ? 'The AI build isn’t set up on the server yet — your job was created, fill it in by hand.'
@@ -806,6 +894,7 @@ function clientHTML(j){
 
 async function sendPDF(){
   const j=currentJob(); if(!j) return;
+  if(!entitled()){ go('paywall'); return; }
   const btn=document.getElementById('pdfBtn');
   // mark as sent + ensure the server has the latest version before it renders
   j.status='sent'; touch(j); persist();
@@ -814,6 +903,7 @@ async function sendPDF(){
     try{
       await syncNow(true);
       const res = await fetch(API+'/api/jobs/'+j.id+'/pdf', { headers:{'Authorization':'Bearer '+TOKEN} });
+      if(res.status===402){ if(btn){ btn.disabled=false; btn.textContent='Save / Send PDF'; } await loadBilling(); go('paywall'); return; }
       if(!res.ok) throw new Error('pdf '+res.status);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -833,6 +923,23 @@ function printClient(){
 }
 
 /* ---------- SETTINGS ---------- */
+function billingSection(){
+  if(!BILLING || !BILLING.configured) return '';
+  const s=BILLING.status;
+  const label = s==='active'?'Active':(BILLING.in_trial?'Free trial':(s==='past_due'?'Past due':(s==='canceled'?'Canceled':'No subscription')));
+  const cls = s==='active'?'active':(BILLING.in_trial?'trial':(s==='past_due'?'past_due':(s==='canceled'?'canceled':'none')));
+  const days=trialDaysLeft();
+  let detail='';
+  if(s==='active' && BILLING.current_period_end) detail='Renews '+new Date(BILLING.current_period_end).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+'.';
+  else if(BILLING.in_trial) detail=days+' day'+(days===1?'':'s')+' left in your free trial.';
+  else if(!BILLING.entitled) detail='Subscribe to create and send new bids.';
+  const btn = (s==='active'||BILLING.has_subscription)
+    ? `<button class="btn ghost sm" onclick="openPortal(this)">Manage billing</button>`
+    : `<button class="btn sm" onclick="startCheckout(this)">Subscribe</button>`;
+  return `<div class="billbox"><h3>Subscription</h3>
+    <div class="statline"><span class="badge ${cls}">${label}</span>${btn}</div>
+    ${detail?`<div class="hint" style="margin-top:8px">${esc(detail)}</div>`:''}</div>`;
+}
 function viewSettings(){
   return `<div class="h-eyebrow">Setup</div><h1 class="page">Your business</h1>
     <div class="sub">This appears on the proposals you send. Synced to your account.</div>
@@ -848,6 +955,7 @@ function viewSettings(){
       <div><label class="fld">Default — you speak</label><select class="input" onchange="setS('from',this.value)">${langOpts(SETTINGS.from)}</select></div>
       <div><label class="fld">Default — client reads</label><select class="input" onchange="setS('to',this.value)">${langOpts(SETTINGS.to)}</select></div>
     </div>
+    ${billingSection()}
     <div class="legalbox">
       <h3>Terms &amp; privacy (placeholder)</h3>
       <p>Conversations, transcripts, photos, and bids you create belong to you. They're stored for your use, and you can delete them at any time. Bidtranslator is a tool for preparing estimates — bids you send are agreements between you and your client, not us.</p>
@@ -945,8 +1053,16 @@ async function delPhoto(i){
 /* ============ boot ============ */
 (async function(){
   state.booted=true;
+  // Returning from Stripe Checkout / portal: clean the URL and refresh status.
+  const params=new URLSearchParams(location.search);
+  const billingReturn=params.get('billing');
+  if(billingReturn){ history.replaceState({}, '', location.pathname); }
   render();
-  if(TOKEN){ await syncNow(true); render(); }
+  if(TOKEN){
+    await Promise.all([syncNow(true), loadBilling()]);
+    if(billingReturn==='success'){ state.view='home'; }
+    render();
+  }
 })();
 </script>
 </body>

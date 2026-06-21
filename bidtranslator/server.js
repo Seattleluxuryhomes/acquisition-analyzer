@@ -14,16 +14,32 @@ import { assistBuild, aiConfigured } from "./src/assist.js";
 import { buildProposal } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig } from "./src/files.js";
+import * as Billing from "./src/billing.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uid = () => crypto.randomBytes(9).toString("base64url");
 const app = express();
+
+// Stripe webhook needs the RAW body for signature verification — register it
+// before any JSON parsing so the bytes are untouched.
+app.post("/api/billing/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => {
+  try {
+    const event = Billing.verifyWebhook(req.body.toString("utf8"), req.headers["stripe-signature"]);
+    Billing.handleEvent(event);
+    res.json({ received: true });
+  } catch (err) {
+    res.status(err.status || 400).json({ error: err.message });
+  }
+});
+
 // Global JSON parser, but skip the photo-upload route so its own larger limit
 // applies (otherwise this 256kb cap would reject photos before they're reached).
 const smallJson = express.json({ limit: "256kb" });
 const isPhotoUpload = (req) => req.method === "POST" && /^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path);
 app.use((req, res, next) => (isPhotoUpload(req) ? next() : smallJson(req, res, next)));
 app.use(express.static(path.join(__dirname, "public")));
+
+const baseUrl = (req) => process.env.BT_PUBLIC_URL || `${req.protocol}://${req.get("host")}`;
 
 // Deferring fn into .then() means synchronous throws become rejections too.
 const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((err) => {
@@ -56,7 +72,7 @@ function attachPhotos(userId, job) {
 }
 
 // ---- Health ----
-app.get("/api/health", (_req, res) => res.json({ ok: true, ai: aiConfigured() }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, ai: aiConfigured(), billing: Billing.billingConfigured() }));
 
 // ---- Auth ----
 app.post("/api/auth/signup", wrap((req, res) => { res.json(signup(req.body || {})); }));
@@ -66,8 +82,18 @@ app.post("/api/auth/signout", requireAuth, wrap((req, res) => { signout(req.toke
 // returns ok so the endpoint can't be used to probe which emails exist.
 app.post("/api/auth/reset", wrap((req, res) => res.json({ ok: true, note: "Email reset not configured in this build." })));
 
+// ---- Billing ----
+app.get("/api/billing/status", requireAuth, (req, res) => res.json(Billing.billingStatus(req.user)));
+app.post("/api/billing/checkout", requireAuth, wrap(async (req, res) => {
+  res.json({ url: await Billing.createCheckout(req.user, baseUrl(req)) });
+}));
+app.post("/api/billing/portal", requireAuth, wrap(async (req, res) => {
+  res.json({ url: await Billing.createPortal(req.user, baseUrl(req)) });
+}));
+
 // ---- Me / settings ----
-app.get("/api/me", requireAuth, (req, res) => res.json({ user: publicUser(req.user), settings: settingsOf(req.user) }));
+app.get("/api/me", requireAuth, (req, res) =>
+  res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user) }));
 app.patch("/api/me", requireAuth, wrap((req, res) => {
   const b = req.body || {};
   const map = { company: "company", name: "name", phone: "phone", license: "license",
@@ -83,7 +109,7 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
 
 // ---- Jobs ----
 app.get("/api/jobs", requireAuth, (req, res) => res.json({ jobs: Jobs.listJobs(req.user.id) }));
-app.post("/api/jobs", requireAuth, wrap((req, res) => res.json({ job: attachPhotos(req.user.id, Jobs.createJob(req.user.id, req.body || {})) })));
+app.post("/api/jobs", requireAuth, Billing.requireEntitled, wrap((req, res) => res.json({ job: attachPhotos(req.user.id, Jobs.createJob(req.user.id, req.body || {})) })));
 app.get("/api/jobs/:id", requireAuth, wrap((req, res) => {
   const job = Jobs.getJob(req.user.id, req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found." });
@@ -138,14 +164,14 @@ app.delete("/api/jobs/:id/photos/:pid", requireAuth, wrap((req, res) => {
 }));
 
 // ---- AI build (server-side proxy) ----
-app.post("/api/assist/build", requireAuth, wrap(async (req, res) => {
+app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
   const { text, from_lang, to_lang } = req.body || {};
   const data = await assistBuild(req.user, { text, from_lang, to_lang });
   res.json(data);
 }));
 
 // ---- Client proposal PDF (margin/notes stripped by buildProposal) ----
-app.get("/api/jobs/:id/pdf", requireAuth, wrap((req, res) => {
+app.get("/api/jobs/:id/pdf", requireAuth, Billing.requireEntitled, wrap((req, res) => {
   const job = Jobs.getJob(req.user.id, req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found." });
   const proposal = buildProposal(job, settingsOf(req.user));

@@ -61,9 +61,11 @@ export function signup({ email, password }) {
 
   const id = uid();
   const now = Date.now();
+  const TRIAL_DAYS = Number(process.env.BT_TRIAL_DAYS || 14);
+  const trialEnds = now + TRIAL_DAYS * 24 * 60 * 60 * 1000;
   db.prepare(
-    "INSERT INTO user (id, email, password_hash, created_at) VALUES (?,?,?,?)"
-  ).run(id, email, hashPassword(password), now);
+    "INSERT INTO user (id, email, password_hash, trial_ends_at, created_at) VALUES (?,?,?,?,?)"
+  ).run(id, email, hashPassword(password), trialEnds, now);
   const row = db.prepare("SELECT * FROM user WHERE id=?").get(id);
   return { token: issueSession(id), user: publicUser(row) };
 }

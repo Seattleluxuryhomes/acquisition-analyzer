@@ -14,6 +14,7 @@ moved server-side.
 - **Backend:** Node 22 + Express, `node:sqlite` (built-in — no native build), `pdfkit`.
 - **Auth:** scrypt-hashed passwords + opaque server-side session tokens (`node:crypto`).
 - **AI:** server-side proxy to Anthropic at `POST /api/assist/build` — the key never reaches the browser.
+- **Billing:** Stripe subscriptions (Checkout + customer portal + webhooks) via `fetch` — no SDK dependency. Optional: off by default, app runs fully without it.
 - **Front end:** the prototype's HTML/CSS/JS, refactored onto an offline-first sync layer.
 
 No third-party account is required to run it. (This is "Path B" from the build
@@ -42,6 +43,11 @@ never blocks on the AI).
 | `BT_AI_MONTHLY_CAP` | no | Per-user monthly AI-build cap (default 200). |
 | `BT_PORT` | no | Default 4000. |
 | `BT_DATA_DIR` | no | Where the SQLite db + photos live (default `./data`). |
+| `STRIPE_SECRET_KEY` | for billing | Enables subscriptions. Omit and billing is off (every user has full access). |
+| `STRIPE_PRICE_ID` | for billing | The recurring monthly Price object in Stripe. |
+| `STRIPE_WEBHOOK_SECRET` | for billing | Signing secret for the `/api/billing/webhook` endpoint. |
+| `BT_TRIAL_DAYS` | no | Free-trial length on signup (default 14). |
+| `BT_PUBLIC_URL` | for billing | Base URL for Stripe success/return links (e.g. your hosted domain). |
 
 ## API
 
@@ -53,7 +59,35 @@ GET    /api/jobs/:id      PATCH /api/jobs/:id            DELETE /api/jobs/:id
 POST   /api/jobs/:id/photos        GET .../photos/:pid (signed)   DELETE .../photos/:pid
 POST   /api/assist/build           AI translate + structure
 GET    /api/jobs/:id/pdf           server-rendered client proposal
+GET    /api/billing/status         subscription/trial state
+POST   /api/billing/checkout       -> Stripe Checkout URL
+POST   /api/billing/portal         -> Stripe customer-portal URL
+POST   /api/billing/webhook        Stripe events (raw body, signature-verified)
 ```
+
+## Payments / subscriptions
+
+Contractor subscription is the revenue model (per the founder brief). Implemented
+with Stripe and **off by default** — set the `STRIPE_*` vars to turn it on.
+
+- **Free trial → paywall.** New signups get a 14-day trial (`BT_TRIAL_DAYS`). During
+  the trial the app is fully usable, so onboarding can end in a real sent bid.
+- **What the paywall gates.** After the trial ends without an active subscription,
+  *existing jobs stay viewable and editable*, but **creating a new job, running the
+  AI build, and exporting/sending the PDF** return `402 SUBSCRIPTION_REQUIRED`. The
+  front end catches that and shows a subscribe screen.
+- **Entitlement** = billing-not-configured, OR an `active`/`trialing` Stripe
+  subscription, OR still inside the local trial window. Enforced server-side via
+  `requireEntitled` on the gated routes — not just in the UI.
+- **Checkout & management.** `POST /api/billing/checkout` opens Stripe Checkout;
+  `POST /api/billing/portal` opens Stripe's customer portal (update card, cancel).
+- **Webhooks.** `POST /api/billing/webhook` verifies the Stripe signature with
+  `node:crypto` (HMAC-SHA256, 5-min replay window) and syncs subscription status.
+
+**To wire it up in Stripe:** create a recurring Price → put its id in `STRIPE_PRICE_ID`;
+add a webhook endpoint pointing at `…/api/billing/webhook` subscribed to
+`checkout.session.completed` and `customer.subscription.*`, and put its signing
+secret in `STRIPE_WEBHOOK_SECRET`. The monthly amount lives in Stripe, not the code.
 
 ## How the hard rules are enforced
 
@@ -95,6 +129,8 @@ bidtranslator/
     proposal.js        buildProposal() — the client-facing whitelist
     pdf.js             server-rendered proposal PDF
     files.js           signed expiring photo URLs
+    billing.js         Stripe subscriptions + trial/entitlement gating
   public/index.html    the app (offline-first front end)
-  docs/                build spec, founder brief, original rules, prototype
+  scripts/build-demo.mjs  regenerates the offline demo from public/index.html
+  docs/                build spec, founder brief, rules, prototype, clickable demo, sample PDF
 ```
