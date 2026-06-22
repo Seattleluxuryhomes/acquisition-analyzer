@@ -135,6 +135,7 @@ ensureColumns("job", [
   ["scheduled_time", "TEXT"],   // "HH:MM" 24h, optional — turns the date into a real appointment
   // Maps: the job's street address (drives Maps/Directions/Street View links).
   ["address", "TEXT"],
+  ["customer", "TEXT"],         // who the proposal is FOR (shown on the bid + PDF)
 ]);
 
 export default db;

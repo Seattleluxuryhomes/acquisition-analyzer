@@ -16,8 +16,9 @@ export function renderProposalPDF(proposal, res) {
   const right = doc.page.width - doc.page.margins.right;
   const width = right - left;
 
-  // ---- Business header band ----
+  // ---- Business header band (centered letterhead + amber accent) ----
   doc.rect(0, 0, doc.page.width, 96).fill(INK);
+  doc.rect(0, 93, doc.page.width, 3).fill(AMBER);
   // A logo carries the brand, so show it and skip the duplicate company name.
   // Wrapped so a bad image can never break the PDF.
   let logoBuf = null;
@@ -28,23 +29,24 @@ export function renderProposalPDF(proposal, res) {
     } catch { logoBuf = null; }
   }
   if (logoBuf) {
-    try { doc.image(logoBuf, left, 22, { fit: [180, 46], valign: "center" }); }
+    try { doc.image(logoBuf, left, 20, { fit: [width, 48], align: "center", valign: "center" }); }
     catch { logoBuf = null; }
   }
   if (!logoBuf) {
     doc.fillColor("#F3EEE3").font("Helvetica-Bold").fontSize(20)
-      .text(proposal.business.company || "Your Company", left, 30, { width });
+      .text(proposal.business.company || "Your Company", left, 32, { width, align: "center" });
   }
   const meta = [proposal.business.name, proposal.business.phone,
     proposal.business.license ? "Lic. " + proposal.business.license : ""]
     .filter(Boolean).join("  ·  ");
   doc.font("Helvetica").fontSize(9).fillColor("#b9c2cc")
-    .text(meta || "", left, logoBuf ? 74 : 58, { width });
+    .text(meta || "", left, logoBuf ? 74 : 60, { width, align: "center" });
   doc.y = 120;
 
   // ---- Proposal heading ----
-  sectionLabel(doc, "PROPOSAL FOR", left);
-  doc.font("Helvetica-Bold").fontSize(13).fillColor(INK).text(proposal.title, left);
+  sectionLabel(doc, "PREPARED FOR", left);
+  doc.font("Helvetica-Bold").fontSize(13).fillColor(INK).text(proposal.customer || proposal.title, left);
+  if (proposal.customer) doc.font("Helvetica").fontSize(10).fillColor(MUTED).text(proposal.title, left);
   doc.font("Helvetica").fontSize(9).fillColor(MUTED).text(proposal.date, left);
   doc.moveDown(0.8);
 
