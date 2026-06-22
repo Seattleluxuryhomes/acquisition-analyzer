@@ -44,7 +44,10 @@ const isPhotoUpload = (req) => req.method === "POST" && /^\/api\/jobs\/[^/]+\/ph
 app.use((req, res, next) => (isPhotoUpload(req) ? next() : smallJson(req, res, next)));
 app.use(express.static(path.join(__dirname, "public")));
 
-const baseUrl = (req) => process.env.BT_PUBLIC_URL || `${req.protocol}://${req.get("host")}`;
+const baseUrl = (req) =>
+  (process.env.BT_PUBLIC_URL ||
+    `${(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim()}://${req.get("host")}`
+  ).replace(/\/+$/, "");
 
 // Deferring fn into .then() means synchronous throws become rejections too.
 const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((err) => {
