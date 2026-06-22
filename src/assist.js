@@ -53,12 +53,19 @@ function buildSystemPrompt(from, to) {
     "You are an estimating assistant for construction contractors. Translate the " +
     "field conversation and turn it into a structured bid draft. Respond with ONLY " +
     "valid minified JSON, no markdown fences and no commentary, matching exactly: " +
-    '{"translation":string,"summary":string,"lines":[{"desc":string,"type":"fixed"|"hourly",' +
+    '{"translation":string,"summary":string,"lines":[{"section":string,"desc":string,"type":"fixed"|"hourly",' +
     '"price":number,"hours":number,"rate":number}],"assumptions":[string],"exclusions":[string],' +
-    '"upgrades":[{"desc":string,"price":number}]}. Rules: at most 6 lines, at most 4 upgrades. ' +
+    '"upgrades":[{"desc":string,"price":number}]}. Rules: at most 12 lines, at most 4 upgrades. ' +
+    "Group the work by room or area: put the room/area name (e.g. \"Bathroom\", \"Kitchen\") in each " +
+    "line's \"section\". Keep different rooms in different sections — never merge two rooms into one " +
+    "line. If the whole job is one area, use a single section name or leave \"section\" empty. " +
     "For a fixed line set price and use hours 0 and rate 0. For an hourly line set hours and rate " +
-    "and price 0. Prices are rough USD placeholders the contractor will edit. If the client is " +
-    "supplying a material, add it as an exclusion. Translate from " +
+    "and price 0. IMPORTANT about pricing: if the conversation states a price (for an item, a room, " +
+    "or labor), use that exact number — never replace a stated price with a guess. Only invent a " +
+    "rough USD placeholder when no price is given. When one total price covers a room that has " +
+    "several steps, make ONE line for that room whose desc lists those steps, priced at the stated " +
+    "total. If a price is noted as plus tax (e.g. \"+ sales tax\"), add that as an assumption. If the " +
+    "client is supplying a material, add it as an exclusion. Translate from " +
     (LANGS[from] || from) + " to " + (LANGS[to] || to) + ". The \"translation\" field is the " +
     "conversation rendered in " + (LANGS[to] || to) + "."
   );
@@ -66,7 +73,8 @@ function buildSystemPrompt(from, to) {
 
 function sanitize(data) {
   const num = (n) => Number(n) || 0;
-  const lines = (Array.isArray(data.lines) ? data.lines : []).slice(0, 6).map((l) => ({
+  const lines = (Array.isArray(data.lines) ? data.lines : []).slice(0, 12).map((l) => ({
+    section: String(l.section || "").slice(0, 80),
     desc: String(l.desc || "").slice(0, 200),
     type: l.type === "hourly" ? "hourly" : "fixed",
     price: num(l.price), hours: num(l.hours), rate: num(l.rate),

@@ -36,6 +36,7 @@ function rowToJob(row) {
 function cleanLine(l) {
   return {
     id: String(l.id || uid()),
+    section: String(l.section || "").slice(0, 80),
     desc: String(l.desc || "").slice(0, 200),
     type: l.type === "hourly" ? "hourly" : "fixed",
     price: Number(l.price) || 0,

@@ -7,14 +7,22 @@ import db from "./db.js";
 
 const KEY = () => process.env.STRIPE_SECRET_KEY || "";
 const PRICE = () => process.env.STRIPE_PRICE_ID || "";
+// Optional one-time signup fee (a one-time Price). Charged on the first
+// subscription checkout only — see createCheckout + handleEvent.
+const SETUP_PRICE = () => process.env.STRIPE_SETUP_PRICE_ID || "";
 const WEBHOOK_SECRET = () => process.env.STRIPE_WEBHOOK_SECRET || "";
+// Optional: collect sales tax automatically via Stripe Tax. Off unless set, so
+// checkout never breaks before Stripe Tax is enabled + registered in the account.
+const TAX_ENABLED = () => /^(1|true|yes|on)$/i.test(process.env.BT_STRIPE_TAX || "");
 
 export function billingConfigured() {
   return !!KEY() && !!PRICE();
 }
 
 // A user can use paid features if billing is off, OR they hold an active/trialing
-// Stripe subscription, OR they're still inside the local free trial window.
+// Stripe subscription, OR they're still inside the card-free in-app trial. The
+// trial needs no card so people can start using the app immediately; they only
+// get charged when they actively choose to subscribe (no surprise auto-charge).
 export function isEntitled(user) {
   if (!billingConfigured()) return true;
   const status = user.subscription_status;
@@ -93,14 +101,25 @@ async function ensureCustomer(user) {
 export async function createCheckout(user, baseUrl) {
   if (!billingConfigured()) { const e = new Error("Billing is not configured."); e.status = 503; throw e; }
   const customer = await ensureCustomer(user);
-  const session = await stripe("checkout/sessions", {
+  // The free trial already happened in the app (card-free), so subscribing bills
+  // now: the recurring plan plus the one-time setup fee (first checkout only). A
+  // one-time price in a subscription-mode session lands on the first invoice.
+  const line_items = [{ price: PRICE(), quantity: 1 }];
+  if (SETUP_PRICE() && !user.setup_fee_paid) line_items.push({ price: SETUP_PRICE(), quantity: 1 });
+  const params = {
     mode: "subscription",
     customer,
-    line_items: [{ price: PRICE(), quantity: 1 }],
+    line_items,
     success_url: `${baseUrl}/?billing=success`,
     cancel_url: `${baseUrl}/?billing=cancel`,
     allow_promotion_codes: true,
-  });
+  };
+  if (TAX_ENABLED()) {
+    params.automatic_tax = { enabled: true };
+    params.customer_update = { address: "auto" };
+    params.billing_address_collection = "required";
+  }
+  const session = await stripe("checkout/sessions", params);
   return session.url;
 }
 
@@ -146,7 +165,8 @@ export function handleEvent(event) {
       // Subscription details arrive via the subscription.* events; record the link.
       if (obj.customer && obj.subscription) {
         const row = db.prepare("SELECT id FROM user WHERE stripe_customer_id=?").get(obj.customer);
-        if (row) db.prepare("UPDATE user SET stripe_subscription_id=?, subscription_status=? WHERE id=?")
+        // Mark the one-time setup fee paid so a future re-subscribe won't re-charge it.
+        if (row) db.prepare("UPDATE user SET stripe_subscription_id=?, subscription_status=?, setup_fee_paid=1 WHERE id=?")
           .run(obj.subscription, "active", row.id);
       }
       break;
