@@ -1355,7 +1355,7 @@ function clientHTML(j){
   return `<div class="client">
     <div class="client-head">
       ${SETTINGS.logo?`<img class="client-logo" src="${SETTINGS.logo}" alt=""/>`:''}
-      <div class="co">${esc(SETTINGS.company)||'Your Company'}</div>
+      ${SETTINGS.logo?'':`<div class="co">${esc(SETTINGS.company)||'Your Company'}</div>`}
       <div class="meta">${[SETTINGS.name,SETTINGS.phone,SETTINGS.license?('Lic. '+SETTINGS.license):''].filter(Boolean).map(esc).join(' · ')||'Add your details in Setup'}</div>
     </div>
     <div class="client-body">
