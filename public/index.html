@@ -131,6 +131,7 @@
   .schedrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 2px;background:var(--ink-soft);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
   .schedlbl{font-family:"IBM Plex Mono";font-size:.74rem;color:#9fc2da}
   .schedinput{background:var(--ink-card);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:8px 10px;font-size:.9rem;color-scheme:dark}
+  .schedwarn{margin:8px 0 2px;background:rgba(196,90,52,.16);border:1px solid var(--rust);border-radius:8px;padding:9px 12px;font-family:"IBM Plex Mono";font-size:.72rem;color:#ffb59a;line-height:1.4}
   .datetag{display:inline-block;font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.04em;background:rgba(30,66,89,.45);color:#9fc2da;padding:2px 7px;border-radius:3px;margin-left:6px}
   .addrrow{margin:10px 0 2px}
   .addrinput{width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:10px 12px;font-size:.92rem}
@@ -938,7 +939,7 @@ function viewSchedule(){
   const dayBlocks=days.map(d=>{
     const k=iso(d); const jobs=(byDate[k]||[]).sort((a,b)=>bidTotal(b)-bidTotal(a));
     const lbl=d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
-    return `<div class="wk-day ${k===todayK?'today':''}"><div class="wk-h">${k===todayK?'Today · ':''}${lbl}</div>${jobs.length?jobs.map(item).join(''):'<div class="wk-empty">—</div>'}</div>`;
+    return `<div class="wk-day ${k===todayK?'today':''}"><div class="wk-h">${k===todayK?'Today · ':''}${lbl}${jobs.length?` · ${jobs.length} ${jobs.length===1?'job':'jobs'}${jobs.length>1?' ⚠️':''}`:''}</div>${jobs.length?jobs.map(item).join(''):'<div class="wk-empty">—</div>'}</div>`;
   }).join('');
   const later=visible.filter(j=>j.scheduled_date>iso(days[6])).sort((a,b)=>a.scheduled_date.localeCompare(b.scheduled_date));
   const laterBlock=later.length?`<div class="wk-day"><div class="wk-h">Later</div>${later.map(item).join('')}</div>`:'';
@@ -955,6 +956,16 @@ function setJobStatus(id,s){
 function setSchedule(id,v){
   const j=JOBS.find(x=>x.id===id); if(!j) return;
   j.scheduled_date=v||''; touch(j); saveJobs(); render();
+}
+// Double-booking guard: other scheduled jobs that share this job's date.
+function jobsOnDate(date, excludeId){
+  if(!date) return [];
+  return JOBS.filter(x=>!x._deleted && x.id!==excludeId && jobStatus(x)==='scheduled' && x.scheduled_date===date);
+}
+function conflictNote(j){
+  const others=jobsOnDate(j.scheduled_date, j.id);
+  if(!others.length) return '';
+  return `<div class="schedwarn">⚠️ Heads up — ${others.length} other ${others.length===1?'job':'jobs'} already on ${fmtDate(j.scheduled_date)}: ${others.map(o=>esc(o.title)||'Untitled').join(' · ')}</div>`;
 }
 function fmtDate(d){
   if(!d) return ''; const p=String(d).split('-'); if(p.length!==3) return d;
@@ -1174,7 +1185,7 @@ function viewJob(){
       <button class="btn ghost sm" onclick="deleteJob('${j.id}')" title="Delete job">Delete</button>
     </div>
     <div class="stagebar">${JOB_STAGES.map(([k,lab])=>`<button class="stbtn ${jobStatus(j)===k?'on':''}" onclick="setJobStatus('${j.id}','${k}')">${lab}</button>`).join('')}</div>
-    ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">📲 Add to Calendar</a>`:''}</div>`:''}
+    ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">📲 Add to Calendar</a>`:''}</div>${conflictNote(j)}`:''}
     ${addrBlock(j)}
     ${tabs}`;
   let body='';
