@@ -3,7 +3,25 @@
 // or the call fails, this throws — the client falls back to manual entry (rule #4).
 import db from "./db.js";
 
-const LANGS = { en: "English", es: "Español", ru: "Русский", pt: "Português", fr: "Français", zh: "中文" };
+// Display names (native) used to tell the AI which languages to translate
+// between. The AI can translate any language; this just drives the picker and
+// the prompt. Keep keys in sync with public/index.html LANGS + SPEECH_LANG.
+const LANGS = {
+  en: "English", es: "Español", zh: "中文", hi: "हिन्दी", ar: "العربية", bn: "বাংলা",
+  pt: "Português", ru: "Русский", ja: "日本語", pa: "ਪੰਜਾਬੀ", de: "Deutsch", ko: "한국어",
+  fr: "Français", te: "తెలుగు", mr: "मराठी", ta: "தமிழ்", tr: "Türkçe", vi: "Tiếng Việt",
+  ur: "اردو", it: "Italiano", gu: "ગુજરાતી", pl: "Polski", uk: "Українська", fa: "فارسی",
+  kn: "ಕನ್ನಡ", ml: "മലയാളം", th: "ไทย", nl: "Nederlands", id: "Bahasa Indonesia",
+  ms: "Bahasa Melayu", tl: "Filipino", sw: "Kiswahili", ro: "Română", el: "Ελληνικά",
+  cs: "Čeština", hu: "Magyar", sv: "Svenska", he: "עברית", da: "Dansk", fi: "Suomi",
+  no: "Norsk", sk: "Slovenčina", hr: "Hrvatski", sr: "Српски", bg: "Български",
+  lt: "Lietuvių", sl: "Slovenščina", lv: "Latviešu", et: "Eesti", af: "Afrikaans",
+  sq: "Shqip", am: "አማርኛ", hy: "Հայերեն", az: "Azərbaycanca", ka: "ქართული",
+  kk: "Қазақша", ne: "नेपाली", si: "සිංහල", km: "ខ្មែរ", lo: "ລາວ", my: "မြန်မာ",
+  mn: "Монгол", is: "Íslenska", ga: "Gaeilge", cy: "Cymraeg", eu: "Euskara",
+  gl: "Galego", ca: "Català", ps: "پښتو", so: "Soomaali", ha: "Hausa", yo: "Yorùbá",
+  ig: "Igbo", zu: "isiZulu", xh: "isiXhosa"
+};
 
 // Cost guardrails (hard rule / spec §7, §13): per-user monthly cap + light rate limit.
 const MONTHLY_CAP = Number(process.env.BT_AI_MONTHLY_CAP || 200);
