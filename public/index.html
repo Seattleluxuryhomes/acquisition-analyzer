@@ -70,6 +70,12 @@
   .badge.trial{background:rgba(207,127,24,.2);color:#f0d8af}
   .badge.none{background:rgba(154,163,174,.15);color:var(--muted)}
   .badge.past_due,.badge.canceled{background:rgba(169,78,56,.2);color:#e3a08f}
+  .paybox{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:16px;margin-top:18px}
+  .paybox h3{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:6px}
+  .paylist{margin-top:14px;border-top:1px solid var(--line);padding-top:6px}
+  .payrow{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--line)}
+  .payrow .payamt{font-family:"IBM Plex Mono";font-weight:600;color:var(--paper);margin-bottom:4px}
+  .payact{display:flex;gap:8px;flex-wrap:wrap}
 
   main{flex:1;padding:18px}
 
@@ -321,6 +327,51 @@ async function openPortal(btn){
 // Route gated 402s to the paywall.
 function gate402(e){ if(e && e.status===402){ loadBilling().then(()=>go('paywall')); return true; } return false; }
 
+/* ============ payments (get paid via Stripe Connect) ============ */
+let PAYMENTS = JSON.parse(localStorage.getItem('bt_payments')||'null'); // {configured,connected,charges_enabled}
+let PAYREQS = {}; // jobId -> [requests]
+async function loadPayments(){
+  if(!TOKEN || !online) return;
+  try{ PAYMENTS = await api('/api/payments/status'); localStorage.setItem('bt_payments', JSON.stringify(PAYMENTS)); }catch(e){}
+}
+async function refreshPayments(){
+  if(!TOKEN || !online) return;
+  try{ PAYMENTS = await api('/api/payments/refresh',{method:'POST'}); localStorage.setItem('bt_payments', JSON.stringify(PAYMENTS)); }catch(e){}
+}
+function paymentsReady(){ return !!(PAYMENTS && PAYMENTS.configured && PAYMENTS.charges_enabled); }
+async function startConnect(btn){
+  if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
+  try{ const r=await api('/api/payments/connect',{method:'POST'}); window.location.href=r.url; }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Set up payments'; } if(!gate402(e)) alert(e.message||'Could not start payment setup.'); }
+}
+async function loadJobPayReqs(jobId){
+  if(!TOKEN || !online) return;
+  try{ const r=await api('/api/payments/requests?job_id='+encodeURIComponent(jobId)); PAYREQS[jobId]=r.requests||[]; if(state.view==='job') render(); }catch(e){}
+}
+async function createPayReq(jobId, btn){
+  const amtEl=document.getElementById('prAmt'), nameEl=document.getElementById('prName');
+  const amount=+(amtEl&&amtEl.value)||0;
+  const clientName=(nameEl&&nameEl.value||'').trim();
+  if(amount<1){ alert('Enter an amount of at least $1.'); return; }
+  const j=JOBS.find(x=>x.id===jobId);
+  if(btn){ btn.disabled=true; btn.textContent='Creating link…'; }
+  try{
+    const r=await api('/api/payments/requests',{method:'POST', body:JSON.stringify({ amount, clientName, jobId, description:(j&&j.title)||'Construction work' })});
+    PAYREQS[jobId]=[r.request, ...(PAYREQS[jobId]||[])];
+    render();
+  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Create payment link'; } if(!gate402(e)) alert(e.message||'Could not create the payment link.'); }
+}
+async function cancelPayReq(jobId, id){
+  if(!confirm('Cancel this payment request?')) return;
+  try{ const r=await api('/api/payments/requests/'+id+'/cancel',{method:'POST'});
+    PAYREQS[jobId]=(PAYREQS[jobId]||[]).map(x=>x.id===id?r.request:x); render();
+  }catch(e){ alert(e.message||'Could not cancel.'); }
+}
+async function copyPayLink(url, btn){
+  try{ await navigator.clipboard.writeText(url); if(btn){ const t=btn.textContent; btn.textContent='Copied ✓'; setTimeout(()=>btn.textContent=t,1500); } }
+  catch(e){ prompt('Copy this payment link:', url); }
+}
+
 /* ============ local persistence ============ */
 function persist(){ localStorage.setItem('bt_jobs', JSON.stringify(JOBS)); }
 function persistSettings(){ localStorage.setItem('bt_settings', JSON.stringify(SETTINGS)); }
@@ -360,14 +411,15 @@ async function doAuth(){
     }); persistSettings(); }
     state.view='home';
     render();
-    await Promise.all([syncNow(true), loadBilling()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments()]);
     render();
   }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
 }
 function setAuthMode(m){ state.authMode=m; state.authError=''; render(); }
 async function signOut(){
   try{ if(TOKEN) await api('/api/auth/signout',{method:'POST'}); }catch(e){}
-  TOKEN=null; USER=null; BILLING=null; localStorage.removeItem('bt_billing'); persistAuth();
+  TOKEN=null; USER=null; BILLING=null; PAYMENTS=null; PAYREQS={};
+  localStorage.removeItem('bt_billing'); localStorage.removeItem('bt_payments'); persistAuth();
   state.view='home'; render();
 }
 
@@ -836,7 +888,40 @@ function tabClient(j){
       <button class="btn" id="pdfBtn" onclick="sendPDF()">Save / Send PDF</button>
       <button class="btn ghost" onclick="setTab('build')">← Edit bid</button>
     </div>
-    <div class="hint" style="margin-top:10px">We render a clean PDF on the server. Offline, this falls back to your phone's print → “Save as PDF”.</div>`;
+    <div class="hint" style="margin-top:10px">We render a clean PDF on the server. Offline, this falls back to your phone's print → “Save as PDF”.</div>
+    ${paymentsBlock(j)}`;
+}
+
+// "Request a payment" block — only shown when the server has payments configured.
+function paymentsBlock(j){
+  if(!PAYMENTS || !PAYMENTS.configured) return '';
+  if(!PAYMENTS.charges_enabled){
+    return `<div class="paybox"><h3>Get paid for this job</h3>
+      <div class="hint">Set up payments once and your clients can pay you by card right from a bid.</div>
+      <button class="btn sm" style="margin-top:10px" onclick="go('settings')">Set up payments →</button></div>`;
+  }
+  const reqs = PAYREQS[j.id];
+  if(reqs===undefined){ loadJobPayReqs(j.id); }
+  const total = bidTotal(j);
+  const list = (reqs||[]).map(r=>{
+    const st = r.status==='paid'?`<span class="badge active">Paid</span>`
+      : r.status==='canceled'?`<span class="badge canceled">Canceled</span>`
+      : `<span class="badge trial">Awaiting payment</span>`;
+    const actions = r.status==='pending'
+      ? `<button class="btn ghost sm" onclick="copyPayLink('${escAttr(r.url||'')}',this)">Copy link</button>
+         <button class="btn ghost sm" onclick="cancelPayReq('${j.id}','${r.id}')">Cancel</button>`
+      : '';
+    return `<div class="payrow"><div><div class="payamt">${money(r.amount)}</div>${st}</div>
+      <div class="payact">${actions}</div></div>`;
+  }).join('');
+  return `<div class="paybox"><h3>Get paid for this job</h3>
+    <div class="row2">
+      <div><label class="fld">Amount</label><input id="prAmt" class="input" type="number" min="1" value="${total||''}" placeholder="0"/></div>
+      <div><label class="fld">Client name (optional)</label><input id="prName" class="input" placeholder="e.g. Reyes"/></div>
+    </div>
+    <button class="btn blue full" style="margin-top:10px" onclick="createPayReq('${j.id}',this)">Create payment link</button>
+    <div class="hint" style="margin-top:8px">Creates a secure card-payment link to text or email your client. The money goes straight to your account.</div>
+    ${(reqs&&reqs.length)?`<div class="paylist">${list}</div>`:(reqs?'':'<div class="hint" style="margin-top:10px">Loading…</div>')}</div>`;
 }
 
 // Client preview — mirrors the server PDF. margin & notes are never referenced here.
@@ -923,6 +1008,28 @@ function billingSection(){
     <div class="statline"><span class="badge ${cls}">${label}</span>${btn}</div>
     ${detail?`<div class="hint" style="margin-top:8px">${esc(detail)}</div>`:''}</div>`;
 }
+// "Get paid" setup card — connects the contractor's own Stripe account so
+// homeowners can pay them by card (and Klarna/Affirm once they enable it in Stripe).
+function paymentsSection(){
+  if(!PAYMENTS || !PAYMENTS.configured) return '';
+  let badge, detail, btn;
+  if(PAYMENTS.charges_enabled){
+    badge=`<span class="badge active">Ready</span>`;
+    detail='You can collect payments from clients. Open a job → Client view → “Request a payment”.';
+    btn=`<button class="btn ghost sm" onclick="startConnect(this)">Update payout details</button>`;
+  } else if(PAYMENTS.connected){
+    badge=`<span class="badge past_due">Almost done</span>`;
+    detail='Your payment setup is started but not finished. Tap below to complete it with Stripe.';
+    btn=`<button class="btn sm" onclick="startConnect(this)">Finish setup</button>`;
+  } else {
+    badge=`<span class="badge none">Not set up</span>`;
+    detail='Let your clients pay you by card straight from a bid. Money goes directly to your bank — we never hold it.';
+    btn=`<button class="btn sm" onclick="startConnect(this)">Set up payments</button>`;
+  }
+  return `<div class="billbox"><h3>Get paid</h3>
+    <div class="statline">${badge}${btn}</div>
+    <div class="hint" style="margin-top:8px">${esc(detail)}</div></div>`;
+}
 function viewSettings(){
   return `<div class="h-eyebrow">Setup</div><h1 class="page">Your business</h1>
     <div class="sub">This appears on the proposals you send. Synced to your account.</div>
@@ -939,6 +1046,7 @@ function viewSettings(){
       <div><label class="fld">Default — client reads</label><select class="input" onchange="setS('to',this.value)">${langOpts(SETTINGS.to)}</select></div>
     </div>
     ${billingSection()}
+    ${paymentsSection()}
     <div class="legalbox">
       <h3>Change password</h3>
       <input id="pwCur" type="password" class="input" placeholder="Current password" autocomplete="current-password"/>
@@ -1083,10 +1191,14 @@ function capDelPhoto(i){ CAP_PHOTOS.splice(i,1); renderCapPhotos(); }
   // Returning from Stripe Checkout / portal: clean the URL and refresh status.
   const params=new URLSearchParams(location.search);
   const billingReturn=params.get('billing');
-  if(billingReturn){ history.replaceState({}, '', location.pathname); }
+  const paymentsReturn=params.get('payments'); // 'connected' | 'refresh' after Stripe onboarding
+  if(billingReturn || paymentsReturn){ history.replaceState({}, '', location.pathname); }
   render();
   if(TOKEN){
-    await Promise.all([syncNow(true), loadBilling()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments()]);
+    // Coming back from Stripe Connect onboarding — pull the fresh account status
+    // and land the contractor on Setup so they see "Ready".
+    if(paymentsReturn){ await refreshPayments(); state.view='settings'; }
     if(billingReturn==='success'){ state.view='home'; }
     render();
   }

@@ -15,6 +15,7 @@ import { buildProposal } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig } from "./src/files.js";
 import * as Billing from "./src/billing.js";
+import * as Payments from "./src/payments.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uid = () => crypto.randomBytes(9).toString("base64url");
@@ -25,7 +26,10 @@ const app = express();
 app.post("/api/billing/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => {
   try {
     const event = Billing.verifyWebhook(req.body.toString("utf8"), req.headers["stripe-signature"]);
+    // One endpoint serves both subscription (platform) and payment-request
+    // (Connect) events; each handler ignores types it doesn't care about.
     Billing.handleEvent(event);
+    Payments.handleEvent(event);
     res.json({ received: true });
   } catch (err) {
     res.status(err.status || 400).json({ error: err.message });
@@ -72,7 +76,7 @@ function attachPhotos(userId, job) {
 }
 
 // ---- Health ----
-app.get("/api/health", (_req, res) => res.json({ ok: true, ai: aiConfigured(), billing: Billing.billingConfigured() }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, ai: aiConfigured(), billing: Billing.billingConfigured(), payments: Payments.paymentsConfigured() }));
 
 // ---- Auth ----
 app.post("/api/auth/signup", wrap((req, res) => { res.json(signup(req.body || {})); }));
@@ -93,6 +97,29 @@ app.post("/api/billing/checkout", requireAuth, wrap(async (req, res) => {
 }));
 app.post("/api/billing/portal", requireAuth, wrap(async (req, res) => {
   res.json({ url: await Billing.createPortal(req.user, baseUrl(req)) });
+}));
+
+// ---- Payments (Stripe Connect: contractors get paid by homeowners) ----
+app.get("/api/payments/status", requireAuth, (req, res) => res.json(Payments.connectStatus(req.user)));
+// Onboarding link (and a manual refresh of the connected-account status).
+app.post("/api/payments/connect", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  res.json({ url: await Payments.startOnboarding(req.user, baseUrl(req)) });
+}));
+app.post("/api/payments/refresh", requireAuth, wrap(async (req, res) => {
+  res.json(await Payments.refreshConnectStatus(req.user));
+}));
+// Payment requests.
+app.get("/api/payments/requests", requireAuth, (req, res) =>
+  res.json({ requests: Payments.listPaymentRequests(req.user.id, req.query.job_id) }));
+app.post("/api/payments/requests", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const { amount, description, clientName, jobId } = req.body || {};
+  if (jobId && !Jobs.ownsJob(req.user.id, jobId)) return res.status(404).json({ error: "Job not found." });
+  res.json({ request: await Payments.createPaymentRequest(req.user, { amount, description, clientName, jobId }, baseUrl(req)) });
+}));
+app.post("/api/payments/requests/:id/cancel", requireAuth, wrap((req, res) => {
+  const r = Payments.cancelPaymentRequest(req.user.id, req.params.id);
+  if (!r) return res.status(404).json({ error: "Payment request not found." });
+  res.json({ request: r });
 }));
 
 // ---- Me / settings ----
@@ -184,6 +211,26 @@ app.get("/api/jobs/:id/pdf", requireAuth, Billing.requireEntitled, wrap((req, re
   res.setHeader("Content-Disposition", `inline; filename="bid-${safe}.pdf"`);
   renderProposalPDF(proposal, res);
 }));
+
+// Standalone landing for homeowners after Stripe Checkout (they aren't logged in,
+// so we don't drop them on the contractor's sign-in screen).
+app.get("/pay/done", (req, res) => {
+  const ok = req.query.ok !== "0";
+  const title = ok ? "Payment received" : "Payment canceled";
+  const msg = ok
+    ? "Thank you! Your payment was received. You can close this page — the contractor has been notified."
+    : "No payment was made. You can close this page, or reopen the payment link to try again.";
+  const accent = ok ? "#1E4259" : "#8a7f68";
+  res.type("html").send(`<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title></head>
+<body style="margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#F3EEE3;color:#1F252C;display:flex;min-height:100vh;align-items:center;justify-content:center">
+<div style="max-width:420px;padding:32px;text-align:center">
+<div style="font-size:48px;margin-bottom:8px">${ok ? "✅" : "↩️"}</div>
+<h1 style="font-size:1.4rem;color:${accent};margin:0 0 10px">${title}</h1>
+<p style="font-size:1rem;line-height:1.5;color:#5a5240;margin:0">${msg}</p>
+</div></body></html>`);
+});
 
 // SPA fallback for the single-page app.
 app.get("*", (req, res, next) => {

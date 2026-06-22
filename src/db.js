@@ -75,6 +75,27 @@ CREATE TABLE IF NOT EXISTS photo (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS photo_job_idx ON photo(job_id);
+
+-- Payment requests: a contractor asks a homeowner to pay, money goes to the
+-- contractor's own connected Stripe account (Stripe Connect). The platform never
+-- holds the funds. job_id is optional so a request can stand alone.
+CREATE TABLE IF NOT EXISTS payment_request (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  job_id TEXT REFERENCES job(id) ON DELETE SET NULL,
+  amount_cents INTEGER NOT NULL,
+  description TEXT DEFAULT '',
+  client_name TEXT DEFAULT '',
+  status TEXT DEFAULT 'pending',     -- pending | paid | canceled
+  stripe_session_id TEXT,
+  stripe_payment_intent TEXT,
+  checkout_url TEXT,
+  created_at INTEGER NOT NULL,
+  paid_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS payreq_user_idx ON payment_request(user_id);
+CREATE INDEX IF NOT EXISTS payreq_job_idx ON payment_request(job_id);
+CREATE INDEX IF NOT EXISTS payreq_session_idx ON payment_request(stripe_session_id);
 `);
 
 // Migrate older databases that predate the billing columns.
@@ -90,6 +111,9 @@ ensureColumns("user", [
   ["stripe_subscription_id", "TEXT"],
   ["subscription_status", "TEXT DEFAULT 'none'"],
   ["current_period_end", "INTEGER"],
+  // Stripe Connect (contractor gets paid by homeowners).
+  ["stripe_connect_account_id", "TEXT"],
+  ["connect_charges_enabled", "INTEGER DEFAULT 0"],
 ]);
 
 export default db;

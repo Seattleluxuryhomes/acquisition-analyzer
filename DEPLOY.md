@@ -58,13 +58,34 @@ After the app is live and you've added the Stripe keys:
 
 1. In Stripe → **Developers → Webhooks → Add endpoint**: `https://bidtranslator.com/api/billing/webhook`.
 2. Subscribe to events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`.
-3. Copy the endpoint's **signing secret** into `STRIPE_WEBHOOK_SECRET` and redeploy/restart.
+3. **If you also turn on "Get paid" (Stripe Connect, below):** on the *same* endpoint, also enable **"Listen to events on Connected accounts"** and add `account.updated`. (The `checkout.session.completed` event already covers homeowner payments.)
+4. Copy the endpoint's **signing secret** into `STRIPE_WEBHOOK_SECRET` and redeploy/restart.
+
+---
+
+## Payments — contractors get paid by homeowners (Stripe Connect)
+
+This lets each contractor connect their own Stripe account and send clients a
+card-payment link from a bid. Money flows straight to the contractor; the
+platform never holds it. It uses the **same `STRIPE_SECRET_KEY`** as
+subscriptions — no extra keys.
+
+1. In Stripe → **Connect → Get started**, enable Connect on your platform account
+   (choose **Express** accounts when prompted).
+2. Make sure the webhook above also listens to **Connected account** events
+   (step 3 in the webhook section).
+3. That's it — contractors will see a **"Get paid"** card in *Setup* and a
+   **"Request a payment"** box on each job's *Client view*. `/api/health` will
+   report `"payments":true`.
+4. **Klarna / Affirm:** these are just payment methods — each contractor turns
+   them on in **their own** Stripe dashboard (Settings → Payment methods). No code
+   change; they'll automatically appear at checkout.
 
 ---
 
 ## Sanity checks after deploy
 
-- `https://bidtranslator.com/api/health` → `{"ok":true,"ai":<bool>,"billing":<bool>}`.
+- `https://bidtranslator.com/api/health` → `{"ok":true,"ai":<bool>,"billing":<bool>,"payments":<bool>}`.
 - Sign up, create a job on phone A, sign in on phone B → same job appears.
 - Send a bid → a PDF opens with your business header and no private margin/notes.
 
