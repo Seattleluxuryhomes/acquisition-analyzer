@@ -243,8 +243,37 @@
 <script>
 /* ============ config / state ============ */
 const API = '';
-const LANGS = {en:'English', es:'Español', ru:'Русский', pt:'Português', fr:'Français', zh:'中文'};
-const SPEECH_LANG={en:'en-US',es:'es-US',ru:'ru-RU',pt:'pt-BR',fr:'fr-FR',zh:'zh-CN'};
+const LANGS = {
+  en:'English', es:'Español', zh:'中文', hi:'हिन्दी', ar:'العربية', bn:'বাংলা',
+  pt:'Português', ru:'Русский', ja:'日本語', pa:'ਪੰਜਾਬੀ', de:'Deutsch', ko:'한국어',
+  fr:'Français', te:'తెలుగు', mr:'मराठी', ta:'தமிழ்', tr:'Türkçe', vi:'Tiếng Việt',
+  ur:'اردو', it:'Italiano', gu:'ગુજરાતી', pl:'Polski', uk:'Українська', fa:'فارسی',
+  kn:'ಕನ್ನಡ', ml:'മലയാളം', th:'ไทย', nl:'Nederlands', id:'Bahasa Indonesia',
+  ms:'Bahasa Melayu', tl:'Filipino', sw:'Kiswahili', ro:'Română', el:'Ελληνικά',
+  cs:'Čeština', hu:'Magyar', sv:'Svenska', he:'עברית', da:'Dansk', fi:'Suomi',
+  no:'Norsk', sk:'Slovenčina', hr:'Hrvatski', sr:'Српски', bg:'Български',
+  lt:'Lietuvių', sl:'Slovenščina', lv:'Latviešu', et:'Eesti', af:'Afrikaans',
+  sq:'Shqip', am:'አማርኛ', hy:'Հայերեն', az:'Azərbaycanca', ka:'ქართული',
+  kk:'Қазақша', ne:'नेपाली', si:'සිංහල', km:'ខ្មែរ', lo:'ລາວ', my:'မြန်မာ',
+  mn:'Монгол', is:'Íslenska', ga:'Gaeilge', cy:'Cymraeg', eu:'Euskara',
+  gl:'Galego', ca:'Català', ps:'پښتو', so:'Soomaali', ha:'Hausa', yo:'Yorùbá',
+  ig:'Igbo', zu:'isiZulu', xh:'isiXhosa'
+};
+const SPEECH_LANG={
+  en:'en-US', es:'es-ES', zh:'zh-CN', hi:'hi-IN', ar:'ar-SA', bn:'bn-BD',
+  pt:'pt-BR', ru:'ru-RU', ja:'ja-JP', pa:'pa-IN', de:'de-DE', ko:'ko-KR',
+  fr:'fr-FR', te:'te-IN', mr:'mr-IN', ta:'ta-IN', tr:'tr-TR', vi:'vi-VN',
+  ur:'ur-PK', it:'it-IT', gu:'gu-IN', pl:'pl-PL', uk:'uk-UA', fa:'fa-IR',
+  kn:'kn-IN', ml:'ml-IN', th:'th-TH', nl:'nl-NL', id:'id-ID', ms:'ms-MY',
+  tl:'fil-PH', sw:'sw-KE', ro:'ro-RO', el:'el-GR', cs:'cs-CZ', hu:'hu-HU',
+  sv:'sv-SE', he:'he-IL', da:'da-DK', fi:'fi-FI', no:'nb-NO', sk:'sk-SK',
+  hr:'hr-HR', sr:'sr-RS', bg:'bg-BG', lt:'lt-LT', sl:'sl-SI', lv:'lv-LV',
+  et:'et-EE', af:'af-ZA', sq:'sq-AL', am:'am-ET', hy:'hy-AM', az:'az-AZ',
+  ka:'ka-GE', kk:'kk-KZ', ne:'ne-NP', si:'si-LK', km:'km-KH', lo:'lo-LA',
+  my:'my-MM', mn:'mn-MN', is:'is-IS', ga:'ga-IE', cy:'cy-GB', eu:'eu-ES',
+  gl:'gl-ES', ca:'ca-ES', ps:'ps-AF', so:'so-SO', ha:'ha-NG', yo:'yo-NG',
+  ig:'ig-NG', zu:'zu-ZA', xh:'xh-ZA'
+};
 const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
 const money = n => '$' + (Math.round((+n||0))).toLocaleString('en-US');
 
