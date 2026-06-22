@@ -128,6 +128,10 @@
   .stagebar{display:flex;gap:5px;margin:12px 0 2px;background:var(--ink-soft);padding:5px;border-radius:9px;border:1px solid var(--line);flex-wrap:wrap}
   .stbtn{flex:1;min-width:64px;background:transparent;border:none;color:var(--muted);padding:8px 6px;border-radius:6px;font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.03em}
   .stbtn.on{background:var(--blueprint-deep);color:#cfe3f0;font-weight:600}
+  .schedrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 2px;background:var(--ink-soft);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+  .schedlbl{font-family:"IBM Plex Mono";font-size:.74rem;color:#9fc2da}
+  .schedinput{background:var(--ink-card);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:8px 10px;font-size:.9rem;color-scheme:dark}
+  .datetag{display:inline-block;font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.04em;background:rgba(30,66,89,.45);color:#9fc2da;padding:2px 7px;border-radius:3px;margin-left:6px}
   .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
   .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
 
@@ -520,13 +524,13 @@ async function syncNow(force){
 function jobPayload(j){
   return { id:j.id, title:j.title, from:j.from, to:j.to, transcript:j.transcript, translation:j.translation,
     summary:j.summary, assumptions:j.assumptions, exclusions:j.exclusions, lines:j.lines, upgrades:j.upgrades,
-    notes:j.notes, margin:j.margin, status:j.status, updated_at:j.updated_at, created_at:j.created };
+    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', updated_at:j.updated_at, created_at:j.created };
 }
 function hydrate(s){
   return { id:s.id, title:s.title, created:s.created_at, updated_at:s.updated_at, from:s.from, to:s.to,
     transcript:s.transcript||'', translation:s.translation||'', summary:s.summary||'',
     assumptions:s.assumptions||[], exclusions:s.exclusions||[], lines:s.lines||[], upgrades:s.upgrades||[],
-    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft',
+    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'',
     photos:(s.photos||[]).map(p=>({id:p.id, url:p.url})), _dirty:false };
 }
 function replaceJob(id, fresh){
@@ -766,7 +770,7 @@ function jobCardHTML(j){
   const s = jobStatus(j);
   return `<button class="jobcard" onclick="go('job','${j.id}')">
     <div><div class="jt">${esc(j.title)||'Untitled job'}</div>
-    <div class="jm">${money(total)} · ${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}<span class="langtag">${(j.lines||[]).length} lines</span>${pend}</div></div>
+    <div class="jm">${money(total)} · ${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}<span class="langtag">${(j.lines||[]).length} lines</span>${s==='scheduled'&&j.scheduled_date?`<span class="datetag">📅 ${fmtDate(j.scheduled_date)}</span>`:''}${pend}</div></div>
     <span class="sbadge ${s}">${statusLabel(s)}</span></button>`;
 }
 
@@ -777,7 +781,9 @@ function viewHome(){
   visible.forEach(j=>{ counts[jobStatus(j)]++; });
   const chips = [['all','All'],...JOB_STAGES]
     .map(([k,lab])=>`<button class="fchip ${f===k?'on':''}" onclick="setJobFilter('${k}')">${lab}<span class="fc">${counts[k]||0}</span></button>`).join('');
-  const filtered = f==='all' ? visible : visible.filter(j=>jobStatus(j)===f);
+  let filtered = f==='all' ? visible : visible.filter(j=>jobStatus(j)===f);
+  // Calendar: the Scheduled tab is an upcoming agenda — dated jobs first, soonest on top.
+  if(f==='scheduled'){ filtered=[...filtered].sort((a,b)=>String(a.scheduled_date||'9999-99-99').localeCompare(String(b.scheduled_date||'9999-99-99'))); }
   let list;
   if(visible.length===0){
     list = `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
@@ -796,6 +802,14 @@ function setJobStatus(id,s){
   const j=JOBS.find(x=>x.id===id); if(!j) return;
   j.status=s; if(s!=='draft' && !j.sent_at) j.sent_at=Date.now();
   touch(j); saveJobs(); render();
+}
+function setSchedule(id,v){
+  const j=JOBS.find(x=>x.id===id); if(!j) return;
+  j.scheduled_date=v||''; touch(j); saveJobs(); render();
+}
+function fmtDate(d){
+  if(!d) return ''; const p=String(d).split('-'); if(p.length!==3) return d;
+  return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
 
 /* ---------- CAPTURE ---------- */
@@ -957,6 +971,7 @@ function viewJob(){
       <button class="btn ghost sm" onclick="deleteJob('${j.id}')" title="Delete job">Delete</button>
     </div>
     <div class="stagebar">${JOB_STAGES.map(([k,lab])=>`<button class="stbtn ${jobStatus(j)===k?'on':''}" onclick="setJobStatus('${j.id}','${k}')">${lab}</button>`).join('')}</div>
+    ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/></div>`:''}
     ${tabs}`;
   let body='';
   if(state.bidTab==='notebook') body=tabNotebook(j);
