@@ -132,6 +132,7 @@ ensureColumns("user", [
 // Calendar: the date a job is scheduled for (YYYY-MM-DD), set at the Scheduled stage.
 ensureColumns("job", [
   ["scheduled_date", "TEXT"],
+  ["scheduled_time", "TEXT"],   // "HH:MM" 24h, optional — turns the date into a real appointment
   // Maps: the job's street address (drives Maps/Directions/Street View links).
   ["address", "TEXT"],
 ]);
