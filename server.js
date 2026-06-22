@@ -23,12 +23,12 @@ const app = express();
 
 // Stripe webhook needs the RAW body for signature verification — register it
 // before any JSON parsing so the bytes are untouched.
-app.post("/api/billing/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => {
+app.post("/api/billing/webhook", express.raw({ type: "*/*", limit: "1mb" }), async (req, res) => {
   try {
     const event = Billing.verifyWebhook(req.body.toString("utf8"), req.headers["stripe-signature"]);
     // One endpoint serves both subscription (platform) and payment-request
     // (Connect) events; each handler ignores types it doesn't care about.
-    Billing.handleEvent(event);
+    await Billing.handleEvent(event);
     Payments.handleEvent(event);
     res.json({ received: true });
   } catch (err) {
