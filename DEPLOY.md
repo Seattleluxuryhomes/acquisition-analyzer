@@ -59,7 +59,7 @@ If you'd rather use the cPanel-style hosting:
 After the app is live and you've added the Stripe keys:
 
 1. In Stripe → **Developers → Webhooks → Add endpoint**: `https://bidtranslator.com/api/billing/webhook`.
-2. Subscribe to events: `checkout.session.completed`, `invoice.created`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`. (`invoice.created` is what adds the one-time setup fee to the first charge when the trial ends.)
+2. Subscribe to events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`.
 3. **If you also turn on "Get paid" (Stripe Connect, below):** on the *same* endpoint, also enable **"Listen to events on Connected accounts"** and add `account.updated`. (The `checkout.session.completed` event already covers homeowner payments.)
 4. Copy the endpoint's **signing secret** into `STRIPE_WEBHOOK_SECRET` and redeploy/restart.
 

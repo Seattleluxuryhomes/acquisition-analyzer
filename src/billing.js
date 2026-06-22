@@ -14,35 +14,34 @@ const WEBHOOK_SECRET = () => process.env.STRIPE_WEBHOOK_SECRET || "";
 // Optional: collect sales tax automatically via Stripe Tax. Off unless set, so
 // checkout never breaks before Stripe Tax is enabled + registered in the account.
 const TAX_ENABLED = () => /^(1|true|yes|on)$/i.test(process.env.BT_STRIPE_TAX || "");
-const TRIAL_DAYS = () => Math.max(0, Number(process.env.BT_TRIAL_DAYS || 14));
 
 export function billingConfigured() {
   return !!KEY() && !!PRICE();
 }
 
 // A user can use paid features if billing is off, OR they hold an active/trialing
-// Stripe subscription. The trial is now a Stripe trial (card on file, so it can
-// auto-charge at the end), so entitlement comes from the subscription itself.
+// Stripe subscription, OR they're still inside the card-free in-app trial. The
+// trial needs no card so people can start using the app immediately; they only
+// get charged when they actively choose to subscribe (no surprise auto-charge).
 export function isEntitled(user) {
   if (!billingConfigured()) return true;
   const status = user.subscription_status;
   if (status === "active" || status === "trialing") {
     if (!user.current_period_end || user.current_period_end > Date.now() - 3 * 24 * 60 * 60 * 1000) return true;
   }
+  if (user.trial_ends_at && Date.now() < user.trial_ends_at) return true;
   return false;
 }
 
 export function billingStatus(user) {
   const entitled = isEntitled(user);
-  const status = user.subscription_status || "none";
-  const inTrial = status === "trialing";
+  const inTrial = !!(user.trial_ends_at && Date.now() < user.trial_ends_at);
   return {
     configured: billingConfigured(),
     entitled,
-    status,
+    status: user.subscription_status || "none",
     in_trial: inTrial,
-    // During a trial, current_period_end is the day the card gets charged.
-    trial_ends_at: inTrial ? (user.current_period_end || null) : null,
+    trial_ends_at: user.trial_ends_at || null,
     current_period_end: user.current_period_end || null,
     has_subscription: !!user.stripe_subscription_id,
   };
@@ -102,17 +101,15 @@ async function ensureCustomer(user) {
 export async function createCheckout(user, baseUrl) {
   if (!billingConfigured()) { const e = new Error("Billing is not configured."); e.status = 503; throw e; }
   const customer = await ensureCustomer(user);
-  // Start a free trial with the card on file so the plan auto-charges when the
-  // trial ends. The one-time setup fee is NOT a line item here — a one-time line
-  // item would bill immediately; instead it's added to the first real invoice at
-  // trial end (see handleEvent → invoice.created). payment_method_collection
-  // "always" forces a card even though $0 is due today.
+  // The free trial already happened in the app (card-free), so subscribing bills
+  // now: the recurring plan plus the one-time setup fee (first checkout only). A
+  // one-time price in a subscription-mode session lands on the first invoice.
+  const line_items = [{ price: PRICE(), quantity: 1 }];
+  if (SETUP_PRICE() && !user.setup_fee_paid) line_items.push({ price: SETUP_PRICE(), quantity: 1 });
   const params = {
     mode: "subscription",
     customer,
-    line_items: [{ price: PRICE(), quantity: 1 }],
-    subscription_data: { trial_period_days: TRIAL_DAYS() },
-    payment_method_collection: "always",
+    line_items,
     success_url: `${baseUrl}/?billing=success`,
     cancel_url: `${baseUrl}/?billing=cancel`,
     allow_promotion_codes: true,
@@ -161,32 +158,18 @@ function applySubscription(customerId, sub) {
   ).run(sub.status || "none", sub.id || null, sub.current_period_end ? sub.current_period_end * 1000 : null, row.id);
 }
 
-export async function handleEvent(event) {
+export function handleEvent(event) {
   const obj = event?.data?.object || {};
   switch (event.type) {
     case "checkout.session.completed":
-      // The trial subscription is created; subscription.* events fill in status.
+      // Subscription details arrive via the subscription.* events; record the link.
       if (obj.customer && obj.subscription) {
         const row = db.prepare("SELECT id FROM user WHERE stripe_customer_id=?").get(obj.customer);
-        if (row) db.prepare("UPDATE user SET stripe_subscription_id=?, subscription_status=? WHERE id=?")
-          .run(obj.subscription, "trialing", row.id);
+        // Mark the one-time setup fee paid so a future re-subscribe won't re-charge it.
+        if (row) db.prepare("UPDATE user SET stripe_subscription_id=?, subscription_status=?, setup_fee_paid=1 WHERE id=?")
+          .run(obj.subscription, "active", row.id);
       }
       break;
-    case "invoice.created": {
-      // The first real charge fires when the trial ends (billing_reason
-      // "subscription_cycle"). While that invoice is still a draft, add the
-      // one-time setup fee so it bills together with the first month — once only.
-      if (obj.subscription && obj.billing_reason === "subscription_cycle" && SETUP_PRICE() && obj.status === "draft") {
-        const row = db.prepare("SELECT * FROM user WHERE stripe_customer_id=?").get(obj.customer);
-        if (row && !row.setup_fee_paid) {
-          await stripe("invoiceitems", {
-            customer: obj.customer, price: SETUP_PRICE(), invoice: obj.id, subscription: obj.subscription,
-          });
-          db.prepare("UPDATE user SET setup_fee_paid=1 WHERE id=?").run(row.id);
-        }
-      }
-      break;
-    }
     case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted":

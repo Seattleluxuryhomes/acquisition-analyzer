@@ -566,21 +566,18 @@ function paintTrialChip(){
 
 /* ---------- PAYWALL ---------- */
 function viewPaywall(){
-  // "fresh" = never started a trial; "lapsed" = had a subscription that ended.
-  const lapsed = BILLING && !BILLING.entitled && BILLING.has_subscription;
-  const inTrial = BILLING && BILLING.in_trial;
+  const expired = BILLING && !BILLING.entitled;
   const days = trialDaysLeft();
   return `<button class="backlink" onclick="go('home')">← Jobs</button>
-    <div class="h-eyebrow">${lapsed?'Subscription ended':'Bidtranslator Pro'}</div>
-    <h1 class="page">${lapsed?'Reactivate to keep building bids':'Start your 14-day free trial'}</h1>
-    <div class="sub">${lapsed
-      ? 'Your saved jobs are still here — reactivate to create and send new bids.'
-      : (inTrial ? `You have ${days} day${days===1?'':'s'} left in your free trial.`
-                 : 'Free for 14 days. Add a card to start — you won’t be charged until the trial ends, and you can cancel anytime before then.')}</div>
+    <div class="h-eyebrow">${expired?'Trial ended':'Bidtranslator Pro'}</div>
+    <h1 class="page">${expired?'Subscribe to keep building bids':'Go unlimited'}</h1>
+    <div class="sub">${expired
+      ? 'Your free trial is over. Your saved jobs are still here — subscribe to create and send new bids.'
+      : (BILLING&&BILLING.in_trial ? `You have ${days} day${days===1?'':'s'} left in your free trial.` : 'Subscribe for full access.')}</div>
     <div class="pricecard">
       <div class="h-eyebrow">Contractor plan</div>
       <div class="amt" id="priceAmt">$29.99<span>/month</span></div>
-      <div class="hint" style="margin:-4px 0 10px">$0 today · 14-day free trial. When it ends, a one-time $299 setup fee + your first $29.99 are charged automatically, then $29.99/month. Cancel anytime before the trial ends and pay nothing.</div>
+      <div class="hint" style="margin:-4px 0 10px">14-day free trial — no card needed to start. When you subscribe, a one-time $299 setup fee + your first $29.99 are charged, then $29.99/month. Cancel anytime.</div>
       <ul class="feat">
         <li>Unlimited job notebooks</li>
         <li>Voice capture &amp; English ⇄ Spanish translation</li>
@@ -588,7 +585,7 @@ function viewPaywall(){
         <li>Clean client proposals &amp; PDF</li>
         <li>Cloud sync across your devices</li>
       </ul>
-      <button class="btn full" onclick="startCheckout(this)">${lapsed?'Reactivate':'Start free trial'}</button>
+      <button class="btn full" onclick="startCheckout(this)">Subscribe</button>
       <div class="hint" style="margin-top:10px">Secure checkout by Stripe. Have a promo code? Add it at checkout.</div>
     </div>
     ${BILLING&&BILLING.has_subscription?`<div style="margin-top:14px;text-align:center"><button class="btn ghost" onclick="openPortal(this)">Manage billing</button></div>`:''}`;
