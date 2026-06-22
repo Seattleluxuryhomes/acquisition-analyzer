@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import db, { PHOTO_DIR } from "./src/db.js";
-import { signup, signin, signout, requireAuth, publicUser } from "./src/auth.js";
+import { signup, signin, signout, changePassword, requireAuth, publicUser } from "./src/auth.js";
 import * as Jobs from "./src/jobs.js";
 import { assistBuild, aiConfigured } from "./src/assist.js";
 import { buildProposal } from "./src/proposal.js";
@@ -78,6 +78,10 @@ app.get("/api/health", (_req, res) => res.json({ ok: true, ai: aiConfigured(), b
 app.post("/api/auth/signup", wrap((req, res) => { res.json(signup(req.body || {})); }));
 app.post("/api/auth/signin", wrap((req, res) => { res.json(signin(req.body || {})); }));
 app.post("/api/auth/signout", requireAuth, wrap((req, res) => { signout(req.token); res.json({ ok: true }); }));
+app.post("/api/auth/change-password", requireAuth, wrap((req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  res.json(changePassword({ userId: req.user.id, currentPassword, newPassword, keepToken: req.token }));
+}));
 // Password reset by email is stubbed for Phase 1 (no mail provider wired). Always
 // returns ok so the endpoint can't be used to probe which emails exist.
 app.post("/api/auth/reset", wrap((req, res) => res.json({ ok: true, note: "Email reset not configured in this build." })));

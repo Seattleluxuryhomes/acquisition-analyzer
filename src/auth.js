@@ -83,6 +83,26 @@ export function signout(token) {
   if (token) db.prepare("DELETE FROM session WHERE token=?").run(token);
 }
 
+// Change password while signed in: verify the current one, set the new one, and
+// revoke every other session (so a leaked/old login can't keep going).
+export function changePassword({ userId, currentPassword, newPassword, keepToken }) {
+  const row = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
+  if (!row) throw httpError(401, "Account not found.");
+  if (!verifyPassword(String(currentPassword || ""), row.password_hash)) {
+    // 403 (not 401): the session is valid; only the typed current password is
+    // wrong. A 401 would make the client treat it as an expired session.
+    throw httpError(403, "Your current password is incorrect.");
+  }
+  newPassword = String(newPassword || "");
+  if (newPassword.length < 8) throw httpError(400, "New password must be at least 8 characters.");
+  if (verifyPassword(newPassword, row.password_hash)) {
+    throw httpError(400, "Choose a password different from your current one.");
+  }
+  db.prepare("UPDATE user SET password_hash=? WHERE id=?").run(hashPassword(newPassword), userId);
+  db.prepare("DELETE FROM session WHERE user_id=? AND token!=?").run(userId, keepToken || "");
+  return { ok: true };
+}
+
 // Express middleware: resolves the bearer token to req.user, or 401s.
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
