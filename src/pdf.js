@@ -38,9 +38,26 @@ export function renderProposalPDF(proposal, res) {
   if (proposal.scope.length === 0) {
     doc.font("Helvetica").fontSize(10).fillColor(MUTED).text("No items yet.", left);
   }
-  for (const l of proposal.scope) {
-    const sub = l.type === "hourly" ? `${l.hours || 0} hrs @ ${money(l.rate)}/hr` : "";
-    lineRow(doc, l.desc, money(l.amount), sub, left, width);
+  if (proposal.sections && proposal.sections.length) {
+    // Multi-room job: a heading + subtotal per room.
+    for (const g of proposal.sections) {
+      doc.moveDown(0.3);
+      doc.font("Helvetica-Bold").fontSize(10.5).fillColor(BLUE).text(g.name, left, doc.y, { width });
+      doc.moveDown(0.2);
+      for (const l of g.lines) {
+        const sub = l.type === "hourly" ? `${l.hours || 0} hrs @ ${money(l.rate)}/hr` : "";
+        lineRow(doc, l.desc, money(l.amount), sub, left, width);
+      }
+      const sy = doc.y;
+      doc.font("Helvetica").fontSize(9.5).fillColor(MUTED).text(g.name + " subtotal", left, sy, { width: width - 110 });
+      doc.font("Helvetica-Bold").fontSize(9.5).fillColor(INK).text(money(g.subtotal), left, sy, { width, align: "right" });
+      doc.moveDown(0.6);
+    }
+  } else {
+    for (const l of proposal.scope) {
+      const sub = l.type === "hourly" ? `${l.hours || 0} hrs @ ${money(l.rate)}/hr` : "";
+      lineRow(doc, l.desc, money(l.amount), sub, left, width);
+    }
   }
 
   // ---- Total ----

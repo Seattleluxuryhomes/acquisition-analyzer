@@ -13,6 +13,34 @@ export function bidTotal(lines) {
     .reduce((sum, l) => sum + lineAmount(l), 0);
 }
 
+// Group scope lines by their `section` (room/area), preserving first-appearance
+// order. Returns [{ name, lines, subtotal }]. If no line has a section name, this
+// returns a single unnamed group so callers can render a flat list as before.
+export function groupBySection(lines) {
+  const groups = [];
+  const byName = new Map();
+  for (const l of lines || []) {
+    const name = String(l.section || "").trim();
+    let g = byName.get(name);
+    if (!g) { g = { name, lines: [], subtotal: 0 }; byName.set(name, g); groups.push(g); }
+    g.lines.push(l);
+    g.subtotal += lineAmount(l);
+  }
+  return groups;
+}
+
+// True when the scope actually spans more than one named room/area — the only
+// case where section headings + subtotals add value over a plain list.
+export function hasSections(lines) {
+  const named = new Set();
+  let blank = false;
+  for (const l of lines || []) {
+    const name = String(l.section || "").trim();
+    if (name) named.add(name); else blank = true;
+  }
+  return named.size > 1 || (named.size === 1 && blank);
+}
+
 // Takes a full job row (with margin/notes) and returns ONLY what a client may see.
 export function buildProposal(job, settings) {
   const lines = job.lines || [];
@@ -29,12 +57,28 @@ export function buildProposal(job, settings) {
     title: job.title || "Project",
     date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
     scope: baseLines.map((l) => ({
+      section: l.section || "",
       desc: l.desc || "Item",
       type: l.type,
       hours: l.hours || 0,
       rate: l.rate || 0,
       amount: lineAmount(l),
     })),
+    // Same scope, grouped by room/area with subtotals — used when the job spans
+    // more than one room. Empty array signals "render the flat scope list".
+    sections: hasSections(baseLines)
+      ? groupBySection(baseLines).map((g) => ({
+          name: g.name || "Other work",
+          subtotal: g.subtotal,
+          lines: g.lines.map((l) => ({
+            desc: l.desc || "Item",
+            type: l.type,
+            hours: l.hours || 0,
+            rate: l.rate || 0,
+            amount: lineAmount(l),
+          })),
+        }))
+      : [],
     clientFurnished: clientLines.map((l) => ({ desc: l.desc || "Item" })),
     upgrades: (job.upgrades || []).map((u) => ({ desc: u.desc || "", price: Number(u.price) || 0 })),
     exclusions: job.exclusions || [],
