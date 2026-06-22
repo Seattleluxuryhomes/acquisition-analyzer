@@ -735,6 +735,40 @@ function buildManual(){
   JOBS.unshift(job); saveJobs(); state.bidTab='build'; go('job',job.id);
 }
 
+// Run the AI on an existing job's captured text and fill in lines/rooms/totals.
+async function rebuildWithAI(id, btn){
+  const j=JOBS.find(x=>x.id===id); if(!j) return;
+  if(!entitled()){ go('paywall'); return; }
+  const text=String(j.transcript||'').trim();
+  if(!text){ alert('Add the captured conversation in the box above first.'); return; }
+  if(!online){ alert('The AI build needs an internet connection.'); return; }
+  if((j.lines||[]).some(l=>l.desc||l.price||l.hours||l.rate)
+     && !confirm('This replaces the current line items with a fresh AI draft. Continue?')){ return; }
+  const orig = btn ? btn.textContent : '';
+  if(btn){ btn.disabled=true; btn.textContent='Building…'; }
+  try{
+    const data = await api('/api/assist/build',{ method:'POST', body:JSON.stringify({ text, from_lang:j.from, to_lang:j.to }) });
+    j.translation = data.translation || j.translation || '';
+    j.summary = data.summary || '';
+    j.lines = (Array.isArray(data.lines)?data.lines:[]).slice(0,12).map(l=>({
+      id:uid(), section:String(l.section||'').slice(0,80), desc:String(l.desc||'').slice(0,120),
+      type:(l.type==='hourly'?'hourly':'fixed'),
+      price:+l.price||0, hours:+l.hours||0, rate:+l.rate||0, furn:'you'
+    }));
+    j.upgrades = (Array.isArray(data.upgrades)?data.upgrades:[]).slice(0,4).map(u=>({id:uid(),desc:String(u.desc||''),price:+u.price||0}));
+    j.assumptions = (Array.isArray(data.assumptions)?data.assumptions:[]).map(String);
+    j.exclusions = (Array.isArray(data.exclusions)?data.exclusions:[]).map(String);
+    touch(j); saveJobs();
+    state.bidTab='build'; render(); window.scrollTo(0,0);
+  }catch(e){
+    if(e.status===402){ gate402(e); return; }
+    if(btn){ btn.disabled=false; btn.textContent=orig||'🪄 Build the bid from this text'; }
+    alert(e.code==='AI_UNCONFIGURED'
+      ? 'The AI build isn’t switched on yet — add your ANTHROPIC_API_KEY in the app settings to enable it.'
+      : ('Could not build the draft: '+(e.message||'error')));
+  }
+}
+
 async function buildFromConversation(){
   if(!entitled()){ go('paywall'); return; }
   const f=newJobFromForm();
@@ -781,7 +815,9 @@ function tabNotebook(j){
   const sec=(label,html)=>`<div class="nb-sec"><h3>${label}</h3>${html}</div>`;
   let out='';
   out+=sec('What you captured · '+(LANGS[j.from]||j.from),
-    `<textarea class="editarea" oninput="updJob('transcript',this.value)" placeholder="Captured conversation…">${esc(j.transcript)}</textarea>`);
+    `<textarea class="editarea" oninput="updJob('transcript',this.value)" placeholder="Captured conversation…">${esc(j.transcript)}</textarea>
+     <button class="btn full" style="margin-top:10px" onclick="rebuildWithAI('${j.id}',this)">🪄 Build the bid from this text</button>
+     <div class="hint">Reads the conversation above and fills in the line items, rooms &amp; totals with AI. You can edit everything after.</div>`);
   const machine = j.summary || j.translation;
   out+=sec('In '+(LANGS[j.to]||j.to)+(j.translation?'<span class="machine-tag">machine</span>':''),
     `<textarea class="editarea" oninput="updJob('translation',this.value)" placeholder="Translation (editable)…">${esc(j.translation)}</textarea>`);
