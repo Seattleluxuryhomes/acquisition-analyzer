@@ -32,6 +32,7 @@ is included, so there's nothing to build by hand.
    | `STRIPE_PRICE_ID` | the **monthly** recurring Price id (e.g. $29.99/mo) |
    | `STRIPE_SETUP_PRICE_ID` | optional — a **one-time** Price id (e.g. $299 setup fee) charged on the first checkout only. Omit for no setup fee. |
    | `STRIPE_WEBHOOK_SECRET` | from the Stripe webhook endpoint |
+   | `BT_STRIPE_TAX` | optional — set to `1` to collect sales tax automatically (requires Stripe Tax enabled + registered). Tax is added on top of the price. |
    | `BT_TRIAL_DAYS` | `14` (default; omit to keep 14) |
 
 6. **Deploy.** Hyperlift builds the image and gives you a URL. Open it — you should see the sign-in screen.

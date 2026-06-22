@@ -11,6 +11,9 @@ const PRICE = () => process.env.STRIPE_PRICE_ID || "";
 // subscription checkout only — see createCheckout + handleEvent.
 const SETUP_PRICE = () => process.env.STRIPE_SETUP_PRICE_ID || "";
 const WEBHOOK_SECRET = () => process.env.STRIPE_WEBHOOK_SECRET || "";
+// Optional: collect sales tax automatically via Stripe Tax. Off unless set, so
+// checkout never breaks before Stripe Tax is enabled + registered in the account.
+const TAX_ENABLED = () => /^(1|true|yes|on)$/i.test(process.env.BT_STRIPE_TAX || "");
 
 export function billingConfigured() {
   return !!KEY() && !!PRICE();
@@ -100,14 +103,20 @@ export async function createCheckout(user, baseUrl) {
   // one-time price in a subscription-mode session lands on the first invoice.
   const line_items = [{ price: PRICE(), quantity: 1 }];
   if (SETUP_PRICE() && !user.setup_fee_paid) line_items.push({ price: SETUP_PRICE(), quantity: 1 });
-  const session = await stripe("checkout/sessions", {
+  const params = {
     mode: "subscription",
     customer,
     line_items,
     success_url: `${baseUrl}/?billing=success`,
     cancel_url: `${baseUrl}/?billing=cancel`,
     allow_promotion_codes: true,
-  });
+  };
+  if (TAX_ENABLED()) {
+    params.automatic_tax = { enabled: true };
+    params.customer_update = { address: "auto" };
+    params.billing_address_collection = "required";
+  }
+  const session = await stripe("checkout/sessions", params);
   return session.url;
 }
 
