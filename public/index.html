@@ -180,8 +180,12 @@
 
   .client{background:var(--paper);color:var(--ink);border-radius:10px;padding:0;overflow:hidden;border:1px solid var(--kraft-deep)}
   .client-head{background:var(--ink);color:var(--paper);padding:22px 24px}
+  .client-head .client-logo{max-height:46px;max-width:160px;margin-bottom:10px;display:block;border-radius:4px}
   .client-head .co{font-family:"Archivo";font-weight:800;font-size:1.4rem}
   .client-head .meta{font-family:"IBM Plex Mono";font-size:.74rem;color:#b9c2cc;margin-top:4px}
+  .logo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 6px}
+  .logo-preview{max-height:54px;max-width:170px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px}
+  .logo-empty{font-family:"IBM Plex Mono";font-size:.74rem;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:14px 18px}
   .client-body{padding:22px 24px}
   .client-body h4{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blueprint);margin:18px 0 10px}
   .client-body h4:first-child{margin-top:0}
@@ -323,7 +327,7 @@ const money = n => '$' + (Math.round((+n||0))).toLocaleString('en-US');
 const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:'signin', authError:'', booted:false };
 let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
-let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en' };
+let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'' };
 let JOBS = JSON.parse(localStorage.getItem('bt_jobs')||'[]');
 let CAP_PHOTOS = []; // photos staged on the capture screen before the job exists
 let settingsDirty = false;
@@ -435,7 +439,8 @@ async function doAuth(){
     TOKEN=r.token; USER=r.user; persistAuth();
     if(r.user){ SETTINGS=Object.assign({}, SETTINGS, {
       company:r.user.company||SETTINGS.company, name:r.user.name||'', phone:r.user.phone||'',
-      license:r.user.license||'', from:r.user.default_from_lang||'es', to:r.user.default_to_lang||'en'
+      license:r.user.license||'', from:r.user.default_from_lang||'es', to:r.user.default_to_lang||'en',
+      logo:(r.user.logo!==undefined?r.user.logo:SETTINGS.logo)||''
     }); persistSettings(); }
     state.view='home';
     render();
@@ -474,7 +479,7 @@ async function syncNow(force){
     if(settingsDirty){
       try{ await api('/api/me',{method:'PATCH', body:JSON.stringify({
         company:SETTINGS.company, name:SETTINGS.name, phone:SETTINGS.phone,
-        license:SETTINGS.license, from:SETTINGS.from, to:SETTINGS.to })}); settingsDirty=false; }catch(e){}
+        license:SETTINGS.license, from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'' })}); settingsDirty=false; }catch(e){}
     }
     // 2) pull server jobs
     let server=[];
@@ -1140,6 +1145,7 @@ function clientHTML(j){
   const dt=new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
   return `<div class="client">
     <div class="client-head">
+      ${SETTINGS.logo?`<img class="client-logo" src="${SETTINGS.logo}" alt=""/>`:''}
       <div class="co">${esc(SETTINGS.company)||'Your Company'}</div>
       <div class="meta">${[SETTINGS.name,SETTINGS.phone,SETTINGS.license?('Lic. '+SETTINGS.license):''].filter(Boolean).map(esc).join(' · ')||'Add your details in Setup'}</div>
     </div>
@@ -1269,6 +1275,13 @@ function paymentsSection(){
 function viewSettings(){
   return `<div class="h-eyebrow">Setup</div><h1 class="page">Your business</h1>
     <div class="sub">This appears on the proposals you send. Synced to your account.</div>
+    <label class="fld">Company logo (shows on your bids &amp; PDF)</label>
+    <div class="logo-row">
+      ${SETTINGS.logo?`<img class="logo-preview" src="${SETTINGS.logo}" alt="logo"/>`:`<div class="logo-empty">No logo yet</div>`}
+      <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="uploadLogo(this)"/>
+      <button class="btn ghost sm" onclick="document.getElementById('logoInput').click()">${SETTINGS.logo?'Change logo':'Upload logo'}</button>
+      ${SETTINGS.logo?`<button class="btn ghost sm" onclick="removeLogo()">Remove</button>`:''}
+    </div>
     <label class="fld">Company name</label>
     <input class="input" value="${escAttr(SETTINGS.company)}" oninput="setS('company',this.value)"/>
     <div class="row2">
@@ -1311,6 +1324,32 @@ function viewSettings(){
 }
 let setT;
 function setS(k,v){ SETTINGS[k]=v; persistSettings(); settingsDirty=true; paintSync(); clearTimeout(setT); setT=setTimeout(()=>syncNow(), 700); }
+
+// Resize the chosen image to a small data-URI so it stays well under the server's
+// limit, then save it like any other setting. PNG keeps logo transparency; if it
+// comes out large we fall back to JPEG.
+function uploadLogo(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  if(!/^image\//.test(f.type)){ alert('Please choose an image file.'); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=320; let w=img.width||1, h=img.height||1;
+      if(w>max||h>max){ const s=Math.min(max/w,max/h); w=Math.round(w*s); h=Math.round(h*s); }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      let data=c.toDataURL('image/png');
+      if(data.length>180000) data=c.toDataURL('image/jpeg',0.85);
+      if(data.length>240000){ alert('That image is too detailed — try a simpler or smaller logo.'); return; }
+      setS('logo',data); render();
+    };
+    img.onerror=()=>alert('Could not read that image.');
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(f);
+}
+function removeLogo(){ setS('logo',''); render(); }
 
 async function changePw(btn){
   const g=id=>{ const e=document.getElementById(id); return e?e.value:''; };

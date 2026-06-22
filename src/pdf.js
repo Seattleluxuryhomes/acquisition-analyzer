@@ -25,6 +25,17 @@ export function renderProposalPDF(proposal, res) {
     .filter(Boolean).join("  ·  ");
   doc.font("Helvetica").fontSize(9).fillColor("#b9c2cc")
     .text(meta || "", left, 58, { width });
+  // Company logo, top-right of the header band. Wrapped so a bad image can never
+  // break the PDF.
+  if (proposal.business.logo) {
+    try {
+      const m = /^data:image\/\w+;base64,(.+)$/.exec(proposal.business.logo);
+      if (m) {
+        const buf = Buffer.from(m[1], "base64");
+        doc.image(buf, right - 96, 24, { fit: [96, 48], align: "right", valign: "center" });
+      }
+    } catch { /* ignore unreadable logo */ }
+  }
   doc.y = 120;
 
   // ---- Proposal heading ----
