@@ -52,8 +52,18 @@
   .sync.offline .dot{background:var(--amber-deep)}
   .sync.saving .dot{background:var(--blueprint);animation:pulse 1s infinite}
   .offline-banner{background:rgba(207,127,24,.16);border-bottom:1px solid var(--amber-deep);color:#f0d8af;font-family:"IBM Plex Mono";font-size:.74rem;text-align:center;padding:7px 12px}
-  .trial-chip{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.04em;color:var(--ink);background:var(--amber);border:none;border-radius:6px;padding:6px 10px;font-weight:600}
+  .trial-chip{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.04em;color:var(--ink);background:var(--amber);border:none;border-radius:6px;padding:6px 10px;font-weight:600}
   .trial-chip.warn{background:var(--rust);color:#fff}
+  /* Keep the top bar on one tidy line on phones. */
+  @media (max-width:480px){
+    .top-in{padding:10px 13px}
+    .brand{font-size:.92rem;gap:7px;min-width:0;flex-shrink:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+    .brand .mark{width:20px;height:20px;flex-shrink:0}
+    .top-actions{gap:5px;flex-shrink:0}
+    .sync{display:none}
+    .icon-btn{padding:6px 10px;font-size:.72rem}
+    .trial-chip{font-size:.62rem;padding:5px 8px}
+  }
 
   /* billing / paywall */
   .pricecard{background:var(--ink-card);border:1px solid var(--line);border-radius:12px;padding:24px;margin-top:18px;text-align:center}
