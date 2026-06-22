@@ -897,6 +897,16 @@ function viewSettings(){
     </div>
     ${billingSection()}
     <div class="legalbox">
+      <h3>Change password</h3>
+      <input id="pwCur" type="password" class="input" placeholder="Current password" autocomplete="current-password"/>
+      <div class="row2" style="margin-top:8px">
+        <div><input id="pwNew" type="password" class="input" placeholder="New password (8+ characters)" autocomplete="new-password"/></div>
+        <div><input id="pwNew2" type="password" class="input" placeholder="Confirm new password" autocomplete="new-password"/></div>
+      </div>
+      <div id="pwMsg" class="hint" style="margin-top:8px"></div>
+      <button class="btn ghost sm" style="margin-top:8px" onclick="changePw(this)">Update password</button>
+    </div>
+    <div class="legalbox">
       <h3>Terms &amp; privacy (placeholder)</h3>
       <p>Conversations, transcripts, photos, and bids you create belong to you. They're stored for your use, and you can delete them at any time. Bidtranslator is a tool for preparing estimates — bids you send are agreements between you and your client, not us.</p>
       <p>Where your area requires it, let the other party know when a conversation is being captured.</p>
@@ -914,6 +924,25 @@ function viewSettings(){
 }
 let setT;
 function setS(k,v){ SETTINGS[k]=v; persistSettings(); settingsDirty=true; paintSync(); clearTimeout(setT); setT=setTimeout(()=>syncNow(), 700); }
+
+async function changePw(btn){
+  const g=id=>{ const e=document.getElementById(id); return e?e.value:''; };
+  const msg=document.getElementById('pwMsg');
+  const show=(t,ok)=>{ if(msg){ msg.textContent=t; msg.style.color=ok?'#8fce8f':'#e88'; } };
+  const cur=g('pwCur'), n1=g('pwNew'), n2=g('pwNew2');
+  if(!cur||!n1){ show('Fill in your current and new password.'); return; }
+  if(n1.length<8){ show('New password must be at least 8 characters.'); return; }
+  if(n1!==n2){ show('The new passwords don’t match.'); return; }
+  if(!online||!TOKEN){ show('You need to be online and signed in to change your password.'); return; }
+  btn.disabled=true; show('Updating…', true);
+  try{
+    await api('/api/auth/change-password',{method:'POST', body:JSON.stringify({currentPassword:cur, newPassword:n1})});
+    show('Password updated. ✓', true);
+    ['pwCur','pwNew','pwNew2'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  }catch(e){
+    show(e.message||'Could not update password.');
+  }finally{ btn.disabled=false; }
+}
 
 /* ---------- mutations ---------- */
 function addLine(){ const j=currentJob(); j.lines.push({id:uid(),desc:'',type:'fixed',price:0,hours:0,rate:0,furn:'you'}); touch(j); saveJobs(); render(); }
