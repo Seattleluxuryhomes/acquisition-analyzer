@@ -52,6 +52,7 @@ export function buildProposal(job, settings) {
       company: settings.company || "Your Company",
       name: settings.name || "",
       phone: settings.phone || "",
+      email: settings.email || "",
       license: settings.license || "",
       logo: settings.logo || "",
     },
