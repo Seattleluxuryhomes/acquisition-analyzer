@@ -282,6 +282,7 @@ let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
 let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en' };
 let JOBS = JSON.parse(localStorage.getItem('bt_jobs')||'[]');
+let CAP_PHOTOS = []; // photos staged on the capture screen before the job exists
 let settingsDirty = false;
 let online = navigator.onLine;
 let syncing = false;
@@ -455,7 +456,7 @@ window.addEventListener('offline', ()=>{ online=false; paintSync(); });
 /* ============ routing ============ */
 function go(v, jobId){ state.view=v; if(jobId!==undefined) state.jobId=jobId; state.error=''; render(); window.scrollTo(0,0);
   if(v==='job' && state.jobId && state.jobId!=='new') refreshJob(state.jobId); }
-function newJob(){ if(!entitled()){ go('paywall'); return; } go('capture','new'); }
+function newJob(){ if(!entitled()){ go('paywall'); return; } CAP_PHOTOS=[]; go('capture','new'); }
 function currentJob(){ return JOBS.find(j=>j.id===state.jobId); }
 
 // Pull the full job (the list endpoint omits photo URLs). Refreshes signed photo
@@ -602,6 +603,10 @@ function viewCapture(){
 
     <div class="hint">Tip: include what they want, anything they'll supply, and any deadline. Capture works offline — you can build the draft later.</div>
 
+    <label class="fld">Photos (optional)</label>
+    <div class="photogrid" id="capPhotoGrid">${capPhotoThumbs()}</div>
+    <input id="capPhotoInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="capHandlePhotos(this)"/>
+
     <div class="consent">
       <label><input type="checkbox" id="capConsent"/> <span>When my area requires it, I'll let the other person know the conversation is being captured.</span></label>
       <div class="consent-fine">Placeholder wording — not legal advice. Final consent terms to be reviewed before launch.</div>
@@ -645,7 +650,7 @@ function makeLocalJob(f, data){
     upgrades:(data&&Array.isArray(data.upgrades)?data.upgrades:[]).slice(0,4).map(u=>({id:uid(),desc:String(u.desc||''),price:+u.price||0})),
     assumptions:(data&&Array.isArray(data.assumptions)?data.assumptions:[]).map(String),
     exclusions:(data&&Array.isArray(data.exclusions)?data.exclusions:[]).map(String),
-    notes:'', margin:20, photos:[], status:'draft', _dirty:true
+    notes:'', margin:20, photos:CAP_PHOTOS.splice(0), status:'draft', _dirty:true
   };
 }
 
@@ -984,6 +989,21 @@ async function delPhoto(i){
   if(p.id && !p._pending && online && TOKEN){ try{ await api('/api/jobs/'+j.id+'/photos/'+p.id,{method:'DELETE'}); }catch(e){} }
   j.photos.splice(i,1); touch(j); saveJobs(); render();
 }
+
+/* ---------- capture-screen photos (staged before the job exists, then handed
+   to the new job as pending uploads — no full re-render, to preserve typing) ---------- */
+function capPhotoThumbs(){
+  return CAP_PHOTOS.map((p,i)=>`<div class="thumb"><img src="${p.dataUrl}" alt="job photo"/><button class="x" onclick="capDelPhoto(${i})" title="Remove">✕</button></div>`).join('')
+    + `<button class="addphoto" onclick="capPickPhoto()"><span style="font-size:1.3rem;line-height:1">+</span>Add</button>`;
+}
+function renderCapPhotos(){ const g=document.getElementById('capPhotoGrid'); if(g) g.innerHTML=capPhotoThumbs(); }
+function capPickPhoto(){ const el=document.getElementById('capPhotoInput'); if(el) el.click(); }
+async function capHandlePhotos(input){
+  const files=Array.from(input.files||[]);
+  for(const f of files){ if(CAP_PHOTOS.length>=8) break; try{ const dataUrl=await downscale(f); CAP_PHOTOS.push({localId:uid(), dataUrl, _pending:true}); }catch(e){} }
+  input.value=''; renderCapPhotos();
+}
+function capDelPhoto(i){ CAP_PHOTOS.splice(i,1); renderCapPhotos(); }
 
 /* ============ boot ============ */
 (async function(){
