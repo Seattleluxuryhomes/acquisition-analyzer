@@ -236,10 +236,10 @@
   .private .pl{font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:#8fb6d0}
 
   .client{background:var(--paper);color:var(--ink);border-radius:10px;padding:0;overflow:hidden;border:1px solid var(--kraft-deep)}
-  .client-head{background:var(--ink);color:var(--paper);padding:22px 24px}
-  .client-head .client-logo{max-height:46px;max-width:160px;margin-bottom:10px;display:block;border-radius:4px}
+  .client-head{background:var(--ink);color:var(--paper);padding:28px 24px;text-align:center;border-bottom:3px solid var(--amber)}
+  .client-head .client-logo{max-height:60px;max-width:72%;margin:0 auto 8px;display:block;border-radius:4px}
   .client-head .co{font-family:"Archivo";font-weight:800;font-size:1.4rem}
-  .client-head .meta{font-family:"IBM Plex Mono";font-size:.74rem;color:#b9c2cc;margin-top:4px}
+  .client-head .meta{font-family:"IBM Plex Mono";font-size:.74rem;color:#b9c2cc;margin-top:6px}
   .logo-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 6px}
   .logo-preview{max-height:54px;max-width:170px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:4px}
   .logo-empty{font-family:"IBM Plex Mono";font-size:.74rem;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:14px 18px}
@@ -578,13 +578,13 @@ async function syncNow(force){
 function jobPayload(j){
   return { id:j.id, title:j.title, from:j.from, to:j.to, transcript:j.transcript, translation:j.translation,
     summary:j.summary, assumptions:j.assumptions, exclusions:j.exclusions, lines:j.lines, upgrades:j.upgrades,
-    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', scheduled_time:j.scheduled_time||'', address:j.address||'', updated_at:j.updated_at, created_at:j.created };
+    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', scheduled_time:j.scheduled_time||'', address:j.address||'', customer:j.customer||'', updated_at:j.updated_at, created_at:j.created };
 }
 function hydrate(s){
   return { id:s.id, title:s.title, created:s.created_at, updated_at:s.updated_at, from:s.from, to:s.to,
     transcript:s.transcript||'', translation:s.translation||'', summary:s.summary||'',
     assumptions:s.assumptions||[], exclusions:s.exclusions||[], lines:s.lines||[], upgrades:s.upgrades||[],
-    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', scheduled_time:s.scheduled_time||'', address:s.address||'',
+    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', scheduled_time:s.scheduled_time||'', address:s.address||'', customer:s.customer||'',
     photos:(s.photos||[]).map(p=>({id:p.id, url:p.url})), _dirty:false };
 }
 function replaceJob(id, fresh){
@@ -984,6 +984,7 @@ function mapsLinks(addr){
   };
 }
 function setAddress(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.address=v||''; touch(j); saveJobs(); render(); }
+function setCustomer(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.customer=v||''; touch(j); saveJobs(); }
 // One source of truth for a job's location: the explicit address field, or — so
 // you never type it twice — the project name itself when that looks like an
 // address (has a number). Drives every map, directions & calendar link.
@@ -1198,6 +1199,7 @@ function viewJob(){
     </div>
     <div class="stagebar">${JOB_STAGES.map(([k,lab])=>`<button class="stbtn ${jobStatus(j)===k?'on':''}" onclick="setJobStatus('${j.id}','${k}')">${lab}</button>`).join('')}</div>
     ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/><input type="time" class="schedinput" value="${escAttr(j.scheduled_time||'')}" onchange="setScheduleTime('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">📲 Add to Calendar</a>`:''}</div>${conflictNote(j)}`:''}
+    <div class="addrrow"><input class="addrinput" value="${escAttr(j.customer||'')}" onchange="setCustomer('${j.id}',this.value)" placeholder="👤 Customer name — shown on the proposal"/></div>
     ${addrBlock(j)}
     ${tabs}`;
   let body='';
@@ -1394,7 +1396,7 @@ function clientHTML(j){
     </div>
     <div class="client-body">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div><h4 style="margin-top:0">Proposal for</h4><div style="font-weight:600">${esc(j.title)||'Project'}</div></div>
+        <div><h4 style="margin-top:0">Prepared for</h4><div style="font-weight:600">${esc(j.customer||j.title)||'Project'}</div>${j.customer?`<div class="cnote" style="margin-top:2px">${esc(j.title)}</div>`:''}</div>
         <div class="cnote">${dt}</div>
       </div>
       <h4>Scope of work</h4>

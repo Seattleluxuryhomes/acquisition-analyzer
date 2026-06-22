@@ -27,9 +27,10 @@ export function renderProposalHTML(p) {
   *{box-sizing:border-box}
   body{margin:0;background:#ece5d6;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
   .wrap{max-width:640px;margin:0 auto;background:#fff;min-height:100vh;box-shadow:0 0 40px rgba(0,0,0,.08)}
-  .head{background:var(--ink);color:#F3EEE3;padding:22px 24px}
-  .head .co{font-size:1.3rem;font-weight:800}
-  .head .meta{font-size:.82rem;color:#b9c2cc;margin-top:5px}
+  .head{background:var(--ink);color:#F3EEE3;padding:30px 24px;text-align:center;border-bottom:3px solid var(--amber)}
+  .head .logo{max-height:60px;max-width:72%;margin:0 auto 8px;display:block}
+  .head .co{font-size:1.4rem;font-weight:800}
+  .head .meta{font-size:.82rem;color:#b9c2cc;margin-top:6px}
   .body{padding:22px 24px}
   .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin:18px 0 6px}
   h1{font-size:1.25rem;margin:2px 0 0}
@@ -53,10 +54,10 @@ export function renderProposalHTML(p) {
   .foot{padding:18px 24px;border-top:1px solid var(--rule);color:var(--muted);font-size:.78rem}
 </style></head>
 <body><div class="wrap">
-  <div class="head"><div class="co">${esc(p.business.company)}</div>${meta ? `<div class="meta">${meta}</div>` : ""}</div>
+  <div class="head">${p.business.logo && /^data:image\//.test(p.business.logo) ? `<img class="logo" src="${esc(p.business.logo)}" alt="">` : `<div class="co">${esc(p.business.company)}</div>`}${meta ? `<div class="meta">${meta}</div>` : ""}</div>
   <div class="body">
-    <div class="eyebrow">Proposal for</div>
-    <h1>${esc(p.title)}</h1><div class="date">${esc(p.date)}</div>
+    <div class="eyebrow">Prepared for</div>
+    <h1>${esc(p.customer || p.title)}</h1>${p.customer ? `<div class="muted" style="font-size:.92rem;margin-top:2px">${esc(p.title)}</div>` : ""}<div class="date">${esc(p.date)}</div>
 
     <div class="eyebrow">Scope of work</div>
     ${scope}

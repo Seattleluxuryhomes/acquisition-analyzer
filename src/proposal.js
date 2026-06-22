@@ -56,6 +56,7 @@ export function buildProposal(job, settings) {
       logo: settings.logo || "",
     },
     title: job.title || "Project",
+    customer: job.customer || "",
     date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
     scope: baseLines.map((l) => ({
       section: l.section || "",
