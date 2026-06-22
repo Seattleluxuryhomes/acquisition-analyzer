@@ -824,7 +824,9 @@ function jobCardHTML(j){
   const s = jobStatus(j);
   const pend = j._dirty ? `<span class="pendtag">unsynced</span>` : '';
   const ph = (j.photos && j.photos[0]) ? (j.photos[0].url || j.photos[0].dataUrl) : '';
-  const m = j.address ? mapsLinks(j.address) : null;
+  const loc = jobLocation(j);
+  const m = loc ? mapsLinks(loc) : null;
+  const explicitAddr = (j.address||'').trim();
   const created = j.created ? new Date(j.created).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
   return `<div class="jcard">
     <button class="jcard-main" onclick="go('job','${j.id}')">
@@ -832,7 +834,7 @@ function jobCardHTML(j){
       <div class="jcard-info">
         <div class="jcard-top"><span class="jt">${esc(j.title)||'Untitled job'}</span><span class="sbadge ${s}">${statusLabel(s)}</span></div>
         <div class="jcard-val">${money(total)}</div>
-        <div class="jcard-meta">${j.address?`📍 ${esc(j.address)}`:`<span class="dim">No address yet</span>`}</div>
+        <div class="jcard-meta">${explicitAddr?`📍 ${esc(explicitAddr)}`:(loc?'':`<span class="dim">No address yet</span>`)}</div>
         <div class="jcard-meta dim">${created?created+' · ':''}${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to} · ${(j.lines||[]).length} lines${s==='scheduled'&&j.scheduled_date?` · 📅 ${fmtDate(j.scheduled_date)}`:''}${pend}</div>
       </div>
     </button>
@@ -876,10 +878,10 @@ function scheduleBlock(visible){
   const show=todays.length?todays:upcoming;
   const heading=todays.length?"Today's schedule":(upcoming.length?'Up next':'Schedule');
   const rows = show.length ? show.map(j=>{
-    const m=j.address?mapsLinks(j.address):null;
+    const loc=jobLocation(j); const m=loc?mapsLinks(loc):null; const ea=(j.address||'').trim();
     return `<div class="sch-item"><button class="sch-main" onclick="go('job','${j.id}')">
       <div class="sch-t">${esc(j.title)||'Untitled'}</div>
-      <div class="sch-s">${todays.length?'':fmtDate(j.scheduled_date)+' · '}${j.address?esc(j.address):'No address'}</div>
+      <div class="sch-s">${todays.length?'':fmtDate(j.scheduled_date)+' · '}${ea?esc(ea):(loc?money(bidTotal(j)):'No address')}</div>
       </button>${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}<a class="sch-dir" href="${calLink(j)}" target="_blank" rel="noopener" title="Add to Calendar">📲</a></div>`;
   }).join('') : `<div class="hint" style="padding:6px 2px">Nothing scheduled. Mark a job “Scheduled” and pick a date.</div>`;
   return `<div class="panel"><button class="panel-h" onclick="go('schedule')"><span>📅 ${heading}</span><span class="panel-link">Weekly →</span></button>${rows}</div>`;
@@ -928,10 +930,10 @@ function viewSchedule(){
   const todayK=iso(base);
   const byDate={}; visible.forEach(j=>{ (byDate[j.scheduled_date]=byDate[j.scheduled_date]||[]).push(j); });
   const days=[]; for(let i=0;i<7;i++){ const d=new Date(base); d.setDate(base.getDate()+i); days.push(d); }
-  const item=(j)=>{ const m=j.address?mapsLinks(j.address):null;
+  const item=(j)=>{ const loc=jobLocation(j); const m=loc?mapsLinks(loc):null; const ea=(j.address||'').trim();
     return `<div class="sch-item"><button class="sch-main" onclick="go('job','${j.id}')">
       <div class="sch-t">${esc(j.title)||'Untitled'}</div>
-      <div class="sch-s">${j.address?esc(j.address):'No address'} · ${money(bidTotal(j))}</div></button>
+      <div class="sch-s">${ea?esc(ea)+' · ':''}${money(bidTotal(j))}</div></button>
       ${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}<a class="sch-dir" href="${calLink(j)}" target="_blank" rel="noopener" title="Add to Calendar">📲</a></div>`; };
   const dayBlocks=days.map(d=>{
     const k=iso(d); const jobs=(byDate[k]||[]).sort((a,b)=>bidTotal(b)-bidTotal(a));
@@ -968,6 +970,11 @@ function mapsLinks(addr){
   };
 }
 function setAddress(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.address=v||''; touch(j); saveJobs(); render(); }
+// One source of truth for a job's location: the explicit address field, or — so
+// you never type it twice — the project name itself when that looks like an
+// address (has a number). Drives every map, directions & calendar link.
+function looksLikeAddress(t){ t=(t||'').trim(); return /\d/.test(t) && t.length>4; }
+function jobLocation(j){ const a=(j&&j.address||'').trim(); if(a) return a; const t=(j&&j.title||'').trim(); return looksLikeAddress(t)?t:''; }
 // "Add to Calendar" — opens a pre-filled Google Calendar event (all-day on the
 // scheduled date). One tap → it's on the contractor's REAL calendar, with
 // reminders. No API key, no OAuth (same spirit as the maps deep-links).
@@ -980,22 +987,24 @@ function calLink(j){
   return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
     +'&text='+encodeURIComponent((j.title||'Job')+' — '+(SETTINGS.company||'Bidtranslator'))
     +'&dates='+start+'/'+end
-    +(j.address?'&location='+encodeURIComponent(j.address):'')
+    +(jobLocation(j)?'&location='+encodeURIComponent(jobLocation(j)):'')
     +'&details='+encodeURIComponent('Scheduled via Bidtranslator · '+money(bidTotal(j)));
 }
 function addrBlock(j){
-  const a=(j.address||'').trim();
+  const loc=jobLocation(j);
+  const usingTitle = !(j.address||'').trim() && loc;
   const input=`<input class="addrinput" value="${escAttr(j.address||'')}" onchange="setAddress('${j.id}',this.value)" placeholder="📍 Job address — for maps & directions"/>`;
-  if(!a) return `<div class="addrrow">${input}</div>`;
-  const m=mapsLinks(a);
-  return `<div class="addrrow">${input}<div class="addrlinks">`
+  const note = usingTitle ? `<div class="hint" style="margin-top:4px">Using the project name for directions — add a different address only if needed.</div>` : '';
+  if(!loc) return `<div class="addrrow">${input}</div>`;
+  const m=mapsLinks(loc);
+  return `<div class="addrrow">${input}${note}<div class="addrlinks">`
     +`<a class="maplink" href="${m.map}" target="_blank" rel="noopener">📍 Map</a>`
     +`<a class="maplink" href="${m.dir}" target="_blank" rel="noopener">🧭 Directions</a>`
     +`<a class="maplink" href="${m.sv}" target="_blank" rel="noopener">👁 Street View</a></div></div>`;
 }
 // Daily-route card (used in the Scheduled tab): job + its address + one-tap directions.
 function routeCardHTML(j){
-  const m=j.address?mapsLinks(j.address):null;
+  const m=jobLocation(j)?mapsLinks(jobLocation(j)):null;
   return `<div class="routecard">
     <button class="routemain" onclick="go('job','${j.id}')">
       <div class="jt">${esc(j.title)||'Untitled job'}</div>
