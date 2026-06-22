@@ -7,6 +7,9 @@ import db from "./db.js";
 
 const KEY = () => process.env.STRIPE_SECRET_KEY || "";
 const PRICE = () => process.env.STRIPE_PRICE_ID || "";
+// Optional one-time signup fee (a one-time Price). Charged on the first
+// subscription checkout only — see createCheckout + handleEvent.
+const SETUP_PRICE = () => process.env.STRIPE_SETUP_PRICE_ID || "";
 const WEBHOOK_SECRET = () => process.env.STRIPE_WEBHOOK_SECRET || "";
 
 export function billingConfigured() {
@@ -93,10 +96,14 @@ async function ensureCustomer(user) {
 export async function createCheckout(user, baseUrl) {
   if (!billingConfigured()) { const e = new Error("Billing is not configured."); e.status = 503; throw e; }
   const customer = await ensureCustomer(user);
+  // Recurring plan, plus the one-time setup fee on the first checkout only. A
+  // one-time price in a subscription-mode session lands on the first invoice.
+  const line_items = [{ price: PRICE(), quantity: 1 }];
+  if (SETUP_PRICE() && !user.setup_fee_paid) line_items.push({ price: SETUP_PRICE(), quantity: 1 });
   const session = await stripe("checkout/sessions", {
     mode: "subscription",
     customer,
-    line_items: [{ price: PRICE(), quantity: 1 }],
+    line_items,
     success_url: `${baseUrl}/?billing=success`,
     cancel_url: `${baseUrl}/?billing=cancel`,
     allow_promotion_codes: true,
@@ -146,7 +153,8 @@ export function handleEvent(event) {
       // Subscription details arrive via the subscription.* events; record the link.
       if (obj.customer && obj.subscription) {
         const row = db.prepare("SELECT id FROM user WHERE stripe_customer_id=?").get(obj.customer);
-        if (row) db.prepare("UPDATE user SET stripe_subscription_id=?, subscription_status=? WHERE id=?")
+        // Mark the one-time setup fee paid so a future re-subscribe won't re-charge it.
+        if (row) db.prepare("UPDATE user SET stripe_subscription_id=?, subscription_status=?, setup_fee_paid=1 WHERE id=?")
           .run(obj.subscription, "active", row.id);
       }
       break;

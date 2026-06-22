@@ -29,7 +29,8 @@ is included, so there's nothing to build by hand.
    |---|---|
    | `ANTHROPIC_API_KEY` | from console.anthropic.com — turns on the AI build step |
    | `STRIPE_SECRET_KEY` | from Stripe — turns on subscriptions |
-   | `STRIPE_PRICE_ID` | the monthly Price object's id in Stripe |
+   | `STRIPE_PRICE_ID` | the **monthly** recurring Price id (e.g. $29.99/mo) |
+   | `STRIPE_SETUP_PRICE_ID` | optional — a **one-time** Price id (e.g. $299 setup fee) charged on the first checkout only. Omit for no setup fee. |
    | `STRIPE_WEBHOOK_SECRET` | from the Stripe webhook endpoint |
    | `BT_TRIAL_DAYS` | `14` (default; omit to keep 14) |
 

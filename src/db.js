@@ -111,6 +111,7 @@ ensureColumns("user", [
   ["stripe_subscription_id", "TEXT"],
   ["subscription_status", "TEXT DEFAULT 'none'"],
   ["current_period_end", "INTEGER"],
+  ["setup_fee_paid", "INTEGER DEFAULT 0"],
   // Stripe Connect (contractor gets paid by homeowners).
   ["stripe_connect_account_id", "TEXT"],
   ["connect_charges_enabled", "INTEGER DEFAULT 0"],
