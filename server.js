@@ -65,7 +65,7 @@ app.use((err, _req, res, next) => {
 function settingsOf(user) {
   return {
     company: user.company, name: user.name, phone: user.phone, license: user.license,
-    from: user.default_from_lang, to: user.default_to_lang,
+    from: user.default_from_lang, to: user.default_to_lang, logo: user.logo || "",
   };
 }
 
@@ -128,8 +128,11 @@ app.get("/api/me", requireAuth, (req, res) =>
   res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user) }));
 app.patch("/api/me", requireAuth, wrap((req, res) => {
   const b = req.body || {};
+  if (typeof b.logo === "string" && b.logo.length > 250000) {
+    return res.status(413).json({ error: "Logo image is too large — please use a smaller file." });
+  }
   const map = { company: "company", name: "name", phone: "phone", license: "license",
-    from: "default_from_lang", to: "default_to_lang" };
+    from: "default_from_lang", to: "default_to_lang", logo: "logo" };
   const sets = [], vals = [];
   for (const [k, col] of Object.entries(map)) {
     if (k in b) { sets.push(`${col}=?`); vals.push(String(b[k] ?? "")); }

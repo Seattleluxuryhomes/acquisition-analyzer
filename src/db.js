@@ -126,6 +126,8 @@ ensureColumns("user", [
   // Stripe Connect (contractor gets paid by homeowners).
   ["stripe_connect_account_id", "TEXT"],
   ["connect_charges_enabled", "INTEGER DEFAULT 0"],
+  // Company logo (small data-URI) shown on the client bid + PDF.
+  ["logo", "TEXT"],
 ]);
 
 export default db;

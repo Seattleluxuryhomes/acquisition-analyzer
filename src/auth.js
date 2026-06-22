@@ -37,6 +37,7 @@ function publicUser(row) {
     license: row.license,
     default_from_lang: row.default_from_lang,
     default_to_lang: row.default_to_lang,
+    logo: row.logo || "",
   };
 }
 

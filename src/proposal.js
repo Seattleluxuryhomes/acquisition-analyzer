@@ -53,6 +53,7 @@ export function buildProposal(job, settings) {
       name: settings.name || "",
       phone: settings.phone || "",
       license: settings.license || "",
+      logo: settings.logo || "",
     },
     title: job.title || "Project",
     date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
