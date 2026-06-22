@@ -5,6 +5,9 @@ import crypto from "node:crypto";
 import db from "./db.js";
 
 const uid = () => crypto.randomBytes(9).toString("base64url");
+// Pipeline stages a job moves through.
+const STATUSES = new Set(["draft", "sent", "signed", "scheduled"]);
+const normStatus = (v) => (STATUSES.has(v) ? v : "draft");
 const J = (v, fallback) => {
   try { const x = JSON.parse(v); return x == null ? fallback : x; } catch { return fallback; }
 };
@@ -79,7 +82,7 @@ export function createJob(userId, data = {}) {
     JSON.stringify((Array.isArray(data.lines) ? data.lines : []).map(cleanLine)),
     JSON.stringify((Array.isArray(data.upgrades) ? data.upgrades : []).map(cleanUpgrade)),
     String(data.notes || ""), Number(data.margin) || 0,
-    data.status === "sent" ? "sent" : "draft",
+    normStatus(data.status),
     data.sent_at ? Number(data.sent_at) : null,
     createdAt, Number(data.updated_at) || now
   );
@@ -95,7 +98,7 @@ const FIELD_MAP = {
   summary: (v) => String(v),
   notes: (v) => String(v),
   margin: (v) => Number(v) || 0,
-  status: (v) => (v === "sent" ? "sent" : "draft"),
+  status: (v) => normStatus(v),
   assumptions: (v) => JSON.stringify(cleanStrings(v)),
   exclusions: (v) => JSON.stringify(cleanStrings(v)),
   lines: (v) => JSON.stringify((Array.isArray(v) ? v : []).map(cleanLine)),
