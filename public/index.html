@@ -1040,6 +1040,7 @@ function viewCapture(){
     <label class="fld">Photos (optional)</label>
     <div class="photogrid" id="capPhotoGrid">${capPhotoThumbs()}</div>
     <input id="capPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="capHandlePhotos(this)"/>
+    <input id="capPhotoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="capHandlePhotos(this)"/>
 
     <div class="consent">
       <label><input type="checkbox" id="capConsent"/> <span>When my area requires it, I'll let the other person know the conversation is being captured.</span></label>
@@ -1199,8 +1200,9 @@ function tabNotebook(j){
   const photos=j.photos||[];
   out+=`<div class="nb-sec"><h3>Photos</h3><div class="photogrid">${
     photos.map((p,i)=>`<div class="thumb"><img src="${p._pending?p.dataUrl:p.url}" alt="job photo"/><button class="x" onclick="delPhoto(${i})" title="Remove">✕</button>${p._pending?'<span class="pend">offline</span>':''}</div>`).join('')
-  }<button class="addphoto" onclick="pickPhoto()"><span style="font-size:1.3rem;line-height:1">+</span>Add</button></div>
-  <input id="photoInput" type="file" accept="image/*" multiple style="display:none" onchange="handlePhotos(this)"/></div>`;
+  }<button class="addphoto" onclick="pickPhoto('cam')"><span style="font-size:1.2rem;line-height:1">📷</span>Camera</button><button class="addphoto" onclick="pickPhoto('lib')"><span style="font-size:1.2rem;line-height:1">🖼️</span>Upload</button></div>
+  <input id="photoInput" type="file" accept="image/*" multiple style="display:none" onchange="handlePhotos(this)"/>
+  <input id="photoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="handlePhotos(this)"/></div>`;
   out+=`<div style="margin-top:14px"><button class="btn full" onclick="setTab('build')">Build the bid →</button></div>`;
   return out;
 }
@@ -1641,7 +1643,7 @@ function toggleMic(){
 }
 
 /* ---------- photos (offline-capable: queued locally, uploaded on sync) ---------- */
-function pickPhoto(){ const el=document.getElementById('photoInput'); if(el) el.click(); }
+function pickPhoto(mode){ const el=document.getElementById(mode==='cam'?'photoCamInput':'photoInput'); if(el) el.click(); }
 async function handlePhotos(input){
   const j=currentJob(); if(!j) return; j.photos=j.photos||[];
   const files=Array.from(input.files||[]);
@@ -1671,10 +1673,11 @@ async function delPhoto(i){
    to the new job as pending uploads — no full re-render, to preserve typing) ---------- */
 function capPhotoThumbs(){
   return CAP_PHOTOS.map((p,i)=>`<div class="thumb"><img src="${p.dataUrl}" alt="job photo"/><button class="x" onclick="capDelPhoto(${i})" title="Remove">✕</button></div>`).join('')
-    + `<button class="addphoto" onclick="capPickPhoto()"><span style="font-size:1.3rem;line-height:1">+</span>Add</button>`;
+    + `<button class="addphoto" onclick="capPickPhoto('cam')"><span style="font-size:1.2rem;line-height:1">📷</span>Camera</button>`
+    + `<button class="addphoto" onclick="capPickPhoto('lib')"><span style="font-size:1.2rem;line-height:1">🖼️</span>Upload</button>`;
 }
 function renderCapPhotos(){ const g=document.getElementById('capPhotoGrid'); if(g) g.innerHTML=capPhotoThumbs(); }
-function capPickPhoto(){ const el=document.getElementById('capPhotoInput'); if(el) el.click(); }
+function capPickPhoto(mode){ const el=document.getElementById(mode==='cam'?'capPhotoCamInput':'capPhotoInput'); if(el) el.click(); }
 async function capHandlePhotos(input){
   const files=Array.from(input.files||[]);
   for(const f of files){ if(CAP_PHOTOS.length>=8) break; try{ const dataUrl=await downscale(f); CAP_PHOTOS.push({localId:uid(), dataUrl, _pending:true}); }catch(e){} }
