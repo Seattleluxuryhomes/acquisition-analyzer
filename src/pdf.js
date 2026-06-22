@@ -18,24 +18,28 @@ export function renderProposalPDF(proposal, res) {
 
   // ---- Business header band ----
   doc.rect(0, 0, doc.page.width, 96).fill(INK);
-  doc.fillColor("#F3EEE3").font("Helvetica-Bold").fontSize(20)
-    .text(proposal.business.company || "Your Company", left, 30, { width });
+  // A logo carries the brand, so show it and skip the duplicate company name.
+  // Wrapped so a bad image can never break the PDF.
+  let logoBuf = null;
+  if (proposal.business.logo) {
+    try {
+      const m = /^data:image\/\w+;base64,(.+)$/.exec(proposal.business.logo);
+      if (m) logoBuf = Buffer.from(m[1], "base64");
+    } catch { logoBuf = null; }
+  }
+  if (logoBuf) {
+    try { doc.image(logoBuf, left, 22, { fit: [180, 46], valign: "center" }); }
+    catch { logoBuf = null; }
+  }
+  if (!logoBuf) {
+    doc.fillColor("#F3EEE3").font("Helvetica-Bold").fontSize(20)
+      .text(proposal.business.company || "Your Company", left, 30, { width });
+  }
   const meta = [proposal.business.name, proposal.business.phone,
     proposal.business.license ? "Lic. " + proposal.business.license : ""]
     .filter(Boolean).join("  ·  ");
   doc.font("Helvetica").fontSize(9).fillColor("#b9c2cc")
-    .text(meta || "", left, 58, { width });
-  // Company logo, top-right of the header band. Wrapped so a bad image can never
-  // break the PDF.
-  if (proposal.business.logo) {
-    try {
-      const m = /^data:image\/\w+;base64,(.+)$/.exec(proposal.business.logo);
-      if (m) {
-        const buf = Buffer.from(m[1], "base64");
-        doc.image(buf, right - 96, 24, { fit: [96, 48], align: "right", valign: "center" });
-      }
-    } catch { /* ignore unreadable logo */ }
-  }
+    .text(meta || "", left, logoBuf ? 74 : 58, { width });
   doc.y = 120;
 
   // ---- Proposal heading ----
