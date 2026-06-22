@@ -1,0 +1,15 @@
+# Litestream: continuously backs up the SQLite database to S3-compatible object
+# storage so data survives redeploys and restarts. Every value comes from an
+# environment variable; if they're unset, docker-entrypoint.sh skips Litestream
+# entirely and the app runs normally.
+dbs:
+  - path: ${BT_DATA_DIR}/bidtranslator.db
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET}
+        path: bidtranslator
+        endpoint: ${LITESTREAM_ENDPOINT}
+        region: ${LITESTREAM_REGION}
+        access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
+        secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}
+        force-path-style: true
