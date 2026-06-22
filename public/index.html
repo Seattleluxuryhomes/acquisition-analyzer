@@ -112,6 +112,19 @@
   .jobcard .chev{color:var(--amber);font-family:"IBM Plex Mono"}
   .langtag{display:inline-block;font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.06em;background:var(--blueprint-deep);color:#cfe3f0;padding:2px 7px;border-radius:3px;margin-left:6px}
   .pendtag{display:inline-block;font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.06em;background:rgba(207,127,24,.2);color:#f0d8af;padding:2px 7px;border-radius:3px;margin-left:6px}
+  /* Pipeline: filter chips + status badges + stage selector */
+  .fchips{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px}
+  .fchip{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:6px 11px;font-family:"IBM Plex Mono";font-size:.72rem;display:inline-flex;align-items:center;gap:6px}
+  .fchip.on{background:var(--amber);color:var(--ink);border-color:var(--amber)}
+  .fchip .fc{font-weight:700;opacity:.85}
+  .sbadge{font-family:"IBM Plex Mono";font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;padding:4px 8px;border-radius:5px;white-space:nowrap;flex-shrink:0}
+  .sbadge.draft{background:rgba(154,163,174,.15);color:var(--muted)}
+  .sbadge.sent{background:rgba(207,127,24,.2);color:#f0d8af}
+  .sbadge.signed{background:rgba(62,125,90,.22);color:#8fd0a8}
+  .sbadge.scheduled{background:rgba(30,66,89,.45);color:#9fc2da}
+  .stagebar{display:flex;gap:5px;margin:12px 0 2px;background:var(--ink-soft);padding:5px;border-radius:9px;border:1px solid var(--line);flex-wrap:wrap}
+  .stbtn{flex:1;min-width:64px;background:transparent;border:none;color:var(--muted);padding:8px 6px;border-radius:6px;font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.03em}
+  .stbtn.on{background:var(--blueprint-deep);color:#cfe3f0;font-weight:600}
   .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
   .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
 
@@ -625,24 +638,47 @@ function viewAuth(){
 }
 
 /* ---------- HOME ---------- */
+// Pipeline stages a bid moves through.
+const JOB_STAGES = [['draft','Draft'],['sent','Sent'],['signed','Signed'],['scheduled','Scheduled']];
+function jobStatus(j){ const s=j&&j.status; return ['draft','sent','signed','scheduled'].includes(s)?s:'draft'; }
+function statusLabel(s){ return ({draft:'Draft',sent:'Sent',signed:'Signed',scheduled:'Scheduled'})[s]||'Draft'; }
+
+function jobCardHTML(j){
+  const total = bidTotal(j);
+  const pend = j._dirty ? `<span class="pendtag">unsynced</span>` : '';
+  const s = jobStatus(j);
+  return `<button class="jobcard" onclick="go('job','${j.id}')">
+    <div><div class="jt">${esc(j.title)||'Untitled job'}</div>
+    <div class="jm">${money(total)} · ${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}<span class="langtag">${(j.lines||[]).length} lines</span>${pend}</div></div>
+    <span class="sbadge ${s}">${statusLabel(s)}</span></button>`;
+}
+
 function viewHome(){
   const visible = JOBS.filter(j=>!j._deleted);
+  const f = state.jobFilter || 'all';
+  const counts = { all: visible.length, draft:0, sent:0, signed:0, scheduled:0 };
+  visible.forEach(j=>{ counts[jobStatus(j)]++; });
+  const chips = [['all','All'],...JOB_STAGES]
+    .map(([k,lab])=>`<button class="fchip ${f===k?'on':''}" onclick="setJobFilter('${k}')">${lab}<span class="fc">${counts[k]||0}</span></button>`).join('');
+  const filtered = f==='all' ? visible : visible.filter(j=>jobStatus(j)===f);
   let list;
   if(visible.length===0){
     list = `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
+  } else if(filtered.length===0){
+    list = `<div class="hint" style="margin-top:16px">No ${statusLabel(f).toLowerCase()} jobs yet.</div>`;
   } else {
-    list = '<div class="joblist">' + visible.map(j=>{
-      const total = bidTotal(j);
-      const pend = j._dirty ? `<span class="pendtag">unsynced</span>` : '';
-      return `<button class="jobcard" onclick="go('job','${j.id}')">
-        <div><div class="jt">${esc(j.title)||'Untitled job'}</div>
-        <div class="jm">${money(total)} · ${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}<span class="langtag">${(j.lines||[]).length} lines</span>${pend}</div></div>
-        <span class="chev">→</span></button>`;
-    }).join('') + '</div>';
+    list = '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>';
   }
   return `<div class="h-eyebrow">Job notebook</div><h1 class="page">Your jobs</h1>
     <div class="newbar"><div class="sub">${visible.length} ${visible.length===1?'job':'jobs'}</div>
-    <button class="btn sm" onclick="newJob()">+ New job</button></div>${list}`;
+    <button class="btn sm" onclick="newJob()">+ New job</button></div>
+    ${visible.length?`<div class="fchips">${chips}</div>`:''}${list}`;
+}
+function setJobFilter(f){ state.jobFilter=f; render(); }
+function setJobStatus(id,s){
+  const j=JOBS.find(x=>x.id===id); if(!j) return;
+  j.status=s; if(s!=='draft' && !j.sent_at) j.sent_at=Date.now();
+  touch(j); saveJobs(); render();
 }
 
 /* ---------- CAPTURE ---------- */
@@ -802,7 +838,9 @@ function viewJob(){
       <div><h1 class="page" style="font-size:1.4rem">${esc(j.title)||'Untitled job'}</h1>
       <div class="sub">${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}</div></div>
       <button class="btn ghost sm" onclick="deleteJob('${j.id}')" title="Delete job">Delete</button>
-    </div>${tabs}`;
+    </div>
+    <div class="stagebar">${JOB_STAGES.map(([k,lab])=>`<button class="stbtn ${jobStatus(j)===k?'on':''}" onclick="setJobStatus('${j.id}','${k}')">${lab}</button>`).join('')}</div>
+    ${tabs}`;
   let body='';
   if(state.bidTab==='notebook') body=tabNotebook(j);
   else if(state.bidTab==='build') body=tabBuild(j);
