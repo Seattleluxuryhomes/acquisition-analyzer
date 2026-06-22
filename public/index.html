@@ -880,7 +880,7 @@ function scheduleBlock(visible){
     return `<div class="sch-item"><button class="sch-main" onclick="go('job','${j.id}')">
       <div class="sch-t">${esc(j.title)||'Untitled'}</div>
       <div class="sch-s">${todays.length?'':fmtDate(j.scheduled_date)+' · '}${j.address?esc(j.address):'No address'}</div>
-      </button>${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}</div>`;
+      </button>${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}<a class="sch-dir" href="${calLink(j)}" target="_blank" rel="noopener" title="Add to Calendar">📲</a></div>`;
   }).join('') : `<div class="hint" style="padding:6px 2px">Nothing scheduled. Mark a job “Scheduled” and pick a date.</div>`;
   return `<div class="panel"><button class="panel-h" onclick="go('schedule')"><span>📅 ${heading}</span><span class="panel-link">Weekly →</span></button>${rows}</div>`;
 }
@@ -932,7 +932,7 @@ function viewSchedule(){
     return `<div class="sch-item"><button class="sch-main" onclick="go('job','${j.id}')">
       <div class="sch-t">${esc(j.title)||'Untitled'}</div>
       <div class="sch-s">${j.address?esc(j.address):'No address'} · ${money(bidTotal(j))}</div></button>
-      ${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}</div>`; };
+      ${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}<a class="sch-dir" href="${calLink(j)}" target="_blank" rel="noopener" title="Add to Calendar">📲</a></div>`; };
   const dayBlocks=days.map(d=>{
     const k=iso(d); const jobs=(byDate[k]||[]).sort((a,b)=>bidTotal(b)-bidTotal(a));
     const lbl=d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
@@ -968,6 +968,21 @@ function mapsLinks(addr){
   };
 }
 function setAddress(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.address=v||''; touch(j); saveJobs(); render(); }
+// "Add to Calendar" — opens a pre-filled Google Calendar event (all-day on the
+// scheduled date). One tap → it's on the contractor's REAL calendar, with
+// reminders. No API key, no OAuth (same spirit as the maps deep-links).
+function calLink(j){
+  if(!j || !j.scheduled_date) return '';
+  const p=j.scheduled_date.split('-'); if(p.length!==3) return '';
+  const start=p[0]+p[1]+p[2];
+  const d=new Date(+p[0],+p[1]-1,+p[2]); d.setDate(d.getDate()+1);
+  const end=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    +'&text='+encodeURIComponent((j.title||'Job')+' — '+(SETTINGS.company||'Bidtranslator'))
+    +'&dates='+start+'/'+end
+    +(j.address?'&location='+encodeURIComponent(j.address):'')
+    +'&details='+encodeURIComponent('Scheduled via Bidtranslator · '+money(bidTotal(j)));
+}
 function addrBlock(j){
   const a=(j.address||'').trim();
   const input=`<input class="addrinput" value="${escAttr(j.address||'')}" onchange="setAddress('${j.id}',this.value)" placeholder="📍 Job address — for maps & directions"/>`;
@@ -1149,7 +1164,7 @@ function viewJob(){
       <button class="btn ghost sm" onclick="deleteJob('${j.id}')" title="Delete job">Delete</button>
     </div>
     <div class="stagebar">${JOB_STAGES.map(([k,lab])=>`<button class="stbtn ${jobStatus(j)===k?'on':''}" onclick="setJobStatus('${j.id}','${k}')">${lab}</button>`).join('')}</div>
-    ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/></div>`:''}
+    ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">📲 Add to Calendar</a>`:''}</div>`:''}
     ${addrBlock(j)}
     ${tabs}`;
   let body='';
