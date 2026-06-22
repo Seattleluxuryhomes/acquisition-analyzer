@@ -218,17 +218,23 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
   res.json(data);
 }));
 
-// ---- Share a bid: a signed, public link the contractor texts/emails ----
+// ---- Share a bid: a clean public link the contractor texts/emails ----
 app.get("/api/jobs/:id/share", requireAuth, Billing.requireEntitled, wrap((req, res) => {
   const job = Jobs.getJob(req.user.id, req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found." });
-  res.json({ url: baseUrl(req) + signProposalUrl(job.id) });
+  // Clean link — the unguessable 72-bit job id is the access grant (like a
+  // Google Doc / Calendly share link). No ugly signature in the customer's email.
+  res.json({ url: baseUrl(req) + "/p/" + job.id });
 }));
 
-// Public, login-free proposal page (homeowner opens the shared link). The
-// signature is the access grant; only buildProposal() data is ever rendered.
+// Public, login-free proposal page (homeowner opens the shared link). Only
+// buildProposal() data is ever rendered (margin/notes can never appear).
 app.get("/p/:id", (req, res) => {
-  if (!verifyProposalSig(req.params.id, req.query.exp, req.query.sig)) return res.status(403).send("This link has expired or is invalid.");
+  // Back-compat: links sent with the old signature are still validated (incl.
+  // expiry). New clean links rely on the unguessable id.
+  if (req.query.sig && !verifyProposalSig(req.params.id, req.query.exp, req.query.sig)) {
+    return res.status(403).send("This link has expired or is invalid.");
+  }
   const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(req.params.id);
   if (!jobRow) return res.status(404).send("Estimate not found.");
   const owner = db.prepare("SELECT * FROM user WHERE id=?").get(jobRow.user_id);
