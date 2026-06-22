@@ -1185,8 +1185,18 @@ function toggleMic(){
   const sel=document.getElementById('capFrom');
   rec.lang=SPEECH_LANG[sel?sel.value:'es']||'es-US';
   rec.continuous=true; rec.interimResults=true;
-  rec.onresult=(e)=>{ let fin=''; for(let i=e.resultIndex;i<e.results.length;i++){ if(e.results[i].isFinal) fin+=e.results[i][0].transcript; }
-    if(fin){ const ta=document.getElementById('capText'); if(ta) ta.value=(ta.value?ta.value.trim()+' ':'')+fin.trim(); } };
+  // Snapshot whatever's already in the box, then REBUILD from the live results
+  // on every event (instead of appending). Some mobile browsers re-fire the same
+  // finalized phrase repeatedly; rebuilding-and-setting means a phrase can never
+  // get stacked over and over.
+  const ta0=document.getElementById('capText');
+  const dictBase=ta0&&ta0.value?ta0.value.trim():'';
+  rec.onresult=(e)=>{
+    let speech='';
+    for(let i=0;i<e.results.length;i++){ speech+=e.results[i][0].transcript+' '; }
+    const ta=document.getElementById('capText');
+    if(ta) ta.value=[dictBase, speech.trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
+  };
   rec.onend=()=>{ recording=false; updateMic(); };
   rec.onerror=()=>{ recording=false; updateMic(); };
   try{ rec.start(); recording=true; updateMic(); }catch(e){ recording=false; updateMic(); }
