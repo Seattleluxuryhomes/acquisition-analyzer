@@ -96,6 +96,17 @@ CREATE TABLE IF NOT EXISTS payment_request (
 CREATE INDEX IF NOT EXISTS payreq_user_idx ON payment_request(user_id);
 CREATE INDEX IF NOT EXISTS payreq_job_idx ON payment_request(job_id);
 CREATE INDEX IF NOT EXISTS payreq_session_idx ON payment_request(stripe_session_id);
+
+-- "Coming soon" demand signals: a user taps "Notify me" on a not-yet-built
+-- feature (e.g. the Team plan). One row per user per feature — count rows to
+-- see how much real demand exists before building it.
+CREATE TABLE IF NOT EXISTS interest (
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  feature TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, feature)
+);
+CREATE INDEX IF NOT EXISTS interest_feature_idx ON interest(feature);
 `);
 
 // Migrate older databases that predate the billing columns.

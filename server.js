@@ -139,6 +139,16 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
   res.json({ user: publicUser(fresh), settings: settingsOf(fresh) });
 }));
 
+// ---- Demand signals ("Notify me" on coming-soon features) ----
+app.post("/api/interest", requireAuth, wrap((req, res) => {
+  const feature = String((req.body || {}).feature || "").trim().slice(0, 40);
+  if (!feature) return res.status(400).json({ error: "feature required" });
+  db.prepare("INSERT OR IGNORE INTO interest (user_id, feature, created_at) VALUES (?,?,?)")
+    .run(req.user.id, feature, Date.now());
+  const { c } = db.prepare("SELECT COUNT(*) c FROM interest WHERE feature=?").get(feature);
+  res.json({ ok: true, count: c });
+}));
+
 // ---- Jobs ----
 app.get("/api/jobs", requireAuth, (req, res) => res.json({ jobs: Jobs.listJobs(req.user.id) }));
 app.post("/api/jobs", requireAuth, Billing.requireEntitled, wrap((req, res) => res.json({ job: attachPhotos(req.user.id, Jobs.createJob(req.user.id, req.body || {})) })));

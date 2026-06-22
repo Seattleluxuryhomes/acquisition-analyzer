@@ -72,6 +72,9 @@
   .feat{list-style:none;text-align:left;max-width:340px;margin:16px auto;display:flex;flex-direction:column;gap:9px}
   .feat li{font-size:.92rem;padding-left:24px;position:relative}
   .feat li::before{content:"\2713";position:absolute;left:0;color:var(--ok);font-weight:700}
+  .pricecard.soon{position:relative;border-style:dashed;opacity:.96;margin-top:14px}
+  .pricecard.soon .amt{font-size:2.1rem;color:var(--muted)}
+  .soonflag{position:absolute;top:14px;right:14px;font-family:"IBM Plex Mono";font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;background:var(--blueprint-deep);color:#cfe3f0;padding:4px 9px;border-radius:20px}
   .billbox{background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:16px;margin-top:18px}
   .billbox h3{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
   .statline{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
@@ -612,7 +615,34 @@ function viewPaywall(){
       <button class="btn full" onclick="startCheckout(this)">Subscribe</button>
       <div class="hint" style="margin-top:10px">Secure checkout by Stripe. Have a promo code? Add it at checkout.</div>
     </div>
+    <div class="pricecard soon">
+      <div class="soonflag">Coming soon</div>
+      <div class="h-eyebrow">Team plan · for GCs &amp; crews</div>
+      <div class="amt">$149<span>/month</span></div>
+      <div class="hint" style="margin:-4px 0 10px">Bring your subs and crew into one place — assign jobs and track every bid together. Up to 5 crew members.</div>
+      <ul class="feat">
+        <li>Everything in the Contractor plan</li>
+        <li>Invite your subcontractors &amp; crew</li>
+        <li>Assign &amp; track jobs across the team</li>
+        <li>One dashboard for the whole crew</li>
+      </ul>
+      <div id="teamInterest">${interestDone('team')
+        ? `<button class="btn ghost full" disabled>✓ You're on the list — we'll email you</button>`
+        : `<button class="btn ghost full" onclick="notifyInterest('team',this)">🔔 Notify me when it's ready</button>`}</div>
+    </div>
     ${BILLING&&BILLING.has_subscription?`<div style="margin-top:14px;text-align:center"><button class="btn ghost" onclick="openPortal(this)">Manage billing</button></div>`:''}`;
+}
+function interestDone(f){ try{ return localStorage.getItem('bt_interest_'+f)==='1'; }catch(e){ return false; } }
+async function notifyInterest(feature, btn){
+  if(!TOKEN || !online){ alert('Connect to the internet to join the list.'); return; }
+  const old=btn.textContent; btn.disabled=true; btn.textContent='Adding…';
+  try{
+    const r=await api('/api/interest',{method:'POST',body:JSON.stringify({feature})});
+    try{ localStorage.setItem('bt_interest_'+feature,'1'); }catch(e){}
+    const n=(r&&r.count)||1;
+    const box=document.getElementById('teamInterest');
+    if(box) box.innerHTML=`<button class="btn ghost full" disabled>✓ You're on the list${n>1?` — ${n} contractors want this`:''}</button>`;
+  }catch(e){ btn.disabled=false; btn.textContent=old; alert('Could not save right now — please try again.'); }
 }
 
 /* ---------- AUTH ---------- */
