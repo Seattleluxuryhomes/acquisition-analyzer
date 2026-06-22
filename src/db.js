@@ -132,6 +132,8 @@ ensureColumns("user", [
 // Calendar: the date a job is scheduled for (YYYY-MM-DD), set at the Scheduled stage.
 ensureColumns("job", [
   ["scheduled_date", "TEXT"],
+  // Maps: the job's street address (drives Maps/Directions/Street View links).
+  ["address", "TEXT"],
 ]);
 
 export default db;

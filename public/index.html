@@ -132,6 +132,15 @@
   .schedlbl{font-family:"IBM Plex Mono";font-size:.74rem;color:#9fc2da}
   .schedinput{background:var(--ink-card);border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:8px 10px;font-size:.9rem;color-scheme:dark}
   .datetag{display:inline-block;font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.04em;background:rgba(30,66,89,.45);color:#9fc2da;padding:2px 7px;border-radius:3px;margin-left:6px}
+  .addrrow{margin:10px 0 2px}
+  .addrinput{width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:10px 12px;font-size:.92rem}
+  .addrlinks{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .maplink{font-family:"IBM Plex Mono";font-size:.72rem;text-decoration:none;background:var(--blueprint-deep);color:#cfe3f0;padding:7px 11px;border-radius:6px;border:1px solid var(--line)}
+  .routecard{display:flex;align-items:stretch;gap:8px;margin-bottom:10px}
+  .routecard .routemain{flex:1;background:var(--ink-card);border:1px solid var(--line);border-radius:9px;padding:14px 15px;text-align:left;color:var(--paper)}
+  .routecard .routemain .jt{font-family:"Archivo";font-weight:700;font-size:1rem}
+  .routecard .routemain .jm{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted);margin-top:3px}
+  .routedir{display:flex;align-items:center;justify-content:center;min-width:54px;font-size:1.1rem;text-decoration:none}
   .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
   .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
 
@@ -524,13 +533,13 @@ async function syncNow(force){
 function jobPayload(j){
   return { id:j.id, title:j.title, from:j.from, to:j.to, transcript:j.transcript, translation:j.translation,
     summary:j.summary, assumptions:j.assumptions, exclusions:j.exclusions, lines:j.lines, upgrades:j.upgrades,
-    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', updated_at:j.updated_at, created_at:j.created };
+    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', address:j.address||'', updated_at:j.updated_at, created_at:j.created };
 }
 function hydrate(s){
   return { id:s.id, title:s.title, created:s.created_at, updated_at:s.updated_at, from:s.from, to:s.to,
     transcript:s.transcript||'', translation:s.translation||'', summary:s.summary||'',
     assumptions:s.assumptions||[], exclusions:s.exclusions||[], lines:s.lines||[], upgrades:s.upgrades||[],
-    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'',
+    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', address:s.address||'',
     photos:(s.photos||[]).map(p=>({id:p.id, url:p.url})), _dirty:false };
 }
 function replaceJob(id, fresh){
@@ -789,6 +798,9 @@ function viewHome(){
     list = `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
   } else if(filtered.length===0){
     list = `<div class="hint" style="margin-top:16px">No ${statusLabel(f).toLowerCase()} jobs yet.</div>`;
+  } else if(f==='scheduled'){
+    list = `<div class="hint" style="margin:2px 0 12px">🗺️ Your route — tap 🧭 for turn-by-turn directions to each stop.</div>`
+      + '<div class="joblist">' + filtered.map(routeCardHTML).join('') + '</div>';
   } else {
     list = '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>';
   }
@@ -810,6 +822,37 @@ function setSchedule(id,v){
 function fmtDate(d){
   if(!d) return ''; const p=String(d).split('-'); if(p.length!==3) return d;
   return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+// Google Maps deep-links built from a plain address string — no API key, no cost.
+function mapsLinks(addr){
+  const q=encodeURIComponent((addr||'').trim());
+  return {
+    map:`https://www.google.com/maps/search/?api=1&query=${q}`,
+    dir:`https://www.google.com/maps/dir/?api=1&destination=${q}`,
+    sv:`https://www.google.com/maps?q=${q}&layer=c`
+  };
+}
+function setAddress(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.address=v||''; touch(j); saveJobs(); render(); }
+function addrBlock(j){
+  const a=(j.address||'').trim();
+  const input=`<input class="addrinput" value="${escAttr(j.address||'')}" onchange="setAddress('${j.id}',this.value)" placeholder="📍 Job address — for maps & directions"/>`;
+  if(!a) return `<div class="addrrow">${input}</div>`;
+  const m=mapsLinks(a);
+  return `<div class="addrrow">${input}<div class="addrlinks">`
+    +`<a class="maplink" href="${m.map}" target="_blank" rel="noopener">📍 Map</a>`
+    +`<a class="maplink" href="${m.dir}" target="_blank" rel="noopener">🧭 Directions</a>`
+    +`<a class="maplink" href="${m.sv}" target="_blank" rel="noopener">👁 Street View</a></div></div>`;
+}
+// Daily-route card (used in the Scheduled tab): job + its address + one-tap directions.
+function routeCardHTML(j){
+  const m=j.address?mapsLinks(j.address):null;
+  return `<div class="routecard">
+    <button class="routemain" onclick="go('job','${j.id}')">
+      <div class="jt">${esc(j.title)||'Untitled job'}</div>
+      <div class="jm">${j.scheduled_date?`📅 ${fmtDate(j.scheduled_date)} · `:''}${j.address?esc(j.address):'<span style="color:var(--muted)">No address yet</span>'}</div>
+    </button>
+    ${m?`<a class="btn blue sm routedir" href="${m.dir}" target="_blank" rel="noopener">🧭</a>`:''}
+  </div>`;
 }
 
 /* ---------- CAPTURE ---------- */
@@ -972,6 +1015,7 @@ function viewJob(){
     </div>
     <div class="stagebar">${JOB_STAGES.map(([k,lab])=>`<button class="stbtn ${jobStatus(j)===k?'on':''}" onclick="setJobStatus('${j.id}','${k}')">${lab}</button>`).join('')}</div>
     ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/></div>`:''}
+    ${addrBlock(j)}
     ${tabs}`;
   let body='';
   if(state.bidTab==='notebook') body=tabNotebook(j);

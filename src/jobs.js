@@ -30,6 +30,7 @@ function rowToJob(row) {
     margin: row.margin,      // owner-only; never sent to client surfaces
     status: row.status,
     scheduled_date: row.scheduled_date || "",
+    address: row.address || "",
     sent_at: row.sent_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -72,8 +73,8 @@ export function createJob(userId, data = {}) {
   const createdAt = Number(data.created_at) || now;
   db.prepare(`INSERT INTO job
     (id, user_id, title, from_lang, to_lang, transcript, translation, summary,
-     assumptions, exclusions, lines, upgrades, notes, margin, status, scheduled_date, sent_at, created_at, updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+     assumptions, exclusions, lines, upgrades, notes, margin, status, scheduled_date, address, sent_at, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
     id, userId,
     String(data.title || "Untitled job"),
     String(data.from || "es"), String(data.to || "en"),
@@ -85,6 +86,7 @@ export function createJob(userId, data = {}) {
     String(data.notes || ""), Number(data.margin) || 0,
     normStatus(data.status),
     String(data.scheduled_date || "") || null,
+    String(data.address || "") || null,
     data.sent_at ? Number(data.sent_at) : null,
     createdAt, Number(data.updated_at) || now
   );
@@ -102,6 +104,7 @@ const FIELD_MAP = {
   margin: (v) => Number(v) || 0,
   status: (v) => normStatus(v),
   scheduled_date: (v) => String(v || ""),
+  address: (v) => String(v || "").slice(0, 300),
   assumptions: (v) => JSON.stringify(cleanStrings(v)),
   exclusions: (v) => JSON.stringify(cleanStrings(v)),
   lines: (v) => JSON.stringify((Array.isArray(v) ? v : []).map(cleanLine)),
@@ -109,7 +112,7 @@ const FIELD_MAP = {
 };
 const COLUMN = { title: "title", from: "from_lang", to: "to_lang", transcript: "transcript",
   translation: "translation", summary: "summary", notes: "notes", margin: "margin", status: "status",
-  scheduled_date: "scheduled_date",
+  scheduled_date: "scheduled_date", address: "address",
   assumptions: "assumptions", exclusions: "exclusions", lines: "lines", upgrades: "upgrades" };
 
 export function updateJob(userId, id, patch = {}) {
