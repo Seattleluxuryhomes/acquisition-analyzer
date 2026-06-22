@@ -129,5 +129,9 @@ ensureColumns("user", [
   // Company logo (small data-URI) shown on the client bid + PDF.
   ["logo", "TEXT"],
 ]);
+// Calendar: the date a job is scheduled for (YYYY-MM-DD), set at the Scheduled stage.
+ensureColumns("job", [
+  ["scheduled_date", "TEXT"],
+]);
 
 export default db;
