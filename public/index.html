@@ -141,6 +141,49 @@
   .routecard .routemain .jt{font-family:"Archivo";font-weight:700;font-size:1rem}
   .routecard .routemain .jm{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted);margin-top:3px}
   .routedir{display:flex;align-items:center;justify-content:center;min-width:54px;font-size:1.1rem;text-decoration:none}
+  /* ===== Dashboard ===== */
+  .dash-hello{margin:6px 0 14px}
+  .kpis{display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 4px 8px;margin:0 -4px 12px;scrollbar-width:none}
+  .kpis::-webkit-scrollbar{display:none}
+  .kpi{flex:0 0 auto;min-width:130px;background:var(--ink-card);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
+  .kpi-ic{font-size:1.05rem}
+  .kpi-l{font-family:"IBM Plex Mono";font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+  .kpi-v{font-family:"Archivo";font-weight:900;font-size:1.5rem;letter-spacing:-.02em;margin-top:2px}
+  .kpi-s{font-family:"IBM Plex Mono";font-size:.58rem;color:var(--muted);margin-top:2px}
+  .kpi.rev{border-color:rgba(62,125,90,.5)} .kpi.rev .kpi-v{color:#8fd0a8}
+  .kpi.pend .kpi-v{color:#f0d8af}
+  .kpi.close .kpi-v{color:var(--amber)}
+  .kpi.foll.alert{border-color:var(--rust)} .kpi.foll.alert .kpi-v{color:#ff9b7a}
+  .panel{background:var(--ink-card);border:1px solid var(--line);border-radius:12px;padding:8px;margin-bottom:14px}
+  .panel-h{width:100%;display:flex;justify-content:space-between;align-items:center;background:transparent;border:none;color:var(--paper);font-family:"IBM Plex Mono";font-size:.78rem;padding:8px}
+  .panel-h.static{cursor:default}
+  .panel-link{color:var(--amber);font-size:.72rem}
+  .sch-item{display:flex;gap:8px;align-items:stretch;padding:0 2px}
+  .sch-main{flex:1;background:var(--ink-soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;text-align:left;color:var(--paper);margin-bottom:6px;min-width:0}
+  .sch-t{font-family:"Archivo";font-weight:700;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sch-s{font-family:"IBM Plex Mono";font-size:.68rem;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sch-dir{display:flex;align-items:center;justify-content:center;min-width:46px;margin-bottom:6px;background:var(--blueprint-deep);border:1px solid var(--line);border-radius:8px;text-decoration:none;font-size:1.05rem}
+  .act-item{width:100%;text-align:left;background:transparent;border:none;border-top:1px solid var(--line);color:var(--paper);padding:9px 8px}
+  .act-t{font-family:"Archivo";font-weight:600;font-size:.9rem}
+  .act-s{font-family:"IBM Plex Mono";font-size:.66rem;color:var(--muted);margin-top:2px}
+  .jcard{display:flex;align-items:stretch;gap:8px;margin-bottom:10px}
+  .jcard-main{flex:1;display:flex;gap:12px;background:var(--ink-card);border:1px solid var(--line);border-radius:11px;padding:12px;text-align:left;color:var(--paper);min-width:0}
+  .jcard-photo{flex:0 0 64px;width:64px;height:64px;border-radius:8px;background-size:cover;background-position:center;background-color:var(--ink-soft)}
+  .jcard-photo.noimg{display:flex;align-items:center;justify-content:center;font-size:1.5rem;opacity:.45}
+  .jcard-info{flex:1;min-width:0}
+  .jcard-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .jcard-top .jt{font-family:"Archivo";font-weight:700;font-size:1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .jcard-val{font-family:"Archivo";font-weight:900;font-size:1.15rem;color:#8fd0a8;margin:2px 0}
+  .jcard-meta{font-family:"IBM Plex Mono";font-size:.68rem;color:#cfe3f0;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .jcard-meta.dim,.jcard-meta .dim{color:var(--muted)}
+  .jcard-actions{display:flex;flex-direction:column;gap:6px;justify-content:center}
+  .qa{display:flex;align-items:center;justify-content:center;width:42px;flex:1;min-height:30px;background:var(--ink-soft);border:1px solid var(--line);border-radius:8px;color:var(--paper);text-decoration:none;font-size:1rem}
+  .weekgrid{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+  .wk-day{background:var(--ink-card);border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+  .wk-day.today{border-color:var(--amber)}
+  .wk-h{font-family:"IBM Plex Mono";font-size:.72rem;letter-spacing:.04em;color:var(--amber);margin-bottom:8px}
+  .wk-empty{font-family:"IBM Plex Mono";font-size:.7rem;color:var(--muted);padding:2px}
+  @media(min-width:720px){ .kpi{flex:1 1 0} }
   .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
   .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
 
@@ -290,7 +333,8 @@
       <div class="top-actions">
         <button class="trial-chip" id="trialChip" style="display:none" onclick="go('paywall')"></button>
         <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
-        <button class="icon-btn" id="navJobs" onclick="go('home')">Jobs</button>
+        <button class="icon-btn" id="navJobs" onclick="go('home')">Dashboard</button>
+        <button class="icon-btn" id="navSched" onclick="go('schedule')">Schedule</button>
         <button class="icon-btn" id="navSet" onclick="go('settings')">Setup</button>
       </div>
     </div>
@@ -590,8 +634,10 @@ function render(){
   const v = document.getElementById('view');
   if(!authed){ v.innerHTML = viewAuth(); paintSync(); return; }
   document.getElementById('navJobs').classList.toggle('active', state.view==='home'||state.view==='capture'||state.view==='job');
+  document.getElementById('navSched').classList.toggle('active', state.view==='schedule');
   document.getElementById('navSet').classList.toggle('active', state.view==='settings');
   if(state.view==='home') v.innerHTML = viewHome();
+  else if(state.view==='schedule') v.innerHTML = viewSchedule();
   else if(state.view==='capture') v.innerHTML = viewCapture();
   else if(state.view==='job') v.innerHTML = viewJob();
   else if(state.view==='settings') v.innerHTML = viewSettings();
@@ -775,39 +821,128 @@ function applyTemplate(trade){
 
 function jobCardHTML(j){
   const total = bidTotal(j);
-  const pend = j._dirty ? `<span class="pendtag">unsynced</span>` : '';
   const s = jobStatus(j);
-  return `<button class="jobcard" onclick="go('job','${j.id}')">
-    <div><div class="jt">${esc(j.title)||'Untitled job'}</div>
-    <div class="jm">${money(total)} · ${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}<span class="langtag">${(j.lines||[]).length} lines</span>${s==='scheduled'&&j.scheduled_date?`<span class="datetag">📅 ${fmtDate(j.scheduled_date)}</span>`:''}${pend}</div></div>
-    <span class="sbadge ${s}">${statusLabel(s)}</span></button>`;
+  const pend = j._dirty ? `<span class="pendtag">unsynced</span>` : '';
+  const ph = (j.photos && j.photos[0]) ? (j.photos[0].url || j.photos[0].dataUrl) : '';
+  const m = j.address ? mapsLinks(j.address) : null;
+  const created = j.created ? new Date(j.created).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+  return `<div class="jcard">
+    <button class="jcard-main" onclick="go('job','${j.id}')">
+      ${ph?`<div class="jcard-photo" style="background-image:url('${ph}')"></div>`:`<div class="jcard-photo noimg">🏠</div>`}
+      <div class="jcard-info">
+        <div class="jcard-top"><span class="jt">${esc(j.title)||'Untitled job'}</span><span class="sbadge ${s}">${statusLabel(s)}</span></div>
+        <div class="jcard-val">${money(total)}</div>
+        <div class="jcard-meta">${j.address?`📍 ${esc(j.address)}`:`<span class="dim">No address yet</span>`}</div>
+        <div class="jcard-meta dim">${created?created+' · ':''}${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to} · ${(j.lines||[]).length} lines${s==='scheduled'&&j.scheduled_date?` · 📅 ${fmtDate(j.scheduled_date)}`:''}${pend}</div>
+      </div>
+    </button>
+    <div class="jcard-actions">
+      ${m?`<a class="qa" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a><a class="qa" href="${m.map}" target="_blank" rel="noopener" title="Map">📍</a>`:''}
+      <button class="qa" onclick="go('job','${j.id}')" title="Open">→</button>
+    </div>
+  </div>`;
+}
+
+function greetingWord(){ const h=new Date().getHours(); return h<12?'Good morning':(h<18?'Good afternoon':'Good evening'); }
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function timeAgo(ts){ if(!ts) return ''; const m=Math.floor((Date.now()-ts)/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
+
+// KPI math straight from the jobs we already store. "Won" = signed + scheduled.
+function dashKPIs(visible){
+  const sum=(arr)=>arr.reduce((s,j)=>s+bidTotal(j),0);
+  const won=visible.filter(j=>jobStatus(j)==='signed'||jobStatus(j)==='scheduled');
+  const sent=visible.filter(j=>jobStatus(j)==='sent');
+  const now=Date.now();
+  const followups=sent.filter(j=>now-(j.sent_at||j.updated_at||now) > 3*86400000);
+  const decided=won.length+sent.length;
+  return { revenue:sum(won), wonCount:won.length, pending:sum(sent), pendingCount:sent.length,
+    close: decided?Math.round(won.length/decided*100):0, followups:followups.length };
+}
+function kpiStrip(k){
+  const card=(ic,label,val,sub,cls)=>`<div class="kpi ${cls||''}"><div class="kpi-ic">${ic}</div><div class="kpi-l">${label}</div><div class="kpi-v">${val}</div><div class="kpi-s">${sub||''}</div></div>`;
+  return `<div class="kpis">`
+    + card('💰','Revenue',money(k.revenue),k.wonCount+' won','rev')
+    + card('⏳','Pending',money(k.pending),k.pendingCount+' out','pend')
+    + card('✅','Jobs won',k.wonCount,'closed','won')
+    + card('🎯','Close rate',k.close+'%','of bids','close')
+    + card('🔔','Follow-ups',k.followups,k.followups?'need attention':'all clear', k.followups?'foll alert':'foll')
+    + `</div>`;
+}
+function scheduleBlock(visible){
+  const today=todayISO();
+  const sched=visible.filter(j=>jobStatus(j)==='scheduled' && j.scheduled_date);
+  const todays=sched.filter(j=>j.scheduled_date===today);
+  const upcoming=sched.filter(j=>j.scheduled_date>today).sort((a,b)=>a.scheduled_date.localeCompare(b.scheduled_date)).slice(0,3);
+  const show=todays.length?todays:upcoming;
+  const heading=todays.length?"Today's schedule":(upcoming.length?'Up next':'Schedule');
+  const rows = show.length ? show.map(j=>{
+    const m=j.address?mapsLinks(j.address):null;
+    return `<div class="sch-item"><button class="sch-main" onclick="go('job','${j.id}')">
+      <div class="sch-t">${esc(j.title)||'Untitled'}</div>
+      <div class="sch-s">${todays.length?'':fmtDate(j.scheduled_date)+' · '}${j.address?esc(j.address):'No address'}</div>
+      </button>${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}</div>`;
+  }).join('') : `<div class="hint" style="padding:6px 2px">Nothing scheduled. Mark a job “Scheduled” and pick a date.</div>`;
+  return `<div class="panel"><button class="panel-h" onclick="go('schedule')"><span>📅 ${heading}</span><span class="panel-link">Weekly →</span></button>${rows}</div>`;
+}
+function activityBlock(visible){
+  const recent=[...visible].sort((a,b)=>(b.updated_at||0)-(a.updated_at||0)).slice(0,5);
+  if(!recent.length) return '';
+  const lbl=(j)=>{const s=jobStatus(j);return s==='signed'?'Signed — won 🎉':s==='scheduled'?'Scheduled':s==='sent'?'Bid sent':'Draft updated';};
+  return `<div class="panel"><div class="panel-h static"><span>⚡ Recent activity</span></div>`
+    + recent.map(j=>`<button class="act-item" onclick="go('job','${j.id}')"><div class="act-t">${esc(j.title)||'Untitled'}</div><div class="act-s">${lbl(j)} · ${timeAgo(j.updated_at)}</div></button>`).join('')
+    + `</div>`;
 }
 
 function viewHome(){
   const visible = JOBS.filter(j=>!j._deleted);
+  const who = (SETTINGS.name||'').trim();
+  const hello = `<div class="dash-hello"><div class="h-eyebrow">${esc(SETTINGS.company)||'Your business'}</div>
+    <h1 class="page">${greetingWord()}${who?', '+esc(who):''} 👋</h1></div>`;
+  if(visible.length===0){
+    return hello + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
+  }
   const f = state.jobFilter || 'all';
   const counts = { all: visible.length, draft:0, sent:0, signed:0, scheduled:0 };
   visible.forEach(j=>{ counts[jobStatus(j)]++; });
   const chips = [['all','All'],...JOB_STAGES]
     .map(([k,lab])=>`<button class="fchip ${f===k?'on':''}" onclick="setJobFilter('${k}')">${lab}<span class="fc">${counts[k]||0}</span></button>`).join('');
   let filtered = f==='all' ? visible : visible.filter(j=>jobStatus(j)===f);
-  // Calendar: the Scheduled tab is an upcoming agenda — dated jobs first, soonest on top.
   if(f==='scheduled'){ filtered=[...filtered].sort((a,b)=>String(a.scheduled_date||'9999-99-99').localeCompare(String(b.scheduled_date||'9999-99-99'))); }
   let list;
-  if(visible.length===0){
-    list = `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
-  } else if(filtered.length===0){
-    list = `<div class="hint" style="margin-top:16px">No ${statusLabel(f).toLowerCase()} jobs yet.</div>`;
-  } else if(f==='scheduled'){
-    list = `<div class="hint" style="margin:2px 0 12px">🗺️ Your route — tap 🧭 for turn-by-turn directions to each stop.</div>`
-      + '<div class="joblist">' + filtered.map(routeCardHTML).join('') + '</div>';
-  } else {
-    list = '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>';
-  }
-  return `<div class="h-eyebrow">Job notebook</div><h1 class="page">Your jobs</h1>
-    <div class="newbar"><div class="sub">${visible.length} ${visible.length===1?'job':'jobs'}</div>
-    <button class="btn sm" onclick="newJob()">+ New job</button></div>
-    ${visible.length?`<div class="fchips">${chips}</div>`:''}${list}`;
+  if(filtered.length===0){ list = `<div class="hint" style="margin-top:16px">No ${statusLabel(f).toLowerCase()} jobs yet.</div>`; }
+  else { list = (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">🗺️ Tap 🧭 for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
+  return `${hello}
+    ${kpiStrip(dashKPIs(visible))}
+    ${scheduleBlock(visible)}
+    <div class="newbar"><div class="sub">Your jobs · ${visible.length}</div><button class="btn sm" onclick="newJob()">+ New job</button></div>
+    <div class="fchips">${chips}</div>${list}
+    ${activityBlock(visible)}`;
+}
+
+// Weekly calendar — the Schedule view. Standalone (a Google Calendar sync would
+// need OAuth and is on the roadmap).
+function viewSchedule(){
+  const visible = JOBS.filter(j=>!j._deleted && jobStatus(j)==='scheduled' && j.scheduled_date);
+  const base=new Date(); base.setHours(0,0,0,0);
+  const iso=(d)=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const todayK=iso(base);
+  const byDate={}; visible.forEach(j=>{ (byDate[j.scheduled_date]=byDate[j.scheduled_date]||[]).push(j); });
+  const days=[]; for(let i=0;i<7;i++){ const d=new Date(base); d.setDate(base.getDate()+i); days.push(d); }
+  const item=(j)=>{ const m=j.address?mapsLinks(j.address):null;
+    return `<div class="sch-item"><button class="sch-main" onclick="go('job','${j.id}')">
+      <div class="sch-t">${esc(j.title)||'Untitled'}</div>
+      <div class="sch-s">${j.address?esc(j.address):'No address'} · ${money(bidTotal(j))}</div></button>
+      ${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}</div>`; };
+  const dayBlocks=days.map(d=>{
+    const k=iso(d); const jobs=(byDate[k]||[]).sort((a,b)=>bidTotal(b)-bidTotal(a));
+    const lbl=d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+    return `<div class="wk-day ${k===todayK?'today':''}"><div class="wk-h">${k===todayK?'Today · ':''}${lbl}</div>${jobs.length?jobs.map(item).join(''):'<div class="wk-empty">—</div>'}</div>`;
+  }).join('');
+  const later=visible.filter(j=>j.scheduled_date>iso(days[6])).sort((a,b)=>a.scheduled_date.localeCompare(b.scheduled_date));
+  const laterBlock=later.length?`<div class="wk-day"><div class="wk-h">Later</div>${later.map(item).join('')}</div>`:'';
+  return `<div class="h-eyebrow">Schedule</div><h1 class="page">This week</h1>
+    <div class="sub">Your scheduled jobs &amp; estimates — tap 🧭 for directions.</div>
+    <div class="weekgrid">${dayBlocks}${laterBlock}</div>`;
 }
 function setJobFilter(f){ state.jobFilter=f; render(); }
 function setJobStatus(id,s){
