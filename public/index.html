@@ -1261,9 +1261,12 @@ function billingSection(){
   const btn = (s==='active'||BILLING.has_subscription)
     ? `<button class="btn ghost sm" onclick="openPortal(this)">Manage billing</button>`
     : `<button class="btn sm" onclick="startCheckout(this)">Subscribe</button>`;
+  const pricing = (s!=='active' && !BILLING.has_subscription)
+    ? `<div class="hint" style="margin-top:8px">When you subscribe: a one-time <b style="color:var(--paper)">$299 setup</b> + <b style="color:var(--paper)">$29.99/mo</b>. Cancel anytime.</div>`
+    : '';
   return `<div class="billbox"><h3>Subscription</h3>
     <div class="statline"><span class="badge ${cls}">${label}</span>${btn}</div>
-    ${detail?`<div class="hint" style="margin-top:8px">${esc(detail)}</div>`:''}</div>`;
+    ${detail?`<div class="hint" style="margin-top:8px">${esc(detail)}</div>`:''}${pricing}</div>`;
 }
 // "Get paid" setup card — connects the contractor's own Stripe account so
 // homeowners can pay them by card (and Klarna/Affirm once they enable it in Stripe).
