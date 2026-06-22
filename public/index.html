@@ -934,10 +934,15 @@ function tabClient(j){
   return `<div class="h-eyebrow" style="margin-bottom:8px">Step 3 · What the client sees</div>
     ${html}
     <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn" id="pdfBtn" onclick="sendPDF()">Save / Send PDF</button>
+      <button class="btn" onclick="shareBid('text',this)">💬 Text</button>
+      <button class="btn" onclick="shareBid('email',this)">✉️ Email</button>
+      <button class="btn ghost" onclick="shareBid('share',this)">Share…</button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn ghost" id="pdfBtn" onclick="sendPDF()">Save / Send PDF</button>
       <button class="btn ghost" onclick="setTab('build')">← Edit bid</button>
     </div>
-    <div class="hint" style="margin-top:10px">We render a clean PDF on the server. Offline, this falls back to your phone's print → “Save as PDF”.</div>
+    <div class="hint" style="margin-top:10px">Text/Email open your phone with a secure link to this bid — your client taps it to view. No private numbers or margins are shown.</div>
     ${paymentsBlock(j)}`;
 }
 
@@ -1007,6 +1012,34 @@ function clientHTML(j){
     </div>
     <div class="cfoot">This is an estimate, not a contract. Pricing valid 30 days from the date above.</div>
   </div>`;
+}
+
+// Share a bid via the phone's own Messages / email (free — sends from the
+// contractor's number/email). Gets a secure public link from the server first.
+async function shareBid(mode, btn){
+  const j=currentJob(); if(!j) return;
+  if(!entitled()){ go('paywall'); return; }
+  if(!online || !TOKEN){ alert('Connect to the internet to create a shareable bid link.'); return; }
+  const orig = btn ? btn.textContent : '';
+  if(btn){ btn.disabled=true; btn.textContent='Preparing…'; }
+  try{
+    j.status='sent'; touch(j); persist();
+    await syncNow(true); // make sure the server has the latest bid before it renders the link
+    const r = await api('/api/jobs/'+j.id+'/share');
+    const url = r.url;
+    const who = SETTINGS.company || 'your contractor';
+    const msg = `Here's your estimate from ${who}: ${url}`;
+    const subject = 'Your estimate'+(j.title?(' — '+j.title):'');
+    if(btn){ btn.disabled=false; btn.textContent=orig; }
+    if(mode==='text'){ location.href='sms:?&body='+encodeURIComponent(msg); }
+    else if(mode==='email'){ location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(msg); }
+    else if(navigator.share){ try{ await navigator.share({title:subject, text:`Here's your estimate from ${who}`, url}); }catch(e){} }
+    else { prompt('Copy this link to share the bid:', url); }
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent=orig; }
+    if(e.status===402){ gate402(e); return; }
+    alert(e.message||'Could not create the share link.');
+  }
 }
 
 async function sendPDF(){

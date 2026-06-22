@@ -13,7 +13,8 @@ import * as Jobs from "./src/jobs.js";
 import { assistBuild, aiConfigured } from "./src/assist.js";
 import { buildProposal } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
-import { signPhotoUrl, verifyPhotoSig } from "./src/files.js";
+import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig } from "./src/files.js";
+import { renderProposalHTML } from "./src/proposalHtml.js";
 import * as Billing from "./src/billing.js";
 import * as Payments from "./src/payments.js";
 
@@ -200,6 +201,24 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
   const data = await assistBuild(req.user, { text, from_lang, to_lang });
   res.json(data);
 }));
+
+// ---- Share a bid: a signed, public link the contractor texts/emails ----
+app.get("/api/jobs/:id/share", requireAuth, Billing.requireEntitled, wrap((req, res) => {
+  const job = Jobs.getJob(req.user.id, req.params.id);
+  if (!job) return res.status(404).json({ error: "Job not found." });
+  res.json({ url: baseUrl(req) + signProposalUrl(job.id) });
+}));
+
+// Public, login-free proposal page (homeowner opens the shared link). The
+// signature is the access grant; only buildProposal() data is ever rendered.
+app.get("/p/:id", (req, res) => {
+  if (!verifyProposalSig(req.params.id, req.query.exp, req.query.sig)) return res.status(403).send("This link has expired or is invalid.");
+  const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(req.params.id);
+  if (!jobRow) return res.status(404).send("Estimate not found.");
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(jobRow.user_id);
+  const proposal = buildProposal(Jobs.rowToJob(jobRow), settingsOf(owner || {}));
+  res.type("html").send(renderProposalHTML(proposal));
+});
 
 // ---- Client proposal PDF (margin/notes stripped by buildProposal) ----
 app.get("/api/jobs/:id/pdf", requireAuth, Billing.requireEntitled, wrap((req, res) => {
