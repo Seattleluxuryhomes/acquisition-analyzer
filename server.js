@@ -68,7 +68,7 @@ app.use((err, _req, res, next) => {
 function settingsOf(user) {
   return {
     company: user.company, name: user.name, phone: user.phone, license: user.license,
-    from: user.default_from_lang, to: user.default_to_lang, logo: user.logo || "",
+    from: user.default_from_lang, to: user.default_to_lang, logo: user.logo || "", email: user.email || "",
   };
 }
 

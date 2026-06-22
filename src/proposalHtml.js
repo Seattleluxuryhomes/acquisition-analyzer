@@ -16,8 +16,9 @@ export function renderProposalHTML(p) {
         <div class="row sub"><div class="d">${esc(g.name)} subtotal</div><div class="a">${money(g.subtotal)}</div></div></div>`).join("")
     : (p.scope.length ? p.scope.map(lineRow).join("") : `<div class="muted">No items yet.</div>`);
 
-  const meta = [p.business.name, p.business.phone, p.business.license ? "Lic. " + p.business.license : ""]
-    .filter(Boolean).map(esc).join("  ·  ");
+  // Contact block for the footer — pulled from the contractor's Setup profile.
+  const contact = [p.business.company, p.business.name, p.business.phone, p.business.email,
+    p.business.license ? "Lic. " + p.business.license : ""].filter(Boolean).map(esc).join("  ·  ");
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -52,9 +53,10 @@ export function renderProposalHTML(p) {
   .note,.excl{font-size:.9rem;color:#5a5240;padding:3px 0}
   .muted{color:var(--muted)}
   .foot{padding:18px 24px;border-top:1px solid var(--rule);color:var(--muted);font-size:.78rem}
+  .foot .contact{color:var(--ink);font-weight:600;font-size:.86rem;margin-bottom:6px}
 </style></head>
 <body><div class="wrap">
-  <div class="head">${p.business.logo && /^data:image\//.test(p.business.logo) ? `<img class="logo" src="${esc(p.business.logo)}" alt="">` : `<div class="co">${esc(p.business.company)}</div>`}${meta ? `<div class="meta">${meta}</div>` : ""}</div>
+  <div class="head">${p.business.logo && /^data:image\//.test(p.business.logo) ? `<img class="logo" src="${esc(p.business.logo)}" alt="">` : `<div class="co">${esc(p.business.company)}</div>`}</div>
   <div class="body">
     <div class="eyebrow">Prepared for</div>
     <h1>${esc(p.customer || p.title)}</h1>${p.customer ? `<div class="muted" style="font-size:.92rem;margin-top:2px">${esc(p.title)}</div>` : ""}<div class="date">${esc(p.date)}</div>
@@ -68,6 +70,6 @@ export function renderProposalHTML(p) {
     ${p.exclusions.length ? `<div class="eyebrow">Not included</div>${p.exclusions.map((e) => `<div class="excl">✗ ${esc(e)}</div>`).join("")}` : ""}
     ${p.assumptions.length ? `<div class="eyebrow">Notes</div>${p.assumptions.map((a) => `<div class="note">• ${esc(a)}</div>`).join("")}` : ""}
   </div>
-  <div class="foot">${esc(p.footer)}</div>
+  <div class="foot">${contact ? `<div class="contact">${contact}</div>` : ""}<div>${esc(p.footer)}</div></div>
 </div></body></html>`;
 }
