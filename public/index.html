@@ -208,6 +208,7 @@
   .note{background:rgba(46,92,126,.14);border:1px solid var(--blueprint);border-radius:8px;padding:11px 14px;font-size:.84rem;margin-top:12px;color:#cfe3f0}
   .hint{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted);margin-top:8px}
   .addline{margin-top:4px}
+  .tplsel{width:100%;margin:10px 0 4px;background:var(--ink-soft);border:1px dashed var(--line);color:var(--paper);border-radius:8px;padding:11px 12px;font-family:"IBM Plex Mono";font-size:.82rem}
 
   @media(max-width:520px){
     .row2{grid-template-columns:1fr}
@@ -643,6 +644,87 @@ const JOB_STAGES = [['draft','Draft'],['sent','Sent'],['signed','Signed'],['sche
 function jobStatus(j){ const s=j&&j.status; return ['draft','sent','signed','scheduled'].includes(s)?s:'draft'; }
 function statusLabel(s){ return ({draft:'Draft',sent:'Sent',signed:'Signed',scheduled:'Scheduled'})[s]||'Draft'; }
 
+// Trade-specific starter bids. Each is a professional checklist of typical line
+// items, grouped by phase. Prices stay at 0 — the contractor sets real numbers
+// (hard rule: AI/template prices are placeholders only).
+const TRADE_TEMPLATES = {
+  fence: { label:'Fence', lines:[
+    {section:'Prep', desc:'Remove & haul existing fence'},
+    {section:'Prep', desc:'Locate utilities, mark & lay out fence line'},
+    {section:'Materials', desc:'Posts, concrete & hardware'},
+    {section:'Materials', desc:'Pickets / panels'},
+    {section:'Install', desc:'Dig & set posts in concrete footings'},
+    {section:'Install', desc:'Install panels & rails'},
+    {section:'Install', desc:'Gates & latches'},
+    {section:'Finish', desc:'Stain / seal (optional)'},
+    {section:'Finish', desc:'Cleanup & haul-away'} ] },
+  roofing: { label:'Roofing', lines:[
+    {section:'Prep', desc:'Tear-off & disposal of existing roof'},
+    {section:'Prep', desc:'Inspect & replace damaged decking'},
+    {section:'Materials', desc:'Underlayment & ice/water shield'},
+    {section:'Materials', desc:'Shingles / roofing material'},
+    {section:'Materials', desc:'Flashing, vents & drip edge'},
+    {section:'Install', desc:'Install underlayment, flashing & edge'},
+    {section:'Install', desc:'Install shingles / roofing'},
+    {section:'Finish', desc:'Cleanup & magnetic nail sweep'},
+    {section:'Finish', desc:'Dumpster / haul-away'} ] },
+  painting: { label:'Painting', lines:[
+    {section:'Prep', desc:'Scrape, sand & surface prep'},
+    {section:'Prep', desc:'Patch, caulk & spot-prime'},
+    {section:'Prep', desc:'Mask & protect floors / fixtures'},
+    {section:'Materials', desc:'Primer & paint'},
+    {section:'Labor', desc:'Prime surfaces'},
+    {section:'Labor', desc:'Paint walls & ceilings (2 coats)'},
+    {section:'Labor', desc:'Trim, doors & accents'},
+    {section:'Finish', desc:'Cleanup & touch-up'} ] },
+  excavation: { label:'Excavation', lines:[
+    {section:'Prep', desc:'Site walk, utility locate & staking'},
+    {section:'Prep', desc:'Erosion control / silt fence'},
+    {section:'Labor', desc:'Clear & grub site'},
+    {section:'Labor', desc:'Excavation & grading', type:'hourly'},
+    {section:'Labor', desc:'Haul-off of spoils'},
+    {section:'Materials', desc:'Import fill / gravel'},
+    {section:'Labor', desc:'Compaction'},
+    {section:'Finish', desc:'Final grade & cleanup'} ] },
+  concrete: { label:'Concrete', lines:[
+    {section:'Prep', desc:'Excavation & grading'},
+    {section:'Prep', desc:'Set forms & grade'},
+    {section:'Materials', desc:'Gravel base & compaction'},
+    {section:'Materials', desc:'Rebar / wire mesh'},
+    {section:'Materials', desc:'Concrete'},
+    {section:'Labor', desc:'Pour, finish & texture'},
+    {section:'Finish', desc:'Strip forms & backfill'},
+    {section:'Finish', desc:'Cleanup & haul-away'} ] },
+  landscaping: { label:'Landscaping', lines:[
+    {section:'Prep', desc:'Site prep, grading & soil prep'},
+    {section:'Materials', desc:'Plants, trees & shrubs'},
+    {section:'Materials', desc:'Mulch / bark & soil amendments'},
+    {section:'Install', desc:'Planting'},
+    {section:'Install', desc:'Irrigation / drip lines'},
+    {section:'Install', desc:'Sod / seed'},
+    {section:'Hardscape', desc:'Edging & pathways (optional)'},
+    {section:'Finish', desc:'Cleanup & haul-away'} ] },
+  remodeling: { label:'Remodeling', lines:[
+    {section:'Demo', desc:'Demolition & debris removal'},
+    {section:'Rough-in', desc:'Framing & blocking'},
+    {section:'Rough-in', desc:'Plumbing rough-in'},
+    {section:'Rough-in', desc:'Electrical rough-in'},
+    {section:'Materials', desc:'Fixtures, finishes & materials'},
+    {section:'Finish', desc:'Drywall, tape & paint'},
+    {section:'Finish', desc:'Flooring'},
+    {section:'Finish', desc:'Trim, doors & hardware'},
+    {section:'Finish', desc:'Final cleanup'} ] },
+};
+function applyTemplate(trade){
+  if(!trade) return;
+  const j=currentJob(); if(!j) return;
+  const tpl=TRADE_TEMPLATES[trade]; if(!tpl) return;
+  const hasContent=(j.lines||[]).some(l=>l.desc||l.price||l.hours||l.rate);
+  if(hasContent && !confirm('Add the typical '+tpl.label+' line items? Your current lines stay — delete any you don’t need.')) return;
+  tpl.lines.forEach(t=>{ j.lines.push({id:uid(), section:t.section||'', desc:t.desc, type:t.type||'fixed', price:0, hours:0, rate:0, furn:'you'}); });
+  touch(j); saveJobs(); render();
+}
+
 function jobCardHTML(j){
   const total = bidTotal(j);
   const pend = j._dirty ? `<span class="pendtag">unsynced</span>` : '';
@@ -950,6 +1032,10 @@ function tabBuild(j){
     <div class="note">AI prices are rough placeholders — you set the real numbers here.</div>
     ${(j.transcript||'').trim() ? `<button class="btn ghost full" style="margin-bottom:12px" onclick="rebuildWithAI('${j.id}',this)">🪄 Rebuild these lines from the conversation with AI</button>` : ''}
     ${lines||'<div class="hint">No line items yet.</div>'}
+    <select class="tplsel" onchange="applyTemplate(this.value);this.value=''" title="Add a typical starter checklist for your trade">
+      <option value="">📋 Start from a trade template…</option>
+      ${Object.entries(TRADE_TEMPLATES).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}
+    </select>
     <button class="btn ghost full addline" onclick="addLine()">+ Add line</button>
 
     <div class="totbar"><span class="tl">Bid total</span><span class="tv">${money(total)}</span></div>
