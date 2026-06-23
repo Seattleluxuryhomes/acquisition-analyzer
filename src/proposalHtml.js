@@ -9,7 +9,22 @@ function lineRow(l) {
   return `<div class="row"><div class="d">${esc(l.desc)}${sub ? `<small>${esc(sub)}</small>` : ""}</div><div class="a">${money(l.amount)}</div></div>`;
 }
 
-export function renderProposalHTML(p) {
+// Accept / pay-deposit call-to-action on the public proposal.
+function acceptSection(p, o) {
+  if (!o || !o.id) return "";
+  if (o.depositPaid || o.justPaid)
+    return `<div class="accepted">✓ Accepted — deposit paid. Thank you! Your contractor has been notified.</div>`;
+  if (o.accepted)
+    return `<div class="accepted">✓ Proposal accepted.${o.canPay
+      ? `<form method="POST" action="/p/${o.id}/accept-and-pay" class="acceptform"><button class="acceptbtn">💳 Pay deposit · ${money(o.deposit)}</button></form>`
+      : ` Your contractor will be in touch.`}</div>`;
+  return `<form method="POST" action="/p/${o.id}/${o.canPay ? "accept-and-pay" : "accept"}" class="acceptform">
+      <button class="acceptbtn">${o.canPay ? `✅ Accept &amp; Pay Deposit · ${money(o.deposit)}` : "✅ Accept this proposal"}</button>
+      <div class="acceptnote">${o.canPay ? "Secure deposit by Stripe — balance due per your agreement." : "Lets your contractor know you're ready to get started."}</div>
+    </form>`;
+}
+
+export function renderProposalHTML(p, opts = {}) {
   const scope = (p.sections && p.sections.length)
     ? p.sections.map((g) => `<div class="grp"><div class="grp-h">${esc(g.name)}</div>
         ${g.lines.map(lineRow).join("")}
@@ -52,6 +67,11 @@ export function renderProposalHTML(p) {
   .upg .a{color:var(--amber);font-weight:600;white-space:nowrap}
   .note,.excl{font-size:.9rem;color:#5a5240;padding:3px 0}
   .muted{color:var(--muted)}
+  .acceptform{margin:18px 0 6px;text-align:center}
+  .acceptbtn{display:inline-block;width:100%;max-width:440px;background:var(--amber);color:#1F252C;border:none;border-radius:11px;padding:17px;font-size:1.06rem;font-weight:800;cursor:pointer}
+  .acceptbtn:hover{filter:brightness(1.04)}
+  .acceptnote{color:var(--muted);font-size:.78rem;margin-top:9px}
+  .accepted{margin:18px 0 6px;background:#eaf5ee;border:1px solid #b6dcc4;color:#2f6a44;border-radius:11px;padding:16px;text-align:center;font-weight:700}
   .foot{padding:18px 24px;border-top:1px solid var(--rule);color:var(--muted);font-size:.78rem}
   .foot .contact{color:var(--ink);font-weight:600;font-size:.86rem;margin-bottom:6px}
 </style></head>
@@ -64,6 +84,7 @@ export function renderProposalHTML(p) {
     <div class="eyebrow">Scope of work</div>
     ${scope}
     <div class="total"><span class="l">Total</span><span class="v">${money(p.total)}</span></div>
+    ${acceptSection(p, opts)}
 
     ${p.clientFurnished.length ? `<div class="eyebrow">Provided by client</div>${p.clientFurnished.map((l) => `<div class="row"><div class="d">${esc(l.desc)}</div><div class="a muted">by client</div></div>`).join("")}` : ""}
     ${p.upgrades.length ? `<div class="eyebrow">Optional upgrades</div>${p.upgrades.map((u) => `<div class="upg"><span>${esc(u.desc)}</span><span class="a">+ ${money(u.price)}</span></div>`).join("")}` : ""}

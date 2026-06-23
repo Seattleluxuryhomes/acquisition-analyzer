@@ -239,6 +239,7 @@
   .totbar .tl{font-family:"IBM Plex Mono";font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
   .totbar .tv{font-family:"Archivo";font-weight:900;font-size:1.6rem;color:var(--amber)}
   .private{background:rgba(46,92,126,.14);border:1px solid var(--blueprint);border-radius:8px;padding:12px 14px;margin-bottom:12px}
+  .depositbox{background:rgba(62,125,90,.12);border:1px solid #3e7d5a;border-radius:8px;padding:12px 14px;margin-bottom:12px}
   .private .pl{font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:#8fb6d0}
 
   .client{background:var(--paper);color:var(--ink);border-radius:10px;padding:0;overflow:hidden;border:1px solid var(--kraft-deep)}
@@ -592,13 +593,13 @@ async function syncNow(force){
 function jobPayload(j){
   return { id:j.id, title:j.title, from:j.from, to:j.to, transcript:j.transcript, translation:j.translation,
     summary:j.summary, assumptions:j.assumptions, exclusions:j.exclusions, lines:j.lines, upgrades:j.upgrades,
-    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', scheduled_time:j.scheduled_time||'', address:j.address||'', customer:j.customer||'', updated_at:j.updated_at, created_at:j.created };
+    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', scheduled_time:j.scheduled_time||'', address:j.address||'', customer:j.customer||'', deposit_pct:(j.deposit_pct==null?25:j.deposit_pct), updated_at:j.updated_at, created_at:j.created };
 }
 function hydrate(s){
   return { id:s.id, title:s.title, created:s.created_at, updated_at:s.updated_at, from:s.from, to:s.to,
     transcript:s.transcript||'', translation:s.translation||'', summary:s.summary||'',
     assumptions:s.assumptions||[], exclusions:s.exclusions||[], lines:s.lines||[], upgrades:s.upgrades||[],
-    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', scheduled_time:s.scheduled_time||'', address:s.address||'', customer:s.customer||'',
+    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', scheduled_time:s.scheduled_time||'', address:s.address||'', customer:s.customer||'', deposit_pct:(s.deposit_pct==null?25:s.deposit_pct),
     photos:(s.photos||[]).map(p=>({id:p.id, url:p.url})), _dirty:false };
 }
 function replaceJob(id, fresh){
@@ -1375,6 +1376,12 @@ function tabBuild(j){
 
     <div class="totbar"><span class="tl">Bid total</span><span class="tv">${money(total)}</span></div>
 
+    <div class="depositbox">
+      <label class="fld">💳 Deposit to collect when the client accepts</label>
+      <div style="display:flex;align-items:center;gap:8px"><input class="input" type="number" min="0" max="100" value="${j.deposit_pct==null?25:j.deposit_pct}" oninput="updJob('deposit_pct',this.value)" style="max-width:90px"/><span class="mono" style="color:var(--muted)">% of total</span></div>
+      <div class="hint">Client pays <b style="color:var(--paper)">${money(Math.round(total*((j.deposit_pct==null?25:j.deposit_pct)/100)))}</b> on acceptance${PAYMENTS&&PAYMENTS.charges_enabled?' (via your Stripe).':'. Finish “Set up payments” to collect it automatically.'}</div>
+    </div>
+
     <div class="private"><div class="pl">Private — not shown to client</div>
       <label class="fld" style="margin-top:8px">Target margin %</label>
       <input class="input" type="number" min="0" value="${j.margin||0}" oninput="updJob('margin',this.value)" style="max-width:140px"/>
@@ -1683,7 +1690,7 @@ function updLine(id,k,v){ const j=currentJob(); const l=j.lines.find(x=>x.id===i
 function addUp(){ const j=currentJob(); j.upgrades.push({id:uid(),desc:'',price:0}); touch(j); saveJobs(); render(); }
 function delUp(i){ const j=currentJob(); j.upgrades.splice(i,1); touch(j); saveJobs(); render(); }
 function updUp(i,k,v){ const j=currentJob(); if(k==='price') j.upgrades[i][k]=+v||0; else j.upgrades[i][k]=v; touch(j); saveJobs(); }
-function updJob(k,v){ const j=currentJob(); j[k]=(k==='margin')?(+v||0):v; touch(j); saveJobs(); if(k==='margin') refreshTotals(j); }
+function updJob(k,v){ const j=currentJob(); j[k]=(k==='margin'||k==='deposit_pct')?(+v||0):v; touch(j); saveJobs(); if(k==='margin') refreshTotals(j); }
 function updList(k,v){ const j=currentJob(); j[k]=String(v).split('\n').map(s=>s.trim()).filter(Boolean); touch(j); saveJobs(); }
 function deleteJob(id){
   if(!confirm('Delete this job? This removes it from all your devices.')) return;

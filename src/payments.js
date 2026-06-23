@@ -124,7 +124,7 @@ export function listPaymentRequests(userId, jobId) {
   return rows.map(rowToRequest);
 }
 
-export async function createPaymentRequest(user, { amount, description, clientName, jobId }, baseUrl) {
+export async function createPaymentRequest(user, { amount, description, clientName, jobId, successUrl, cancelUrl }, baseUrl) {
   if (!paymentsConfigured()) { const e = new Error("Payments are not configured."); e.status = 503; throw e; }
   if (!user.stripe_connect_account_id || !user.connect_charges_enabled) {
     const e = new Error("Finish setting up payments before sending a request.");
@@ -146,8 +146,8 @@ export async function createPaymentRequest(user, { amount, description, clientNa
     account,
     body: {
       mode: "payment",
-      success_url: `${baseUrl}/pay/done?ok=1`,
-      cancel_url: `${baseUrl}/pay/done?ok=0`,
+      success_url: successUrl || `${baseUrl}/pay/done?ok=1`,
+      cancel_url: cancelUrl || `${baseUrl}/pay/done?ok=0`,
       line_items: [{
         quantity: 1,
         price_data: {

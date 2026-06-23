@@ -153,6 +153,7 @@ ensureColumns("job", [
   // Maps: the job's street address (drives Maps/Directions/Street View links).
   ["address", "TEXT"],
   ["customer", "TEXT"],         // who the proposal is FOR (shown on the bid + PDF)
+  ["deposit_pct", "INTEGER"],   // deposit to collect on acceptance, % of total (default 25)
 ]);
 
 export default db;
