@@ -420,3 +420,6 @@ app.get("*", (req, res, next) => {
 
 const PORT = process.env.BT_PORT || process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Bidtranslator on http://localhost:${PORT}`));
+// Pull the real plan + setup-fee prices from Stripe so the paywall shows exactly
+// what checkout charges. Fire-and-forget; the UI falls back to defaults until ready.
+Billing.loadPrices().catch(() => {});

@@ -33,6 +33,18 @@ export function isEntitled(user) {
   return false;
 }
 
+// Cached display prices (in dollars) pulled from Stripe so the paywall copy
+// always matches what checkout actually charges. null = unknown (not configured
+// or fetch failed); 0 = explicitly none (e.g. no setup fee Price set).
+let priceCache = { monthly: null, setup: null };
+export async function loadPrices() {
+  if (!billingConfigured()) { priceCache = { monthly: null, setup: 0 }; return priceCache; }
+  try { const p = await stripeGet("prices/" + PRICE()); priceCache.monthly = (p.unit_amount || 0) / 100; } catch { /* leave null */ }
+  if (SETUP_PRICE()) { try { const s = await stripeGet("prices/" + SETUP_PRICE()); priceCache.setup = (s.unit_amount || 0) / 100; } catch { /* leave null */ } }
+  else priceCache.setup = 0; // no setup-fee Price configured → genuinely none
+  return priceCache;
+}
+
 export function billingStatus(user) {
   const entitled = isEntitled(user);
   const inTrial = !!(user.trial_ends_at && Date.now() < user.trial_ends_at);
@@ -44,6 +56,10 @@ export function billingStatus(user) {
     trial_ends_at: user.trial_ends_at || null,
     current_period_end: user.current_period_end || null,
     has_subscription: !!user.stripe_subscription_id,
+    // Real prices from Stripe (dollars). The UI shows the setup fee only when
+    // setup_fee > 0, so the page never promises a fee that isn't charged.
+    monthly: priceCache.monthly,
+    setup_fee: priceCache.setup,
   };
 }
 
@@ -87,6 +103,21 @@ async function stripe(path, body) {
   if (!res.ok) {
     throw Object.assign(new Error(json?.error?.message || "Payment provider error."), { status: 502 });
   }
+  if (!json) throw Object.assign(new Error("Unexpected response from payment provider."), { status: 502 });
+  return json;
+}
+
+async function stripeGet(path) {
+  let res;
+  try {
+    res = await fetch("https://api.stripe.com/v1/" + path, { headers: { Authorization: "Bearer " + KEY() } });
+  } catch {
+    throw Object.assign(new Error("Could not reach the payment provider."), { status: 502 });
+  }
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch { /* non-JSON */ }
+  if (!res.ok) throw Object.assign(new Error(json?.error?.message || "Payment provider error."), { status: 502 });
   if (!json) throw Object.assign(new Error("Unexpected response from payment provider."), { status: 502 });
   return json;
 }
