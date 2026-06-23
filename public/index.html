@@ -380,6 +380,32 @@
   .err{background:rgba(169,78,56,.16);border:1px solid var(--rust);border-radius:8px;padding:12px 14px;font-size:.88rem;margin-top:12px}
   .note{background:rgba(46,92,126,.14);border:1px solid var(--blueprint);border-radius:8px;padding:11px 14px;font-size:.84rem;margin-top:12px;color:var(--text)}
   .hint{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted);margin-top:8px}
+  /* Voice-first New Job */
+  .vf-hero{text-align:center;padding:6px 0 4px}
+  .vf-title{font-family:"Archivo",sans-serif;font-weight:900;font-size:1.9rem;line-height:1.1;margin:6px 0 4px}
+  .vf-sub{color:var(--muted);font-size:.92rem;max-width:340px;margin:0 auto 16px}
+  .vf-mic-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin:6px 0 14px}
+  .vf-mic{width:104px;height:104px;border-radius:50%;border:none;background:var(--amber);box-shadow:0 8px 26px rgba(207,127,24,.45), inset 0 2px 0 rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent;transition:transform .08s ease}
+  .vf-mic:active{transform:scale(.94)}
+  .vf-mic.rec,.vf-mic.ptt.rec:active{background:var(--rust);box-shadow:0 8px 26px rgba(169,78,56,.5);animation:micpulse 1.1s ease-in-out infinite}
+  @keyframes micpulse{0%,100%{box-shadow:0 8px 26px rgba(169,78,56,.5)}50%{box-shadow:0 8px 40px rgba(169,78,56,.85)}}
+  @media(prefers-reduced-motion:reduce){.vf-mic.rec{animation:none}}
+  .vf-mic.off{background:var(--surface2);border:1px dashed var(--line);font-size:2.2rem}
+  .vf-mic-lbl{font-family:"IBM Plex Mono";font-size:.82rem;color:var(--text)}
+  .vf-mic-lbl.warn{color:var(--rust);max-width:300px;text-align:center;font-size:.74rem}
+  .vf-text{min-height:96px}
+  .reread{float:right;background:none;border:1px solid var(--line);color:var(--amber);border-radius:6px;font-family:"IBM Plex Mono";font-size:.64rem;padding:2px 7px;cursor:pointer;margin-top:-2px}
+  .intake{margin-top:12px}
+  .intake-h{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .intake-load{color:var(--muted);text-transform:none;letter-spacing:0}
+  .intake-box{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface2)}
+  .intake-row{display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line)}
+  .intake-row:last-child{border-bottom:none}
+  .intake-row .ik{flex:0 0 84px;color:var(--muted);font-family:"IBM Plex Mono";font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;padding-top:2px}
+  .intake-row .iv{flex:1;color:var(--text);font-size:.92rem}
+  .qcard{background:rgba(238,155,46,.08);border:1px solid var(--amber-deep);border-radius:12px;padding:12px 14px}
+  .qrow{font-size:.9rem;color:var(--text);padding:3px 0}
+  .langchip{display:block;width:100%;margin-top:16px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:10px 12px;font-family:"IBM Plex Mono";font-size:.72rem;cursor:pointer;text-align:center}
   .addline{margin-top:4px}
   .tplsel{width:100%;margin:10px 0 4px;background:var(--surface2);border:1px dashed var(--line);color:var(--text);border-radius:8px;padding:11px 12px;font-family:"IBM Plex Mono";font-size:.82rem}
 
@@ -609,7 +635,8 @@ const planSetup = () => (BILLING && BILLING.setup_fee!=null) ? BILLING.setup_fee
 const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:'signin', authError:'', booted:false };
 let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
-let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'', tax_rate:0, region:'' };
+let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'', tax_rate:0, region:'', autoTranslate:true, bidLang:'' };
+if(SETTINGS.autoTranslate===undefined) SETTINGS.autoTranslate=true; // remembered account-level language prefs
 let JOBS = JSON.parse(localStorage.getItem('bt_jobs')||'[]');
 let CAP_PHOTOS = []; // photos staged on the capture screen before the job exists
 let settingsDirty = false;
@@ -623,9 +650,11 @@ let ADMIN = false; // founder dashboard access (server decides via BT_ADMIN_EMAI
 function track(ev, props){ if(!TOKEN || !online || !ev) return; try{ api('/api/track',{method:'POST',body:JSON.stringify({event:ev,props:props||{}})}).catch(()=>{}); }catch(e){} }
 let AI_TRANSCRIBE = localStorage.getItem('bt_transcribe')==='1'; // server can transcribe recordings
 let AI_VISUALIZE = localStorage.getItem('bt_visualize')==='1'; // server can render materials into a room photo
+let AI_BUILD = localStorage.getItem('bt_aibuild')!=='0'; // server has the AI build/intake key
 async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/api/me'); ADMIN=!!r.admin;
   AI_TRANSCRIBE = !!(r.ai && r.ai.transcribe); localStorage.setItem('bt_transcribe', AI_TRANSCRIBE?'1':'0');
   AI_VISUALIZE = !!(r.ai && r.ai.visualize); localStorage.setItem('bt_visualize', AI_VISUALIZE?'1':'0');
+  AI_BUILD = !!(r.ai && r.ai.build); localStorage.setItem('bt_aibuild', AI_BUILD?'1':'0');
   if(state.view==='capture') render();
   // Hydrate tax settings from the server unless the user has local unsaved edits.
   if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; persistSettings(); }
@@ -1551,82 +1580,143 @@ function adminHTML(d, users){
 // The capture screen is a persistent "AI notepad": its draft survives re-renders
 // and navigation so a dictated conversation can never be wiped. Cleared on build.
 let CAP_DRAFT = JSON.parse(localStorage.getItem('bt_capdraft')||'null') || {title:'',from:'',to:'',text:''};
+let CAP_INTAKE = JSON.parse(localStorage.getItem('bt_capintake')||'null'); // AI-extracted job fields
 function capDraft(k,v){ CAP_DRAFT[k]=v; localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT)); }
-function clearCapDraft(){ CAP_DRAFT={title:'',from:'',to:'',text:''}; localStorage.removeItem('bt_capdraft'); }
+function persistIntake(){ try{ if(CAP_INTAKE) localStorage.setItem('bt_capintake', JSON.stringify(CAP_INTAKE)); else localStorage.removeItem('bt_capintake'); }catch(e){} }
+function clearCapDraft(){ CAP_DRAFT={title:'',from:'',to:'',text:''}; CAP_INTAKE=null; localStorage.removeItem('bt_capdraft'); localStorage.removeItem('bt_capintake'); }
+
+// Voice-first New Job. The microphone is the hero: open, tap, talk. Languages,
+// company, tax all live in Settings now and are used silently. The AI extracts the
+// job details live as you speak and auto-names the project.
 function viewCapture(){
   if(state.loading){
     return `<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div class="loadingbox"><div class="spinner"></div>
-    <div class="mono" style="font-size:.84rem">Translating and building your bid draft…</div>
+    <div class="mono" style="font-size:.84rem">Building your bid draft…</div>
     <div class="hint">Reading the conversation, structuring the scope.</div></div>`;
   }
-  const dFrom=CAP_DRAFT.from||SETTINGS.from, dTo=CAP_DRAFT.to||SETTINGS.to;
+  const fromName=LANGS[SETTINGS.from]||SETTINGS.from, toName=LANGS[SETTINGS.bidLang||SETTINGS.to]||SETTINGS.to;
+  const micBlock = !window.isSecureContext
+    ? `<div class="vf-mic off">🎤</div><div class="vf-mic-lbl warn">Voice needs a secure (https) connection — your SSL isn't active yet. Type below for now.</div>`
+    : speechSupported()
+      ? `<button type="button" class="vf-mic ptt" id="micBtn" onpointerdown="micPressStart(event)" oncontextmenu="return false" aria-label="Hold to talk">
+           <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#1F252C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21.5"/></svg>
+         </button><div class="vf-mic-lbl" id="micLbl">Hold &amp; speak</div>`
+      : `<div class="vf-mic off">🎤</div><div class="vf-mic-lbl">Voice isn't available on this device — type below.</div>`;
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
-    <div class="h-eyebrow">AI Notepad · Step 1</div><h1 class="page">Talk through the job</h1>
-    <div class="sub">Speak or type the conversation in your language — the AI translates it and turns it into a bid draft. Your notes save as you go.</div>
-
-    <label class="fld">Project name</label>
-    <input id="capTitle" class="input" value="${escAttr(CAP_DRAFT.title||'')}" oninput="capDraft('title',this.value)" placeholder="e.g. Martinez — Kitchen, or 9012 NE 117th Pl" />
-    <div class="hint">Use a name or the job's address — if you use the address, you won't need to enter it again for maps.</div>
-
-    <label class="fld">Conversation notepad</label>
-    <textarea id="capText" class="input" oninput="capDraft('text',this.value)" placeholder="Describe the job the way you'd say it on site…">${esc(CAP_DRAFT.text||'')}</textarea>
-    <div class="cap-tools">
-      ${!window.isSecureContext
-        ? `<span class="mic-note" style="color:var(--rust)">🎤 Voice needs a secure (https) connection — your site's SSL isn't active yet, so the browser blocks the mic. Type for now.</span>`
-        : speechSupported()
-          ? `<button type="button" class="mic ptt" id="micBtn" onpointerdown="micPressStart(event)" oncontextmenu="return false"><span class="dot"></span><span class="lbl">Hold to talk</span></button><span class="mic-note">${useWhisper()?'Hold &amp; speak — release to add it.':'Hold &amp; speak — it types as you go.'}</span>`
-          : `<span class="mic-note">Voice isn't available on this device — type or paste instead.</span>`}
+    <div class="vf-hero">
+      <h1 class="vf-title">Tell me about the job</h1>
+      <div class="vf-sub">Tap and talk — name, address, the work. The AI fills in the details.</div>
+      <div class="vf-mic-wrap">${micBlock}</div>
     </div>
-    <div class="hint">Tip: include what they want, anything they'll supply, and any deadline. Capture works offline — you can build the draft later.</div>
 
-    <div class="row2">
-      <div><label class="fld">You speak</label>
-      <select id="capFrom" class="input" onchange="capDraft('from',this.value)">${langOpts(dFrom)}</select></div>
-      <div><label class="fld">Client reads</label>
-      <select id="capTo" class="input" onchange="capDraft('to',this.value)">${langOpts(dTo)}</select></div>
-    </div>
+    <label class="fld" style="margin-top:6px">What you said${AI_BUILD?`<button class="reread" onclick="runIntake(true)" title="Re-read the job">${icon('chart',13)} Update</button>`:''}</label>
+    <textarea id="capText" class="input vf-text" oninput="capDraft('text',this.value); scheduleIntake()" placeholder="…or type the job here. e.g. Kitchen remodel for Maria at 123 Main — remove cabinets, install quartz counters, new sink, paint, haul debris.">${esc(CAP_DRAFT.text||'')}</textarea>
+
+    <div id="intakeRegion">${intakeCard()}${questionsCard()}</div>
 
     ${state.error?`<div class="err" style="margin-top:14px">${esc(state.error)}</div>`:''}
-    <button class="btn full" style="margin-top:14px" onclick="buildFromConversation()">Build the bid draft →</button>
-    <div class="hint" style="text-align:center;margin-top:8px">or <a href="#" onclick="buildManual();return false;" style="color:var(--amber)">build it by hand</a> · <a href="#" onclick="loadSample();return false;" style="color:var(--amber)">load a sample</a></div>
+    <button class="btn full" style="margin-top:16px" onclick="buildFromConversation()">Continue to bid draft →</button>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn ghost" style="flex:1" onclick="buildManual()">Save job</button>
+      <button class="btn ghost" style="flex:1" onclick="loadSample()">Load a sample</button>
+    </div>
 
-    <label class="fld">Photos (optional)</label>
+    <label class="fld" style="margin-top:18px">Photos (optional)</label>
     <div class="photogrid" id="capPhotoGrid">${capPhotoThumbs()}</div>
     <input id="capPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="capHandlePhotos(this)"/>
     <input id="capPhotoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="capHandlePhotos(this)"/>
+
+    <button class="langchip" onclick="go('settings')" title="Change languages in Settings">🌐 You: ${esc(fromName)} · Client: ${esc(toName)} · change in Settings</button>
 
     <div class="consent">
       <label><input type="checkbox" id="capConsent"/> <span>When my area requires it, I'll let the other person know the conversation is being captured.</span></label>
       <div class="consent-fine">Placeholder wording — not legal advice. Final consent terms to be reviewed before launch.</div>
     </div>`;
 }
+// The AI-extracted job details card (Client / Address / Scope / Materials / Timeline).
+function intakeCard(){
+  const x=CAP_INTAKE;
+  const head=`<div class="intake-h">${icon('check',13)} Job details${intakeRunning?' <span class="intake-load">reading…</span>':''}</div>`;
+  if(!x){ return intakeRunning ? `<div class="intake">${head}<div class="hint" style="padding:6px 2px">Listening for the details…</div></div>` : ''; }
+  const row=(label,val)=> (val&&String(val).trim())?`<div class="intake-row"><span class="ik">${label}</span><span class="iv">${esc(String(val))}</span></div>`:'';
+  const list=(label,arr)=> (Array.isArray(arr)&&arr.length)?`<div class="intake-row"><span class="ik">${label}</span><span class="iv">${arr.map(s=>esc(String(s))).join(' · ')}</span></div>`:'';
+  const body = row('Client', x.client)+row('Address', x.address)+list('Scope', x.scope)+list('Materials', x.materials)+list('Labor', x.labor)+row('Timeline', x.timeline);
+  if(!body) return intakeRunning?`<div class="intake">${head}</div>`:'';
+  return `<div class="intake">${head}<div class="intake-box">${body}</div><div class="hint" style="margin-top:6px">Auto-named: <b style="color:var(--text)">${esc(autoProjectName())}</b> — you can rename it after.</div></div>`;
+}
+function questionsCard(){
+  const qs=CAP_INTAKE&&CAP_INTAKE.questions; if(!qs||!qs.length) return '';
+  return `<div class="intake qcard"><div class="intake-h">${icon('activity',13)} A few things to confirm</div>${qs.map(q=>`<div class="qrow">• ${esc(String(q))}</div>`).join('')}</div>`;
+}
+// Auto project name from client + work (or address, or scope) — no manual entry.
+function autoProjectName(){
+  const x=CAP_INTAKE||{};
+  if((x.project_name||'').trim()) return x.project_name.trim().slice(0,80);
+  const client=(x.client||'').trim();
+  const scope0=((x.scope&&x.scope[0])||'').trim();
+  const addr=(x.address||'').trim();
+  if(client) return (scope0?client+' — '+scope0:client).slice(0,80);
+  if(addr) return addr.slice(0,80);
+  if(scope0) return scope0.slice(0,80);
+  return defaultJobTitle();
+}
+function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join(''); }
+
+/* ---- Live job-detail extraction as the contractor speaks/types ---- */
+let intakeTimer=null, intakeRunning=false, intakeLastAt=0, intakeLastLen=0;
+function renderIntakeRegions(){
+  const r=document.getElementById('intakeRegion'); if(r) r.innerHTML=intakeCard()+questionsCard();
+}
+function scheduleIntake(){
+  if(!AI_BUILD || !online || !TOKEN) return;
+  clearTimeout(intakeTimer);
+  intakeTimer=setTimeout(()=>runIntake(false), 1300);
+}
+async function runIntake(force){
+  if(!AI_BUILD || !online || !TOKEN) return;
+  const ta=document.getElementById('capText');
+  const t=((ta?ta.value:CAP_DRAFT.text)||'').trim();
+  if(t.length<12){ return; }
+  if(!force && t.length-intakeLastLen < 12 && (Date.now()-intakeLastAt) < 7000) return; // coalesce
+  intakeRunning=true; renderIntakeRegions();
+  try{
+    const r=await api('/api/assist/intake',{method:'POST', body:JSON.stringify({ text:t })});
+    if(r && r.intake){ CAP_INTAKE=r.intake; persistIntake(); intakeLastAt=Date.now(); intakeLastLen=t.length; }
+  }catch(e){ /* keep going; this is a live helper, never block the user */ }
+  intakeRunning=false;
+  if(state.view==='capture') renderIntakeRegions();
+}
 function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join(''); }
 
 function loadSample(){
-  CAP_DRAFT={title:'Reyes — Bathroom remodel', from:'es', to:'en',
-    text:'La señora quiere un baño nuevo. Quitar la bañera vieja y poner una ducha grande con azulejo. Cambiar el lavabo y las luces. También arreglar el piso que está dañado. Ella compra la grifería. Quiere terminar antes de las fiestas.'};
+  CAP_DRAFT={title:'', from:'', to:'',
+    text:'Kitchen remodel for Maria Martinez at 123 Main Street. Remove the old cabinets, install quartz counters, new undermount sink, paint the walls, and haul away the debris. She wants it done before the holidays.'};
+  CAP_INTAKE=null; persistIntake();
   localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT));
-  render();
+  render(); runIntake(true);
 }
 
 function newJobFromForm(){
-  const title=(document.getElementById('capTitle').value||'').trim();
-  const from=document.getElementById('capFrom').value, to=document.getElementById('capTo').value;
-  const text=(document.getElementById('capText').value||'').trim();
-  return {title,from,to,text};
+  const text=((document.getElementById('capText')||{}).value||CAP_DRAFT.text||'').trim();
+  const from=SETTINGS.from||'es';
+  // Languages come from Settings now. Auto-translate off ⇒ bid stays in your language.
+  const to=(SETTINGS.autoTranslate===false)?from:(SETTINGS.bidLang||SETTINGS.to||'en');
+  return {title:autoProjectName(), from, to, text, intake:CAP_INTAKE};
 }
 
 // A friendly default name beats "Untitled job" leaking onto a client proposal.
 function defaultJobTitle(){ return 'New job · ' + new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
 function makeLocalJob(f, data){
   const now=Date.now();
+  const ix=f.intake||CAP_INTAKE||{};
   return {
     id:uid(), title:(f.title||'').trim()||defaultJobTitle(), created:now, updated_at:now, from:f.from, to:f.to,
     transcript:f.text,
+    customer:(ix.client||'').slice(0,120), address:(ix.address||'').slice(0,200),
     translation:data?data.translation||'':'',
     summary:data?data.summary||'':'',
-    brief:(data&&data.brief)?data.brief:null,
+    brief:(data&&data.brief)?data.brief:(ix&&(ix.scope||ix.materials)?{project_type:'',scope:ix.scope||[],materials:ix.materials||[],customer_supplied:[],timeline:ix.timeline||'',budget:'',labor:(ix.labor||[]).join(', ')}:null),
     lines:(data&&Array.isArray(data.lines)?data.lines:[]).slice(0,12).map(l=>({
       id:uid(),section:String(l.section||'').slice(0,80),desc:String(l.desc||'').slice(0,120),
       type:(['hourly','unit'].includes(l.type)?l.type:'fixed'),
@@ -1635,7 +1725,7 @@ function makeLocalJob(f, data){
     upgrades:(data&&Array.isArray(data.upgrades)?data.upgrades:[]).slice(0,4).map(u=>({id:uid(),desc:String(u.desc||''),price:+u.price||0})),
     assumptions:(data&&Array.isArray(data.assumptions)?data.assumptions:[]).map(String),
     exclusions:(data&&Array.isArray(data.exclusions)?data.exclusions:[]).map(String),
-    notes:'', margin:20, tax_rate:(Number(SETTINGS.tax_rate)||0), photos:CAP_PHOTOS.splice(0), status:'draft', _dirty:true
+    notes:(ix.notes||''), margin:20, tax_rate:(Number(SETTINGS.tax_rate)||0), photos:CAP_PHOTOS.splice(0), status:'draft', _dirty:true
   };
 }
 
@@ -1760,6 +1850,10 @@ function tabNotebook(j){
      <div class="hint">Reads the conversation above and fills in the line items, rooms &amp; totals with AI. You can edit everything after.</div>`);
   out+=briefCard(j);
   const machine = j.summary || j.translation;
+  out+=sec('Languages <span class="machine-tag">this job</span>',
+    `<div class="row2"><div><label class="fld" style="margin-top:0">You spoke</label><select class="input" onchange="updJob('from',this.value)">${langOpts(j.from)}</select></div>
+      <div><label class="fld" style="margin-top:0">Client reads</label><select class="input" onchange="updJob('to',this.value)">${langOpts(j.to)}</select></div></div>
+     <div class="hint">Overrides Settings for this job only. Change it, then rebuild to re-translate.</div>`);
   out+=sec('In '+(LANGS[j.to]||j.to)+(j.translation?'<span class="machine-tag">machine</span>':''),
     `<textarea class="editarea" oninput="updJob('translation',this.value)" placeholder="Translation (editable)…">${esc(j.translation)}</textarea>`);
   out+=sec('Scope summary'+(j.summary?'<span class="machine-tag">machine</span>':''),
@@ -2414,9 +2508,17 @@ function viewSettings(){
     </div>
     <label class="fld">License # (optional)</label>
     <input class="input" value="${escAttr(SETTINGS.license)}" oninput="setS('license',this.value)" style="max-width:240px"/>
-    <div class="row2">
-      <div><label class="fld">Default — you speak</label><select class="input" onchange="setS('from',this.value)">${langOpts(SETTINGS.from)}</select></div>
-      <div><label class="fld">Default — client reads</label><select class="input" onchange="setS('to',this.value)">${langOpts(SETTINGS.to)}</select></div>
+    <div class="nb-sec" style="margin-top:16px">
+      <h3>Languages</h3>
+      <div class="row2">
+        <div><label class="fld">My language</label><select class="input" onchange="setS('from',this.value)">${langOpts(SETTINGS.from)}</select></div>
+        <div><label class="fld">Client language</label><select class="input" onchange="setS('to',this.value)">${langOpts(SETTINGS.to)}</select></div>
+      </div>
+      <div class="row2" style="margin-top:8px">
+        <div><label class="fld">Proposal language</label><select class="input" onchange="setS('bidLang',this.value)"><option value="">Same as client</option>${langOpts(SETTINGS.bidLang||'')}</select></div>
+        <div><label class="fld">Auto-translate proposal</label><button class="btn ghost sm" style="width:100%" onclick="toggleAutoTranslate()">${SETTINGS.autoTranslate!==false?'✓ On':'Off'}</button></div>
+      </div>
+      <div class="hint">Set once — every new job uses these automatically, so you never pick languages while creating a bid. Auto-translate writes the client's proposal in their language; turn it off to keep it in yours.</div>
     </div>
     <div class="nb-sec" style="margin-top:16px">
       <h3>Sales tax</h3>
@@ -2462,6 +2564,7 @@ function viewSettings(){
 }
 let setT;
 function setS(k,v){ SETTINGS[k]=v; persistSettings(); settingsDirty=true; paintSync(); clearTimeout(setT); setT=setTimeout(()=>syncNow(), 700); }
+function toggleAutoTranslate(){ SETTINGS.autoTranslate = !(SETTINGS.autoTranslate!==false); persistSettings(); settingsDirty=true; if(state.view==='settings') render(); }
 
 // Resize the chosen image to a small data-URI so it stays well under the server's
 // limit, then save it like any other setting. PNG keeps logo transparency; if it
@@ -2586,8 +2689,10 @@ function liveSpeechSupported(){ return ('webkitSpeechRecognition' in window) || 
 function recordSupported(){ return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder); }
 function useWhisper(){ return recordSupported() && AI_TRANSCRIBE; } // primary path when configured
 function speechSupported(){ return useWhisper() || liveSpeechSupported(); }
-function updateMic(){ const b=document.getElementById('micBtn'); if(!b)return; b.classList.toggle('rec',recording);
-  const l=b.querySelector('.lbl'); if(l) l.textContent = micState==='transcribing'?'Transcribing…' : recording?'Listening… release to send' : 'Hold to talk'; }
+function updateMic(){ const b=document.getElementById('micBtn'); if(b) b.classList.toggle('rec',recording);
+  const txt = micState==='transcribing'?'Transcribing…' : recording?'Listening… release to send' : 'Hold & speak';
+  const lbl=document.getElementById('micLbl'); if(lbl){ lbl.textContent=txt; return; }
+  const l=b&&b.querySelector('.lbl'); if(l) l.textContent=txt; }
 
 /* ---- Record → server transcription (universal voice, incl. iPhone) ---- */
 let mediaRec=null, mediaChunks=[], mediaStream=null, micState='idle';
@@ -2619,13 +2724,12 @@ async function startRecord(){
     if(blob.size<900){ updateMic(); toast('Hold the mic while you talk, then let go.','warn'); return; }
     const dataUrl=await new Promise((res)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(blob); });
     try{
-      const sel=document.getElementById('capFrom');
-      const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({ audio:dataUrl, lang:(sel?sel.value:'es') })});
+      const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({ audio:dataUrl, lang:(SETTINGS.from||'es') })});
       const ta=document.getElementById('capText');
       if(ta && (r.text||'').trim()){
         ta.value=[ta.value.trim(), r.text.trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
         capDraft('text', ta.value); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px'; ta.scrollTop=ta.scrollHeight;
-        buzz(12);
+        buzz(12); scheduleIntake(); // pull the job details from what they just said
       } else if(!(r.text||'').trim()) toast('Didn’t catch that — hold and speak clearly.','warn');
     }catch(e){ if(e.status===402){ gate402(e); } else toast(e.message||'Could not transcribe.','bad',5000); }
     updateMic();
@@ -2665,8 +2769,7 @@ function startLiveSpeech(){
   if(recording) return;
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   rec=new SR();
-  const sel=document.getElementById('capFrom');
-  rec.lang=SPEECH_LANG[sel?sel.value:'es']||'es-US';
+  rec.lang=SPEECH_LANG[SETTINGS.from||'es']||'es-US';
   rec.continuous=true; rec.interimResults=true; rec.maxAlternatives=1;
   micWanted=true;
   // Base = whatever's already in the box. dictBase is updated on each auto-restart
@@ -2696,7 +2799,7 @@ function startLiveSpeech(){
     const ta=document.getElementById('capText');
     if(ta){
       ta.value=join3(dictBase, sessionFinal, interim);
-      capDraft('text', ta.value); // persist so a re-render can't wipe the conversation
+      capDraft('text', ta.value); scheduleIntake(); // persist + pull job details
       // Keep the newest words visible while talking: grow the box a little, then
       // pin it to the bottom so dictation never scrolls out of sight.
       ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight, 300)+'px';

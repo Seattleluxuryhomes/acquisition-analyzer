@@ -27,7 +27,7 @@ const LANGS = {
 const MONTHLY_CAP = Number(process.env.BT_AI_MONTHLY_CAP || 200);
 const recentCalls = new Map(); // userId -> [timestamps]
 const RATE_WINDOW = 60 * 1000;
-const RATE_MAX = 6;
+const RATE_MAX = Number(process.env.BT_AI_RATE_MAX || 20); // voice-first does more, smaller calls
 
 function checkRate(userId) {
   const now = Date.now();
@@ -342,4 +342,60 @@ export async function assistBuild(user, { text, from_lang, to_lang, skus }) {
   const out = await res.json();
   const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
   return sanitize(parseModelJSON(txt));
+}
+
+// Voice-first intake: read the contractor's spoken job description and pull out the
+// structured fields that auto-fill the New Job screen — client, address, scope,
+// materials, labor, timeline, notes, an auto project name, and follow-up questions.
+// Lightweight + frequent (runs as they talk), so it's rate-limited but does NOT
+// burn the monthly build cap.
+function intakeSystemPrompt() {
+  return (
+    "You read a contractor's spoken description of a job and extract structured " +
+    "intake. Respond with ONLY valid minified JSON, no markdown, matching exactly: " +
+    '{"project_name":string,"client":string,"address":string,"scope":[string],' +
+    '"materials":[string],"labor":[string],"timeline":string,"notes":string,"questions":[string]}. ' +
+    "Rules: client = the customer's name if stated (else \"\"). address = the job address if stated " +
+    "(else \"\"). scope = short phrases of the work to do. materials = materials named. labor = labor/" +
+    "crew tasks (demo, haul-away, install, paint…). timeline = any dates/deadline (else \"\"). notes = " +
+    "anything else useful the contractor should remember. questions = 2 to 4 SHORT follow-up questions " +
+    "the contractor still needs answered to price it (missing measurements, material/finish choices, " +
+    "budget, access, who supplies what, timeline). project_name = a short job name from the client + " +
+    "main work, e.g. \"Martinez — Kitchen remodel\"; if no client name, use the address, else the main " +
+    "scope. At most 8 items per list. Use ONLY facts stated — never invent details."
+  );
+}
+function sanitizeIntake(d) {
+  const list = (a) => (Array.isArray(a) ? a : []).slice(0, 8).map((s) => String(s).slice(0, 160)).filter(Boolean);
+  d = d && typeof d === "object" ? d : {};
+  return {
+    project_name: String(d.project_name || "").slice(0, 120),
+    client: String(d.client || "").slice(0, 120),
+    address: String(d.address || "").slice(0, 200),
+    scope: list(d.scope),
+    materials: list(d.materials),
+    labor: list(d.labor),
+    timeline: String(d.timeline || "").slice(0, 160),
+    notes: String(d.notes || "").slice(0, 600),
+    questions: list(d.questions),
+  };
+}
+export async function assistIntake(user, { text }) {
+  if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
+  const t = String(text || "").trim();
+  if (t.length < 8) { const e = new Error("Say a little more about the job first."); e.status = 400; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("One moment — too many updates at once."); e.status = 429; throw e; }
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 900, system: intakeSystemPrompt(), messages: [{ role: "user", content: "JOB DESCRIPTION:\n" + t.slice(0, 8000) }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json();
+  const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  return sanitizeIntake(parseModelJSON(txt));
 }

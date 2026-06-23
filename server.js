@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser } from "./src/auth.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
+import { assistBuild, assistIntake, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
 import * as Skus from "./src/skus.js";
 import { buildProposal } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
@@ -426,6 +426,11 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
   // Feed the contractor's own price book in so the AI uses their real items + prices.
   const data = await assistBuild(req.user, { text, from_lang, to_lang, skus: Skus.listSkus(req.user.id) });
   res.json(data);
+}));
+// Voice-first intake: extract structured job fields from the spoken transcript as
+// the contractor talks (auto-fills the New Job screen).
+app.post("/api/assist/intake", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  res.json({ intake: await assistIntake(req.user, { text: (req.body && req.body.text) || "" }) });
 }));
 // Universal voice fallback: transcribe a browser recording (iOS Safari has no Web Speech).
 app.post("/api/assist/transcribe", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
