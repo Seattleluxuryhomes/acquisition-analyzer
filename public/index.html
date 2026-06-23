@@ -214,6 +214,24 @@
   .celebrate-card .cc-s{color:var(--muted);font-family:"IBM Plex Mono";font-size:.78rem;margin-top:5px}
   @keyframes popin{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
   .panel-title{display:inline-flex;align-items:center;gap:7px}
+  /* Price book */
+  .skutools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .skuimg{position:relative;margin-top:10px;display:inline-block}
+  .skuimg img{max-width:100%;max-height:200px;border-radius:10px;border:1px solid var(--line)}
+  .skuimg .del{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer}
+  .skurow{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .skurow .skuinfo{flex:1;min-width:0}
+  .skurow .skuname{font-weight:600;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .skurow .skuname-in{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:8px 9px;font-size:.86rem}
+  .skurow .skumeta{font-family:"IBM Plex Mono";font-size:.66rem;color:var(--muted);margin-top:2px}
+  .skurow .mini{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:8px 9px;font-family:"IBM Plex Mono";font-size:.8rem}
+  .skurow .skuprice{width:88px;text-align:right;color:var(--amber);font-weight:600;flex:0 0 auto}
+  .skurow .del{background:none;border:none;color:var(--muted);font-size:.95rem;cursor:pointer;flex:0 0 auto;padding:4px}
+  .sheet.picker{max-height:74vh;display:flex;flex-direction:column}
+  .picklist{overflow-y:auto;margin-top:8px}
+  .pickitem{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);color:var(--text);padding:14px 6px;cursor:pointer;font-size:.95rem}
+  .pickitem:active{background:rgba(243,238,227,.06)}
+  .pickitem .pp{font-family:"IBM Plex Mono";font-size:.8rem;color:var(--amber);white-space:nowrap}
   .news-ic{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:rgba(62,125,90,.18);color:#6fce93;margin-right:8px;vertical-align:-.35em}
   .news-ic.pay{background:rgba(207,127,24,.18);color:var(--amber)}
   @media(min-width:720px){ .kpis{display:grid;grid-template-columns:1fr 1fr;align-items:start} .kpi.hero{grid-column:1/-1} }
@@ -486,9 +504,17 @@
 <div id="sheet" class="sheet-wrap" style="display:none" onclick="closeMore()">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h">More</div>
+    <button class="sheet-i" onclick="go('catalog');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16l-8-4-8 4z"/><path d="M9 7h6"/></svg>Price book</button>
     <button class="sheet-i" onclick="go('settings');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 13.4H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 6.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 4.6V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>Setup &amp; integrations</button>
     <button class="sheet-i" id="sheetAdmin" onclick="go('admin');closeMore()" style="display:none"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg>Founder dashboard</button>
     <button class="sheet-i danger" onclick="closeMore();signOut()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign out</button>
+  </div>
+</div>
+<div id="skuPicker" class="sheet-wrap" style="display:none" onclick="closeSkuPicker()">
+  <div class="sheet picker" onclick="event.stopPropagation()">
+    <div class="sheet-h">Add from price book</div>
+    <input class="input" id="pickQ" placeholder="Search SKUs…" oninput="renderPicker()"/>
+    <div id="pickList" class="picklist"></div>
   </div>
 </div>
 <div id="printArea"></div>
@@ -973,7 +999,7 @@ function render(){
   setOn('bnHome', state.view==='home'||state.view==='capture');
   setOn('bnJobs', state.view==='job');
   setOn('bnSched', state.view==='schedule');
-  setOn('bnMore', state.view==='settings'||state.view==='admin');
+  setOn('bnMore', state.view==='settings'||state.view==='admin'||state.view==='catalog');
   // Draw the eye to the money button when there's nothing to do yet (first bid).
   const fab=document.getElementById('bnAdd'); if(fab) fab.classList.toggle('pulse', JOBS.filter(j=>!j._deleted).length===0 && state.view==='home');
   paintBell();
@@ -982,6 +1008,7 @@ function render(){
   else if(state.view==='capture') v.innerHTML = viewCapture();
   else if(state.view==='job') v.innerHTML = viewJob();
   else if(state.view==='settings') v.innerHTML = viewSettings();
+  else if(state.view==='catalog') { v.innerHTML = viewCatalog(); if(!CATALOG.loaded) loadSkus(); }
   else if(state.view==='admin') { v.innerHTML = viewAdmin(); loadAdmin(); }
   else if(state.view==='paywall') v.innerHTML = viewPaywall();
   paintSync();
@@ -1774,7 +1801,10 @@ function tabBuild(j){
       <option value="">📋 Start from a trade template…</option>
       ${Object.entries(TRADE_TEMPLATES).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}
     </select>
-    <button class="btn ghost full addline" onclick="addLine()">+ Add line</button>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn ghost addline" style="flex:1" onclick="addLine()">+ Add line</button>
+      <button class="btn ghost addline" style="flex:1" onclick="openSkuPicker()">+ From price book</button>
+    </div>
 
     <div class="totbar"><span class="tl">Client price</span><span class="tv">${money(total)}</span></div>
     ${m>0
@@ -2042,6 +2072,114 @@ function setRegion(s){
   // Suggest the state base rate only if they haven't set their own yet.
   if((Number(SETTINGS.tax_rate)||0)===0 && US_TAX[s]!=null) SETTINGS.tax_rate=US_TAX[s];
   persistSettings(); settingsDirty=true; paintSync(); clearTimeout(setT); setT=setTimeout(()=>syncNow(),700); render();
+}
+/* ============ Price book (AI-organized SKU catalog) ============ */
+let CATALOG = { skus:[], loaded:false, preview:null, image:null };
+let skuQ='';
+async function loadSkus(){ if(!TOKEN||!online) return; try{ const r=await api('/api/skus'); CATALOG.skus=r.skus||[]; CATALOG.loaded=true; if(state.view==='catalog') render(); }catch(e){} }
+function readImageScaled(file,max,q){ return new Promise((res,rej)=>{ const rd=new FileReader(); rd.onload=e=>{ const img=new Image(); img.onload=()=>{ let w=img.width||1,h=img.height||1; if(w>max||h>max){ const s=Math.min(max/w,max/h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',q||0.82)); }; img.onerror=rej; img.src=e.target.result; }; rd.onerror=rej; rd.readAsDataURL(file); }); }
+function skuPickCsv(input){ const f=input.files&&input.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=e=>{ const ta=document.getElementById('skuText'); if(ta) ta.value=String(e.target.result||'').slice(0,200000); }; rd.readAsText(f); input.value=''; }
+async function skuPickPhoto(input){ const f=input.files&&input.files[0]; if(!f){return;} if(!/^image\//.test(f.type)){ toast('Choose an image of your price sheet.','warn'); return; } try{ CATALOG.image=await readImageScaled(f,1600,0.82); render(); }catch(e){ toast('Could not read that image.','bad'); } input.value=''; }
+function skuClearImage(){ CATALOG.image=null; render(); }
+async function parseSkuUpload(btn){
+  const text=((document.getElementById('skuText')||{}).value)||'';
+  if(!text.trim() && !CATALOG.image){ toast('Paste your list or add a photo first.','warn'); return; }
+  if(!online||!TOKEN){ toast('Connect to the internet to organize SKUs.','warn'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Organizing…'; }
+  try{
+    const r=await api('/api/skus/parse',{method:'POST', body:JSON.stringify({ text, image:CATALOG.image })});
+    CATALOG.preview=r.items||[];
+    if(!CATALOG.preview.length) toast('No SKUs found — try a clearer photo or paste the text.','warn',5000);
+  }catch(e){ if(e.status===402){ gate402(e); } else toast(e.code==='AI_UNCONFIGURED'?'AI isn’t switched on yet (add ANTHROPIC_API_KEY).':(e.message||'Could not organize that.'),'bad',5000); }
+  if(btn){ btn.disabled=false; btn.textContent='Organize with AI'; }
+  render();
+}
+function editPreview(i,k,v){ if(CATALOG.preview&&CATALOG.preview[i]) CATALOG.preview[i][k]=(k==='unit_price'?(+v||0):v); }
+function delPreview(i){ if(CATALOG.preview){ CATALOG.preview.splice(i,1); render(); } }
+function discardPreview(){ CATALOG.preview=null; CATALOG.image=null; render(); }
+async function importSkus(btn){
+  const items=CATALOG.preview||[]; if(!items.length) return;
+  if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  try{ const r=await api('/api/skus/import',{method:'POST', body:JSON.stringify({items})}); CATALOG.preview=null; CATALOG.image=null; const ta=document.getElementById('skuText'); if(ta) ta.value=''; await loadSkus(); toast('✓ Added '+(r.added||0)+' to your price book','ok'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Add to price book'; } toast('Could not save.','bad'); }
+}
+async function addSkuManual(btn){
+  const g=id=>((document.getElementById(id)||{}).value||'');
+  const name=g('mName').trim(); if(!name){ toast('Name the SKU first.','warn'); return; }
+  try{ await api('/api/skus',{method:'POST', body:JSON.stringify({ name, category:g('mCat').trim(), unit:g('mUnit'), unit_price:+g('mPrice')||0 })}); await loadSkus(); toast('✓ Added to price book','ok'); }
+  catch(e){ toast('Could not add.','bad'); }
+}
+async function delSku(id){ if(!confirm('Remove this SKU?')) return; try{ await api('/api/skus/'+id,{method:'DELETE'}); CATALOG.skus=CATALOG.skus.filter(s=>s.id!==id); const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }catch(e){} }
+async function updSku(id,k,v){ const s=CATALOG.skus.find(x=>x.id===id); if(!s) return; s[k]=(k==='unit_price'?(+v||0):v); try{ await api('/api/skus/'+id,{method:'PATCH', body:JSON.stringify({[k]:s[k]})}); }catch(e){} }
+function skuSearch(v){ skuQ=v; const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }
+function previewRow(it,i){ return `<div class="skurow">
+    <input class="skuname-in" value="${escAttr(it.name)}" oninput="editPreview(${i},'name',this.value)"/>
+    <select class="mini" onchange="editPreview(${i},'unit',this.value)">${UNITS.map(u=>`<option ${u===it.unit?'selected':''}>${u}</option>`).join('')}</select>
+    <input class="mini skuprice" type="number" min="0" value="${it.unit_price||0}" oninput="editPreview(${i},'unit_price',this.value)"/>
+    <button class="del" onclick="delPreview(${i})" title="Remove">✕</button>
+  </div>`; }
+function skuListHTML(){
+  const q=skuQ.trim().toLowerCase();
+  let list=(CATALOG.skus||[]);
+  if(q) list=list.filter(s=>(s.name+' '+s.category+' '+s.sku_code).toLowerCase().includes(q));
+  if(!list.length) return '<div class="hint">No SKUs yet. Upload a price sheet or list above.</div>';
+  return list.map(s=>`<div class="skurow">
+      <div class="skuinfo"><div class="skuname">${esc(s.name)}</div><div class="skumeta">${s.category?esc(s.category)+' · ':''}${esc(s.unit)}</div></div>
+      <input class="mini skuprice" type="number" min="0" value="${s.unit_price||0}" onchange="updSku('${s.id}','unit_price',this.value)"/>
+      <button class="del" onclick="delSku('${s.id}')" title="Remove">✕</button>
+    </div>`).join('');
+}
+function viewCatalog(){
+  const sk=CATALOG.skus||[], pv=CATALOG.preview;
+  return `<div class="h-eyebrow">Price book</div><h1 class="page">Your SKUs</h1>
+    <div class="sub">Upload your materials &amp; prices once — AI organizes them. Then drop any SKU into a bid in one tap.</div>
+
+    <div class="nb-sec"><h3>Add SKUs</h3>
+      <textarea id="skuText" class="input" placeholder="Paste a price list or CSV here…"></textarea>
+      <div class="skutools">
+        <button class="btn ghost sm" onclick="document.getElementById('skuPhoto').click()">${icon('building',15)} Photo of price sheet</button>
+        <button class="btn ghost sm" onclick="document.getElementById('skuCsv').click()">Upload CSV / text</button>
+        <input id="skuCsv" type="file" accept=".csv,.txt,text/*" style="display:none" onchange="skuPickCsv(this)"/>
+        <input id="skuPhoto" type="file" accept="image/*" capture="environment" style="display:none" onchange="skuPickPhoto(this)"/>
+      </div>
+      ${CATALOG.image?`<div class="skuimg"><img src="${CATALOG.image}" alt="price sheet"/><button class="del" onclick="skuClearImage()" title="Remove">✕</button></div>`:''}
+      <button class="btn full" style="margin-top:10px" onclick="parseSkuUpload(this)">Organize with AI</button>
+      <div class="hint">Snap a supplier price sheet or paste a list — AI splits variants, infers units &amp; categories, and skips the blanks.</div>
+    </div>
+
+    ${pv?`<div class="nb-sec"><h3>Review — ${pv.length} found</h3>
+      ${pv.length?pv.map((it,i)=>previewRow(it,i)).join(''):'<div class="hint">Nothing found — try a clearer photo.</div>'}
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn" onclick="importSkus(this)">Add to price book</button>
+        <button class="btn ghost" onclick="discardPreview()">Discard</button>
+      </div></div>`:''}
+
+    <div class="nb-sec"><h3>Add one by hand</h3>
+      <input id="mName" class="input" placeholder="SKU name (e.g. Calacatta Lithos 3cm)"/>
+      <div class="row2" style="margin-top:8px"><input id="mCat" class="input" placeholder="Category (optional)"/>
+        <select id="mUnit" class="input">${UNITS.map(u=>`<option ${u==='each'?'selected':''}>${u}</option>`).join('')}</select></div>
+      <div class="row2" style="margin-top:8px"><input id="mPrice" class="input" type="number" min="0" placeholder="$ per unit"/>
+        <button class="btn" onclick="addSkuManual(this)">Add SKU</button></div>
+    </div>
+
+    <div class="nb-sec"><h3>Your price book · ${sk.length}</h3>
+      ${sk.length?`<input class="input" placeholder="Search…" oninput="skuSearch(this.value)" style="margin-bottom:10px"/>`:''}
+      <div id="skuList">${skuListHTML()}</div>
+    </div>`;
+}
+// ---- Insert a SKU into the current bid (Build tab picker) ----
+function openSkuPicker(){ if(!CATALOG.loaded) loadSkus(); const el=document.getElementById('skuPicker'); if(el){ el.style.display='flex'; renderPicker(); } }
+function closeSkuPicker(){ const el=document.getElementById('skuPicker'); if(el) el.style.display='none'; }
+function renderPicker(){
+  const q=(((document.getElementById('pickQ')||{}).value)||'').trim().toLowerCase();
+  let l=(CATALOG.skus||[]); if(q) l=l.filter(s=>(s.name+' '+s.category).toLowerCase().includes(q));
+  const el=document.getElementById('pickList'); if(!el) return;
+  el.innerHTML = l.length ? l.slice(0,250).map(s=>`<button class="pickitem" onclick="insertSku('${s.id}')"><span class="pn">${esc(s.name)}</span><span class="pp">${money(s.unit_price)}/${esc(s.unit)}</span></button>`).join('')
+    : '<div class="hint" style="padding:12px 10px">No SKUs yet — add some in More → Price book.</div>';
+}
+function insertSku(id){ const s=(CATALOG.skus||[]).find(x=>x.id===id); const j=currentJob(); if(!s||!j) return;
+  j.lines.push({id:uid(), section:'', desc:s.name, type:'unit', qty:1, unit:s.unit||'each', rate:+s.unit_price||0, price:0, hours:0, furn:'you'});
+  touch(j); saveJobs(); closeSkuPicker(); render(); toast('Added “'+s.name+'” — set the quantity','ok',2400);
 }
 function themeSeg(){
   const cur=themeChoice();
