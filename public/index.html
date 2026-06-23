@@ -871,7 +871,11 @@ async function syncNow(force){
     persist();
   } finally {
     setSync(false);
-    if(state.booted) render();
+    // Never re-render out from under someone who's typing/dictating — that wiped
+    // focus (and felt like lost work). The sync badge updates on its own.
+    const ae=document.activeElement;
+    const editing = recording || (ae && /^(TEXTAREA|INPUT|SELECT)$/.test(ae.tagName));
+    if(state.booted && !editing) render();
   }
 }
 
@@ -1453,6 +1457,11 @@ function adminHTML(d, users){
   return kpis + funnelHTML + usersHTML + featHTML;
 }
 
+// The capture screen is a persistent "AI notepad": its draft survives re-renders
+// and navigation so a dictated conversation can never be wiped. Cleared on build.
+let CAP_DRAFT = JSON.parse(localStorage.getItem('bt_capdraft')||'null') || {title:'',from:'',to:'',text:''};
+function capDraft(k,v){ CAP_DRAFT[k]=v; localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT)); }
+function clearCapDraft(){ CAP_DRAFT={title:'',from:'',to:'',text:''}; localStorage.removeItem('bt_capdraft'); }
 function viewCapture(){
   if(state.loading){
     return `<button class="backlink" onclick="go('home')">← Dashboard</button>
@@ -1460,23 +1469,24 @@ function viewCapture(){
     <div class="mono" style="font-size:.84rem">Translating and building your bid draft…</div>
     <div class="hint">Reading the conversation, structuring the scope.</div></div>`;
   }
+  const dFrom=CAP_DRAFT.from||SETTINGS.from, dTo=CAP_DRAFT.to||SETTINGS.to;
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
-    <div class="h-eyebrow">Step 1 · Capture</div><h1 class="page">Talk through the job</h1>
-    <div class="sub">Type or paste the conversation in your language. We'll translate it and turn it into a bid draft.</div>
+    <div class="h-eyebrow">AI Notepad · Step 1</div><h1 class="page">Talk through the job</h1>
+    <div class="sub">Speak or type the conversation in your language — the AI translates it and turns it into a bid draft. Your notes save as you go.</div>
 
     <label class="fld">Project name</label>
-    <input id="capTitle" class="input" placeholder="e.g. Martinez — Kitchen, or 9012 NE 117th Pl" />
+    <input id="capTitle" class="input" value="${escAttr(CAP_DRAFT.title||'')}" oninput="capDraft('title',this.value)" placeholder="e.g. Martinez — Kitchen, or 9012 NE 117th Pl" />
     <div class="hint">Use a name or the job's address — if you use the address, you won't need to enter it again for maps.</div>
 
     <div class="row2">
       <div><label class="fld">You speak</label>
-      <select id="capFrom" class="input">${langOpts(SETTINGS.from)}</select></div>
+      <select id="capFrom" class="input" onchange="capDraft('from',this.value)">${langOpts(dFrom)}</select></div>
       <div><label class="fld">Client reads</label>
-      <select id="capTo" class="input">${langOpts(SETTINGS.to)}</select></div>
+      <select id="capTo" class="input" onchange="capDraft('to',this.value)">${langOpts(dTo)}</select></div>
     </div>
 
-    <label class="fld">The conversation</label>
-    <textarea id="capText" class="input" placeholder="Describe the job the way you'd say it on site…"></textarea>
+    <label class="fld">Conversation notepad</label>
+    <textarea id="capText" class="input" oninput="capDraft('text',this.value)" placeholder="Describe the job the way you'd say it on site…">${esc(CAP_DRAFT.text||'')}</textarea>
     <div class="cap-tools">
       ${speechSupported()
         ? `<button class="mic" id="micBtn" onclick="toggleMic()"><span class="dot"></span><span class="lbl">Dictate</span></button><span class="mic-note">Speak — it types for you.</span>`
@@ -1505,10 +1515,10 @@ function viewCapture(){
 function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join(''); }
 
 function loadSample(){
-  document.getElementById('capTitle').value='Reyes — Bathroom remodel';
-  document.getElementById('capFrom').value='es';
-  document.getElementById('capTo').value='en';
-  document.getElementById('capText').value='La señora quiere un baño nuevo. Quitar la bañera vieja y poner una ducha grande con azulejo. Cambiar el lavabo y las luces. También arreglar el piso que está dañado. Ella compra la grifería. Quiere terminar antes de las fiestas.';
+  CAP_DRAFT={title:'Reyes — Bathroom remodel', from:'es', to:'en',
+    text:'La señora quiere un baño nuevo. Quitar la bañera vieja y poner una ducha grande con azulejo. Cambiar el lavabo y las luces. También arreglar el piso que está dañado. Ella compra la grifería. Quiere terminar antes de las fiestas.'};
+  localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT));
+  render();
 }
 
 function newJobFromForm(){
@@ -1543,7 +1553,7 @@ function buildManual(){
   if(!entitled()){ go('paywall'); return; }
   const f=newJobFromForm();
   const job=makeLocalJob(f, null);
-  JOBS.unshift(job); saveJobs(); state.bidTab='build'; go('job',job.id);
+  JOBS.unshift(job); clearCapDraft(); saveJobs(); state.bidTab='build'; go('job',job.id);
 }
 
 // Run the AI on an existing job's captured text and fill in lines/rooms/totals.
@@ -1597,7 +1607,7 @@ async function buildFromConversation(){
       : 'Could not build the draft ('+(e.message||'error')+'). Your job was created — you can fill it in by hand.';
   }
   const job=makeLocalJob(f, data);
-  JOBS.unshift(job); saveJobs();
+  JOBS.unshift(job); clearCapDraft(); saveJobs();
   state.loading=false; state.bidTab='notebook'; go('job',job.id);
 }
 
@@ -1605,7 +1615,7 @@ async function buildFromConversation(){
 function viewJob(){
   const j=currentJob(); if(!j) return viewHome();
   const tabs=`<div class="tabbar">
-    <button class="${state.bidTab==='notebook'?'on':''}" onclick="setTab('notebook')">Notebook</button>
+    <button class="${state.bidTab==='notebook'?'on':''}" onclick="setTab('notebook')">AI Notepad</button>
     <button class="${state.bidTab==='build'?'on':''}" onclick="setTab('build')">Build the bid</button>
     <button class="${state.bidTab==='client'?'on':''}" onclick="setTab('client')">Client view</button></div>`;
   const head=`<button class="backlink" onclick="go('home')">← Dashboard</button>
@@ -2217,24 +2227,22 @@ async function copyText(text){
 }
 
 /* ---------- voice dictation ---------- */
-let rec=null, recording=false;
+let rec=null, recording=false, micWanted=false;
 function speechSupported(){ return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window); }
-function updateMic(){ const b=document.getElementById('micBtn'); if(!b)return; b.classList.toggle('rec',recording); const l=b.querySelector('.lbl'); if(l) l.textContent=recording?'Stop':'Dictate'; }
+function updateMic(){ const b=document.getElementById('micBtn'); if(!b)return; b.classList.toggle('rec',recording); const l=b.querySelector('.lbl'); if(l) l.textContent=recording?'Listening… tap to stop':'Dictate'; }
 function toggleMic(){
   if(!speechSupported()) return;
-  if(recording){ if(rec) rec.stop(); recording=false; updateMic(); return; }
+  if(recording){ micWanted=false; if(rec){ try{ rec.stop(); }catch(e){} } recording=false; updateMic(); return; }
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   rec=new SR();
   const sel=document.getElementById('capFrom');
   rec.lang=SPEECH_LANG[sel?sel.value:'es']||'es-US';
   rec.continuous=true; rec.interimResults=true; rec.maxAlternatives=1;
-  // Snapshot what's already in the box. Then: commit each FINALIZED phrase exactly
-  // once (starting from e.resultIndex so we never re-read already-final results),
-  // and treat the live interim text as transient — rebuilt every event, never
-  // accumulated. Reading from 0 and concatenating final+interim (the old bug) made
-  // mobile browsers stack the growing phrase over and over.
+  micWanted=true;
+  // Base = whatever's already in the box. dictBase is updated on each auto-restart
+  // so continuous dictation across pauses never loses what was already said.
   const ta0=document.getElementById('capText');
-  const dictBase=ta0&&ta0.value?ta0.value.trim():'';
+  let dictBase=ta0&&ta0.value?ta0.value.trim():'';
   rec.onresult=(e)=>{
     // Rebuild every event (never accumulate across events): concatenate the stable
     // FINAL results, then append only the LATEST interim entry. Assigning interim
@@ -2251,19 +2259,33 @@ function toggleMic(){
     const ta=document.getElementById('capText');
     if(ta){
       ta.value=[dictBase, (finals.join(' ')+' '+interim).trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
+      capDraft('text', ta.value); // persist so a re-render can't wipe the conversation
       // Keep the newest words visible while talking: grow the box a little, then
       // pin it to the bottom so dictation never scrolls out of sight.
       ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight, 300)+'px';
       ta.scrollTop=ta.scrollHeight;
     }
   };
-  rec.onend=()=>{ recording=false; updateMic(); };
-  rec.onerror=()=>{ recording=false; updateMic(); };
+  // Mobile engines end after a short pause. If the user hasn't tapped Stop, fold the
+  // finalized text into the base and restart — so dictation doesn't cut off early.
+  rec.onend=()=>{
+    if(micWanted){
+      const ta=document.getElementById('capText'); if(ta) dictBase=ta.value.trim();
+      try{ rec.start(); return; }catch(e){}
+    }
+    recording=false; updateMic();
+  };
+  rec.onerror=(e)=>{
+    const err=e&&e.error;
+    if(err==='not-allowed'||err==='service-not-allowed'){ micWanted=false; recording=false; updateMic(); toast('Microphone is blocked — allow mic access in your browser to dictate.','warn',5000); }
+    // 'no-speech' / 'aborted' / 'network' fall through to onend, which restarts.
+  };
   try{
     rec.start(); recording=true; updateMic();
-    // Bring the conversation box into view so the live text is on screen as they speak.
-    if(ta0) setTimeout(()=>{ try{ ta0.scrollIntoView({behavior:'smooth', block:'center'}); }catch(_){} }, 80);
-  }catch(e){ recording=false; updateMic(); }
+    // Align the notepad near the top so the label and the growing text are both
+    // visible as they speak (scrollIntoView 'center' jumped awkwardly).
+    if(ta0) setTimeout(()=>{ try{ const r=ta0.getBoundingClientRect(); window.scrollTo({top:Math.max(0, window.scrollY+r.top-104), behavior:'smooth'}); }catch(_){} }, 90);
+  }catch(e){ micWanted=false; recording=false; updateMic(); }
 }
 
 /* ---------- photos (offline-capable: queued locally, uploaded on sync) ---------- */
