@@ -17,6 +17,8 @@ import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig } from
 import { renderProposalHTML } from "./src/proposalHtml.js";
 import * as Billing from "./src/billing.js";
 import * as Payments from "./src/payments.js";
+import * as Analytics from "./src/analytics.js";
+const { track } = Analytics;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uid = () => crypto.randomBytes(9).toString("base64url");
@@ -83,9 +85,23 @@ function attachPhotos(userId, job) {
 app.get("/api/health", (_req, res) => res.json({ ok: true, ai: aiConfigured(), billing: Billing.billingConfigured(), payments: Payments.paymentsConfigured() }));
 
 // ---- Auth ----
-app.post("/api/auth/signup", wrap((req, res) => { res.json(signup(req.body || {})); }));
-app.post("/api/auth/signin", wrap((req, res) => { res.json(signin(req.body || {})); }));
-app.post("/api/auth/signout", requireAuth, wrap((req, res) => { signout(req.token); res.json({ ok: true }); }));
+app.post("/api/auth/signup", wrap((req, res) => {
+  const out = signup(req.body || {});
+  if (out && out.user) {
+    db.prepare("UPDATE user SET last_login=? WHERE id=?").run(Date.now(), out.user.id);
+    track(out.user.id, "user_registered", { email: out.user.email });
+  }
+  res.json(out);
+}));
+app.post("/api/auth/signin", wrap((req, res) => {
+  const out = signin(req.body || {});
+  if (out && out.user) {
+    db.prepare("UPDATE user SET last_login=? WHERE id=?").run(Date.now(), out.user.id);
+    track(out.user.id, "user_logged_in", {});
+  }
+  res.json(out);
+}));
+app.post("/api/auth/signout", requireAuth, wrap((req, res) => { track(req.user.id, "user_logged_out", {}); signout(req.token); res.json({ ok: true }); }));
 app.post("/api/auth/change-password", requireAuth, wrap((req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   res.json(changePassword({ userId: req.user.id, currentPassword, newPassword, keepToken: req.token }));
@@ -118,7 +134,10 @@ app.get("/api/payments/requests", requireAuth, (req, res) =>
 app.post("/api/payments/requests", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
   const { amount, description, clientName, jobId } = req.body || {};
   if (jobId && !Jobs.ownsJob(req.user.id, jobId)) return res.status(404).json({ error: "Job not found." });
-  res.json({ request: await Payments.createPaymentRequest(req.user, { amount, description, clientName, jobId }, baseUrl(req)) });
+  const request = await Payments.createPaymentRequest(req.user, { amount, description, clientName, jobId }, baseUrl(req));
+  track(req.user.id, "payment_link_created", { jobId: jobId || null });
+  track(req.user.id, "deposit_requested", { jobId: jobId || null, amount: Number(amount) || 0 });
+  res.json({ request });
 }));
 app.post("/api/payments/requests/:id/cancel", requireAuth, wrap((req, res) => {
   const r = Payments.cancelPaymentRequest(req.user.id, req.params.id);
@@ -128,7 +147,7 @@ app.post("/api/payments/requests/:id/cancel", requireAuth, wrap((req, res) => {
 
 // ---- Me / settings ----
 app.get("/api/me", requireAuth, (req, res) =>
-  res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user) }));
+  res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user), admin: Analytics.isAdmin(req.user) }));
 app.patch("/api/me", requireAuth, wrap((req, res) => {
   const b = req.body || {};
   if (typeof b.logo === "string" && b.logo.length > 250000) {
@@ -142,8 +161,36 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
   }
   if (sets.length) { vals.push(req.user.id); db.prepare(`UPDATE user SET ${sets.join(", ")} WHERE id=?`).run(...vals); }
   const fresh = db.prepare("SELECT * FROM user WHERE id=?").get(req.user.id);
+  if (typeof b.logo === "string" && b.logo) track(req.user.id, "logo_uploaded", {});
+  const onboarded = fresh.logo || (fresh.company && fresh.company !== "Your Company");
+  if (onboarded && !fresh.onboarded_at) {
+    db.prepare("UPDATE user SET onboarded_at=? WHERE id=?").run(Date.now(), req.user.id);
+    track(req.user.id, "onboarding_completed", {});
+  }
   res.json({ user: publicUser(fresh), settings: settingsOf(fresh) });
 }));
+
+// ---- Client-side analytics events (page_view, dashboard_viewed, feature_used…) ----
+app.post("/api/track", requireAuth, wrap((req, res) => {
+  const { event, props } = req.body || {};
+  if (event) track(req.user.id, String(event), props && typeof props === "object" ? props : {});
+  res.json({ ok: true });
+}));
+
+// ---- Founder / admin dashboard (gated to BT_ADMIN_EMAIL) ----
+const requireAdmin = (req, res, next) =>
+  Analytics.isAdmin(req.user) ? next() : res.status(403).json({ error: "Not authorized." });
+app.get("/api/admin/overview", requireAuth, requireAdmin, (req, res) =>
+  res.json({ overview: Analytics.overview(), funnel: Analytics.funnel(), biggestDropoff: Analytics.biggestDropoff(), features: Analytics.featureAdoption() }));
+app.get("/api/admin/users", requireAuth, requireAdmin, (req, res) =>
+  res.json({ users: Analytics.listUsers() }));
+app.get("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
+  const u = db.prepare("SELECT * FROM user WHERE id=?").get(req.params.id);
+  if (!u) return res.status(404).json({ error: "Not found." });
+  res.json({ user: Analytics.userProfile(u), events: Analytics.recentEvents(200).filter((e) => e.user_id === u.id).slice(0, 50) });
+});
+app.get("/api/admin/events", requireAuth, requireAdmin, (req, res) =>
+  res.json({ events: Analytics.recentEvents(req.query.limit) }));
 
 // ---- Demand signals ("Notify me" on coming-soon features) ----
 app.post("/api/interest", requireAuth, wrap((req, res) => {
@@ -157,7 +204,12 @@ app.post("/api/interest", requireAuth, wrap((req, res) => {
 
 // ---- Jobs ----
 app.get("/api/jobs", requireAuth, (req, res) => res.json({ jobs: Jobs.listJobs(req.user.id) }));
-app.post("/api/jobs", requireAuth, Billing.requireEntitled, wrap((req, res) => res.json({ job: attachPhotos(req.user.id, Jobs.createJob(req.user.id, req.body || {})) })));
+app.post("/api/jobs", requireAuth, Billing.requireEntitled, wrap((req, res) => {
+  const job = Jobs.createJob(req.user.id, req.body || {});
+  track(req.user.id, "lead_created", { jobId: job.id });
+  if ((job.lines || []).length) track(req.user.id, "bid_created", { jobId: job.id, lines: job.lines.length });
+  res.json({ job: attachPhotos(req.user.id, job) });
+}));
 app.get("/api/jobs/:id", requireAuth, wrap((req, res) => {
   const job = Jobs.getJob(req.user.id, req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found." });
@@ -166,6 +218,13 @@ app.get("/api/jobs/:id", requireAuth, wrap((req, res) => {
 app.patch("/api/jobs/:id", requireAuth, wrap((req, res) => {
   const job = Jobs.updateJob(req.user.id, req.params.id, req.body || {});
   if (!job) return res.status(404).json({ error: "Job not found." });
+  // Status transitions = pipeline events.
+  if (req.body && "status" in req.body) {
+    const s = job.status;
+    if (s === "sent") track(req.user.id, "bid_sent", { jobId: job.id });
+    else if (s === "signed") track(req.user.id, "bid_accepted", { jobId: job.id });
+    else if (s === "scheduled") track(req.user.id, "job_scheduled", { jobId: job.id });
+  }
   res.json({ job: attachPhotos(req.user.id, job) });
 }));
 app.delete("/api/jobs/:id", requireAuth, wrap((req, res) => {
@@ -222,6 +281,7 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
 app.get("/api/jobs/:id/share", requireAuth, Billing.requireEntitled, wrap((req, res) => {
   const job = Jobs.getJob(req.user.id, req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found." });
+  track(req.user.id, "bid_sent", { jobId: job.id, via: "share" });
   // Clean link — the unguessable 72-bit job id is the access grant (like a
   // Google Doc / Calendly share link). No ugly signature in the customer's email.
   res.json({ url: baseUrl(req) + "/p/" + job.id });
@@ -238,6 +298,8 @@ app.get("/p/:id", (req, res) => {
   const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(req.params.id);
   if (!jobRow) return res.status(404).send("Estimate not found.");
   const owner = db.prepare("SELECT * FROM user WHERE id=?").get(jobRow.user_id);
+  // The customer (not logged in) is viewing — attribute to the owner's funnel.
+  track(jobRow.user_id, "bid_viewed", { jobId: jobRow.id });
   const proposal = buildProposal(Jobs.rowToJob(jobRow), settingsOf(owner || {}));
   res.type("html").send(renderProposalHTML(proposal));
 });

@@ -107,6 +107,20 @@ CREATE TABLE IF NOT EXISTS interest (
   PRIMARY KEY (user_id, feature)
 );
 CREATE INDEX IF NOT EXISTS interest_feature_idx ON interest(feature);
+
+-- Product analytics: one row per tracked event. Designed as the single sink the
+-- app writes to; src/analytics.js can later fan these out to Mixpanel/PostHog/
+-- Segment/a warehouse without changing call sites.
+CREATE TABLE IF NOT EXISTS event (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT,
+  name TEXT NOT NULL,
+  props TEXT DEFAULT '{}',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS event_name_idx ON event(name);
+CREATE INDEX IF NOT EXISTS event_user_idx ON event(user_id);
+CREATE INDEX IF NOT EXISTS event_time_idx ON event(created_at);
 `);
 
 // Migrate older databases that predate the billing columns.
@@ -128,6 +142,9 @@ ensureColumns("user", [
   ["connect_charges_enabled", "INTEGER DEFAULT 0"],
   // Company logo (small data-URI) shown on the client bid + PDF.
   ["logo", "TEXT"],
+  // Analytics: last sign-in + when onboarding was completed.
+  ["last_login", "INTEGER"],
+  ["onboarded_at", "INTEGER"],
 ]);
 // Calendar: the date a job is scheduled for (YYYY-MM-DD), set at the Scheduled stage.
 ensureColumns("job", [

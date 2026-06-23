@@ -184,6 +184,12 @@
   .wk-day.today{border-color:var(--amber)}
   .wk-h{font-family:"IBM Plex Mono";font-size:.72rem;letter-spacing:.04em;color:var(--amber);margin-bottom:8px}
   .wk-empty{font-family:"IBM Plex Mono";font-size:.7rem;color:var(--muted);padding:2px}
+  .frow{position:relative;display:flex;align-items:center;gap:8px;padding:9px 8px;border-top:1px solid var(--line)}
+  .fbar{position:absolute;left:0;top:0;bottom:0;background:rgba(207,127,24,.16);border-right:2px solid var(--amber);border-radius:0 6px 6px 0;z-index:0}
+  .flabel{position:relative;z-index:1;flex:1;font-family:"IBM Plex Mono";font-size:.78rem;color:var(--paper)}
+  .fval{position:relative;z-index:1;font-family:"Archivo";font-weight:800;font-size:1rem}
+  .fdrop{font-family:"IBM Plex Mono";font-size:.64rem;color:#ff9b7a;font-weight:400}
+  .subpill{font-family:"IBM Plex Mono";font-size:.56rem;background:rgba(62,125,90,.22);color:#8fd0a8;padding:2px 6px;border-radius:4px;margin-left:4px;text-transform:uppercase}
   @media(min-width:720px){ .kpi{flex:1 1 0} }
   .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
   .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
@@ -337,6 +343,7 @@
         <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
         <button class="icon-btn" id="navJobs" onclick="go('home')">Dashboard</button>
         <button class="icon-btn" id="navSched" onclick="go('schedule')">Schedule</button>
+        <button class="icon-btn" id="navAdmin" onclick="go('admin')" style="display:none">📊 Founder</button>
         <button class="icon-btn" id="navSet" onclick="go('settings')">Setup</button>
       </div>
     </div>
@@ -393,6 +400,12 @@ let settingsDirty = false;
 let online = navigator.onLine;
 let syncing = false;
 let BILLING = JSON.parse(localStorage.getItem('bt_billing')||'null'); // {configured,entitled,status,in_trial,trial_ends_at,...}
+let ADMIN = false; // founder dashboard access (server decides via BT_ADMIN_EMAIL)
+
+/* ============ analytics ============ */
+// Fire-and-forget client event; analytics must never block or break the UI.
+function track(ev, props){ if(!TOKEN || !online || !ev) return; try{ api('/api/track',{method:'POST',body:JSON.stringify({event:ev,props:props||{}})}).catch(()=>{}); }catch(e){} }
+async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/api/me'); ADMIN=!!r.admin; }catch(e){} }
 
 /* ============ billing ============ */
 function entitled(){ return !BILLING || BILLING.entitled !== false; }
@@ -503,7 +516,7 @@ async function doAuth(){
     }); persistSettings(); }
     state.view='home';
     render();
-    await Promise.all([syncNow(true), loadBilling(), loadPayments()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe()]);
     render();
   }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
 }
@@ -609,6 +622,7 @@ window.addEventListener('offline', ()=>{ online=false; paintSync(); });
 
 /* ============ routing ============ */
 function go(v, jobId){ state.view=v; if(jobId!==undefined) state.jobId=jobId; state.error=''; render(); window.scrollTo(0,0);
+  track('page_view', {view:v}); if(v==='home') track('dashboard_viewed', {});
   if(v==='job' && state.jobId && state.jobId!=='new') refreshJob(state.jobId); }
 function newJob(){ if(!entitled()){ go('paywall'); return; } CAP_PHOTOS=[]; go('capture','new'); }
 function currentJob(){ return JOBS.find(j=>j.id===state.jobId); }
@@ -638,11 +652,13 @@ function render(){
   document.getElementById('navJobs').classList.toggle('active', state.view==='home'||state.view==='capture'||state.view==='job');
   document.getElementById('navSched').classList.toggle('active', state.view==='schedule');
   document.getElementById('navSet').classList.toggle('active', state.view==='settings');
+  const navAdmin=document.getElementById('navAdmin'); if(navAdmin){ navAdmin.style.display=ADMIN?'':'none'; navAdmin.classList.toggle('active', state.view==='admin'); }
   if(state.view==='home') v.innerHTML = viewHome();
   else if(state.view==='schedule') v.innerHTML = viewSchedule();
   else if(state.view==='capture') v.innerHTML = viewCapture();
   else if(state.view==='job') v.innerHTML = viewJob();
   else if(state.view==='settings') v.innerHTML = viewSettings();
+  else if(state.view==='admin') { v.innerHTML = viewAdmin(); loadAdmin(); }
   else if(state.view==='paywall') v.innerHTML = viewPaywall();
   paintSync();
   paintTrialChip();
@@ -818,6 +834,7 @@ function applyTemplate(trade){
   const hasContent=(j.lines||[]).some(l=>l.desc||l.price||l.hours||l.rate);
   if(hasContent && !confirm('Add the typical '+tpl.label+' line items? Your current lines stay — delete any you don’t need.')) return;
   tpl.lines.forEach(t=>{ j.lines.push({id:uid(), section:t.section||'', desc:t.desc, type:t.type||'fixed', price:0, hours:0, rate:0, furn:'you'}); });
+  track('feature_used', {feature:'trade_template', trade});
   touch(j); saveJobs(); render();
 }
 
@@ -1040,6 +1057,43 @@ function routeCardHTML(j){
 }
 
 /* ---------- CAPTURE ---------- */
+/* ============ founder / admin dashboard ============ */
+function viewAdmin(){
+  return `<div class="h-eyebrow">Founder</div><h1 class="page">Admin dashboard</h1>
+    <div class="sub">Private — only you. Live product metrics &amp; funnel.</div>
+    <div id="adminBody"><div class="hint" style="margin-top:16px">Loading metrics…</div></div>`;
+}
+async function loadAdmin(){
+  const box=()=>document.getElementById('adminBody'); if(!box()) return;
+  try{
+    const [ov, us] = await Promise.all([api('/api/admin/overview'), api('/api/admin/users')]);
+    if(box()) box().innerHTML = adminHTML(ov, us.users||[]);
+  }catch(e){ if(box()) box().innerHTML = `<div class="hint" style="margin-top:16px">${e.status===403?'Not authorized — set BT_ADMIN_EMAIL to your email.':'Could not load metrics.'}</div>`; }
+}
+function adminHTML(d, users){
+  const o=d.overview||{}, f=d.funnel||[], drop=d.biggestDropoff, feats=d.features||[];
+  const k=(label,val,sub)=>`<div class="kpi"><div class="kpi-l">${label}</div><div class="kpi-v">${val}</div><div class="kpi-s">${sub||''}</div></div>`;
+  const kpis = `<div class="kpis">`
+    + k('Contractors', o.contractors, `+${o.newToday||0} today`)
+    + k('Active 7d', o.active7d, `${o.activeToday||0} today`)
+    + k('Onboarded', o.onboarded, 'completed')
+    + k('Bids created', o.bidsCreated, `${o.bidsSent||0} sent`)
+    + k('Accepted', o.bidsAccepted, 'won')
+    + k('Deposits paid', o.depositsPaid, money(o.depositsPaidValue||0))
+    + k('Pipeline won', money(o.pipelineWonValue||0), 'signed+sched')
+    + k('Active subs', o.activeSubscriptions, 'paying')
+    + `</div>`;
+  const maxF = f.length ? (f[0].count||1) : 1;
+  const funnelHTML = `<div class="panel"><div class="panel-h static"><span>📉 Contractor funnel</span>${drop&&drop.dropoffFromPrev?`<span class="panel-link" style="color:#ff9b7a">drop: ${esc(drop.from)}→${esc(drop.to)} ${drop.dropoffFromPrev}%</span>`:''}</div>`
+    + f.map(s=>`<div class="frow"><div class="fbar" style="width:${Math.max(4,Math.round((s.count/maxF)*100))}%"></div><div class="flabel">${esc(s.stage)}</div><div class="fval">${s.count}${s.dropoffFromPrev?` <span class="fdrop">▼${s.dropoffFromPrev}%</span>`:''}</div></div>`).join('')
+    + `</div>`;
+  const usersHTML = `<div class="panel"><div class="panel-h static"><span>👥 Contractors (${users.length})</span></div>`
+    + (users.length?users.map(u=>`<div class="act-item"><div class="act-t">${esc(u.company)||esc(u.email)}${u.subscription_status&&u.subscription_status!=='none'?`<span class="subpill">${esc(u.subscription_status)}</span>`:''}</div><div class="act-s">${esc(u.email)} · leads ${u.leads} · bids ${u.bids} · accepted ${u.accepted} · collected ${money(u.revenueCollected)} · won ${money(u.pipelineWonValue)}${u.last_login?' · seen '+timeAgo(u.last_login):' · never logged in'}</div></div>`).join(''):'<div class="hint" style="padding:8px">No contractors yet.</div>')
+    + `</div>`;
+  const featHTML = feats.length?`<div class="panel"><div class="panel-h static"><span>⚙️ Feature adoption</span></div>`+feats.slice(0,14).map(ff=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center"><span class="act-t">${esc(ff.name)}</span><span class="act-s">${ff.c}× · ${ff.users} users</span></div>`).join('')+`</div>`:'';
+  return kpis + funnelHTML + usersHTML + featHTML;
+}
+
 function viewCapture(){
   if(state.loading){
     return `<button class="backlink" onclick="go('home')">← Jobs</button>
@@ -1729,7 +1783,7 @@ function capDelPhoto(i){ CAP_PHOTOS.splice(i,1); renderCapPhotos(); }
   if(billingReturn || paymentsReturn){ history.replaceState({}, '', location.pathname); }
   render();
   if(TOKEN){
-    await Promise.all([syncNow(true), loadBilling(), loadPayments()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe()]);
     // Coming back from Stripe Connect onboarding — pull the fresh account status
     // and land the contractor on Setup so they see "Ready".
     if(paymentsReturn){ await refreshPayments(); state.view='settings'; }

@@ -5,6 +5,7 @@
 // STRIPE_SECRET_KEY it reports "not configured" and the UI hides the feature.
 import crypto from "node:crypto";
 import db from "./db.js";
+import { track } from "./analytics.js";
 
 const KEY = () => process.env.STRIPE_SECRET_KEY || "";
 
@@ -194,6 +195,7 @@ export function handleEvent(event) {
       if (row && row.status !== "paid") {
         db.prepare("UPDATE payment_request SET status='paid', stripe_payment_intent=?, paid_at=? WHERE id=?")
           .run(obj.payment_intent || null, Date.now(), row.id);
+        track(row.user_id, "deposit_paid", { jobId: row.job_id || null, amount: (row.amount_cents || 0) / 100 });
       }
       break;
     }
