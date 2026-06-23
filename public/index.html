@@ -246,6 +246,7 @@
   .viz-result{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;max-width:460px;width:100%;margin:0 14px}
   .viz-result img{width:100%;border-radius:10px;display:block}
   .viz-cap{font-family:"IBM Plex Mono";font-size:.7rem;color:var(--muted);text-align:center;margin:10px 0}
+  .viz-err{background:rgba(169,78,56,.14);border:1px solid var(--rust);color:var(--text);border-radius:10px;padding:14px;font-size:.9rem;margin-bottom:10px}
   .news-ic{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:rgba(62,125,90,.18);color:#6fce93;margin-right:8px;vertical-align:-.35em}
   .news-ic.pay{background:rgba(207,127,24,.18);color:var(--amber)}
   @media(min-width:720px){ .kpis{display:grid;grid-template-columns:1fr 1fr;align-items:start} .kpi.hero{grid-column:1/-1} }
@@ -552,9 +553,13 @@
 </div>
 <div id="vizResult" class="sheet-wrap" style="display:none;align-items:center" onclick="closeVizResult()">
   <div class="viz-result" onclick="event.stopPropagation()">
-    <img id="vizResultImg" alt="AI visualization"/>
-    <div class="viz-cap">✓ Added to the bid · AI visualization — for illustration only</div>
-    <button class="btn full" onclick="closeVizResult()">Looks good</button>
+    <img id="vizResultImg" alt="AI visualization" style="display:none"/>
+    <div id="vizResultErr" class="viz-err" style="display:none"></div>
+    <div class="viz-cap" id="vizResultCap">✓ Added to the bid · AI visualization — for illustration only</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="vizRetryBtn" style="flex:1;display:none" onclick="vizRender()">Try again</button>
+      <button class="btn full" style="flex:1" onclick="closeVizResult()">Close</button>
+    </div>
   </div>
 </div>
 <div id="printArea"></div>
@@ -2299,13 +2304,16 @@ function insertSku(id){ const s=(CATALOG.skus||[]).find(x=>x.id===id); const j=c
   j.lines.push({id:uid(), section:'', desc:s.name, type:'unit', qty:1, unit:s.unit||'each', rate:+s.unit_price||0, price:0, hours:0, furn:'you'});
   touch(j); saveJobs(); closeSkuPicker(); render(); toast('Added “'+s.name+'” — set the quantity','ok',2400);
 }
-/* ---- "See it in their kitchen": render a material into the client's room ---- */
-let VIZ={jobId:null, sku:null};
+/* ---- "See it in their kitchen": render a material into the client's room ----
+   Fire-and-poll: POST starts the render and returns fast; we poll for the result
+   so a long render can't time out the connection. Inputs (material + room photo)
+   are kept in VIZ so "Try again" never makes the user re-upload. */
+let VIZ={jobId:null, sku:null, roomImage:null};
 function vizStart(jobId){
   if(!AI_VISUALIZE){ toast('Add your OpenAI key in setup to turn on AI visualization.','warn',5000); return; }
   if(!online||!TOKEN){ toast('Connect to the internet to render.','warn'); return; }
   if(!(CATALOG.skus||[]).length){ if(!CATALOG.loaded) loadSkus(); toast('Add a material to your price book first.','warn',4000); return; }
-  VIZ={jobId, sku:null};
+  VIZ={jobId, sku:null, roomImage:null};
   openSkuPicker('viz');
 }
 function vizPickMaterial(id){
@@ -2317,20 +2325,50 @@ function vizPickMaterial(id){
 function closeVizPhotoSheet(){ const el=document.getElementById('vizPhotoSheet'); if(el) el.style.display='none'; }
 function vizRoomSource(which){ closeVizPhotoSheet(); const inp=document.getElementById(which==='cam'?'vizCam':'vizLib'); if(inp) inp.click(); }
 function vizShowOverlay(show,msg){ const el=document.getElementById('vizOverlay'); if(!el) return; if(msg){ const m=document.getElementById('vizMsg'); if(m) m.textContent=msg; } el.style.display=show?'flex':'none'; }
+function vizShowResult(url){
+  const img=document.getElementById('vizResultImg'); if(img){ img.src=url; img.style.display='block'; }
+  const er=document.getElementById('vizResultErr'); if(er) er.style.display='none';
+  const cap=document.getElementById('vizResultCap'); if(cap){ cap.textContent='✓ Added to the bid · AI visualization — for illustration only'; cap.style.display='block'; }
+  const rb=document.getElementById('vizRetryBtn'); if(rb) rb.style.display='none';
+  const res=document.getElementById('vizResult'); if(res) res.style.display='flex';
+}
+function vizShowError(msg){
+  const img=document.getElementById('vizResultImg'); if(img) img.style.display='none';
+  const er=document.getElementById('vizResultErr'); if(er){ er.textContent=msg; er.style.display='block'; }
+  const cap=document.getElementById('vizResultCap'); if(cap) cap.style.display='none';
+  const rb=document.getElementById('vizRetryBtn'); if(rb) rb.style.display=VIZ.roomImage?'block':'none';
+  const res=document.getElementById('vizResult'); if(res) res.style.display='flex';
+}
 async function vizRoomPick(input){
   const f=input.files&&input.files[0]; input.value='';
   if(!f||!VIZ.jobId||!VIZ.sku) return;
   if(!/^image\//.test(f.type)){ toast('Choose an image of the room.','warn'); return; }
-  let roomImage; try{ roomImage=await readImageScaled(f,1280,0.85); }catch(e){ toast('Could not read that image.','bad'); return; }
+  let roomImage; try{ roomImage=await readImageScaled(f,1024,0.85); }catch(e){ toast('Could not read that image.','bad'); return; }
+  VIZ.roomImage=roomImage; // kept so a retry never re-uploads
+  vizRender();
+}
+async function vizRender(){
+  const res=document.getElementById('vizResult'); if(res) res.style.display='none';
+  if(!VIZ.jobId||!VIZ.sku||!VIZ.roomImage){ toast('Pick a material and a room photo first.','warn'); return; }
   vizShowOverlay(true,'Rendering '+(VIZ.sku.name||'the material')+' into the room…');
+  let token;
   try{
-    const r=await api('/api/jobs/'+VIZ.jobId+'/visualize',{method:'POST', body:JSON.stringify({ roomImage, skuId:VIZ.sku.id })});
-    await refreshJob(VIZ.jobId); // pull the new on-bid photo into the job
-    vizShowOverlay(false);
-    const img=document.getElementById('vizResultImg'); if(img&&r.photo) img.src=r.photo.url;
-    const res=document.getElementById('vizResult'); if(res) res.style.display='flex';
-    toast('✓ Render added to the bid','ok');
-  }catch(e){ vizShowOverlay(false); if(e.status===402){ gate402(e); } else toast(e.message||'Could not render that — try a clearer room photo.','bad',6000); }
+    const r=await api('/api/jobs/'+VIZ.jobId+'/visualize',{method:'POST', body:JSON.stringify({ roomImage:VIZ.roomImage, skuId:VIZ.sku.id })});
+    token=r.token;
+  }catch(e){ vizShowOverlay(false); if(e.status===402){ gate402(e); return; } vizShowError(e.message||'Could not start the render.'); return; }
+  if(!token){ vizShowOverlay(false); vizShowError('Could not start the render.'); return; }
+  // Poll up to ~2 minutes; the render runs server-side regardless of this tab.
+  const started=Date.now();
+  const poll=async()=>{
+    try{
+      const s=await api('/api/jobs/'+VIZ.jobId+'/visualize/'+token);
+      if(s.status==='done'){ await refreshJob(VIZ.jobId); vizShowOverlay(false); vizShowResult(s.photo&&s.photo.url); toast('✓ Render added to the bid','ok'); return; }
+      if(s.status==='error'){ vizShowOverlay(false); vizShowError(s.error||'The render didn’t finish — tap Try again.'); return; }
+    }catch(e){ /* transient network blip — keep polling */ }
+    if(Date.now()-started>125000){ vizShowOverlay(false); vizShowError('This render took too long. Your photo is saved — tap Try again.'); return; }
+    setTimeout(poll, 2500);
+  };
+  setTimeout(poll, 2500);
 }
 function closeVizResult(){ const el=document.getElementById('vizResult'); if(el) el.style.display='none'; if(state.view==='job') render(); }
 function themeSeg(){

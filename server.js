@@ -334,9 +334,21 @@ app.post("/api/jobs/:id/photos", requireAuth, photoJson, wrap((req, res) => {
 // "See it in their kitchen" — render a price-book material onto a room photo (AI)
 // and save the result as an on-bid job photo so the client sees it. OPENAI_API_KEY-
 // gated (same key as voice). The render is labeled in the UI as a visualization.
+//
+// Renders can take 20-60s — longer than many gateways keep a connection open — so
+// this is FIRE-AND-POLL: POST kicks off the render and returns a token immediately;
+// the client polls GET .../visualize/:token until it's done. No long-held request,
+// so no gateway 503 / "failed to fetch", and the inputs are never lost.
+const vizJobs = new Map(); // token -> { status, userId, jobId, photo, error, at }
+function pruneVizJobs() {
+  const cutoff = Date.now() - 15 * 60 * 1000;
+  for (const [k, v] of vizJobs) if (v.at < cutoff) vizJobs.delete(k);
+}
 app.post("/api/jobs/:id/visualize", requireAuth, Billing.requireEntitled, photoJson, wrap(async (req, res) => {
   if (!Jobs.ownsJob(req.user.id, req.params.id)) return res.status(404).json({ error: "Job not found." });
+  if (!visualizeConfigured()) { const e = new Error("AI visualization isn't configured on the server."); e.status = 503; e.code = "VIZ_UNCONFIGURED"; throw e; }
   const { roomImage, skuId, surface } = req.body || {};
+  if (!/^data:image\//.test(String(roomImage || ""))) return res.status(400).json({ error: "Add a photo of the room first." });
   let materialBuffer = null, materialMime = null, materialName = String((req.body && req.body.materialName) || "");
   if (skuId) {
     const sk = Skus.getSku(req.user.id, skuId);
@@ -345,13 +357,36 @@ app.post("/api/jobs/:id/visualize", requireAuth, Billing.requireEntitled, photoJ
       if (sk.image_file) { try { materialBuffer = fs.readFileSync(path.join(PHOTO_DIR, sk.image_file)); materialMime = sk.image_mime || "image/jpeg"; } catch {} }
     }
   }
-  const out = await visualizeRoom(req.user, { roomImage, materialBuffer, materialMime, materialName, surface });
-  const pid = uid();
-  const filename = `${pid}.png`;
-  fs.writeFileSync(path.join(PHOTO_DIR, filename), out.buffer);
-  db.prepare("INSERT INTO photo (id, job_id, user_id, filename, mime, show_on_bid, created_at) VALUES (?,?,?,?,?,?,?)")
-    .run(pid, req.params.id, req.user.id, filename, out.mime, 1, Date.now());
-  res.json({ photo: { id: pid, url: signPhotoUrl(req.params.id, pid), showOnBid: true } });
+  pruneVizJobs();
+  const token = uid();
+  const jobId = req.params.id, userId = req.user.id, user = req.user;
+  vizJobs.set(token, { status: "pending", userId, jobId, at: Date.now() });
+  // Run the render in the background; do NOT await — the response returns now.
+  (async () => {
+    try {
+      const out = await visualizeRoom(user, { roomImage, materialBuffer, materialMime, materialName, surface });
+      const pid = uid(), filename = `${pid}.png`;
+      fs.writeFileSync(path.join(PHOTO_DIR, filename), out.buffer);
+      db.prepare("INSERT INTO photo (id, job_id, user_id, filename, mime, show_on_bid, created_at) VALUES (?,?,?,?,?,?,?)")
+        .run(pid, jobId, userId, filename, out.mime, 1, Date.now());
+      vizJobs.set(token, { status: "done", userId, jobId, at: Date.now(),
+        photo: { id: pid, url: signPhotoUrl(jobId, pid), showOnBid: true } });
+    } catch (e) {
+      console.error("[visualize]", e && (e.message || e));
+      vizJobs.set(token, { status: "error", userId, jobId, at: Date.now(), error: (e && e.message) || "Render failed." });
+    }
+  })();
+  res.json({ token, status: "pending" });
+}));
+
+// Poll a render started above. Returns {status: pending|done|error}, plus the
+// photo when done or the message when failed.
+app.get("/api/jobs/:id/visualize/:token", requireAuth, wrap((req, res) => {
+  const v = vizJobs.get(req.params.token);
+  if (!v || v.userId !== req.user.id || v.jobId !== req.params.id) return res.status(404).json({ error: "Render not found." });
+  if (v.status === "done") { vizJobs.delete(req.params.token); return res.json({ status: "done", photo: v.photo }); }
+  if (v.status === "error") { vizJobs.delete(req.params.token); return res.json({ status: "error", error: v.error }); }
+  res.json({ status: "pending" });
 }));
 
 // Toggle whether a photo appears on the client-facing bid (owner only).
