@@ -47,6 +47,16 @@ const HAS_BID_SQL = "lines IS NOT NULL AND lines <> '[]' AND lines <> ''";
 const SENT_SQL = "sent_at IS NOT NULL OR status IN ('sent','signed','scheduled')";
 const WON_SQL = "status IN ('signed','scheduled')";
 
+// Keep the founder's own admin account(s) out of contractor-facing metrics — a
+// solo founder watching their first real contractor shouldn't see themselves in
+// the funnel. The email comes from BT_ADMIN_EMAIL (trusted env); quotes escaped.
+function adminEmailSql() {
+  const e = (process.env.BT_ADMIN_EMAIL || "").trim().toLowerCase();
+  return e ? e.replace(/'/g, "''") : "";
+}
+const userExcl = () => { const e = adminEmailSql(); return e ? ` AND id NOT IN (SELECT id FROM user WHERE lower(email)='${e}')` : ""; };
+const jobExcl = () => { const e = adminEmailSql(); return e ? ` AND user_id NOT IN (SELECT id FROM user WHERE lower(email)='${e}')` : ""; };
+
 function wonValueFor(where, ...args) {
   let total = 0;
   for (const r of db.prepare(`SELECT lines, margin FROM job WHERE ${where}`).all(...args)) {
@@ -58,36 +68,38 @@ function wonValueFor(where, ...args) {
 // ---------- Founder dashboard: top-line metrics ----------
 export function overview() {
   const t0 = startOfToday(), w7 = Date.now() - 7 * DAY;
-  const paid = one("SELECT COUNT(*) c, COALESCE(SUM(amount_cents),0) s FROM payment_request WHERE status='paid'");
+  const u = userExcl(), jb = jobExcl();
+  const paid = one(`SELECT COUNT(*) c, COALESCE(SUM(amount_cents),0) s FROM payment_request WHERE status='paid'${jb}`);
   return {
-    contractors: cnt("SELECT COUNT(*) c FROM user"),
-    activeToday: cnt("SELECT COUNT(*) c FROM user WHERE last_login >= ?", t0),
-    active7d: cnt("SELECT COUNT(*) c FROM user WHERE last_login >= ?", w7),
-    newToday: cnt("SELECT COUNT(*) c FROM user WHERE created_at >= ?", t0),
-    new7d: cnt("SELECT COUNT(*) c FROM user WHERE created_at >= ?", w7),
-    onboarded: cnt(`SELECT COUNT(*) c FROM user WHERE ${ONBOARDED_SQL}`),
-    bidsCreated: cnt(`SELECT COUNT(*) c FROM job WHERE ${HAS_BID_SQL}`),
-    bidsSent: cnt(`SELECT COUNT(*) c FROM job WHERE ${SENT_SQL}`),
-    bidsAccepted: cnt(`SELECT COUNT(*) c FROM job WHERE ${WON_SQL}`),
-    depositsRequested: cnt("SELECT COUNT(*) c FROM payment_request"),
+    contractors: cnt(`SELECT COUNT(*) c FROM user WHERE 1=1${u}`),
+    activeToday: cnt(`SELECT COUNT(*) c FROM user WHERE last_login >= ?${u}`, t0),
+    active7d: cnt(`SELECT COUNT(*) c FROM user WHERE last_login >= ?${u}`, w7),
+    newToday: cnt(`SELECT COUNT(*) c FROM user WHERE created_at >= ?${u}`, t0),
+    new7d: cnt(`SELECT COUNT(*) c FROM user WHERE created_at >= ?${u}`, w7),
+    onboarded: cnt(`SELECT COUNT(*) c FROM user WHERE (${ONBOARDED_SQL})${u}`),
+    bidsCreated: cnt(`SELECT COUNT(*) c FROM job WHERE (${HAS_BID_SQL})${jb}`),
+    bidsSent: cnt(`SELECT COUNT(*) c FROM job WHERE (${SENT_SQL})${jb}`),
+    bidsAccepted: cnt(`SELECT COUNT(*) c FROM job WHERE (${WON_SQL})${jb}`),
+    depositsRequested: cnt(`SELECT COUNT(*) c FROM payment_request WHERE 1=1${jb}`),
     depositsPaid: paid.c,
     depositsPaidValue: paid.s / 100,
-    activeSubscriptions: cnt("SELECT COUNT(*) c FROM user WHERE subscription_status IN ('active','trialing')"),
-    pipelineWonValue: wonValueFor(WON_SQL),
+    activeSubscriptions: cnt(`SELECT COUNT(*) c FROM user WHERE subscription_status IN ('active','trialing')${u}`),
+    pipelineWonValue: wonValueFor(`(${WON_SQL})${jb}`),
     eventsTracked: cnt("SELECT COUNT(*) c FROM event"),
   };
 }
 
 // ---------- Contractor funnel with drop-off ----------
 export function funnel() {
+  const u = userExcl(), jb = jobExcl();
   const stages = [
-    ["Sign up", cnt("SELECT COUNT(*) c FROM user")],
-    ["Onboarding", cnt(`SELECT COUNT(*) c FROM user WHERE ${ONBOARDED_SQL}`)],
-    ["First lead", cnt("SELECT COUNT(DISTINCT user_id) c FROM job")],
-    ["First bid", cnt(`SELECT COUNT(DISTINCT user_id) c FROM job WHERE ${HAS_BID_SQL}`)],
-    ["Proposal sent", cnt(`SELECT COUNT(DISTINCT user_id) c FROM job WHERE ${SENT_SQL}`)],
-    ["Accepted", cnt(`SELECT COUNT(DISTINCT user_id) c FROM job WHERE ${WON_SQL}`)],
-    ["First payment", cnt("SELECT COUNT(DISTINCT user_id) c FROM payment_request WHERE status='paid'")],
+    ["Sign up", cnt(`SELECT COUNT(*) c FROM user WHERE 1=1${u}`)],
+    ["Onboarding", cnt(`SELECT COUNT(*) c FROM user WHERE (${ONBOARDED_SQL})${u}`)],
+    ["First lead", cnt(`SELECT COUNT(DISTINCT user_id) c FROM job WHERE 1=1${jb}`)],
+    ["First bid", cnt(`SELECT COUNT(DISTINCT user_id) c FROM job WHERE (${HAS_BID_SQL})${jb}`)],
+    ["Proposal sent", cnt(`SELECT COUNT(DISTINCT user_id) c FROM job WHERE (${SENT_SQL})${jb}`)],
+    ["Accepted", cnt(`SELECT COUNT(DISTINCT user_id) c FROM job WHERE (${WON_SQL})${jb}`)],
+    ["First payment", cnt(`SELECT COUNT(DISTINCT user_id) c FROM payment_request WHERE status='paid'${jb}`)],
   ];
   const top = stages[0][1] || 0;
   return stages.map(([stage, count], i) => {
@@ -130,7 +142,7 @@ export function userProfile(u) {
 }
 
 export function listUsers() {
-  return db.prepare("SELECT * FROM user ORDER BY created_at DESC").all().map(userProfile);
+  return db.prepare(`SELECT * FROM user WHERE 1=1${userExcl()} ORDER BY created_at DESC`).all().map(userProfile);
 }
 
 // ---------- Behavioural detail (from the event log) ----------
