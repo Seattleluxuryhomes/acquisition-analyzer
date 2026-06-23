@@ -48,7 +48,7 @@
   .display{font-family:"Archivo",sans-serif;font-weight:800;letter-spacing:-.01em}
   input,select,textarea,button{font-family:inherit;font-size:1rem}
   button{cursor:pointer}
-  .app{max-width:760px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+  .app{max-width:760px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;overflow-x:clip}
 
   .top{position:sticky;top:0;z-index:40;background:var(--topbar);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .top-in{display:flex;align-items:center;justify-content:space-between;padding:12px 18px}
@@ -197,8 +197,8 @@
   .kpi.hero .kpi-ic{width:46px;height:46px;background:rgba(62,125,90,.16);color:#6fce93}
   .kpi.hero .kpi-v{font-size:2.4rem}
   .kpi.rev .kpi-v{color:#6fce93}
-  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-  .kpi-grid .kpi{padding:14px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+  .kpi-grid .kpi{padding:14px;min-width:0;overflow:hidden}
   .kpi.won .kpi-ic{color:#6fce93} .kpi.pend .kpi-ic,.kpi.close .kpi-ic{color:var(--amber)}
   .kpi.close .kpi-v{color:var(--text)}
   .kpi.foll.alert{border-color:var(--rust)}
@@ -406,6 +406,12 @@
   .qcard{background:rgba(238,155,46,.08);border:1px solid var(--amber-deep);border-radius:12px;padding:12px 14px}
   .qrow{font-size:.9rem;color:var(--text);padding:3px 0}
   .langchip{display:block;width:100%;margin-top:16px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:10px 12px;font-family:"IBM Plex Mono";font-size:.72rem;cursor:pointer;text-align:center}
+  /* Camera-app style photo capture on New Job */
+  .cap-photos{margin-top:14px}
+  .takephotos{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--amber);color:var(--ink);border:none;border-radius:12px;padding:15px;font-family:inherit;font-weight:800;font-size:1.04rem;cursor:pointer;box-shadow:0 4px 14px rgba(207,127,24,.32)}
+  .takephotos:active{transform:scale(.99)}
+  .uploadphotos{width:100%;margin-top:8px;background:none;border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:11px;font-family:"IBM Plex Mono";font-size:.78rem;cursor:pointer}
+  .cap-photos .photogrid{margin-top:10px}
   .addline{margin-top:4px}
   .tplsel{width:100%;margin:10px 0 4px;background:var(--surface2);border:1px dashed var(--line);color:var(--text);border-radius:8px;padding:11px 12px;font-family:"IBM Plex Mono";font-size:.82rem}
 
@@ -553,6 +559,7 @@
     <div class="sheet-h">More</div>
     <button class="sheet-i" onclick="go('catalog');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16l-8-4-8 4z"/><path d="M9 7h6"/></svg>Price book</button>
     <button class="sheet-i" onclick="go('settings');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 13.4H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 6.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 4.6V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>Setup &amp; integrations</button>
+    <button class="sheet-i" onclick="demoProject()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Demo project</button>
     <button class="sheet-i" id="sheetAdmin" onclick="go('admin');closeMore()" style="display:none"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg>Founder dashboard</button>
     <button class="sheet-i danger" onclick="closeMore();signOut()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign out</button>
   </div>
@@ -1601,7 +1608,7 @@ function viewCapture(){
     : speechSupported()
       ? `<button type="button" class="vf-mic" id="micBtn" onclick="micTap()" aria-label="Tap to talk">
            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#1F252C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21.5"/></svg>
-         </button><div class="vf-mic-lbl" id="micLbl">Tap to talk</div>`
+         </button><div class="vf-mic-lbl" id="micLbl">Tap to Start Recording</div>`
       : `<div class="vf-mic off">🎤</div><div class="vf-mic-lbl">Voice isn't available on this device — type below.</div>`;
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div class="vf-hero">
@@ -1611,21 +1618,24 @@ function viewCapture(){
     </div>
 
     <label class="fld" style="margin-top:6px">What you said${AI_BUILD?`<button class="reread" onclick="runIntake(true)" title="Re-read the job">${icon('chart',13)} Update</button>`:''}</label>
-    <textarea id="capText" class="input vf-text" oninput="capDraft('text',this.value); scheduleIntake()" placeholder="…or type the job here. e.g. Kitchen remodel for Maria at 123 Main — remove cabinets, install quartz counters, new sink, paint, haul debris.">${esc(CAP_DRAFT.text||'')}</textarea>
+    <textarea id="capText" class="input vf-text" oninput="capDraft('text',this.value); scheduleIntake()" placeholder="Example: Kitchen remodel for Maria Martinez at 123 Main Street. Remove cabinets, install quartz counters, new undermount sink, paint walls, and haul debris.">${esc(CAP_DRAFT.text||'')}</textarea>
+
+    <input id="capPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="capHandlePhotos(this)"/>
+    <input id="capPhotoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="capHandlePhotos(this)"/>
+    <div class="cap-photos">
+      <button class="takephotos" onclick="capPickPhoto('cam')">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#1F252C" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5l1.7-2.5h7.6L17.5 6H21a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Take Photos
+      </button>
+      <button class="uploadphotos" onclick="capPickPhoto('lib')">🖼️ Upload existing photos</button>
+      <div class="photogrid" id="capPhotoGrid">${capPhotoThumbs()}</div>
+    </div>
 
     <div id="intakeRegion">${intakeCard()}${questionsCard()}</div>
 
     ${state.error?`<div class="err" style="margin-top:14px">${esc(state.error)}</div>`:''}
     <button class="btn full" style="margin-top:16px" onclick="buildFromConversation()">Continue to bid draft →</button>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn ghost" style="flex:1" onclick="buildManual()">Save job</button>
-      <button class="btn ghost" style="flex:1" onclick="loadSample()">Load a sample</button>
-    </div>
-
-    <label class="fld" style="margin-top:18px">Photos (optional)</label>
-    <div class="photogrid" id="capPhotoGrid">${capPhotoThumbs()}</div>
-    <input id="capPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="capHandlePhotos(this)"/>
-    <input id="capPhotoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="capHandlePhotos(this)"/>
+    <button class="btn ghost full" style="margin-top:8px" onclick="buildManual()">Save job</button>
 
     <button class="langchip" onclick="go('settings')" title="Change languages in Settings">🌐 You: ${esc(fromName)} · Client: ${esc(toName)} · change in Settings</button>
 
@@ -1691,11 +1701,14 @@ function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value
 
 function loadSample(){
   CAP_DRAFT={title:'', from:'', to:'',
-    text:'Kitchen remodel for Maria Martinez at 123 Main Street. Remove the old cabinets, install quartz counters, new undermount sink, paint the walls, and haul away the debris. She wants it done before the holidays.'};
+    text:'Kitchen remodel for Maria Martinez at 123 Main Street. Remove cabinets, install quartz counters, new undermount sink, paint walls, and haul debris. She wants it done before the holidays.'};
   CAP_INTAKE=null; persistIntake();
   localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT));
   render(); runIntake(true);
 }
+// Demo project lives in More now, not the primary workflow. Loads the sample into
+// a fresh New Job screen.
+function demoProject(){ closeMore(); go('capture'); loadSample(); }
 
 function newJobFromForm(){
   const text=((document.getElementById('capText')||{}).value||CAP_DRAFT.text||'').trim();
@@ -2690,7 +2703,7 @@ function recordSupported(){ return !!(navigator.mediaDevices && navigator.mediaD
 function useWhisper(){ return recordSupported() && AI_TRANSCRIBE; } // primary path when configured
 function speechSupported(){ return useWhisper() || liveSpeechSupported(); }
 function updateMic(){ const b=document.getElementById('micBtn'); if(b) b.classList.toggle('rec',recording);
-  const txt = micState==='transcribing'?'Transcribing…' : recording?'Listening… tap to stop' : 'Tap to talk';
+  const txt = micState==='transcribing'?'Transcribing…' : recording?'Recording… Tap Again to Stop' : 'Tap to Start Recording';
   const lbl=document.getElementById('micLbl'); if(lbl){ lbl.textContent=txt; return; }
   const l=b&&b.querySelector('.lbl'); if(l) l.textContent=txt; }
 
@@ -2886,9 +2899,8 @@ async function togglePhotoBid(i){
 /* ---------- capture-screen photos (staged before the job exists, then handed
    to the new job as pending uploads — no full re-render, to preserve typing) ---------- */
 function capPhotoThumbs(){
-  return CAP_PHOTOS.map((p,i)=>`<div class="thumb"><img src="${p.dataUrl}" alt="job photo"/><button class="x" onclick="capDelPhoto(${i})" title="Remove">✕</button></div>`).join('')
-    + `<button class="addphoto" onclick="capPickPhoto('cam')"><span style="font-size:1.2rem;line-height:1">📷</span>Camera</button>`
-    + `<button class="addphoto" onclick="capPickPhoto('lib')"><span style="font-size:1.2rem;line-height:1">🖼️</span>Upload</button>`;
+  // Thumbnails only — the camera/upload actions are dedicated buttons above the grid.
+  return CAP_PHOTOS.map((p,i)=>`<div class="thumb"><img src="${p.dataUrl}" alt="job photo"/><button class="x" onclick="capDelPhoto(${i})" title="Remove">✕</button></div>`).join('');
 }
 function renderCapPhotos(){ const g=document.getElementById('capPhotoGrid'); if(g) g.innerHTML=capPhotoThumbs(); }
 function capPickPhoto(mode){ const el=document.getElementById(mode==='cam'?'capPhotoCamInput':'capPhotoInput'); if(el) el.click(); }
