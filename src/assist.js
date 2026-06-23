@@ -55,9 +55,17 @@ function buildSystemPrompt(from, to, priceBook) {
     "You are an estimating assistant for construction contractors. Translate the " +
     "field conversation and turn it into a structured bid draft. Respond with ONLY " +
     "valid minified JSON, no markdown fences and no commentary, matching exactly: " +
-    '{"translation":string,"summary":string,"lines":[{"section":string,"desc":string,' +
+    '{"translation":string,"summary":string,' +
+    '"brief":{"project_type":string,"scope":[string],"materials":[string],"customer_supplied":[string],"timeline":string,"budget":string,"labor":string},' +
+    '"lines":[{"section":string,"desc":string,' +
     '"type":"fixed"|"hourly"|"unit","price":number,"hours":number,"rate":number,"qty":number,"unit":string}],' +
     '"assumptions":[string],"exclusions":[string],"upgrades":[{"desc":string,"price":number}]}. ' +
+    "BRIEF: a short structured read-back of the job for the CONTRACTOR (never shown to the " +
+    "client). project_type = the kind of job (e.g. \"Kitchen remodel\"). scope = 2-6 short bullet " +
+    "phrases of the work to be done. materials = the key materials named. customer_supplied = " +
+    "items the client will supply themselves ([] if none). timeline = any dates/deadline mentioned, " +
+    "else \"Not specified\". budget = a stated budget figure or \"Pending\". labor = crew/labor notes " +
+    "or \"Not specified\". Keep every brief value short; use only facts from the conversation, never invent. " +
     "Rules: at most 12 lines, at most 4 upgrades. Group the work by room or area: put the room/area " +
     "name (e.g. \"Bathroom\", \"Kitchen\") in each line's \"section\". Keep different rooms in " +
     "different sections — never merge two rooms into one line. If the whole job is one area, use a " +
@@ -94,9 +102,21 @@ function sanitize(data) {
       qty: num(l.qty), unit: unitSet.has(u) ? u : (l.type === "unit" ? "each" : ""),
     };
   });
+  const briefList = (a) => (Array.isArray(a) ? a : []).slice(0, 8).map((s) => String(s).slice(0, 160)).filter(Boolean);
+  const b = data.brief && typeof data.brief === "object" ? data.brief : {};
+  const brief = {
+    project_type: String(b.project_type || "").slice(0, 120),
+    scope: briefList(b.scope),
+    materials: briefList(b.materials),
+    customer_supplied: briefList(b.customer_supplied),
+    timeline: String(b.timeline || "").slice(0, 160),
+    budget: String(b.budget || "").slice(0, 160),
+    labor: String(b.labor || "").slice(0, 200),
+  };
   return {
     translation: String(data.translation || ""),
     summary: String(data.summary || ""),
+    brief,
     lines,
     assumptions: (Array.isArray(data.assumptions) ? data.assumptions : []).map((s) => String(s).slice(0, 300)),
     exclusions: (Array.isArray(data.exclusions) ? data.exclusions : []).map((s) => String(s).slice(0, 300)),
@@ -254,7 +274,7 @@ export async function assistBuild(user, { text, from_lang, to_lang, skus }) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model, max_tokens: 1200, system,
+        model, max_tokens: 2000, system,
         messages: [{ role: "user", content: "CONVERSATION:\n" + text }],
       }),
     });

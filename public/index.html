@@ -911,12 +911,12 @@ async function syncNow(force){
 
 function jobPayload(j){
   return { id:j.id, title:j.title, from:j.from, to:j.to, transcript:j.transcript, translation:j.translation,
-    summary:j.summary, assumptions:j.assumptions, exclusions:j.exclusions, lines:j.lines, upgrades:j.upgrades,
+    summary:j.summary, brief:j.brief||null, assumptions:j.assumptions, exclusions:j.exclusions, lines:j.lines, upgrades:j.upgrades,
     notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', scheduled_time:j.scheduled_time||'', address:j.address||'', customer:j.customer||'', deposit_pct:(j.deposit_pct==null?25:j.deposit_pct), tax_rate:(j.tax_rate==null?null:j.tax_rate), updated_at:j.updated_at, created_at:j.created };
 }
 function hydrate(s){
   return { id:s.id, title:s.title, created:s.created_at, updated_at:s.updated_at, from:s.from, to:s.to,
-    transcript:s.transcript||'', translation:s.translation||'', summary:s.summary||'',
+    transcript:s.transcript||'', translation:s.translation||'', summary:s.summary||'', brief:s.brief||null,
     assumptions:s.assumptions||[], exclusions:s.exclusions||[], lines:s.lines||[], upgrades:s.upgrades||[],
     notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', scheduled_time:s.scheduled_time||'', address:s.address||'', customer:s.customer||'', deposit_pct:(s.deposit_pct==null?25:s.deposit_pct), tax_rate:(s.tax_rate==null?null:s.tax_rate),
     photos:(s.photos||[]).map(p=>({id:p.id, url:p.url, showOnBid:!!p.showOnBid})), _dirty:false };
@@ -1581,6 +1581,7 @@ function makeLocalJob(f, data){
     transcript:f.text,
     translation:data?data.translation||'':'',
     summary:data?data.summary||'':'',
+    brief:(data&&data.brief)?data.brief:null,
     lines:(data&&Array.isArray(data.lines)?data.lines:[]).slice(0,12).map(l=>({
       id:uid(),section:String(l.section||'').slice(0,80),desc:String(l.desc||'').slice(0,120),
       type:(['hourly','unit'].includes(l.type)?l.type:'fixed'),
@@ -1615,6 +1616,7 @@ async function rebuildWithAI(id, btn){
     const data = await api('/api/assist/build',{ method:'POST', body:JSON.stringify({ text, from_lang:j.from, to_lang:j.to }) });
     j.translation = data.translation || j.translation || '';
     j.summary = data.summary || '';
+    j.brief = data.brief || null;
     j.lines = (Array.isArray(data.lines)?data.lines:[]).slice(0,12).map(l=>({
       id:uid(), section:String(l.section||'').slice(0,80), desc:String(l.desc||'').slice(0,120),
       type:(['hourly','unit'].includes(l.type)?l.type:'fixed'),
@@ -1685,9 +1687,29 @@ function viewJob(){
 }
 function setTab(t){ state.bidTab=t; render(); window.scrollTo(0,0); }
 
+// Structured "speech-to-estimate" read-back: what the AI heard, organized for the
+// contractor to confirm at a glance. Contractor-only — never on the client proposal.
+function briefCard(j){
+  const b=j.brief; if(!b) return '';
+  const cell=(label,inner)=>`<div style="display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line)"><div style="flex:0 0 116px;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;padding-top:1px">${label}</div><div style="flex:1;color:var(--text)">${inner}</div></div>`;
+  const row=(label,val)=> (val&&String(val).trim()) ? cell(label, esc(String(val))) : '';
+  const list=(label,arr)=> (Array.isArray(arr)&&arr.length) ? cell(label, arr.map(x=>esc(String(x))).join('<br>')) : '';
+  const body = row('Project', b.project_type)
+    + list('Scope', b.scope)
+    + list('Materials', b.materials)
+    + list('Customer supplies', b.customer_supplied)
+    + row('Timeline', b.timeline)
+    + row('Budget', b.budget)
+    + row('Labor', b.labor);
+  if(!body) return '';
+  return `<div class="nb-sec"><h3>Job summary<span class="machine-tag">AI</span></h3>
+    <div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface2)">${body}</div>
+    <div class="hint">What we heard from your conversation, organized. Review it, then build or send the bid.</div></div>`;
+}
 function tabNotebook(j){
   const sec=(label,html)=>`<div class="nb-sec"><h3>${label}</h3>${html}</div>`;
   let out='';
+  out+=briefCard(j);
   out+=sec('What you captured · '+(LANGS[j.from]||j.from),
     `<textarea class="editarea" oninput="updJob('transcript',this.value)" placeholder="Captured conversation…">${esc(j.transcript)}</textarea>
      <button class="btn full" style="margin-top:10px" onclick="rebuildWithAI('${j.id}',this)">🪄 Build the bid from this text</button>

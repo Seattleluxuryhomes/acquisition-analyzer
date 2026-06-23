@@ -22,6 +22,7 @@ function rowToJob(row) {
     transcript: row.transcript,
     translation: row.translation,
     summary: row.summary,
+    brief: J(row.brief, null),
     assumptions: J(row.assumptions, []),
     exclusions: J(row.exclusions, []),
     lines: J(row.lines, []),
@@ -61,6 +62,22 @@ function cleanUpgrade(u) {
 }
 const cleanStrings = (a) => (Array.isArray(a) ? a.map((s) => String(s).slice(0, 300)) : []);
 
+// AI structured job summary (contractor-only). Stored as a JSON column; whitelist
+// the fields so nothing unexpected lands in the db.
+function cleanBrief(b) {
+  if (!b || typeof b !== "object") return null;
+  const list = (a) => (Array.isArray(a) ? a.map((s) => String(s).slice(0, 160)).filter(Boolean).slice(0, 8) : []);
+  return {
+    project_type: String(b.project_type || "").slice(0, 120),
+    scope: list(b.scope),
+    materials: list(b.materials),
+    customer_supplied: list(b.customer_supplied),
+    timeline: String(b.timeline || "").slice(0, 160),
+    budget: String(b.budget || "").slice(0, 160),
+    labor: String(b.labor || "").slice(0, 200),
+  };
+}
+
 export function listJobs(userId) {
   const rows = db.prepare("SELECT * FROM job WHERE user_id=? ORDER BY updated_at DESC").all(userId);
   return rows.map(rowToJob);
@@ -78,13 +95,14 @@ export function createJob(userId, data = {}) {
   const now = Date.now();
   const createdAt = Number(data.created_at) || now;
   db.prepare(`INSERT INTO job
-    (id, user_id, title, from_lang, to_lang, transcript, translation, summary,
+    (id, user_id, title, from_lang, to_lang, transcript, translation, summary, brief,
      assumptions, exclusions, lines, upgrades, notes, margin, status, scheduled_date, scheduled_time, address, customer, deposit_pct, tax_rate, sent_at, created_at, updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
     id, userId,
     String(data.title || "Untitled job"),
     String(data.from || "es"), String(data.to || "en"),
     String(data.transcript || ""), String(data.translation || ""), String(data.summary || ""),
+    JSON.stringify(cleanBrief(data.brief)),
     JSON.stringify(cleanStrings(data.assumptions)),
     JSON.stringify(cleanStrings(data.exclusions)),
     JSON.stringify((Array.isArray(data.lines) ? data.lines : []).map(cleanLine)),
@@ -110,6 +128,7 @@ const FIELD_MAP = {
   transcript: (v) => String(v),
   translation: (v) => String(v),
   summary: (v) => String(v),
+  brief: (v) => JSON.stringify(cleanBrief(v)),
   notes: (v) => String(v),
   margin: (v) => Number(v) || 0,
   status: (v) => normStatus(v),
@@ -125,7 +144,7 @@ const FIELD_MAP = {
   upgrades: (v) => JSON.stringify((Array.isArray(v) ? v : []).map(cleanUpgrade)),
 };
 const COLUMN = { title: "title", from: "from_lang", to: "to_lang", transcript: "transcript",
-  translation: "translation", summary: "summary", notes: "notes", margin: "margin", status: "status",
+  translation: "translation", summary: "summary", brief: "brief", notes: "notes", margin: "margin", status: "status",
   scheduled_date: "scheduled_date", scheduled_time: "scheduled_time", address: "address", customer: "customer", deposit_pct: "deposit_pct", tax_rate: "tax_rate",
   assumptions: "assumptions", exclusions: "exclusions", lines: "lines", upgrades: "upgrades" };
 

@@ -211,6 +211,7 @@ ensureColumns("job", [
   ["customer", "TEXT"],         // who the proposal is FOR (shown on the bid + PDF)
   ["deposit_pct", "INTEGER"],   // deposit to collect on acceptance, % of total (default 25)
   ["tax_rate", "REAL"],         // sales tax % for this job; defaults from the contractor, 0 = none
+  ["brief", "TEXT"],            // AI structured job summary (contractor-only; never on the client proposal)
 ]);
 
 export default db;
