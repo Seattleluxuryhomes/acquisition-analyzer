@@ -2173,11 +2173,21 @@ function toggleMic(){
       if(r.isFinal) finalText+=r[0].transcript+' '; else interim=r[0].transcript;
     }
     const ta=document.getElementById('capText');
-    if(ta) ta.value=[dictBase, (finalText+interim).trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
+    if(ta){
+      ta.value=[dictBase, (finalText+interim).trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
+      // Keep the newest words visible while talking: grow the box a little, then
+      // pin it to the bottom so dictation never scrolls out of sight.
+      ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight, 300)+'px';
+      ta.scrollTop=ta.scrollHeight;
+    }
   };
   rec.onend=()=>{ recording=false; updateMic(); };
   rec.onerror=()=>{ recording=false; updateMic(); };
-  try{ rec.start(); recording=true; updateMic(); }catch(e){ recording=false; updateMic(); }
+  try{
+    rec.start(); recording=true; updateMic();
+    // Bring the conversation box into view so the live text is on screen as they speak.
+    if(ta0) setTimeout(()=>{ try{ ta0.scrollIntoView({behavior:'smooth', block:'center'}); }catch(_){} }, 80);
+  }catch(e){ recording=false; updateMic(); }
 }
 
 /* ---------- photos (offline-capable: queued locally, uploaded on sync) ---------- */
