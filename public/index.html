@@ -47,6 +47,17 @@
   .icon-btn .ni{display:none}
   .setupnudge{display:block;width:100%;text-align:left;background:rgba(207,127,24,.14);border:1px solid var(--amber);color:#f0d8af;border-radius:10px;padding:13px 15px;font-size:.9rem;margin:0 0 14px;cursor:pointer;line-height:1.4}
   .setupnudge .nudge-go{color:var(--amber);font-weight:700;white-space:nowrap}
+  /* notifications: bell badge + dashboard "good news" banner */
+  .icon-btn.bell{position:relative}
+  .icon-btn .badge{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:var(--rust);color:#fff;font-size:.6rem;font-weight:700;line-height:16px;text-align:center;font-family:system-ui}
+  .newsbanner{background:rgba(62,125,90,.14);border:1px solid #3e7d5a;border-radius:11px;padding:11px 14px;margin:0 0 14px}
+  .news-h{font-family:"IBM Plex Mono";font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#7fd6a3;margin-bottom:6px}
+  .news-count{color:#fff;background:#3e7d5a;border-radius:8px;padding:1px 7px;font-size:.64rem}
+  .news-item{display:block;width:100%;text-align:left;background:transparent;border:none;border-top:1px solid rgba(126,214,163,.18);padding:9px 2px;cursor:pointer}
+  .news-item:first-of-type{border-top:none}
+  .news-t{font-size:.95rem;color:var(--paper)}
+  .news-item.unread .news-t::after{content:'NEW';margin-left:8px;background:var(--amber);color:var(--ink);border-radius:5px;padding:1px 5px;font-size:.58rem;font-weight:700;vertical-align:middle;font-family:"IBM Plex Mono"}
+  .news-s{font-size:.76rem;color:var(--muted);margin-top:2px}
 
   /* sync + offline status */
   .sync{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.04em;color:var(--muted);padding:5px 9px;border:1px solid var(--line);border-radius:6px}
@@ -348,6 +359,7 @@
       <div class="top-actions">
         <button class="trial-chip" id="trialChip" style="display:none" onclick="go('paywall')"></button>
         <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
+        <button class="icon-btn bell" id="navBell" onclick="openNotifs()" style="display:none" title="What's new"><span class="ni">🔔</span><span class="nl">🔔</span><span class="badge" id="notifBadge" style="display:none"></span></button>
         <button class="icon-btn" id="navJobs" onclick="go('home')"><span class="ni">🏠</span><span class="nl">Dashboard</span></button>
         <button class="icon-btn" id="navSched" onclick="go('schedule')"><span class="ni">📅</span><span class="nl">Schedule</span></button>
         <button class="icon-btn" id="navAdmin" onclick="go('admin')" style="display:none"><span class="ni">📊</span><span class="nl">Founder</span></button>
@@ -413,6 +425,48 @@ let ADMIN = false; // founder dashboard access (server decides via BT_ADMIN_EMAI
 // Fire-and-forget client event; analytics must never block or break the UI.
 function track(ev, props){ if(!TOKEN || !online || !ev) return; try{ api('/api/track',{method:'POST',body:JSON.stringify({event:ev,props:props||{}})}).catch(()=>{}); }catch(e){} }
 async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/api/me'); ADMIN=!!r.admin; }catch(e){} }
+
+/* ============ notifications ("good news": a client accepted or paid) ============ */
+let NOTIFS = JSON.parse(localStorage.getItem('bt_notifs')||'null') || {items:[], unread:0};
+async function loadNotifications(){
+  if(!TOKEN || !online) return;
+  try{
+    const r = await api('/api/notifications');
+    NOTIFS = { items: r.items||[], unread: r.unread||0 };
+    localStorage.setItem('bt_notifs', JSON.stringify(NOTIFS));
+    paintBell();
+  }catch(e){}
+}
+function paintBell(){
+  const bell=document.getElementById('navBell'); if(!bell) return;
+  const n=(NOTIFS&&NOTIFS.items&&NOTIFS.items.length)||0;
+  bell.style.display = n ? '' : 'none';
+  const badge=document.getElementById('notifBadge');
+  if(badge){ const u=(NOTIFS&&NOTIFS.unread)||0; badge.textContent=u>9?'9+':String(u); badge.style.display=u?'':'none'; }
+}
+// Clear the unread badge (server-side marker + local). Banner stays this session.
+async function markNotifsSeen(){
+  if(!NOTIFS || !NOTIFS.unread) return;
+  NOTIFS.unread=0; NOTIFS.items=(NOTIFS.items||[]).map(i=>({...i,unread:false}));
+  localStorage.setItem('bt_notifs', JSON.stringify(NOTIFS)); paintBell();
+  if(TOKEN && online){ try{ await api('/api/notifications/seen',{method:'POST'}); }catch(e){} }
+}
+function openNotifs(){ go('home'); }
+// The "good news" banner on the dashboard.
+function notifBanner(){
+  const items=(NOTIFS&&NOTIFS.items)||[]; if(!items.length) return '';
+  const row=(i)=>{
+    const who=(i.customer||'').trim()||'Your client';
+    const msg=i.type==='paid'
+      ? `💰 <b>${esc(who)}</b> paid a ${money(i.amount||0)} deposit`
+      : `✅ <b>${esc(who)}</b> accepted your proposal`;
+    const sub=`${i.jobTitle?esc(i.jobTitle)+' · ':''}${timeAgo(i.at)}`;
+    const click=i.jobId?`onclick="go('job','${i.jobId}')"`:'';
+    return `<button class="news-item ${i.unread?'unread':''}" ${click}><div class="news-t">${msg}</div><div class="news-s">${sub}</div></button>`;
+  };
+  return `<div class="newsbanner"><div class="news-h">🎉 Good news${NOTIFS.unread?` · <span class="news-count">${NOTIFS.unread} new</span>`:''}</div>`
+    + items.slice(0,4).map(row).join('') + `</div>`;
+}
 
 /* ============ billing ============ */
 function entitled(){ return !BILLING || BILLING.entitled !== false; }
@@ -524,7 +578,7 @@ async function doAuth(){
     }); persistSettings(); }
     state.view='home';
     render();
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications()]);
     render();
   }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
 }
@@ -625,7 +679,9 @@ async function uploadPendingPhotos(job){
   }
 }
 
-window.addEventListener('online', ()=>{ online=true; paintSync(); syncNow(); });
+window.addEventListener('online', ()=>{ online=true; paintSync(); syncNow(); loadNotifications(); });
+// Coming back to the app is the moment to surprise them with a paid deposit.
+document.addEventListener('visibilitychange', async ()=>{ if(!document.hidden && TOKEN && online){ await loadNotifications(); if(state.view==='home') render(); } });
 window.addEventListener('offline', ()=>{ online=false; paintSync(); });
 
 /* ============ routing ============ */
@@ -661,7 +717,8 @@ function render(){
   document.getElementById('navSched').classList.toggle('active', state.view==='schedule');
   document.getElementById('navSet').classList.toggle('active', state.view==='settings');
   const navAdmin=document.getElementById('navAdmin'); if(navAdmin){ navAdmin.style.display=ADMIN?'':'none'; navAdmin.classList.toggle('active', state.view==='admin'); }
-  if(state.view==='home') v.innerHTML = viewHome();
+  paintBell();
+  if(state.view==='home'){ v.innerHTML = viewHome(); markNotifsSeen(); }
   else if(state.view==='schedule') v.innerHTML = viewSchedule();
   else if(state.view==='capture') v.innerHTML = viewCapture();
   else if(state.view==='job') v.innerHTML = viewJob();
@@ -930,8 +987,9 @@ function viewHome(){
   // First-run nudge: a bid sent before setup says "Your Company" — prompt them.
   const needsSetup = !SETTINGS.company || SETTINGS.company==='Your Company' || !SETTINGS.logo || !(SETTINGS.phone||'').trim();
   const nudge = needsSetup ? `<button class="setupnudge" onclick="go('settings')">👋 Finish your setup — add your company name, logo &amp; phone so every bid looks professional. <span class="nudge-go">Set up →</span></button>` : '';
+  const news = notifBanner();
   if(visible.length===0){
-    return hello + nudge + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
+    return hello + news + nudge + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
   }
   const f = state.jobFilter || 'all';
   const counts = { all: visible.length, draft:0, sent:0, signed:0, scheduled:0 };
@@ -943,7 +1001,7 @@ function viewHome(){
   let list;
   if(filtered.length===0){ list = `<div class="hint" style="margin-top:16px">No ${statusLabel(f).toLowerCase()} jobs yet.</div>`; }
   else { list = (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">🗺️ Tap 🧭 for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
-  return `${hello}${nudge}
+  return `${hello}${news}${nudge}
     ${kpiStrip(dashKPIs(visible))}
     ${scheduleBlock(visible)}
     <div class="newbar"><div class="sub">Your jobs · ${visible.length}</div><button class="btn sm" onclick="newJob()">+ New job</button></div>
@@ -1808,7 +1866,7 @@ function capDelPhoto(i){ CAP_PHOTOS.splice(i,1); renderCapPhotos(); }
   if(billingReturn || paymentsReturn){ history.replaceState({}, '', location.pathname); }
   render();
   if(TOKEN){
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications()]);
     // Coming back from Stripe Connect onboarding — pull the fresh account status
     // and land the contractor on Setup so they see "Ready".
     if(paymentsReturn){ await refreshPayments(); state.view='settings'; }

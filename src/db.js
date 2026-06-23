@@ -145,6 +145,9 @@ ensureColumns("user", [
   // Analytics: last sign-in + when onboarding was completed.
   ["last_login", "INTEGER"],
   ["onboarded_at", "INTEGER"],
+  // Notifications: when the contractor last cleared their "good news" inbox
+  // (customer accepted / paid). Events newer than this are "unread".
+  ["notifications_seen_at", "INTEGER"],
 ]);
 // Calendar: the date a job is scheduled for (YYYY-MM-DD), set at the Scheduled stage.
 ensureColumns("job", [

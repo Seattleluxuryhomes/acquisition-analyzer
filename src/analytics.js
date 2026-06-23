@@ -144,3 +144,40 @@ export function recentEvents(limit = 50) {
     "SELECT e.id, e.user_id, e.name, e.props, e.created_at, u.email FROM event e LEFT JOIN user u ON u.id=e.user_id ORDER BY e.id DESC LIMIT ?"
   ).all(Math.min(Number(limit) || 50, 200));
 }
+
+// ---------- Contractor notifications ("good news" inbox) ----------
+// Derived from the event log: the moments a contractor wants to know about the
+// instant they happen — a homeowner ACCEPTED a proposal, or PAID a deposit.
+// We only surface customer-driven events (a contractor moving their own status
+// doesn't notify them). Unread = newer than their notifications_seen_at marker.
+export function notifications(userId, seenAt = 0, limit = 25) {
+  if (!userId) return { items: [], unread: 0 };
+  const rows = db.prepare(
+    `SELECT id, name, props, created_at FROM event
+     WHERE user_id=? AND name IN ('deposit_paid','bid_accepted')
+     ORDER BY id DESC LIMIT ?`
+  ).all(userId, Math.min(Number(limit) || 25, 50));
+
+  const items = [];
+  for (const r of rows) {
+    let props = {};
+    try { props = JSON.parse(r.props || "{}"); } catch { /* ignore */ }
+    // A proposal acceptance only counts when the CUSTOMER did it.
+    if (r.name === "bid_accepted" && props.by !== "customer") continue;
+    let jobTitle = "", customer = "";
+    if (props.jobId) {
+      const j = db.prepare("SELECT title, customer FROM job WHERE id=?").get(props.jobId);
+      if (j) { jobTitle = j.title || ""; customer = j.customer || ""; }
+    }
+    items.push({
+      id: r.id,
+      type: r.name === "deposit_paid" ? "paid" : "accepted",
+      jobId: props.jobId || null,
+      amount: r.name === "deposit_paid" ? (Number(props.amount) || 0) : null,
+      jobTitle, customer,
+      at: r.created_at,
+      unread: r.created_at > (Number(seenAt) || 0),
+    });
+  }
+  return { items, unread: items.filter((i) => i.unread).length };
+}

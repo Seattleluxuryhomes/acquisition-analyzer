@@ -177,6 +177,16 @@ app.post("/api/track", requireAuth, wrap((req, res) => {
   res.json({ ok: true });
 }));
 
+// ---- Contractor notifications: "good news" inbox (customer accepted / paid) ----
+app.get("/api/notifications", requireAuth, (req, res) =>
+  res.json(Analytics.notifications(req.user.id, req.user.notifications_seen_at || 0)));
+// Mark everything up to now as read (called when they open the inbox).
+app.post("/api/notifications/seen", requireAuth, wrap((req, res) => {
+  const now = Date.now();
+  db.prepare("UPDATE user SET notifications_seen_at=? WHERE id=?").run(now, req.user.id);
+  res.json({ ok: true, seen_at: now });
+}));
+
 // ---- Founder / admin dashboard (gated to BT_ADMIN_EMAIL) ----
 const requireAdmin = (req, res, next) =>
   Analytics.isAdmin(req.user) ? next() : res.status(403).json({ error: "Not authorized." });
