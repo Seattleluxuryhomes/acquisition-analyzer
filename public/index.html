@@ -946,7 +946,12 @@ window.addEventListener('offline', ()=>{ online=false; paintSync(); });
 function go(v, jobId){ state.view=v; if(jobId!==undefined) state.jobId=jobId; state.error=''; render(); window.scrollTo(0,0);
   track('page_view', {view:v}); if(v==='home') track('dashboard_viewed', {});
   if(v==='job' && state.jobId && state.jobId!=='new') refreshJob(state.jobId); }
-function newJob(){ if(!entitled()){ go('paywall'); return; } CAP_PHOTOS=[]; go('capture','new'); }
+// Start a brand-new bid with an EMPTY notepad. Clears the saved draft and blanks
+// the live textarea (the render() snapshot re-reads it, so we must wipe both) — this
+// is what stops a previous conversation from bleeding into, or being appended to, a
+// new one when dictating.
+function freshCapture(){ const ta=document.getElementById('capText'); if(ta) ta.value=''; clearCapDraft(); CAP_PHOTOS=[]; }
+function newJob(){ if(!entitled()){ go('paywall'); return; } freshCapture(); go('capture','new'); }
 // "Jobs" bottom-nav tab: the dashboard is the job list — land there and bring the
 // list into view.
 function goJobs(){ go('home'); requestAnimationFrame(()=>{ const el=document.querySelector('.fchips')||document.querySelector('.newbar'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }); }
@@ -956,11 +961,11 @@ function closeMore(){ const s=document.getElementById('sheet'); if(s) s.style.di
 /* ----- Center action button: voice-first new proposal (tap), menu (long-press) ----- */
 // Tap → straight into capture with the mic already listening (the core workflow:
 // Speak → Generate → Send → Get Paid). Falls back silently if speech is unavailable.
-function fabTap(){ if(!entitled()){ go('paywall'); return; } CAP_PHOTOS=[]; go('capture','new'); if(speechSupported()){ try{ if(!recording) toggleMic(); }catch(e){} } }
+function fabTap(){ if(!entitled()){ go('paywall'); return; } freshCapture(); go('capture','new'); if(speechSupported()){ try{ if(!recording) toggleMic(); }catch(e){} } }
 function openCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='flex'; }
 function closeCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='none'; }
 function newBidVoice(){ closeCreate(); fabTap(); }
-function newBidType(){ closeCreate(); if(!entitled()){ go('paywall'); return; } CAP_PHOTOS=[]; go('capture','new'); const ta=document.getElementById('capText'); if(ta){ ta.focus(); window.scrollTo(0,0); } }
+function newBidType(){ closeCreate(); if(!entitled()){ go('paywall'); return; } freshCapture(); go('capture','new'); const ta=document.getElementById('capText'); if(ta){ ta.focus(); window.scrollTo(0,0); } }
 // Wire tap vs long-press on the static FAB once. Long-press (450ms) opens the menu;
 // a quick tap runs the voice path. Keyboard users get the tap action via Enter/Space.
 function attachFab(){
