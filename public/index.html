@@ -54,11 +54,14 @@
   /* notifications: bell badge + dashboard "good news" banner */
   .icon-btn.bell{position:relative}
   .icon-btn .badge{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:var(--rust);color:#fff;font-size:.6rem;font-weight:700;line-height:16px;text-align:center;font-family:system-ui}
-  .newsbanner{background:rgba(62,125,90,.14);border:1px solid #3e7d5a;border-radius:11px;padding:11px 14px;margin:0 0 14px}
+  .newsbanner{background:rgba(62,125,90,.14);border:1px solid #3e7d5a;border-radius:11px;padding:11px 14px;margin:0 0 14px;overflow:hidden}
+  .news-row{position:relative;border-top:1px solid rgba(126,214,163,.18);touch-action:pan-y}
+  .news-row:first-of-type{border-top:none}
+  .news-x{position:absolute;top:50%;right:0;transform:translateY(-50%);background:transparent;border:none;color:var(--muted);font-size:.82rem;padding:8px 6px;cursor:pointer;line-height:1}
+  .news-x:hover{color:var(--paper)}
   .news-h{font-family:"IBM Plex Mono";font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#7fd6a3;margin-bottom:6px}
   .news-count{color:#fff;background:#3e7d5a;border-radius:8px;padding:1px 7px;font-size:.64rem}
-  .news-item{display:block;width:100%;text-align:left;background:transparent;border:none;border-top:1px solid rgba(126,214,163,.18);padding:9px 2px;cursor:pointer}
-  .news-item:first-of-type{border-top:none}
+  .news-item{display:block;width:100%;text-align:left;background:transparent;border:none;padding:9px 30px 9px 2px;cursor:pointer}
   .news-t{font-size:.95rem;color:var(--paper)}
   .news-item.unread .news-t::after{content:'NEW';margin-left:8px;background:var(--amber);color:var(--ink);border-radius:5px;padding:1px 5px;font-size:.58rem;font-weight:700;vertical-align:middle;font-family:"IBM Plex Mono"}
   .news-s{font-size:.76rem;color:var(--muted);margin-top:2px}
@@ -442,6 +445,7 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
 let NOTIFS = JSON.parse(localStorage.getItem('bt_notifs')||'null') || {items:[], unread:0};
+let NOTIF_DISMISSED = JSON.parse(localStorage.getItem('bt_notif_dismissed')||'[]'); // event ids the user swiped away
 async function loadNotifications(){
   if(!TOKEN || !online) return;
   try{
@@ -466,20 +470,51 @@ async function markNotifsSeen(){
   if(TOKEN && online){ try{ await api('/api/notifications/seen',{method:'POST'}); }catch(e){} }
 }
 function openNotifs(){ go('home'); }
-// The "good news" banner on the dashboard.
+// The "good news" banner on the dashboard. Each item is swipe-to-dismiss (with an
+// × for desktop); dismissed ids are remembered so they don't come back.
 function notifBanner(){
-  const items=(NOTIFS&&NOTIFS.items)||[]; if(!items.length) return '';
+  const items=((NOTIFS&&NOTIFS.items)||[]).filter(i=>!NOTIF_DISMISSED.includes(i.id));
+  if(!items.length) return '';
+  const unread=items.filter(i=>i.unread).length;
   const row=(i)=>{
     const who=(i.customer||'').trim()||'Your client';
     const msg=i.type==='paid'
       ? `💰 <b>${esc(who)}</b> paid a ${money(i.amount||0)} deposit`
       : `✅ <b>${esc(who)}</b> accepted your proposal`;
     const sub=`${i.jobTitle?esc(i.jobTitle)+' · ':''}${timeAgo(i.at)}`;
-    const click=i.jobId?`onclick="go('job','${i.jobId}')"`:'';
-    return `<button class="news-item ${i.unread?'unread':''}" ${click}><div class="news-t">${msg}</div><div class="news-s">${sub}</div></button>`;
+    const nav=i.jobId?`if(this.closest('.news-row')._sw)return; go('job','${i.jobId}')`:'';
+    return `<div class="news-row" ontouchstart="nTouch(event,this)" ontouchmove="nTouch(event,this)" ontouchend="nTouch(event,this,${i.id})" ontouchcancel="nTouch(event,this,${i.id})">
+      <button class="news-item ${i.unread?'unread':''}" onclick="${nav}"><div class="news-t">${msg}</div><div class="news-s">${sub}</div></button>
+      <button class="news-x" onclick="event.stopPropagation();dismissNotif(${i.id})" title="Dismiss" aria-label="Dismiss">✕</button>
+    </div>`;
   };
-  return `<div class="newsbanner"><div class="news-h">🎉 Good news${NOTIFS.unread?` · <span class="news-count">${NOTIFS.unread} new</span>`:''}</div>`
+  return `<div class="newsbanner"><div class="news-h">🎉 Good news${unread?` · <span class="news-count">${unread} new</span>`:''}</div>`
     + items.slice(0,4).map(row).join('') + `</div>`;
+}
+function dismissNotif(id){
+  if(!NOTIF_DISMISSED.includes(id)) NOTIF_DISMISSED.push(id);
+  if(NOTIF_DISMISSED.length>300) NOTIF_DISMISSED=NOTIF_DISMISSED.slice(-300);
+  localStorage.setItem('bt_notif_dismissed', JSON.stringify(NOTIF_DISMISSED));
+  render();
+}
+// Swipe-to-dismiss for a news row. One handler for start/move/end via event.type.
+function nTouch(e, el, id){
+  if(e.type==='touchstart'){ el._x0=e.touches[0].clientX; el._dx=0; el._sw=false; el.style.transition='none'; }
+  else if(e.type==='touchmove'){
+    if(el._x0==null) return;
+    el._dx=e.touches[0].clientX-el._x0;
+    if(Math.abs(el._dx)>6) el._sw=true;
+    el.style.transform='translateX('+el._dx+'px)';
+    el.style.opacity=String(Math.max(.15, 1-Math.abs(el._dx)/220));
+  } else { // touchend / touchcancel
+    el.style.transition='transform .2s ease, opacity .2s ease';
+    if(Math.abs(el._dx||0)>80){
+      el.style.transform='translateX('+(el._dx>0?500:-500)+'px)'; el.style.opacity='0';
+      setTimeout(()=>dismissNotif(id),190);
+    } else { el.style.transform=''; el.style.opacity=''; }
+    el._x0=null;
+    setTimeout(()=>{ el._sw=false; }, 60); // let the click handler see the swipe, then clear
+  }
 }
 
 /* ============ billing ============ */
