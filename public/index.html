@@ -373,9 +373,13 @@
   }
 
   .cap-tools{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
-  .mic{display:inline-flex;align-items:center;gap:9px;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:11px 16px;font-family:"IBM Plex Mono";font-size:.84rem}
+  .mic{display:inline-flex;align-items:center;gap:9px;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:12px 18px;font-family:"IBM Plex Mono";font-size:.84rem}
   .mic:hover{border-color:var(--amber);color:var(--amber)}
-  .mic.rec{background:var(--rust);border-color:var(--rust);color:#fff}
+  /* Press-to-talk: a held button, not a tap toggle. Kill text selection, the
+     tap highlight, and any touch-scroll so a hold stays a clean hold. */
+  .mic.ptt{cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent;transition:transform .07s ease,background .15s,border-color .15s,color .15s}
+  .mic.ptt:active{transform:scale(.97);border-color:var(--amber);color:var(--amber)}
+  .mic.rec,.mic.ptt.rec:active{background:var(--rust);border-color:var(--rust);color:#fff}
   .mic .dot{width:9px;height:9px;border-radius:50%;background:currentColor}
   .mic.rec .dot{animation:pulse 1s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
@@ -963,7 +967,7 @@ function closeMore(){ const s=document.getElementById('sheet'); if(s) s.style.di
 /* ----- Center action button: voice-first new proposal (tap), menu (long-press) ----- */
 // Tap → straight into capture with the mic already listening (the core workflow:
 // Speak → Generate → Send → Get Paid). Falls back silently if speech is unavailable.
-function fabTap(){ if(!entitled()){ go('paywall'); return; } freshCapture(); go('capture','new'); if(speechSupported()){ try{ if(!recording) toggleMic(); }catch(e){} } }
+function fabTap(){ if(!entitled()){ go('paywall'); return; } freshCapture(); go('capture','new'); }
 function openCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='flex'; }
 function closeCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='none'; }
 function newBidVoice(){ closeCreate(); fabTap(); }
@@ -1535,7 +1539,7 @@ function viewCapture(){
     <textarea id="capText" class="input" oninput="capDraft('text',this.value)" placeholder="Describe the job the way you'd say it on site…">${esc(CAP_DRAFT.text||'')}</textarea>
     <div class="cap-tools">
       ${speechSupported()
-        ? `<button class="mic" id="micBtn" onclick="toggleMic()"><span class="dot"></span><span class="lbl">Dictate</span></button><span class="mic-note">${useWhisper()?'Speak — we transcribe it for you.':'Speak — it types for you.'}</span>`
+        ? `<button type="button" class="mic ptt" id="micBtn" onpointerdown="micPressStart(event)" oncontextmenu="return false"><span class="dot"></span><span class="lbl">Hold to talk</span></button><span class="mic-note">${useWhisper()?'Hold &amp; speak — release to add it.':'Hold &amp; speak — it types as you go.'}</span>`
         : `<span class="mic-note">Voice isn't available on this device — type or paste instead.</span>`}
     </div>
 
@@ -2423,31 +2427,36 @@ function recordSupported(){ return !!(navigator.mediaDevices && navigator.mediaD
 function useWhisper(){ return recordSupported() && AI_TRANSCRIBE; } // primary path when configured
 function speechSupported(){ return useWhisper() || liveSpeechSupported(); }
 function updateMic(){ const b=document.getElementById('micBtn'); if(!b)return; b.classList.toggle('rec',recording);
-  const l=b.querySelector('.lbl'); if(l) l.textContent = micState==='transcribing'?'Transcribing…' : recording?'Recording… tap to stop' : 'Dictate'; }
+  const l=b.querySelector('.lbl'); if(l) l.textContent = micState==='transcribing'?'Transcribing…' : recording?'Listening… release to send' : 'Hold to talk'; }
 
 /* ---- Record → server transcription (universal voice, incl. iPhone) ---- */
 let mediaRec=null, mediaChunks=[], mediaStream=null, micState='idle';
 function pickAudioMime(){ const c=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg']; for(const m of c){ if(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m)) return m; } return ''; }
-async function toggleRecord(){
-  if(recording){ // stop
-    recording=false; micState='transcribing'; updateMic();
-    try{ mediaRec&&mediaRec.state!=='inactive'&&mediaRec.stop(); }catch(e){}
-    return;
-  }
+let recBusy=false;   // a record session is mid-setup or running
+let recAbort=false;  // released before getUserMedia resolved → stop the moment it starts
+let recTimer=null;   // safety auto-stop so a stuck press can't record forever
+function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
+
+// Begin a recording (Whisper path). Robust to a release landing before the mic
+// permission resolves — recAbort makes us stop the instant capture is live.
+async function startRecord(){
+  if(recording||recBusy) return;
   if(!online||!TOKEN){ toast('Connect to the internet to dictate.','warn'); return; }
+  recBusy=true; recAbort=false;
   let stream;
   try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
-  catch(e){ toast('Allow microphone access to dictate.','warn',5000); return; }
+  catch(e){ recBusy=false; toast('Allow microphone access to dictate.','warn',5000); return; }
   mediaStream=stream; mediaChunks=[];
   const mime=pickAudioMime();
   try{ mediaRec=new MediaRecorder(stream, mime?{mimeType:mime}:undefined); }
-  catch(e){ try{ mediaRec=new MediaRecorder(stream); }catch(_){ toast('Recording isn’t supported here.','warn'); stream.getTracks().forEach(t=>t.stop()); return; } }
+  catch(e){ try{ mediaRec=new MediaRecorder(stream); }catch(_){ recBusy=false; stream.getTracks().forEach(t=>t.stop()); toast('Recording isn’t supported here.','warn'); return; } }
   mediaRec.ondataavailable=(ev)=>{ if(ev.data&&ev.data.size) mediaChunks.push(ev.data); };
   mediaRec.onstop=async ()=>{
+    if(recTimer){ clearTimeout(recTimer); recTimer=null; }
     try{ mediaStream&&mediaStream.getTracks().forEach(t=>t.stop()); }catch(e){}
     const blob=new Blob(mediaChunks,{type:(mediaRec&&mediaRec.mimeType)||'audio/webm'});
-    micState='idle';
-    if(blob.size<800){ updateMic(); return; }
+    recBusy=false; micState='idle';
+    if(blob.size<900){ updateMic(); toast('Hold the mic while you talk, then let go.','warn'); return; }
     const dataUrl=await new Promise((res)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(blob); });
     try{
       const sel=document.getElementById('capFrom');
@@ -2456,22 +2465,44 @@ async function toggleRecord(){
       if(ta && (r.text||'').trim()){
         ta.value=[ta.value.trim(), r.text.trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
         capDraft('text', ta.value); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px'; ta.scrollTop=ta.scrollHeight;
-      } else if(!(r.text||'').trim()) toast('Didn’t catch that — try again.','warn');
+        buzz(12);
+      } else if(!(r.text||'').trim()) toast('Didn’t catch that — hold and speak clearly.','warn');
     }catch(e){ if(e.status===402){ gate402(e); } else toast(e.message||'Could not transcribe.','bad',5000); }
     updateMic();
   };
   mediaRec.start();
-  recording=true; micState='recording'; updateMic();
+  recording=true; micState='recording'; updateMic(); buzz(18);
+  recTimer=setTimeout(()=>{ if(recording){ toast('That was a long one — sending it now.','warn'); stopRecord(); } }, 60000);
   const ta0=document.getElementById('capText'); if(ta0) setTimeout(()=>{ try{ const rr=ta0.getBoundingClientRect(); window.scrollTo({top:Math.max(0,window.scrollY+rr.top-104),behavior:'smooth'}); }catch(_){} },90);
+  if(recAbort) stopRecord(); // they let go during setup
 }
-// Router: Whisper (record→transcribe) is preferred everywhere; live speech is the
-// fallback only when the server can't transcribe.
-function toggleMic(){
-  if(useWhisper()) return toggleRecord();
-  if(liveSpeechSupported()) return toggleLiveSpeech();
+function stopRecord(){
+  if(!recording){ recAbort=true; return; } // not live yet → abort as soon as it is
+  recording=false; micState='transcribing'; updateMic();
+  try{ mediaRec&&mediaRec.state!=='inactive'&&mediaRec.stop(); }catch(e){}
 }
-function toggleLiveSpeech(){
-  if(recording){ micWanted=false; if(rec){ try{ rec.stop(); }catch(e){} } recording=false; updateMic(); return; }
+
+// Press-to-talk. Hold the mic to record, release to send. Release is bound on the
+// document (capture phase) so letting go ALWAYS stops — even if a finger slides off
+// the button or a background re-render swaps it mid-hold.
+function micPressStart(ev){
+  if(ev){ if(ev.pointerType==='mouse' && ev.button!==0) return; if(ev.cancelable) ev.preventDefault(); }
+  if(recording||recBusy) return;
+  document.addEventListener('pointerup', micPressEnd, true);
+  document.addEventListener('pointercancel', micPressEnd, true);
+  if(useWhisper()) startRecord();
+  else if(liveSpeechSupported()) startLiveSpeech();
+}
+function micPressEnd(ev){
+  document.removeEventListener('pointerup', micPressEnd, true);
+  document.removeEventListener('pointercancel', micPressEnd, true);
+  if(useWhisper()) stopRecord();
+  else if(liveSpeechSupported()){ micWanted=false; if(recording){ if(rec){ try{ rec.stop(); }catch(e){} } recording=false; updateMic(); } }
+}
+// Live-speech fallback (only when the server has no Whisper key). Press-to-talk:
+// micPressStart begins it, micPressEnd stops it.
+function startLiveSpeech(){
+  if(recording) return;
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   rec=new SR();
   const sel=document.getElementById('capFrom');
