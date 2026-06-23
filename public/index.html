@@ -367,6 +367,10 @@
   .toast.bad{border-left:4px solid var(--rust)}
   @keyframes toastin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
   .flash{outline:2px solid var(--amber)!important;outline-offset:1px;border-radius:8px;transition:outline .2s}
+  .jcard-next{font-size:.8rem;font-weight:700;margin-top:5px;color:var(--amber)}
+  .jcard-next.signed{color:#6fce93}
+  .jcard-next.scheduled{color:#7fb0d6}
+  .jcard-next.sent{color:var(--muted)}
   @media print{
     body{background:#fff}
     .app,.top,main{all:unset}
@@ -1020,9 +1024,21 @@ function applyTemplate(trade){
   touch(j); saveJobs(); render();
 }
 
+// The single most useful next step for a job, by stage — turns the dashboard into
+// a to-do list and opens the card straight to the tab where that step happens.
+function nextAction(j){
+  const s = jobStatus(j);
+  if(s==='draft')     return { label:'Finish & send', tab:'build' };
+  if(s==='sent')      return { label:'Awaiting client · resend', tab:'client' };
+  if(s==='signed')    return { label:'Collect deposit', tab:'client' };
+  if(s==='scheduled') return { label:(j.scheduled_date?('Scheduled '+fmtDate(j.scheduled_date)):'Set a date'), tab:'notebook' };
+  return { label:'Open', tab:'build' };
+}
+function openJobTab(id, tab){ if(tab) state.bidTab=tab; go('job', id); }
 function jobCardHTML(j){
   const total = bidPrice(j);
   const s = jobStatus(j);
+  const na = nextAction(j);
   const pend = j._dirty ? `<span class="pendtag">unsynced</span>` : '';
   const ph = (j.photos && j.photos[0]) ? (j.photos[0].url || j.photos[0].dataUrl) : '';
   const loc = jobLocation(j);
@@ -1030,18 +1046,19 @@ function jobCardHTML(j){
   const explicitAddr = (j.address||'').trim();
   const created = j.created ? new Date(j.created).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
   return `<div class="jcard">
-    <button class="jcard-main" onclick="go('job','${j.id}')">
+    <button class="jcard-main" onclick="openJobTab('${j.id}','${na.tab}')">
       ${ph?`<div class="jcard-photo" style="background-image:url('${ph}')"></div>`:`<div class="jcard-photo noimg">🏠</div>`}
       <div class="jcard-info">
         <div class="jcard-top"><span class="jt">${esc(j.title)||'Untitled job'}</span><span class="sbadge ${s}">${statusLabel(s)}</span></div>
         <div class="jcard-val">${money(total)}</div>
         <div class="jcard-meta">${explicitAddr?`📍 ${esc(explicitAddr)}`:(loc?'':`<span class="dim">No address yet</span>`)}</div>
-        <div class="jcard-meta dim">${created?created+' · ':''}${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to} · ${(j.lines||[]).length} lines${s==='scheduled'&&j.scheduled_date?` · 📅 ${fmtDate(j.scheduled_date)}${j.scheduled_time?' '+fmtTime(j.scheduled_time):''}`:''}${pend}</div>
+        <div class="jcard-next ${s}">→ ${esc(na.label)}</div>
+        <div class="jcard-meta dim">${created?created+' · ':''}${(j.lines||[]).length} lines${s==='scheduled'&&j.scheduled_date?` · 📅 ${fmtDate(j.scheduled_date)}${j.scheduled_time?' '+fmtTime(j.scheduled_time):''}`:''}${pend}</div>
       </div>
     </button>
     <div class="jcard-actions">
       ${m?`<a class="qa" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a><a class="qa" href="${m.map}" target="_blank" rel="noopener" title="Map">📍</a>`:''}
-      <button class="qa" onclick="go('job','${j.id}')" title="Open">→</button>
+      <button class="qa" onclick="openJobTab('${j.id}','${na.tab}')" title="Open">→</button>
     </div>
   </div>`;
 }

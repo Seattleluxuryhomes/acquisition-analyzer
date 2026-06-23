@@ -76,7 +76,14 @@ app.post("/api/billing/webhook", express.raw({ type: "*/*", limit: "1mb" }), asy
 const smallJson = express.json({ limit: "256kb" });
 const isPhotoUpload = (req) => req.method === "POST" && /^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path);
 app.use((req, res, next) => (isPhotoUpload(req) ? next() : smallJson(req, res, next)));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), {
+  // Cache static images/icons hard (they're versioned by deploy); keep the app
+  // shell (index.html) revalidating so a deploy is picked up immediately.
+  setHeaders(res, filePath) {
+    if (/\.(png|jpg|jpeg|svg|ico|webp|woff2?)$/i.test(filePath)) res.setHeader("Cache-Control", "public, max-age=86400");
+    else if (/\.html?$/i.test(filePath)) res.setHeader("Cache-Control", "no-cache");
+  },
+}));
 
 const baseUrl = (req) =>
   (process.env.BT_PUBLIC_URL ||
