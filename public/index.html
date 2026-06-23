@@ -1539,6 +1539,10 @@ function viewCapture(){
 
     <div class="hint">Tip: include what they want, anything they'll supply, and any deadline. Capture works offline — you can build the draft later.</div>
 
+    ${state.error?`<div class="err" style="margin-top:14px">${esc(state.error)}</div>`:''}
+    <button class="btn full" style="margin-top:14px" onclick="buildFromConversation()">Build the bid draft →</button>
+    <div class="hint" style="text-align:center;margin-top:8px">or <a href="#" onclick="buildManual();return false;" style="color:var(--amber)">build it by hand</a> · <a href="#" onclick="loadSample();return false;" style="color:var(--amber)">load a sample</a></div>
+
     <label class="fld">Photos (optional)</label>
     <div class="photogrid" id="capPhotoGrid">${capPhotoThumbs()}</div>
     <input id="capPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="capHandlePhotos(this)"/>
@@ -1547,14 +1551,7 @@ function viewCapture(){
     <div class="consent">
       <label><input type="checkbox" id="capConsent"/> <span>When my area requires it, I'll let the other person know the conversation is being captured.</span></label>
       <div class="consent-fine">Placeholder wording — not legal advice. Final consent terms to be reviewed before launch.</div>
-    </div>
-    ${state.error?`<div class="err">${esc(state.error)}</div>`:''}
-
-    <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn" onclick="buildFromConversation()">Build the bid draft →</button>
-      <button class="btn ghost" onclick="buildManual()">Skip — build manually</button>
-    </div>
-    <div class="hint" style="margin-top:14px">Or <a href="#" onclick="loadSample();return false;" style="color:var(--amber)">load a sample conversation</a> to see it work.</div>`;
+    </div>`;
 }
 function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join(''); }
 
