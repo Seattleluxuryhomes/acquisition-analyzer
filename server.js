@@ -287,7 +287,7 @@ app.post("/api/interest", requireAuth, wrap((req, res) => {
 
 // ---- Jobs ----
 app.get("/api/jobs", requireAuth, (req, res) => res.json({ jobs: Jobs.listJobs(req.user.id) }));
-app.post("/api/jobs", requireAuth, Billing.requireEntitled, wrap((req, res) => {
+app.post("/api/jobs", requireAuth, wrap((req, res) => {
   const job = Jobs.createJob(req.user.id, req.body || {});
   track(req.user.id, "lead_created", { jobId: job.id });
   if ((job.lines || []).length) track(req.user.id, "bid_created", { jobId: job.id, lines: job.lines.length });
@@ -531,7 +531,7 @@ app.post("/api/inbound/leads", wrap((req, res) => {
 }));
 
 // ---- Share a bid: a clean public link the contractor texts/emails ----
-app.get("/api/jobs/:id/share", requireAuth, Billing.requireEntitled, wrap((req, res) => {
+app.get("/api/jobs/:id/share", requireAuth, wrap((req, res) => {
   const job = Jobs.getJob(req.user.id, req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found." });
   track(req.user.id, "bid_sent", { jobId: job.id, via: "share" });
@@ -662,7 +662,7 @@ app.post("/p/:id/accept-and-pay", wrap(async (req, res) => {
 }));
 
 // ---- Client proposal PDF (margin/notes stripped by buildProposal) ----
-app.get("/api/jobs/:id/pdf", requireAuth, Billing.requireEntitled, wrap((req, res) => {
+app.get("/api/jobs/:id/pdf", requireAuth, wrap((req, res) => {
   const job = Jobs.getJob(req.user.id, req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found." });
   const proposal = buildProposal(job, settingsOf(req.user));

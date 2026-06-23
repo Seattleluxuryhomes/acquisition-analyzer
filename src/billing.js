@@ -68,7 +68,7 @@ export function billingStatus(user) {
 export function requireEntitled(req, res, next) {
   if (isEntitled(req.user)) return next();
   res.status(402).json({
-    error: "Your free trial has ended. Subscribe to create and send new bids.",
+    error: "Your free trial has ended. Subscribe to use AI and premium features. Building and sending bids by hand stays free.",
     code: "SUBSCRIPTION_REQUIRED",
   });
 }
