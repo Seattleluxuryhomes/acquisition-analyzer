@@ -992,6 +992,12 @@ async function refreshJob(id){
 
 /* ============ render ============ */
 function render(){
+  // Snapshot the live AI-Notepad text + caret BEFORE we replace the DOM, so a
+  // background re-render (sync finishing, loadMe, etc.) can never wipe what's being
+  // typed or dictated, and the cursor doesn't jump.
+  let capFocused=false, capCaret=null;
+  const liveCap=document.getElementById('capText');
+  if(liveCap){ CAP_DRAFT.text=liveCap.value; try{ localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT)); }catch(e){} capFocused=(document.activeElement===liveCap); try{ capCaret=liveCap.selectionStart; }catch(e){} }
   const authed = !!TOKEN;
   document.getElementById('topbar').style.display = authed ? 'block' : 'none';
   document.getElementById('botnav').style.display = authed ? 'flex' : 'none';
@@ -1014,6 +1020,8 @@ function render(){
   else if(state.view==='catalog') { v.innerHTML = viewCatalog(); if(!CATALOG.loaded) loadSkus(); }
   else if(state.view==='admin') { v.innerHTML = viewAdmin(); loadAdmin(); }
   else if(state.view==='paywall') v.innerHTML = viewPaywall();
+  // If we were typing in the notepad, restore focus + caret so a re-render is invisible.
+  if(capFocused){ const t=document.getElementById('capText'); if(t){ try{ t.focus(); const p=(capCaret==null?t.value.length:Math.min(capCaret,t.value.length)); t.setSelectionRange(p,p); t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,300)+'px'; }catch(e){} } }
   paintSync();
   paintTrialChip();
 }
