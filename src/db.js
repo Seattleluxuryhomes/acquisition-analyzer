@@ -214,4 +214,13 @@ ensureColumns("job", [
   ["brief", "TEXT"],            // AI structured job summary (contractor-only; never on the client proposal)
 ]);
 
+// Self-heal a price-book (sku) table created before any of these columns existed,
+// so saving/importing SKUs never fails on a 'no column named …' error.
+ensureColumns("sku", [
+  ["sku_code", "TEXT DEFAULT ''"],
+  ["category", "TEXT DEFAULT ''"],
+  ["unit", "TEXT DEFAULT 'each'"],
+  ["unit_price", "REAL DEFAULT 0"],
+]);
+
 export default db;

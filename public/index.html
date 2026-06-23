@@ -2142,13 +2142,13 @@ async function importSkus(btn){
   const items=CATALOG.preview||[]; if(!items.length) return;
   if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
   try{ const r=await api('/api/skus/import',{method:'POST', body:JSON.stringify({items})}); CATALOG.preview=null; CATALOG.image=null; const ta=document.getElementById('skuText'); if(ta) ta.value=''; await loadSkus(); toast('✓ Added '+(r.added||0)+' to your price book','ok'); }
-  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Add to price book'; } toast('Could not save.','bad'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Add to price book'; } toast(!online?'You’re offline — connect to save to the price book.':(e.message||'Could not save.'),'bad',5000); }
 }
 async function addSkuManual(btn){
   const g=id=>((document.getElementById(id)||{}).value||'');
   const name=g('mName').trim(); if(!name){ toast('Name the SKU first.','warn'); return; }
   try{ await api('/api/skus',{method:'POST', body:JSON.stringify({ name, category:g('mCat').trim(), unit:g('mUnit'), unit_price:+g('mPrice')||0 })}); await loadSkus(); toast('✓ Added to price book','ok'); }
-  catch(e){ toast('Could not add.','bad'); }
+  catch(e){ toast(!online?'You’re offline — connect to add to the price book.':(e.message||'Could not add.'),'bad',5000); }
 }
 async function delSku(id){ if(!confirm('Remove this SKU?')) return; try{ await api('/api/skus/'+id,{method:'DELETE'}); CATALOG.skus=CATALOG.skus.filter(s=>s.id!==id); const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }catch(e){} }
 async function updSku(id,k,v){ const s=CATALOG.skus.find(x=>x.id===id); if(!s) return; s[k]=(k==='unit_price'?(+v||0):v); try{ await api('/api/skus/'+id,{method:'PATCH', body:JSON.stringify({[k]:s[k]})}); }catch(e){} }
