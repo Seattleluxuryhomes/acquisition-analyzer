@@ -10,7 +10,8 @@ import { fileURLToPath } from "node:url";
 import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser } from "./src/auth.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, aiConfigured } from "./src/assist.js";
+import { assistBuild, aiConfigured, parseSkus } from "./src/assist.js";
+import * as Skus from "./src/skus.js";
 import { buildProposal } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig } from "./src/files.js";
@@ -74,8 +75,10 @@ app.post("/api/billing/webhook", express.raw({ type: "*/*", limit: "1mb" }), asy
 // Global JSON parser, but skip the photo-upload route so its own larger limit
 // applies (otherwise this 256kb cap would reject photos before they're reached).
 const smallJson = express.json({ limit: "256kb" });
+const bigJson = express.json({ limit: "12mb" }); // price-sheet photo for SKU parsing
 const isPhotoUpload = (req) => req.method === "POST" && /^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path);
-app.use((req, res, next) => (isPhotoUpload(req) ? next() : smallJson(req, res, next)));
+const isBigJson = (req) => req.method === "POST" && req.path === "/api/skus/parse";
+app.use((req, res, next) => (isPhotoUpload(req) ? next() : (isBigJson(req) ? bigJson(req, res, next) : smallJson(req, res, next))));
 app.use(express.static(path.join(__dirname, "public"), {
   // Cache static images/icons hard (they're versioned by deploy); keep the app
   // shell (index.html) revalidating so a deploy is picked up immediately.
@@ -358,6 +361,28 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
   const { text, from_lang, to_lang } = req.body || {};
   const data = await assistBuild(req.user, { text, from_lang, to_lang });
   res.json(data);
+}));
+
+// ---- Price book (contractor's reusable SKU catalog) ----
+app.get("/api/skus", requireAuth, (req, res) => res.json({ skus: Skus.listSkus(req.user.id, req.query.q) }));
+app.post("/api/skus", requireAuth, wrap((req, res) => res.json({ sku: Skus.createSku(req.user.id, req.body || {}) })));
+app.patch("/api/skus/:id", requireAuth, wrap((req, res) => {
+  const sku = Skus.updateSku(req.user.id, req.params.id, req.body || {});
+  if (!sku) return res.status(404).json({ error: "SKU not found." });
+  res.json({ sku });
+}));
+app.delete("/api/skus/:id", requireAuth, wrap((req, res) => {
+  if (!Skus.deleteSku(req.user.id, req.params.id)) return res.status(404).json({ error: "SKU not found." });
+  res.json({ ok: true });
+}));
+// Organize an uploaded list/photo into structured SKUs (preview — not saved yet).
+app.post("/api/skus/parse", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const { text, image } = req.body || {};
+  res.json(await parseSkus(req.user, { text, image }));
+}));
+// Save the organized rows into the price book.
+app.post("/api/skus/import", requireAuth, wrap((req, res) => {
+  res.json(Skus.bulkCreate(req.user.id, (req.body && req.body.items) || []));
 }));
 
 // ---- Share a bid: a clean public link the contractor texts/emails ----

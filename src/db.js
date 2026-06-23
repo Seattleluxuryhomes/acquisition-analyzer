@@ -139,6 +139,22 @@ CREATE TABLE IF NOT EXISTS signature (
   signed_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS signature_job_idx ON signature(job_id);
+
+-- Price book: a contractor's reusable catalog of materials/labor SKUs. Uploaded
+-- (paste / CSV / photo) and organized by AI into clean rows, then dropped into
+-- bids as line items so estimating is fast and consistent.
+CREATE TABLE IF NOT EXISTS sku (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  sku_code TEXT DEFAULT '',
+  category TEXT DEFAULT '',
+  unit TEXT DEFAULT 'each',
+  unit_price REAL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS sku_user_idx ON sku(user_id);
 `);
 
 // Migrate older databases that predate the billing columns.

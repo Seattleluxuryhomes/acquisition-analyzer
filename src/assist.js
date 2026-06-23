@@ -105,6 +105,71 @@ export function aiConfigured() {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
+// ---- Price book: organize a contractor's uploaded SKUs (text/CSV or a photo) ----
+const SKU_UNITS = ["each", "sq ft", "ln ft", "sq yd", "cu yd", "ton", "gal", "hr", "box", "roll", "pallet", "board ft", "slab"];
+
+function skuSystemPrompt() {
+  return (
+    "You organize a contractor's price list into a clean catalog of SKUs. The input " +
+    "is a pasted list, a CSV, or a PHOTO of a supplier price sheet. Respond with ONLY " +
+    'valid minified JSON, no markdown, matching exactly: {"items":[{"name":string,' +
+    '"sku_code":string,"category":string,"unit":string,"unit_price":number}]}. Rules: ' +
+    "Make ONE item per priced product. If a product lists several prices in columns " +
+    "(e.g. thickness 3cm vs 2cm, or sizes), make a SEPARATE item for each priced cell and " +
+    "put that variant in the name, e.g. \"Calacatta Lithos 3cm\". Skip cells with no price " +
+    "(a dash, blank, or \"call\"). unit_price is the number in USD (no $ or commas). Infer " +
+    "\"unit\" as one of: " + SKU_UNITS.join(", ") + " (a stone/quartz slab is \"slab\"; " +
+    "flooring/tile by area is \"sq ft\"; trim is \"ln ft\"; most items are \"each\"). Set " +
+    "\"category\" to the material or product type, optionally with the supplier/brand, e.g. " +
+    "\"Quartz Slab (Lithos)\". \"sku_code\" only if a code is shown, else empty. Never invent " +
+    "prices; use exactly what's shown. Ignore surcharge/delivery/disclaimer footnotes. Return " +
+    "up to 400 items."
+  );
+}
+
+function sanitizeSkus(data) {
+  const unitSet = new Set(SKU_UNITS);
+  const items = (Array.isArray(data.items) ? data.items : Array.isArray(data) ? data : []).slice(0, 400).map((s) => {
+    const unit = String(s.unit || "each").toLowerCase().trim();
+    return {
+      name: String(s.name || "").trim().slice(0, 160),
+      sku_code: String(s.sku_code || s.code || "").trim().slice(0, 60),
+      category: String(s.category || "").trim().slice(0, 80),
+      unit: unitSet.has(unit) ? unit : "each",
+      unit_price: Math.max(0, Number(s.unit_price ?? s.price) || 0),
+    };
+  }).filter((s) => s.name);
+  return { items };
+}
+
+// Accepts { text } (paste/CSV) or { image } (a data: URL of a price-sheet photo).
+export async function parseSkus(user, { text, image }) {
+  if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
+  const hasText = !!String(text || "").trim();
+  const m = /^data:(image\/(?:png|jpe?g|webp|gif));base64,([A-Za-z0-9+/=\s]+)$/.exec(String(image || ""));
+  if (!hasText && !m) { const e = new Error("Paste a list or add a photo of your price sheet."); e.status = 400; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Too many uploads in a short window — wait a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached. You can still add SKUs by hand."); e.status = 429; throw e; }
+
+  const content = [];
+  if (m) content.push({ type: "image", source: { type: "base64", media_type: m[1], data: m[2].replace(/\s+/g, "") } });
+  content.push({ type: "text", text: hasText ? ("PRICE LIST:\n" + text) : "Organize the SKUs in this price sheet image." });
+
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 4000, system: skuSystemPrompt(), messages: [{ role: "user", content }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json();
+  const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  return sanitizeSkus(parseModelJSON(txt));
+}
+
 export async function assistBuild(user, { text, from_lang, to_lang }) {
   if (!aiConfigured()) {
     const e = new Error("AI build is not configured on the server.");
