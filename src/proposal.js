@@ -4,6 +4,7 @@
 // Bid math matches CLAUDE.md: client-furnished lines show but add $0 to the total.
 
 export function lineAmount(l) {
+  if (l.type === "unit") return (Number(l.qty) || 0) * (Number(l.rate) || 0);
   return l.type === "hourly" ? (Number(l.hours) || 0) * (Number(l.rate) || 0) : (Number(l.price) || 0);
 }
 
@@ -88,6 +89,8 @@ export function buildProposal(job, settings) {
       type: lineType(l),
       hours: l.hours || 0,
       rate: l.rate || 0,
+      qty: l.qty || 0,
+      unit: l.unit || "",
       amount: priced(lineAmount(l)),
     })),
     // Same scope, grouped by room/area with subtotals — used when the job spans
@@ -99,6 +102,8 @@ export function buildProposal(job, settings) {
             type: lineType(l),
             hours: l.hours || 0,
             rate: l.rate || 0,
+            qty: l.qty || 0,
+            unit: l.unit || "",
             amount: priced(lineAmount(l)),
           }));
           // Subtotal = sum of the priced lines, so the column always adds up.

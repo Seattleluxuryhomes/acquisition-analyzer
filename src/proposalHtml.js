@@ -4,8 +4,13 @@
 const money = (n) => "$" + Math.round(Number(n) || 0).toLocaleString("en-US");
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
+function lineDetail(l) {
+  if (l.type === "hourly") return `${l.hours || 0} hrs @ ${money(l.rate)}/hr`;
+  if (l.type === "unit") { const u = l.unit || "unit"; return `${l.qty || 0} ${u} @ ${money(l.rate)}/${u}`; }
+  return "";
+}
 function lineRow(l) {
-  const sub = l.type === "hourly" ? `${l.hours || 0} hrs @ ${money(l.rate)}/hr` : "";
+  const sub = lineDetail(l);
   return `<div class="row"><div class="d">${esc(l.desc)}${sub ? `<small>${esc(sub)}</small>` : ""}</div><div class="a">${money(l.amount)}</div></div>`;
 }
 

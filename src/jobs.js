@@ -47,10 +47,12 @@ function cleanLine(l) {
     id: String(l.id || uid()),
     section: String(l.section || "").slice(0, 80),
     desc: String(l.desc || "").slice(0, 200),
-    type: l.type === "hourly" ? "hourly" : "fixed",
+    type: ["hourly", "unit"].includes(l.type) ? l.type : "fixed",
     price: Number(l.price) || 0,
     hours: Number(l.hours) || 0,
     rate: Number(l.rate) || 0,
+    qty: Number(l.qty) || 0,
+    unit: String(l.unit || "").slice(0, 16),
     furn: l.furn === "client" ? "client" : "you",
   };
 }

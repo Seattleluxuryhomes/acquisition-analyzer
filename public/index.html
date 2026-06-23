@@ -290,7 +290,10 @@
   .cline.csub{border-bottom:none}
   .cline.csub .cd{color:#8a7f68;font-style:italic}
   .cline.csub .ca{color:#5a5240}
-  .line .lctl{display:grid;grid-template-columns:auto 1fr 1fr auto;gap:8px;align-items:center;margin-top:9px}
+  .line .lctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:9px}
+  .line .lctl>.mini{flex:1 1 70px;min-width:0}
+  .line .lctl .ltype{flex:0 0 auto;width:auto}
+  .line .lctl .lt-amt{flex:0 0 auto;margin-left:auto}
   .line select.mini,.line input.mini{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:8px 9px;font-family:"IBM Plex Mono";font-size:.8rem;width:100%}
   .line .lt-amt{text-align:right;font-family:"IBM Plex Mono";font-weight:600;color:var(--amber);white-space:nowrap;font-size:.9rem}
   .furn{display:flex;gap:6px;margin-top:9px}
@@ -349,8 +352,6 @@
 
   @media(max-width:520px){
     .row2{grid-template-columns:1fr}
-    .line .lctl{grid-template-columns:auto 1fr 1fr;}
-    .line .lt-amt{grid-column:1/-1;text-align:left;margin-top:4px}
   }
 
   .cap-tools{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
@@ -1539,8 +1540,8 @@ function makeLocalJob(f, data){
     summary:data?data.summary||'':'',
     lines:(data&&Array.isArray(data.lines)?data.lines:[]).slice(0,12).map(l=>({
       id:uid(),section:String(l.section||'').slice(0,80),desc:String(l.desc||'').slice(0,120),
-      type:(l.type==='hourly'?'hourly':'fixed'),
-      price:+l.price||0, hours:+l.hours||0, rate:+l.rate||0, furn:'you'
+      type:(['hourly','unit'].includes(l.type)?l.type:'fixed'),
+      price:+l.price||0, hours:+l.hours||0, rate:+l.rate||0, qty:+l.qty||0, unit:String(l.unit||'').slice(0,16), furn:'you'
     })),
     upgrades:(data&&Array.isArray(data.upgrades)?data.upgrades:[]).slice(0,4).map(u=>({id:uid(),desc:String(u.desc||''),price:+u.price||0})),
     assumptions:(data&&Array.isArray(data.assumptions)?data.assumptions:[]).map(String),
@@ -1573,8 +1574,8 @@ async function rebuildWithAI(id, btn){
     j.summary = data.summary || '';
     j.lines = (Array.isArray(data.lines)?data.lines:[]).slice(0,12).map(l=>({
       id:uid(), section:String(l.section||'').slice(0,80), desc:String(l.desc||'').slice(0,120),
-      type:(l.type==='hourly'?'hourly':'fixed'),
-      price:+l.price||0, hours:+l.hours||0, rate:+l.rate||0, furn:'you'
+      type:(['hourly','unit'].includes(l.type)?l.type:'fixed'),
+      price:+l.price||0, hours:+l.hours||0, rate:+l.rate||0, qty:+l.qty||0, unit:String(l.unit||'').slice(0,16), furn:'you'
     }));
     j.upgrades = (Array.isArray(data.upgrades)?data.upgrades:[]).slice(0,4).map(u=>({id:uid(),desc:String(u.desc||''),price:+u.price||0}));
     j.assumptions = (Array.isArray(data.assumptions)?data.assumptions:[]).map(String);
@@ -1674,7 +1675,9 @@ function tabNotebook(j){
   return out;
 }
 
-function lineAmt(l){ return l.type==='hourly' ? (+l.hours||0)*(+l.rate||0) : (+l.price||0); }
+function lineAmt(l){ return l.type==='unit' ? (+l.qty||0)*(+l.rate||0) : l.type==='hourly' ? (+l.hours||0)*(+l.rate||0) : (+l.price||0); }
+const UNITS=['sq ft','ln ft','sq yd','cu yd','each','ton','gal','hr'];
+function unitOpts(sel){ sel=sel||'sq ft'; return UNITS.map(u=>`<option ${u===sel?'selected':''}>${u}</option>`).join(''); }
 // bidTotal = the contractor's COST (sum of line items). bidPrice = what the client
 // pays, the cost run through the true margin. Mirror of server src/proposal.js.
 function bidTotal(j){ return (j.lines||[]).filter(l=>l.furn!=='client').reduce((s,l)=>s+lineAmt(l),0); }
@@ -1704,23 +1707,28 @@ function jobHasSections(lines){
 }
 
 function lineEditor(l){
-  const isH = l.type==='hourly';
+  const t = l.type==='hourly'?'hourly':l.type==='unit'?'unit':'fixed';
+  const ctl = t==='unit'
+    ? `<input class="mini" type="number" min="0" step="any" value="${l.qty||0}" oninput="updLine('${l.id}','qty',this.value)" placeholder="qty" title="Quantity (e.g. square feet)"/>
+       <select class="mini" onchange="updLine('${l.id}','unit',this.value)" title="Unit">${unitOpts(l.unit)}</select>
+       <input class="mini" type="number" min="0" step="any" value="${l.rate||0}" oninput="updLine('${l.id}','rate',this.value)" placeholder="$/unit" title="Price per unit"/>`
+    : t==='hourly'
+    ? `<input class="mini" type="number" min="0" value="${l.hours||0}" oninput="updLine('${l.id}','hours',this.value)" placeholder="hrs"/>
+       <input class="mini" type="number" min="0" value="${l.rate||0}" oninput="updLine('${l.id}','rate',this.value)" placeholder="$/hr"/>`
+    : `<input class="mini" type="number" min="0" value="${l.price||0}" oninput="updLine('${l.id}','price',this.value)" placeholder="price"/>`;
   return `<div class="line">
       <div class="ltop">
         <input class="ldesc" value="${escAttr(l.desc)}" oninput="updLine('${l.id}','desc',this.value)" placeholder="Describe the work or item"/>
         <button class="del" onclick="delLine('${l.id}')" title="Remove">✕</button>
       </div>
       <div class="lroom"><input value="${escAttr(l.section||'')}" onchange="updLine('${l.id}','section',this.value)" placeholder="Room / area (e.g. Bathroom)" title="Group this line under a room or area"/></div>
-      <div class="lctl">
-        <select class="mini" onchange="updLine('${l.id}','type',this.value)">
-          <option value="fixed" ${!isH?'selected':''}>Fixed</option>
-          <option value="hourly" ${isH?'selected':''}>Hourly</option>
+      <div class="lctl ${t}">
+        <select class="mini ltype" onchange="updLine('${l.id}','type',this.value)">
+          <option value="fixed" ${t==='fixed'?'selected':''}>Fixed</option>
+          <option value="unit" ${t==='unit'?'selected':''}>Per unit</option>
+          <option value="hourly" ${t==='hourly'?'selected':''}>Hourly</option>
         </select>
-        ${ isH
-          ? `<input class="mini" type="number" min="0" value="${l.hours||0}" oninput="updLine('${l.id}','hours',this.value)" placeholder="hrs"/>
-             <input class="mini" type="number" min="0" value="${l.rate||0}" oninput="updLine('${l.id}','rate',this.value)" placeholder="$/hr"/>`
-          : `<input class="mini" type="number" min="0" value="${l.price||0}" oninput="updLine('${l.id}','price',this.value)" placeholder="price"/>
-             <span></span>` }
+        ${ctl}
         <span class="lt-amt" data-lid="${l.id}">${l.furn==='client'?'by client':money(lineAmt(l))}</span>
       </div>
       <div class="furn">
@@ -1869,6 +1877,10 @@ function clientHTML(j){
   const baseLines=(j.lines||[]).filter(l=>l.furn!=='client');
   const clientLines=(j.lines||[]).filter(l=>l.furn==='client');
   const f=marginFactor(j.margin), showRate=(f===1);
+  // Show the per-unit/per-hour breakdown only when no margin is applied (otherwise
+  // the rate is the contractor's cost and wouldn't reconcile with the priced amount).
+  const cDetail=(l)=> !showRate ? '' : l.type==='hourly' ? `<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`
+    : l.type==='unit' ? `<small>${l.qty||0} ${esc(l.unit||'unit')} @ ${money(l.rate)}/${esc(l.unit||'unit')}</small>` : '';
   const cAmt=(l)=>Math.round(lineAmt(l)*f);          // priced line amount
   const cSub=(g)=>g.lines.reduce((s,l)=>s+cAmt(l),0); // subtotal = sum of priced lines
   const subtotal=bidPrice(j), taxRate=jobTaxRate(j), tax=taxAmt(j), total=bidWithTax(j);
@@ -1887,9 +1899,9 @@ function clientHTML(j){
       ${ baseLines.length===0 ? '<div class="cnote">No items yet.</div>'
         : jobHasSections(baseLines)
           ? groupSections(baseLines).map(g=>`<div class="csec"><div class="csec-h">${esc(g.name||'Other work')}</div>
-              ${g.lines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${(showRate&&l.type==='hourly')?`<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`:''}</div><div class="ca">${money(cAmt(l))}</div></div>`).join('')}
+              ${g.lines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${cDetail(l)}</div><div class="ca">${money(cAmt(l))}</div></div>`).join('')}
               <div class="cline csub"><div class="cd">${esc(g.name||'Other work')} subtotal</div><div class="ca">${money(cSub(g))}</div></div></div>`).join('')
-          : baseLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${(showRate&&l.type==='hourly')?`<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`:''}</div><div class="ca">${money(cAmt(l))}</div></div>`).join('') }
+          : baseLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${cDetail(l)}</div><div class="ca">${money(cAmt(l))}</div></div>`).join('') }
       ${tax>0?`<div class="cline" style="margin-top:10px"><div class="cd">Subtotal</div><div class="ca">${money(subtotal)}</div></div>
       <div class="cline"><div class="cd" style="color:#8a7f68">Sales tax (${taxRate}%)</div><div class="ca" style="color:#8a7f68">${money(tax)}</div></div>`:''}
       <div class="ctotal"><span class="l">Total</span><span class="v">${money(total)}</span></div>
@@ -2161,7 +2173,7 @@ async function changePw(btn){
 function addLine(){ const j=currentJob(); j.lines.push({id:uid(),desc:'',type:'fixed',price:0,hours:0,rate:0,furn:'you'}); touch(j); saveJobs(); render(); }
 function delLine(id){ const j=currentJob(); j.lines=j.lines.filter(l=>l.id!==id); touch(j); saveJobs(); render(); }
 function updLine(id,k,v){ const j=currentJob(); const l=j.lines.find(x=>x.id===id); if(!l)return;
-  if(k==='price'||k==='hours'||k==='rate') l[k]=+v||0; else l[k]=v;
+  if(k==='price'||k==='hours'||k==='rate'||k==='qty') l[k]=+v||0; else l[k]=v;
   touch(j); saveJobs();
   if(k==='type'||k==='furn'||k==='section') render(); else refreshTotals(j);
 }

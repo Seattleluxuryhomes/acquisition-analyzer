@@ -4,6 +4,8 @@
 import PDFDocument from "pdfkit";
 
 const money = (n) => "$" + Math.round(Number(n) || 0).toLocaleString("en-US");
+const lineDetail = (l) => l.type === "hourly" ? `${l.hours || 0} hrs @ ${money(l.rate)}/hr`
+  : l.type === "unit" ? `${l.qty || 0} ${l.unit || "unit"} @ ${money(l.rate)}/${l.unit || "unit"}` : "";
 
 // Brand colors from the prototype's design tokens.
 const INK = "#1F252C", AMBER = "#CF7F18", BLUE = "#1E4259", MUTED = "#8a7f68", RULE = "#d9cdb5";
@@ -57,7 +59,7 @@ export function renderProposalPDF(proposal, res) {
       doc.font("Helvetica-Bold").fontSize(10.5).fillColor(BLUE).text(g.name, left, doc.y, { width });
       doc.moveDown(0.2);
       for (const l of g.lines) {
-        const sub = l.type === "hourly" ? `${l.hours || 0} hrs @ ${money(l.rate)}/hr` : "";
+        const sub = lineDetail(l);
         lineRow(doc, l.desc, money(l.amount), sub, left, width);
       }
       const sy = doc.y;
@@ -67,7 +69,7 @@ export function renderProposalPDF(proposal, res) {
     }
   } else {
     for (const l of proposal.scope) {
-      const sub = l.type === "hourly" ? `${l.hours || 0} hrs @ ${money(l.rate)}/hr` : "";
+      const sub = lineDetail(l);
       lineRow(doc, l.desc, money(l.amount), sub, left, width);
     }
   }
