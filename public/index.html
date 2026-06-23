@@ -14,6 +14,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Bidtranslator</title>
+<link rel="icon" type="image/png" href="/brand-orange.png" />
+<link rel="apple-touch-icon" href="/brand-tile.png" />
+<meta name="theme-color" content="#CF7F18" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -38,7 +41,8 @@
   .top{position:sticky;top:0;z-index:40;background:rgba(31,37,44,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .top-in{display:flex;align-items:center;justify-content:space-between;padding:12px 18px}
   .brand{display:flex;align-items:center;gap:9px;font-family:"Archivo";font-weight:800;font-size:1rem}
-  .brand .mark{width:22px;height:22px;border-radius:4px;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono";font-weight:600;font-size:.78rem}
+  .brand .mark{width:22px;height:22px;border-radius:4px;background:var(--amber);display:flex;align-items:center;justify-content:center}
+  .mark img{width:74%;height:74%;object-fit:contain;display:block}
   .brand b2{color:var(--amber)}
   .top-actions{display:flex;gap:6px;align-items:center}
   .icon-btn{background:transparent;border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:7px 12px;font-family:"IBM Plex Mono";font-size:.74rem;letter-spacing:.03em}
@@ -342,7 +346,7 @@
   .auth-switch{text-align:center;margin-top:16px;font-size:.86rem;color:var(--muted)}
   .auth-switch a{color:var(--amber);cursor:pointer}
   .brand-big{display:flex;align-items:center;gap:10px;justify-content:center;font-family:"Archivo";font-weight:800;font-size:1.3rem}
-  .brand-big .mark{width:28px;height:28px;border-radius:5px;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:"IBM Plex Mono";font-weight:600}
+  .brand-big .mark{width:28px;height:28px;border-radius:5px;background:var(--amber);display:flex;align-items:center;justify-content:center}
   .tagline{text-align:center;color:var(--muted);font-size:.9rem;margin-top:8px}
 
   #printArea{display:none}
@@ -360,7 +364,7 @@
 <div class="app">
   <div class="top" id="topbar" style="display:none">
     <div class="top-in">
-      <div class="brand"><span class="mark">B</span>Bid<b2>translator</b2></div>
+      <div class="brand"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<b2>translator</b2></div>
       <div class="top-actions">
         <button class="trial-chip" id="trialChip" style="display:none" onclick="go('paywall')"></button>
         <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
@@ -817,7 +821,7 @@ async function notifyInterest(feature, btn){
 function viewAuth(){
   const isUp = state.authMode==='signup';
   return `<div class="auth">
-    <div class="brand-big"><span class="mark">B</span>Bid<span style="color:var(--amber)">translator</span></div>
+    <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">translator</span></div>
     <div class="tagline">Capture the job. Build the bid. Send it from your phone.</div>
     <div class="auth-card">
       <div class="h-eyebrow">${isUp?'Create your account':'Welcome back'}</div>
