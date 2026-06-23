@@ -10,6 +10,7 @@
 // (page views, feature usage, where a session stalls) on top.
 import db from "./db.js";
 import { bidTotal, marginFactor } from "./proposal.js";
+import * as FollowUpBoss from "./followupboss.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -28,7 +29,9 @@ export function track(userId, name, props = {}) {
 
 // Pluggable destinations. No-ops until the matching env var is set; documented
 // in EVENT_TRACKING.md. Kept fire-and-forget so a slow sink never blocks a request.
-function forwardToSinks(/* userId, name, props */) {
+function forwardToSinks(userId, name, props) {
+  // Follow Up Boss: the founder's CRM of all contractors (signup + lifecycle).
+  try { FollowUpBoss.onEvent(userId, name, props); } catch { /* a sink must never break track() */ }
   // if (process.env.POSTHOG_KEY)  { /* posthog.capture(...) */ }
   // if (process.env.MIXPANEL_TOKEN) { /* mixpanel.track(...) */ }
   // if (process.env.SEGMENT_WRITE_KEY) { /* analytics.track(...) */ }

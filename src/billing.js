@@ -4,6 +4,7 @@
 // treated as entitled, so the app runs fully without it (same pattern as the AI step).
 import crypto from "node:crypto";
 import db from "./db.js";
+import { track } from "./analytics.js";
 
 const KEY = () => process.env.STRIPE_SECRET_KEY || "";
 const PRICE = () => process.env.STRIPE_PRICE_ID || "";
@@ -182,11 +183,15 @@ export function verifyWebhook(rawBody, sigHeader) {
 }
 
 function applySubscription(customerId, sub) {
-  const row = db.prepare("SELECT id FROM user WHERE stripe_customer_id=?").get(customerId);
+  const row = db.prepare("SELECT id, subscription_status FROM user WHERE stripe_customer_id=?").get(customerId);
   if (!row) return;
+  const next = sub.status || "none";
   db.prepare(
     "UPDATE user SET subscription_status=?, stripe_subscription_id=?, current_period_end=? WHERE id=?"
-  ).run(sub.status || "none", sub.id || null, sub.current_period_end ? sub.current_period_end * 1000 : null, row.id);
+  ).run(next, sub.id || null, sub.current_period_end ? sub.current_period_end * 1000 : null, row.id);
+  // Fire once, on the transition into a paying state (drives the CRM milestone).
+  const live = (s) => s === "active" || s === "trialing";
+  if (live(next) && !live(row.subscription_status || "none")) track(row.id, "subscription_active", { status: next });
 }
 
 export function handleEvent(event) {

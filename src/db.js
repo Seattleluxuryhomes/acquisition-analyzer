@@ -177,6 +177,9 @@ ensureColumns("user", [
   ["qbo_refresh_token", "TEXT"],
   ["qbo_expires_at", "INTEGER"],
   ["qbo_connected_at", "INTEGER"],
+  // Follow Up Boss person id — the founder's CRM record for this contractor
+  // (platform-level; set once when we first push them to FUB).
+  ["fub_person_id", "TEXT"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).
