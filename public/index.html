@@ -2160,7 +2160,8 @@ function setRegion(s){
 /* ============ Price book (AI-organized SKU catalog) ============ */
 let CATALOG = { skus:[], loaded:false, preview:null, image:null };
 let skuQ='';
-async function loadSkus(){ if(!TOKEN||!online) return; try{ const r=await api('/api/skus'); CATALOG.skus=r.skus||[]; CATALOG.loaded=true; if(state.view==='catalog') render(); }catch(e){} }
+async function loadSkus(){ if(!TOKEN||!online) return; try{ const r=await api('/api/skus'); CATALOG.skus=r.skus||[]; CATALOG.loaded=true; if(state.view==='catalog') render();
+  const pk=document.getElementById('skuPicker'); if(pk && pk.style.display!=='none') renderPicker(); }catch(e){} } // refresh the picker if it's open
 function readImageScaled(file,max,q){ return new Promise((res,rej)=>{ const rd=new FileReader(); rd.onload=e=>{ const img=new Image(); img.onload=()=>{ let w=img.width||1,h=img.height||1; if(w>max||h>max){ const s=Math.min(max/w,max/h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',q||0.82)); }; img.onerror=rej; img.src=e.target.result; }; rd.onerror=rej; rd.readAsDataURL(file); }); }
 function skuPickCsv(input){ const f=input.files&&input.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=e=>{ const ta=document.getElementById('skuText'); if(ta) ta.value=String(e.target.result||'').slice(0,200000); }; rd.readAsText(f); input.value=''; }
 async function skuPickPhoto(input){ const f=input.files&&input.files[0]; if(!f){return;} if(!/^image\//.test(f.type)){ toast('Choose an image of your price sheet.','warn'); return; } try{ CATALOG.image=await readImageScaled(f,1600,0.82); render(); }catch(e){ toast('Could not read that image.','bad'); } input.value=''; }
@@ -2293,9 +2294,10 @@ async function removeSkuPhoto(id, ev){
 function openSkuPicker(mode){ state.pickMode=mode||'insert'; if(!CATALOG.loaded) loadSkus(); const el=document.getElementById('skuPicker'); if(el){ const h=el.querySelector('.sheet-h'); if(h) h.textContent=state.pickMode==='viz'?'Pick a material to visualize':'Add from price book'; el.style.display='flex'; renderPicker(); } }
 function closeSkuPicker(){ const el=document.getElementById('skuPicker'); if(el) el.style.display='none'; }
 function renderPicker(){
+  const el=document.getElementById('pickList'); if(!el) return;
+  if(!CATALOG.loaded){ el.innerHTML='<div class="hint" style="padding:12px 10px">Loading your price book…</div>'; return; }
   const q=(((document.getElementById('pickQ')||{}).value)||'').trim().toLowerCase();
   let l=(CATALOG.skus||[]); if(q) l=l.filter(s=>(s.name+' '+s.category).toLowerCase().includes(q));
-  const el=document.getElementById('pickList'); if(!el) return;
   const act=(id)=>state.pickMode==='viz'?`vizPickMaterial('${id}')`:`insertSku('${id}')`;
   el.innerHTML = l.length ? l.slice(0,250).map(s=>`<button class="pickitem" onclick="${act(s.id)}">${s.image?`<img class="pickthumb" src="${s.image}" alt="" loading="lazy"/>`:`<span class="pickthumb none">📷</span>`}<span class="pn">${esc(s.name)}</span><span class="pp">${money(s.unit_price)}/${esc(s.unit)}</span></button>`).join('')
     : '<div class="hint" style="padding:12px 10px">No SKUs yet — add some in More → Price book.</div>';
@@ -2312,7 +2314,6 @@ let VIZ={jobId:null, sku:null, roomImage:null};
 function vizStart(jobId){
   if(!AI_VISUALIZE){ toast('Add your OpenAI key in setup to turn on AI visualization.','warn',5000); return; }
   if(!online||!TOKEN){ toast('Connect to the internet to render.','warn'); return; }
-  if(!(CATALOG.skus||[]).length){ if(!CATALOG.loaded) loadSkus(); toast('Add a material to your price book first.','warn',4000); return; }
   VIZ={jobId, sku:null, roomImage:null};
   openSkuPicker('viz');
 }
