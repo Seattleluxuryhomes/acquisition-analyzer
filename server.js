@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser } from "./src/auth.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, aiConfigured, parseSkus } from "./src/assist.js";
+import { assistBuild, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured } from "./src/assist.js";
 import * as Skus from "./src/skus.js";
 import { buildProposal } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
@@ -77,7 +77,7 @@ app.post("/api/billing/webhook", express.raw({ type: "*/*", limit: "1mb" }), asy
 const smallJson = express.json({ limit: "256kb" });
 const bigJson = express.json({ limit: "12mb" }); // price-sheet photo for SKU parsing
 const isPhotoUpload = (req) => req.method === "POST" && /^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path);
-const isBigJson = (req) => req.method === "POST" && req.path === "/api/skus/parse";
+const isBigJson = (req) => req.method === "POST" && (req.path === "/api/skus/parse" || req.path === "/api/assist/transcribe");
 app.use((req, res, next) => (isPhotoUpload(req) ? next() : (isBigJson(req) ? bigJson(req, res, next) : smallJson(req, res, next))));
 app.use(express.static(path.join(__dirname, "public"), {
   // Cache static images/icons hard (they're versioned by deploy); keep the app
@@ -211,7 +211,8 @@ app.post("/api/quickbooks/disconnect", requireAuth, wrap((req, res) => {
 
 // ---- Me / settings ----
 app.get("/api/me", requireAuth, (req, res) =>
-  res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user), admin: Analytics.isAdmin(req.user) }));
+  res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user),
+    admin: Analytics.isAdmin(req.user), ai: { build: aiConfigured(), transcribe: transcribeConfigured() } }));
 app.patch("/api/me", requireAuth, wrap((req, res) => {
   const b = req.body || {};
   if (typeof b.logo === "string" && b.logo.length > 250000) {
@@ -362,6 +363,11 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
   // Feed the contractor's own price book in so the AI uses their real items + prices.
   const data = await assistBuild(req.user, { text, from_lang, to_lang, skus: Skus.listSkus(req.user.id) });
   res.json(data);
+}));
+// Universal voice fallback: transcribe a browser recording (iOS Safari has no Web Speech).
+app.post("/api/assist/transcribe", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const { audio, lang } = req.body || {};
+  res.json(await transcribeAudio(req.user, { audio, lang }));
 }));
 
 // ---- Price book (contractor's reusable SKU catalog) ----

@@ -120,6 +120,40 @@ export function aiConfigured() {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
+// Universal voice: record audio in the browser, transcribe server-side. This is the
+// fallback wherever the live Web Speech API isn't available (notably iOS Safari).
+// Optional/env-gated like everything else (OPENAI_API_KEY → Whisper).
+export function transcribeConfigured() {
+  return !!process.env.OPENAI_API_KEY;
+}
+const AUDIO_EXT = { "audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "mp4", "video/mp4": "mp4",
+  "audio/mpeg": "mp3", "audio/wav": "wav", "audio/x-wav": "wav", "audio/m4a": "m4a", "audio/aac": "m4a" };
+
+export async function transcribeAudio(user, { audio, lang }) {
+  if (!transcribeConfigured()) { const e = new Error("Voice transcription isn't configured on the server."); e.status = 503; e.code = "TRANSCRIBE_UNCONFIGURED"; throw e; }
+  const m = /^data:([\w.+-]+\/[\w.+-]+);base64,([A-Za-z0-9+/=\s]+)$/.exec(String(audio || ""));
+  if (!m || !AUDIO_EXT[m[1]]) { const e = new Error("No audio to transcribe."); e.status = 400; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Too many recordings in a short window — wait a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached. You can still type."); e.status = 429; throw e; }
+
+  const buf = Buffer.from(m[2].replace(/\s+/g, ""), "base64");
+  if (buf.length < 600 || buf.length > 24 * 1024 * 1024) { const e = new Error("Recording is empty or too large."); e.status = 400; throw e; }
+  const form = new FormData();
+  form.append("file", new Blob([buf], { type: m[1] }), "audio." + AUDIO_EXT[m[1]]);
+  form.append("model", process.env.BT_TRANSCRIBE_MODEL || "whisper-1");
+  const iso = String(lang || "").slice(0, 2).toLowerCase();
+  if (/^[a-z]{2}$/.test(iso)) form.append("language", iso); // ISO-639-1 improves accuracy
+  let res;
+  try {
+    res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST", headers: { Authorization: "Bearer " + process.env.OPENAI_API_KEY }, body: form,
+    });
+  } catch { const e = new Error("Could not reach the transcription provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("Transcription error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json().catch(() => null);
+  return { text: String((out && out.text) || "").trim() };
+}
+
 // ---- Price book: organize a contractor's uploaded SKUs (text/CSV or a photo) ----
 const SKU_UNITS = ["each", "sq ft", "ln ft", "sq yd", "cu yd", "ton", "gal", "hr", "box", "roll", "pallet", "board ft", "slab"];
 

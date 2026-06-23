@@ -576,7 +576,10 @@ let ADMIN = false; // founder dashboard access (server decides via BT_ADMIN_EMAI
 /* ============ analytics ============ */
 // Fire-and-forget client event; analytics must never block or break the UI.
 function track(ev, props){ if(!TOKEN || !online || !ev) return; try{ api('/api/track',{method:'POST',body:JSON.stringify({event:ev,props:props||{}})}).catch(()=>{}); }catch(e){} }
+let AI_TRANSCRIBE = localStorage.getItem('bt_transcribe')==='1'; // server can transcribe recordings
 async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/api/me'); ADMIN=!!r.admin;
+  AI_TRANSCRIBE = !!(r.ai && r.ai.transcribe); localStorage.setItem('bt_transcribe', AI_TRANSCRIBE?'1':'0');
+  if(state.view==='capture') render();
   // Hydrate tax settings from the server unless the user has local unsaved edits.
   if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; persistSettings(); }
 }catch(e){} }
@@ -1517,8 +1520,8 @@ function viewCapture(){
     <textarea id="capText" class="input" oninput="capDraft('text',this.value)" placeholder="Describe the job the way you'd say it on site…">${esc(CAP_DRAFT.text||'')}</textarea>
     <div class="cap-tools">
       ${speechSupported()
-        ? `<button class="mic" id="micBtn" onclick="toggleMic()"><span class="dot"></span><span class="lbl">Dictate</span></button><span class="mic-note">Speak — it types for you.</span>`
-        : `<span class="mic-note">Voice input isn't supported in this browser — type or paste instead.</span>`}
+        ? `<button class="mic" id="micBtn" onclick="toggleMic()"><span class="dot"></span><span class="lbl">Dictate</span></button><span class="mic-note">${liveSpeechSupported()?'Speak — it types for you.':'Record — we transcribe it for you.'}</span>`
+        : `<span class="mic-note">Voice isn't available on this device — type or paste instead.</span>`}
     </div>
 
     <div class="hint">Tip: include what they want, anything they'll supply, and any deadline. Capture works offline — you can build the draft later.</div>
@@ -2378,10 +2381,55 @@ async function copyText(text){
 
 /* ---------- voice dictation ---------- */
 let rec=null, recording=false, micWanted=false;
-function speechSupported(){ return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window); }
-function updateMic(){ const b=document.getElementById('micBtn'); if(!b)return; b.classList.toggle('rec',recording); const l=b.querySelector('.lbl'); if(l) l.textContent=recording?'Listening… tap to stop':'Dictate'; }
+// Live, instant speech (Chrome/Android/desktop). iOS Safari has none — those
+// devices use the record→transcribe fallback when the server supports it.
+function liveSpeechSupported(){ return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window); }
+function recordSupported(){ return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder); }
+function speechSupported(){ return liveSpeechSupported() || (recordSupported() && AI_TRANSCRIBE); }
+function updateMic(){ const b=document.getElementById('micBtn'); if(!b)return; b.classList.toggle('rec',recording);
+  const l=b.querySelector('.lbl'); if(l) l.textContent = micState==='transcribing'?'Transcribing…' : recording?'Recording… tap to stop' : 'Dictate'; }
+
+/* ---- Record → server transcription (universal voice, incl. iPhone) ---- */
+let mediaRec=null, mediaChunks=[], mediaStream=null, micState='idle';
+function pickAudioMime(){ const c=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg']; for(const m of c){ if(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m)) return m; } return ''; }
+async function toggleRecord(){
+  if(recording){ // stop
+    recording=false; micState='transcribing'; updateMic();
+    try{ mediaRec&&mediaRec.state!=='inactive'&&mediaRec.stop(); }catch(e){}
+    return;
+  }
+  if(!online||!TOKEN){ toast('Connect to the internet to dictate.','warn'); return; }
+  let stream;
+  try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ toast('Allow microphone access to dictate.','warn',5000); return; }
+  mediaStream=stream; mediaChunks=[];
+  const mime=pickAudioMime();
+  try{ mediaRec=new MediaRecorder(stream, mime?{mimeType:mime}:undefined); }
+  catch(e){ try{ mediaRec=new MediaRecorder(stream); }catch(_){ toast('Recording isn’t supported here.','warn'); stream.getTracks().forEach(t=>t.stop()); return; } }
+  mediaRec.ondataavailable=(ev)=>{ if(ev.data&&ev.data.size) mediaChunks.push(ev.data); };
+  mediaRec.onstop=async ()=>{
+    try{ mediaStream&&mediaStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+    const blob=new Blob(mediaChunks,{type:(mediaRec&&mediaRec.mimeType)||'audio/webm'});
+    micState='idle';
+    if(blob.size<800){ updateMic(); return; }
+    const dataUrl=await new Promise((res)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(blob); });
+    try{
+      const sel=document.getElementById('capFrom');
+      const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({ audio:dataUrl, lang:(sel?sel.value:'es') })});
+      const ta=document.getElementById('capText');
+      if(ta && (r.text||'').trim()){
+        ta.value=[ta.value.trim(), r.text.trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
+        capDraft('text', ta.value); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px'; ta.scrollTop=ta.scrollHeight;
+      } else if(!(r.text||'').trim()) toast('Didn’t catch that — try again.','warn');
+    }catch(e){ if(e.status===402){ gate402(e); } else toast(e.message||'Could not transcribe.','bad',5000); }
+    updateMic();
+  };
+  mediaRec.start();
+  recording=true; micState='recording'; updateMic();
+  const ta0=document.getElementById('capText'); if(ta0) setTimeout(()=>{ try{ const rr=ta0.getBoundingClientRect(); window.scrollTo({top:Math.max(0,window.scrollY+rr.top-104),behavior:'smooth'}); }catch(_){} },90);
+}
 function toggleMic(){
-  if(!speechSupported()) return;
+  if(!liveSpeechSupported()){ if(recordSupported()&&AI_TRANSCRIBE) return toggleRecord(); return; }
   if(recording){ micWanted=false; if(rec){ try{ rec.stop(); }catch(e){} } recording=false; updateMic(); return; }
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   rec=new SR();
