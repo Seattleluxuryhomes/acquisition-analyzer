@@ -1709,11 +1709,11 @@ function briefCard(j){
 function tabNotebook(j){
   const sec=(label,html)=>`<div class="nb-sec"><h3>${label}</h3>${html}</div>`;
   let out='';
-  out+=briefCard(j);
   out+=sec('What you captured · '+(LANGS[j.from]||j.from),
     `<textarea class="editarea" oninput="updJob('transcript',this.value)" placeholder="Captured conversation…">${esc(j.transcript)}</textarea>
      <button class="btn full" style="margin-top:10px" onclick="rebuildWithAI('${j.id}',this)">🪄 Build the bid from this text</button>
      <div class="hint">Reads the conversation above and fills in the line items, rooms &amp; totals with AI. You can edit everything after.</div>`);
+  out+=briefCard(j);
   const machine = j.summary || j.translation;
   out+=sec('In '+(LANGS[j.to]||j.to)+(j.translation?'<span class="machine-tag">machine</span>':''),
     `<textarea class="editarea" oninput="updJob('translation',this.value)" placeholder="Translation (editable)…">${esc(j.translation)}</textarea>`);
