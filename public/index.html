@@ -359,6 +359,14 @@
   .tagline{text-align:center;color:var(--muted);font-size:.9rem;margin-top:8px}
 
   #printArea{display:none}
+  /* Non-blocking toasts (replace alert/prompt for confirmations + soft errors). */
+  #toasts{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0) + 76px);z-index:9999;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 14px}
+  .toast{pointer-events:auto;max-width:440px;width:100%;background:#1F252C;color:#F3EEE3;border:1px solid rgba(243,238,227,.15);border-radius:11px;padding:13px 16px;font-size:.92rem;box-shadow:0 8px 30px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center;animation:toastin .18s ease}
+  .toast.ok{border-left:4px solid #4f9d69}
+  .toast.warn{border-left:4px solid var(--amber)}
+  .toast.bad{border-left:4px solid var(--rust)}
+  @keyframes toastin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .flash{outline:2px solid var(--amber)!important;outline-offset:1px;border-radius:8px;transition:outline .2s}
   @media print{
     body{background:#fff}
     .app,.top,main{all:unset}
@@ -370,6 +378,7 @@
 </style>
 </head>
 <body>
+<div id="toasts"></div>
 <div class="app">
   <div class="top" id="topbar" style="display:none">
     <div class="top-in">
@@ -1351,10 +1360,12 @@ function newJobFromForm(){
   return {title,from,to,text};
 }
 
+// A friendly default name beats "Untitled job" leaking onto a client proposal.
+function defaultJobTitle(){ return 'New job · ' + new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
 function makeLocalJob(f, data){
   const now=Date.now();
   return {
-    id:uid(), title:f.title||'Untitled job', created:now, updated_at:now, from:f.from, to:f.to,
+    id:uid(), title:(f.title||'').trim()||defaultJobTitle(), created:now, updated_at:now, from:f.from, to:f.to,
     transcript:f.text,
     translation:data?data.translation||'':'',
     summary:data?data.summary||'':'',
@@ -1451,7 +1462,7 @@ function viewJob(){
     <div class="stagebar">${JOB_STAGES.map(([k,lab])=>`<button class="stbtn ${jobStatus(j)===k?'on':''}" onclick="setJobStatus('${j.id}','${k}')">${lab}</button>`).join('')}</div>
     ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/><input type="time" class="schedinput" value="${escAttr(j.scheduled_time||'')}" onchange="setScheduleTime('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">📲 Add to Calendar</a>`:''}</div>${conflictNote(j)}`:''}
     <label class="fld">Customer</label>
-    <div class="addrrow"><input class="addrinput" value="${escAttr(j.customer||'')}" onchange="setCustomer('${j.id}',this.value)" placeholder="👤 Customer name — shown on the proposal"/></div>
+    <div class="addrrow"><input id="custInput" class="addrinput" value="${escAttr(j.customer||'')}" onchange="setCustomer('${j.id}',this.value)" placeholder="👤 Customer name — shown on the proposal"/></div>
     <div id="addrWrap">${addrBlock(j)}</div>
     ${tabs}`;
   let body='';
@@ -1618,7 +1629,7 @@ function tabBuild(j){
     ${ups||'<div class="hint">No upgrades yet — these show as options on the proposal.</div>'}
     <button class="btn ghost full addline" onclick="addUp()">+ Add upgrade</button>
 
-    <div style="margin-top:18px"><button class="btn blue full" onclick="setTab('client')">Preview client view →</button></div>`;
+    <div style="margin-top:18px"><button class="btn blue full" onclick="setTab('client')">Review &amp; send →</button></div>`;
 }
 
 function tabClient(j){
@@ -1628,6 +1639,7 @@ function tabClient(j){
     <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn" onclick="shareBid('text',this)">💬 Text</button>
       <button class="btn" onclick="shareBid('email',this)">✉️ Email</button>
+      <button class="btn ghost" onclick="shareBid('copy',this)">🔗 Copy link</button>
       <button class="btn ghost" onclick="shareBid('share',this)">Share…</button>
     </div>
     <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
@@ -1678,7 +1690,7 @@ function paymentsBlock(j){
       <div><label class="fld">Amount</label><input id="prAmt" class="input" type="number" min="1" value="${deposit||total||''}" placeholder="0"/></div>
       <div><label class="fld">What's this for?</label><input id="prPurpose" class="input" placeholder="e.g. Materials deposit" value="Deposit"/></div>
     </div>
-    <label class="fld">Client name (optional)</label><input id="prName" class="input" placeholder="e.g. Reyes"/>
+    <label class="fld">Client name (optional)</label><input id="prName" class="input" placeholder="e.g. Reyes" value="${escAttr(j.customer||'')}"/>
     <button class="btn blue full" style="margin-top:10px" onclick="createPayReq('${j.id}',this)">Create payment link</button>
     <div class="hint" style="margin-top:8px">The label shows on your client's checkout, so deposits, material costs and the final balance are easy to tell apart.</div>
     ${(reqs&&reqs.length)?`<div class="paylist">${list}</div>`:(reqs?'':'<div class="hint" style="margin-top:10px">Loading…</div>')}</div>`;
@@ -1728,17 +1740,26 @@ function clientHTML(j){
 
 // Share a bid via the phone's own Messages / email (free — sends from the
 // contractor's number/email). Gets a secure public link from the server first.
+let LAST_LINK='';
+function focusCustomer(){ const el=document.getElementById('custInput'); if(el){ window.scrollTo(0,0); el.focus(); el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),1200); } }
 async function shareBid(mode, btn){
   const j=currentJob(); if(!j) return;
   if(!entitled()){ go('paywall'); return; }
-  if(!online || !TOKEN){ alert('Connect to the internet to create a shareable bid link.'); return; }
+  if(!online || !TOKEN){ toast('Connect to the internet to create a shareable bid link.','warn'); return; }
+  // Gently nudge for a customer name — it personalizes the proposal greeting.
+  if(!((j.customer||'').trim())){
+    if(!confirm('No customer name on this bid yet — it personalizes the proposal. Send anyway?')){ focusCustomer(); return; }
+  }
   const orig = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Preparing…'; }
   try{
-    j.status='sent'; touch(j); persist();
+    touch(j); persist();
     await syncNow(true); // make sure the server has the latest bid before it renders the link
     const r = await api('/api/jobs/'+j.id+'/share');
-    const url = r.url;
+    const url = r.url; LAST_LINK=url;
+    // Only mark it Sent once the link actually exists (so a failure never leaves a
+    // "sent" bid with no link).
+    if(j.status==='draft'){ j.status='sent'; if(!j.sent_at) j.sent_at=Date.now(); touch(j); persist(); syncNow(); }
     const who = SETTINGS.company || 'your contractor';
     const firstName = ((j.customer||'').trim().split(/\s+/)[0]||'').slice(0,40);
     const hi = firstName ? `Hi ${firstName}, here's` : `Here's`;
@@ -1747,12 +1768,14 @@ async function shareBid(mode, btn){
     if(btn){ btn.disabled=false; btn.textContent=orig; }
     if(mode==='text'){ location.href='sms:?&body='+encodeURIComponent(msg); }
     else if(mode==='email'){ location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(msg); }
+    else if(mode==='copy'){ const ok=await copyText(url); toast(ok?'✓ Bid link copied — paste it anywhere.':('Link: '+url), ok?'ok':'warn', ok?2600:7000); }
     else if(navigator.share){ try{ await navigator.share({title:subject, text:`Here's your estimate from ${who}`, url}); }catch(e){} }
-    else { prompt('Copy this link to share the bid:', url); }
+    else { const ok=await copyText(url); toast(ok?'✓ Bid link copied — paste it anywhere.':('Link: '+url), ok?'ok':'warn', ok?2600:7000); }
+    if(state.view==='job') render();
   }catch(e){
     if(btn){ btn.disabled=false; btn.textContent=orig; }
     if(e.status===402){ gate402(e); return; }
-    alert(e.message||'Could not create the share link.');
+    toast(e.message||'Could not create the share link.','bad');
   }
 }
 
@@ -1760,8 +1783,10 @@ async function sendPDF(){
   const j=currentJob(); if(!j) return;
   if(!entitled()){ go('paywall'); return; }
   const btn=document.getElementById('pdfBtn');
-  // mark as sent + ensure the server has the latest version before it renders
-  j.status='sent'; touch(j); persist();
+  // Ensure the server has the latest version; only advance a draft to "sent" (never
+  // knock a signed/scheduled job back a stage on a re-export).
+  if(j.status==='draft'){ j.status='sent'; if(!j.sent_at) j.sent_at=Date.now(); }
+  touch(j); persist();
   if(online && TOKEN){
     if(btn){ btn.disabled=true; btn.textContent='Preparing…'; }
     try{
@@ -1978,6 +2003,21 @@ function refreshTotals(j){
 /* ---------- helpers ---------- */
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function escAttr(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- toasts (non-blocking confirmations / soft errors) ---------- */
+function toast(msg, kind, ms){
+  const box=document.getElementById('toasts'); if(!box){ return; }
+  const el=document.createElement('div');
+  el.className='toast '+(kind==='ok'?'ok':kind==='bad'?'bad':kind==='warn'?'warn':'');
+  el.textContent=msg;
+  box.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .2s'; el.style.opacity='0'; setTimeout(()=>el.remove(),220); }, ms||3200);
+}
+// Copy text to the clipboard with a graceful fallback; resolves true on success.
+async function copyText(text){
+  try{ if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); return true; } }catch(e){}
+  try{ const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); const ok=document.execCommand('copy'); ta.remove(); return ok; }catch(e){ return false; }
+}
 
 /* ---------- voice dictation ---------- */
 let rec=null, recording=false;
