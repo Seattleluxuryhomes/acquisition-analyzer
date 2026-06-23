@@ -237,6 +237,9 @@
   .pickitem{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);color:var(--text);padding:14px 6px;cursor:pointer;font-size:.95rem}
   .pickitem:active{background:rgba(243,238,227,.06)}
   .pickitem .pp{font-family:"IBM Plex Mono";font-size:.8rem;color:var(--amber);white-space:nowrap}
+  .pickitem .pn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pickthumb{width:38px;height:38px;border-radius:7px;object-fit:cover;flex:0 0 auto;border:1px solid var(--line)}
+  .pickthumb.none{display:flex;align-items:center;justify-content:center;background:var(--surface2);font-size:.95rem}
   .news-ic{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:rgba(62,125,90,.18);color:#6fce93;margin-right:8px;vertical-align:-.35em}
   .news-ic.pay{background:rgba(207,127,24,.18);color:var(--amber)}
   @media(min-width:720px){ .kpis{display:grid;grid-template-columns:1fr 1fr;align-items:start} .kpi.hero{grid-column:1/-1} }
@@ -2258,7 +2261,7 @@ function renderPicker(){
   const q=(((document.getElementById('pickQ')||{}).value)||'').trim().toLowerCase();
   let l=(CATALOG.skus||[]); if(q) l=l.filter(s=>(s.name+' '+s.category).toLowerCase().includes(q));
   const el=document.getElementById('pickList'); if(!el) return;
-  el.innerHTML = l.length ? l.slice(0,250).map(s=>`<button class="pickitem" onclick="insertSku('${s.id}')"><span class="pn">${esc(s.name)}</span><span class="pp">${money(s.unit_price)}/${esc(s.unit)}</span></button>`).join('')
+  el.innerHTML = l.length ? l.slice(0,250).map(s=>`<button class="pickitem" onclick="insertSku('${s.id}')">${s.image?`<img class="pickthumb" src="${s.image}" alt="" loading="lazy"/>`:`<span class="pickthumb none">📷</span>`}<span class="pn">${esc(s.name)}</span><span class="pp">${money(s.unit_price)}/${esc(s.unit)}</span></button>`).join('')
     : '<div class="hint" style="padding:12px 10px">No SKUs yet — add some in More → Price book.</div>';
 }
 function insertSku(id){ const s=(CATALOG.skus||[]).find(x=>x.id===id); const j=currentJob(); if(!s||!j) return;
