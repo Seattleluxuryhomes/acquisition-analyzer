@@ -105,3 +105,9 @@ export function clearSkuImage(userId, id) {
 export function getSkuImage(id) {
   return db.prepare("SELECT image_file, image_mime FROM sku WHERE id=?").get(id);
 }
+// Owner-scoped row (name + image file) — used by the room-visualization route.
+export function getSku(userId, id) {
+  const r = db.prepare("SELECT * FROM sku WHERE id=? AND user_id=?").get(id, userId);
+  return r ? { id: r.id, name: r.name, unit: r.unit || "each", unit_price: r.unit_price || 0,
+    image_file: r.image_file || null, image_mime: r.image_mime || null } : null;
+}

@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser } from "./src/auth.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured } from "./src/assist.js";
+import { assistBuild, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
 import * as Skus from "./src/skus.js";
 import { buildProposal } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
@@ -77,7 +77,8 @@ app.post("/api/billing/webhook", express.raw({ type: "*/*", limit: "1mb" }), asy
 const smallJson = express.json({ limit: "256kb" });
 const bigJson = express.json({ limit: "12mb" }); // price-sheet photo for SKU parsing
 const isPhotoUpload = (req) => req.method === "POST" &&
-  (/^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path) || /^\/api\/skus\/[^/]+\/image\/?$/.test(req.path));
+  (/^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path) || /^\/api\/skus\/[^/]+\/image\/?$/.test(req.path) ||
+   /^\/api\/jobs\/[^/]+\/visualize\/?$/.test(req.path));
 const isBigJson = (req) => req.method === "POST" && (req.path === "/api/skus/parse" || req.path === "/api/assist/transcribe");
 app.use((req, res, next) => (isPhotoUpload(req) ? next() : (isBigJson(req) ? bigJson(req, res, next) : smallJson(req, res, next))));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -216,7 +217,7 @@ app.post("/api/quickbooks/disconnect", requireAuth, wrap((req, res) => {
 // ---- Me / settings ----
 app.get("/api/me", requireAuth, (req, res) =>
   res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user),
-    admin: Analytics.isAdmin(req.user), ai: { build: aiConfigured(), transcribe: transcribeConfigured() } }));
+    admin: Analytics.isAdmin(req.user), ai: { build: aiConfigured(), transcribe: transcribeConfigured(), visualize: visualizeConfigured() } }));
 app.patch("/api/me", requireAuth, wrap((req, res) => {
   const b = req.body || {};
   if (typeof b.logo === "string" && b.logo.length > 250000) {
@@ -328,6 +329,29 @@ app.post("/api/jobs/:id/photos", requireAuth, photoJson, wrap((req, res) => {
   db.prepare("INSERT INTO photo (id, job_id, user_id, filename, mime, show_on_bid, created_at) VALUES (?,?,?,?,?,?,?)")
     .run(pid, req.params.id, req.user.id, filename, m[1], showOnBid, Date.now());
   res.json({ photo: { id: pid, url: signPhotoUrl(req.params.id, pid), showOnBid: !!showOnBid } });
+}));
+
+// "See it in their kitchen" — render a price-book material onto a room photo (AI)
+// and save the result as an on-bid job photo so the client sees it. OPENAI_API_KEY-
+// gated (same key as voice). The render is labeled in the UI as a visualization.
+app.post("/api/jobs/:id/visualize", requireAuth, Billing.requireEntitled, photoJson, wrap(async (req, res) => {
+  if (!Jobs.ownsJob(req.user.id, req.params.id)) return res.status(404).json({ error: "Job not found." });
+  const { roomImage, skuId, surface } = req.body || {};
+  let materialBuffer = null, materialMime = null, materialName = String((req.body && req.body.materialName) || "");
+  if (skuId) {
+    const sk = Skus.getSku(req.user.id, skuId);
+    if (sk) {
+      if (!materialName) materialName = sk.name;
+      if (sk.image_file) { try { materialBuffer = fs.readFileSync(path.join(PHOTO_DIR, sk.image_file)); materialMime = sk.image_mime || "image/jpeg"; } catch {} }
+    }
+  }
+  const out = await visualizeRoom(req.user, { roomImage, materialBuffer, materialMime, materialName, surface });
+  const pid = uid();
+  const filename = `${pid}.png`;
+  fs.writeFileSync(path.join(PHOTO_DIR, filename), out.buffer);
+  db.prepare("INSERT INTO photo (id, job_id, user_id, filename, mime, show_on_bid, created_at) VALUES (?,?,?,?,?,?,?)")
+    .run(pid, req.params.id, req.user.id, filename, out.mime, 1, Date.now());
+  res.json({ photo: { id: pid, url: signPhotoUrl(req.params.id, pid), showOnBid: true } });
 }));
 
 // Toggle whether a photo appears on the client-facing bid (owner only).

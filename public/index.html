@@ -240,6 +240,12 @@
   .pickitem .pn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pickthumb{width:38px;height:38px;border-radius:7px;object-fit:cover;flex:0 0 auto;border:1px solid var(--line)}
   .pickthumb.none{display:flex;align-items:center;justify-content:center;background:var(--surface2);font-size:.95rem}
+  .viz-overlay{position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:24px}
+  .viz-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px 26px;text-align:center;max-width:300px}
+  .viz-card .viz-msg{margin-top:6px;font-size:.95rem;color:var(--text)}
+  .viz-result{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;max-width:460px;width:100%;margin:0 14px}
+  .viz-result img{width:100%;border-radius:10px;display:block}
+  .viz-cap{font-family:"IBM Plex Mono";font-size:.7rem;color:var(--muted);text-align:center;margin:10px 0}
   .news-ic{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:rgba(62,125,90,.18);color:#6fce93;margin-right:8px;vertical-align:-.35em}
   .news-ic.pay{background:rgba(207,127,24,.18);color:var(--amber)}
   @media(min-width:720px){ .kpis{display:grid;grid-template-columns:1fr 1fr;align-items:start} .kpi.hero{grid-column:1/-1} }
@@ -531,6 +537,26 @@
     <div id="pickList" class="picklist"></div>
   </div>
 </div>
+<div id="vizPhotoSheet" class="sheet-wrap" style="display:none" onclick="closeVizPhotoSheet()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h">Photo of the client's room</div>
+    <button class="sheet-i" onclick="vizRoomSource('cam')">📷 Take a photo</button>
+    <button class="sheet-i" onclick="vizRoomSource('lib')">🖼️ Choose from library</button>
+    <button class="sheet-i" onclick="closeVizPhotoSheet()">Cancel</button>
+  </div>
+</div>
+<input id="vizCam" type="file" accept="image/*" capture="environment" style="display:none" onchange="vizRoomPick(this)"/>
+<input id="vizLib" type="file" accept="image/*" style="display:none" onchange="vizRoomPick(this)"/>
+<div id="vizOverlay" class="viz-overlay" style="display:none">
+  <div class="viz-card"><div class="spinner"></div><div class="viz-msg" id="vizMsg">Rendering the room…</div><div class="hint">This takes 10–25 seconds.</div></div>
+</div>
+<div id="vizResult" class="sheet-wrap" style="display:none;align-items:center" onclick="closeVizResult()">
+  <div class="viz-result" onclick="event.stopPropagation()">
+    <img id="vizResultImg" alt="AI visualization"/>
+    <div class="viz-cap">✓ Added to the bid · AI visualization — for illustration only</div>
+    <button class="btn full" onclick="closeVizResult()">Looks good</button>
+  </div>
+</div>
 <div id="printArea"></div>
 
 <script>
@@ -591,8 +617,10 @@ let ADMIN = false; // founder dashboard access (server decides via BT_ADMIN_EMAI
 // Fire-and-forget client event; analytics must never block or break the UI.
 function track(ev, props){ if(!TOKEN || !online || !ev) return; try{ api('/api/track',{method:'POST',body:JSON.stringify({event:ev,props:props||{}})}).catch(()=>{}); }catch(e){} }
 let AI_TRANSCRIBE = localStorage.getItem('bt_transcribe')==='1'; // server can transcribe recordings
+let AI_VISUALIZE = localStorage.getItem('bt_visualize')==='1'; // server can render materials into a room photo
 async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/api/me'); ADMIN=!!r.admin;
   AI_TRANSCRIBE = !!(r.ai && r.ai.transcribe); localStorage.setItem('bt_transcribe', AI_TRANSCRIBE?'1':'0');
+  AI_VISUALIZE = !!(r.ai && r.ai.visualize); localStorage.setItem('bt_visualize', AI_VISUALIZE?'1':'0');
   if(state.view==='capture') render();
   // Hydrate tax settings from the server unless the user has local unsaved edits.
   if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; persistSettings(); }
@@ -1854,6 +1882,8 @@ function tabBuild(j){
       <button class="btn ghost addline" style="flex:1" onclick="addLine()">+ Add line</button>
       <button class="btn ghost addline" style="flex:1" onclick="openSkuPicker()">+ From price book</button>
     </div>
+    ${AI_VISUALIZE?`<button class="btn full" style="margin-top:10px" onclick="vizStart('${j.id}')">✨ See it in their kitchen</button>
+      <div class="hint" style="margin-top:4px">Pick a material that has a photo, add the client's room, and AI renders it in — the picture is added to the bid.</div>`:''}
 
     <div class="totbar"><span class="tl">Client price</span><span class="tv">${money(total)}</span></div>
     ${m>0
@@ -2255,19 +2285,54 @@ async function removeSkuPhoto(id, ev){
   catch(e){ toast(e.message||'Could not remove the photo.','bad'); }
 }
 // ---- Insert a SKU into the current bid (Build tab picker) ----
-function openSkuPicker(){ if(!CATALOG.loaded) loadSkus(); const el=document.getElementById('skuPicker'); if(el){ el.style.display='flex'; renderPicker(); } }
+function openSkuPicker(mode){ state.pickMode=mode||'insert'; if(!CATALOG.loaded) loadSkus(); const el=document.getElementById('skuPicker'); if(el){ const h=el.querySelector('.sheet-h'); if(h) h.textContent=state.pickMode==='viz'?'Pick a material to visualize':'Add from price book'; el.style.display='flex'; renderPicker(); } }
 function closeSkuPicker(){ const el=document.getElementById('skuPicker'); if(el) el.style.display='none'; }
 function renderPicker(){
   const q=(((document.getElementById('pickQ')||{}).value)||'').trim().toLowerCase();
   let l=(CATALOG.skus||[]); if(q) l=l.filter(s=>(s.name+' '+s.category).toLowerCase().includes(q));
   const el=document.getElementById('pickList'); if(!el) return;
-  el.innerHTML = l.length ? l.slice(0,250).map(s=>`<button class="pickitem" onclick="insertSku('${s.id}')">${s.image?`<img class="pickthumb" src="${s.image}" alt="" loading="lazy"/>`:`<span class="pickthumb none">📷</span>`}<span class="pn">${esc(s.name)}</span><span class="pp">${money(s.unit_price)}/${esc(s.unit)}</span></button>`).join('')
+  const act=(id)=>state.pickMode==='viz'?`vizPickMaterial('${id}')`:`insertSku('${id}')`;
+  el.innerHTML = l.length ? l.slice(0,250).map(s=>`<button class="pickitem" onclick="${act(s.id)}">${s.image?`<img class="pickthumb" src="${s.image}" alt="" loading="lazy"/>`:`<span class="pickthumb none">📷</span>`}<span class="pn">${esc(s.name)}</span><span class="pp">${money(s.unit_price)}/${esc(s.unit)}</span></button>`).join('')
     : '<div class="hint" style="padding:12px 10px">No SKUs yet — add some in More → Price book.</div>';
 }
 function insertSku(id){ const s=(CATALOG.skus||[]).find(x=>x.id===id); const j=currentJob(); if(!s||!j) return;
   j.lines.push({id:uid(), section:'', desc:s.name, type:'unit', qty:1, unit:s.unit||'each', rate:+s.unit_price||0, price:0, hours:0, furn:'you'});
   touch(j); saveJobs(); closeSkuPicker(); render(); toast('Added “'+s.name+'” — set the quantity','ok',2400);
 }
+/* ---- "See it in their kitchen": render a material into the client's room ---- */
+let VIZ={jobId:null, sku:null};
+function vizStart(jobId){
+  if(!AI_VISUALIZE){ toast('Add your OpenAI key in setup to turn on AI visualization.','warn',5000); return; }
+  if(!online||!TOKEN){ toast('Connect to the internet to render.','warn'); return; }
+  if(!(CATALOG.skus||[]).length){ if(!CATALOG.loaded) loadSkus(); toast('Add a material to your price book first.','warn',4000); return; }
+  VIZ={jobId, sku:null};
+  openSkuPicker('viz');
+}
+function vizPickMaterial(id){
+  const s=(CATALOG.skus||[]).find(x=>x.id===id); if(!s) return;
+  VIZ.sku=s; closeSkuPicker();
+  if(!s.image) toast('Tip: a photo on this material gives the best render.','warn',4000);
+  const el=document.getElementById('vizPhotoSheet'); if(el) el.style.display='flex';
+}
+function closeVizPhotoSheet(){ const el=document.getElementById('vizPhotoSheet'); if(el) el.style.display='none'; }
+function vizRoomSource(which){ closeVizPhotoSheet(); const inp=document.getElementById(which==='cam'?'vizCam':'vizLib'); if(inp) inp.click(); }
+function vizShowOverlay(show,msg){ const el=document.getElementById('vizOverlay'); if(!el) return; if(msg){ const m=document.getElementById('vizMsg'); if(m) m.textContent=msg; } el.style.display=show?'flex':'none'; }
+async function vizRoomPick(input){
+  const f=input.files&&input.files[0]; input.value='';
+  if(!f||!VIZ.jobId||!VIZ.sku) return;
+  if(!/^image\//.test(f.type)){ toast('Choose an image of the room.','warn'); return; }
+  let roomImage; try{ roomImage=await readImageScaled(f,1280,0.85); }catch(e){ toast('Could not read that image.','bad'); return; }
+  vizShowOverlay(true,'Rendering '+(VIZ.sku.name||'the material')+' into the room…');
+  try{
+    const r=await api('/api/jobs/'+VIZ.jobId+'/visualize',{method:'POST', body:JSON.stringify({ roomImage, skuId:VIZ.sku.id })});
+    await refreshJob(VIZ.jobId); // pull the new on-bid photo into the job
+    vizShowOverlay(false);
+    const img=document.getElementById('vizResultImg'); if(img&&r.photo) img.src=r.photo.url;
+    const res=document.getElementById('vizResult'); if(res) res.style.display='flex';
+    toast('✓ Render added to the bid','ok');
+  }catch(e){ vizShowOverlay(false); if(e.status===402){ gate402(e); } else toast(e.message||'Could not render that — try a clearer room photo.','bad',6000); }
+}
+function closeVizResult(){ const el=document.getElementById('vizResult'); if(el) el.style.display='none'; if(state.view==='job') render(); }
 function themeSeg(){
   const cur=themeChoice();
   const opt=(v,lab)=>`<button class="segbtn ${cur===v?'on':''}" onclick="setTheme('${v}')">${lab}</button>`;

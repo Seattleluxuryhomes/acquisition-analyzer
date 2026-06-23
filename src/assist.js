@@ -176,6 +176,61 @@ export async function transcribeAudio(user, { audio, lang }) {
   return { text: String((out && out.text) || "").trim() };
 }
 
+// "See it in their kitchen": render a price-book material onto the surfaces in a
+// client's room photo using OpenAI's image model (gpt-image-1 edits). Reuses the
+// SAME OPENAI_API_KEY as voice — pay per image, no subscription. The SKU's own
+// photo is passed as a second reference so the color/veining matches. Returns PNG.
+export function visualizeConfigured() {
+  return !!process.env.OPENAI_API_KEY;
+}
+export async function visualizeRoom(user, { roomImage, materialBuffer, materialMime, materialName, surface }) {
+  if (!visualizeConfigured()) { const e = new Error("AI visualization isn't configured on the server."); e.status = 503; e.code = "VIZ_UNCONFIGURED"; throw e; }
+  const m = /^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/=\s]+)$/.exec(String(roomImage || ""));
+  if (!m) { const e = new Error("Add a photo of the room first."); e.status = 400; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Too many renders in a short window — wait a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const roomBuf = Buffer.from(m[2].replace(/\s+/g, ""), "base64");
+  if (roomBuf.length < 1000 || roomBuf.length > 12 * 1024 * 1024) { const e = new Error("Room photo is empty or too large."); e.status = 400; throw e; }
+
+  const what = (String(surface || "countertops").toLowerCase().replace(/[^a-z ]/g, "") || "countertops").slice(0, 40);
+  const mat = (String(materialName || "the selected material").trim()).slice(0, 80);
+  const prompt =
+    `Photorealistic interior visualization. The first image is a real room. Replace ONLY the ${what} ` +
+    `with ${mat}` + (materialBuffer ? `, whose exact color, pattern and veining are shown in the second image` : "") + `. ` +
+    `Keep everything else identical — cabinets, flooring, walls, windows, appliances, sink, faucet, fixtures, decor, ` +
+    `lighting, shadows, and the exact camera angle and perspective. The new ${what} must look naturally installed ` +
+    `with correct edges, thickness, seams and realistic reflections. Change nothing except the ${what}.`;
+
+  const extOf = (t) => (t.includes("png") ? "png" : t.includes("webp") ? "webp" : "jpg");
+  const form = new FormData();
+  form.append("model", "gpt-image-1");
+  form.append("image[]", new Blob([roomBuf], { type: m[1] }), "room." + extOf(m[1]));
+  if (materialBuffer && materialBuffer.length) {
+    const mt = materialMime || "image/jpeg";
+    form.append("image[]", new Blob([materialBuffer], { type: mt }), "material." + extOf(mt));
+  }
+  form.append("prompt", prompt.slice(0, 2000));
+  form.append("size", "auto");
+  form.append("quality", process.env.BT_VIZ_QUALITY || "medium"); // low|medium|high — cost vs fidelity
+  form.append("input_fidelity", "high"); // preserve the rest of the room
+  form.append("n", "1");
+
+  let res;
+  try {
+    res = await fetch("https://api.openai.com/v1/images/edits", {
+      method: "POST", headers: { Authorization: "Bearer " + process.env.OPENAI_API_KEY }, body: form,
+    });
+  } catch { const e = new Error("Could not reach the image provider."); e.status = 502; throw e; }
+  if (!res.ok) {
+    let detail = ""; try { const j = await res.json(); if (j && j.error && j.error.message) detail = " — " + j.error.message; } catch {}
+    const e = new Error("Visualization error (" + res.status + ")" + detail); e.status = res.status === 400 ? 400 : 502; throw e;
+  }
+  const out = await res.json().catch(() => null);
+  const b64 = out && out.data && out.data[0] && out.data[0].b64_json;
+  if (!b64) { const e = new Error("No image came back from the render."); e.status = 502; throw e; }
+  return { buffer: Buffer.from(b64, "base64"), mime: "image/png" };
+}
+
 // ---- Price book: organize a contractor's uploaded SKUs (text/CSV or a photo) ----
 const SKU_UNITS = ["each", "sq ft", "ln ft", "sq yd", "cu yd", "ton", "gal", "hr", "box", "roll", "pallet", "board ft", "slab"];
 
