@@ -71,7 +71,7 @@
   .news-row:first-of-type{border-top:none}
   .news-x{position:absolute;top:50%;right:0;transform:translateY(-50%);background:transparent;border:none;color:var(--muted);font-size:.82rem;padding:8px 6px;cursor:pointer;line-height:1}
   .news-x:hover{color:var(--text)}
-  .news-h{font-family:"IBM Plex Mono";font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#7fd6a3;margin-bottom:6px}
+  .news-h{font-family:"IBM Plex Mono";font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ok);margin-bottom:6px}
   .news-count{color:#fff;background:#3e7d5a;border-radius:8px;padding:1px 7px;font-size:.64rem}
   .news-item{display:block;width:100%;text-align:left;background:transparent;border:none;padding:9px 30px 9px 2px;cursor:pointer}
   .news-t{font-size:.95rem;color:var(--text)}
@@ -204,6 +204,15 @@
   .kpi.foll.alert{border-color:var(--rust)}
   .kpi.foll.alert .kpi-ic{color:#ff9b7a;background:rgba(169,78,56,.16)} .kpi.foll.alert .kpi-v{color:#ff9b7a}
   .ico{display:inline-block;vertical-align:-.14em}
+  /* Celebrations — fire once on a customer win; toggleable + reduced-motion aware. */
+  #celebrate{position:fixed;inset:0;z-index:1200;display:none;align-items:center;justify-content:center;pointer-events:none}
+  #celebrate canvas{position:absolute;inset:0;width:100%;height:100%}
+  .celebrate-card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 26px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.45);animation:popin .3s cubic-bezier(.2,.9,.3,1.3)}
+  .celebrate-card .cc-ic{width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;background:rgba(62,125,90,.18);color:#6fce93}
+  .celebrate-card .cc-ic.pay{background:rgba(207,127,24,.2);color:var(--amber)}
+  .celebrate-card .cc-t{font-family:"Archivo";font-weight:800;font-size:1.22rem;letter-spacing:-.01em}
+  .celebrate-card .cc-s{color:var(--muted);font-family:"IBM Plex Mono";font-size:.78rem;margin-top:5px}
+  @keyframes popin{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
   .panel-title{display:inline-flex;align-items:center;gap:7px}
   .news-ic{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:rgba(62,125,90,.18);color:#6fce93;margin-right:8px;vertical-align:-.35em}
   .news-ic.pay{background:rgba(207,127,24,.18);color:var(--amber)}
@@ -294,7 +303,7 @@
   .private{background:rgba(46,92,126,.14);border:1px solid var(--blueprint);border-radius:8px;padding:12px 14px;margin-bottom:12px}
   .depositbox{background:rgba(62,125,90,.12);border:1px solid #3e7d5a;border-radius:8px;padding:12px 14px;margin-bottom:12px}
   .amtquick{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-  .private .pl{font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:#8fb6d0}
+  .private .pl{font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--blueprint)}
 
   /* The proposal preview mirrors what the CLIENT sees — always the paper look in
      either app theme. Scope --text to paper so the dark header's text stays light. */
@@ -439,6 +448,7 @@
 <body>
 <script>try{var _t=localStorage.getItem('bt_theme');if(_t==='light'||(!_t&&window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches))document.body.classList.add('light');}catch(e){}</script>
 <div id="toasts"></div>
+<div id="celebrate"><canvas id="confettiCanvas"></canvas><div class="celebrate-card" id="celebrateCard"></div></div>
 <div class="app">
   <div class="top" id="topbar" style="display:none">
     <div class="top-in">
@@ -554,7 +564,23 @@ async function loadNotifications(){
     NOTIFS = { items: r.items||[], unread: r.unread||0 };
     localStorage.setItem('bt_notifs', JSON.stringify(NOTIFS));
     paintBell();
+    maybeCelebrate();
   }catch(e){}
+}
+// Fire a celebration the first time we see a new customer win (accepted / paid).
+let firstNotifLoad=true;
+function maybeCelebrate(){
+  const items=(NOTIFS&&NOTIFS.items)||[];
+  const win=items.filter(i=>i.unread && (i.type==='paid'||i.type==='accepted')).sort((a,b)=>b.id-a.id)[0];
+  // First load of the session just sets the baseline — no fanfare for old wins.
+  if(firstNotifLoad){ firstNotifLoad=false; if(win){ const l=Number(localStorage.getItem('bt_celebrated_id')||0); if(win.id>l) localStorage.setItem('bt_celebrated_id', String(win.id)); } return; }
+  if(!win) return;
+  const last=Number(localStorage.getItem('bt_celebrated_id')||0);
+  if(win.id<=last) return;
+  localStorage.setItem('bt_celebrated_id', String(win.id));
+  const who=(win.customer||'').trim()||'Your client';
+  if(win.type==='paid') celebrate('paid', 'You got paid '+money(win.amount||0), who+(win.jobTitle?(' · '+win.jobTitle):''));
+  else celebrate('accepted', who+' accepted your bid', win.jobTitle||'Time to lock in the deposit');
 }
 function paintBell(){
   const bell=document.getElementById('navBell'); if(!bell) return;
@@ -1998,10 +2024,14 @@ function setRegion(s){
 function themeSeg(){
   const cur=themeChoice();
   const opt=(v,lab)=>`<button class="segbtn ${cur===v?'on':''}" onclick="setTheme('${v}')">${lab}</button>`;
+  const celeb=celebEnabled();
   return `<div class="appearance">
     <label class="fld" style="margin-top:0">Appearance</label>
     <div class="seg">${opt('system','Auto')}${opt('light','Light')}${opt('dark','Dark')}</div>
     <div class="hint">Auto follows your phone's setting. The proposal your client sees is unaffected.</div>
+    <label class="fld" style="margin-top:16px">Celebrations</label>
+    <div class="seg"><button class="segbtn ${celeb?'on':''}" onclick="setCelebrate(true)">On</button><button class="segbtn ${celeb?'':'on'}" onclick="setCelebrate(false)">Off</button></div>
+    <div class="hint">A brief animation when a client accepts a bid or pays a deposit. Turn it off any time.</div>
   </div>`;
 }
 function viewSettings(){
@@ -2210,14 +2240,17 @@ function toggleMic(){
     // FINAL results, then append only the LATEST interim entry. Assigning interim
     // (not appending) is what stops mobile browsers from stacking the growing
     // phrase — the bug in the screenshot.
-    let finalText='', interim='';
+    const finals=[]; let interim='';
     for(let i=0;i<e.results.length;i++){
-      const r=e.results[i];
-      if(r.isFinal) finalText+=r[0].transcript+' '; else interim=r[0].transcript;
+      const r=e.results[i]; const t=(r[0].transcript||'').trim();
+      // Drop a final phrase that's identical to the one before it — some mobile
+      // engines re-finalize the same words in continuous mode ("kitchen kitchen…").
+      if(r.isFinal){ if(t && t!==finals[finals.length-1]) finals.push(t); }
+      else interim=r[0].transcript;
     }
     const ta=document.getElementById('capText');
     if(ta){
-      ta.value=[dictBase, (finalText+interim).trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
+      ta.value=[dictBase, (finals.join(' ')+' '+interim).trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
       // Keep the newest words visible while talking: grow the box a little, then
       // pin it to the bottom so dictation never scrolls out of sight.
       ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight, 300)+'px';
@@ -2294,6 +2327,37 @@ function setTheme(mode){ if(mode==='system') localStorage.removeItem('bt_theme')
 // Follow the OS if the user hasn't picked an explicit theme.
 if(window.matchMedia){ try{ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()=>{ if(!localStorage.getItem('bt_theme')) applyTheme(); }); }catch(e){} }
 applyTheme();
+
+/* ============ celebrations (customer wins; toggleable like the theme) ============ */
+function celebEnabled(){ return localStorage.getItem('bt_celebrate')!=='off'; }
+function setCelebrate(on){ localStorage.setItem('bt_celebrate', on?'on':'off'); if(state.view==='settings') render(); if(on) celebrate('won','Celebrations on','You’ll see a little fanfare on a win'); }
+function celebrate(kind, title, sub){
+  if(!celebEnabled()) return;
+  const wrap=document.getElementById('celebrate'), card=document.getElementById('celebrateCard'); if(!wrap||!card) return;
+  const ic = kind==='paid' ? icon('revenue',26) : icon('check',26);
+  card.innerHTML=`<div class="cc-ic ${kind==='paid'?'pay':''}">${ic}</div><div class="cc-t">${esc(title)}</div>${sub?`<div class="cc-s">${esc(sub)}</div>`:''}`;
+  wrap.style.display='flex';
+  const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!reduce) confettiBurst(kind==='paid');
+  clearTimeout(celebrate._t); celebrate._t=setTimeout(()=>{ wrap.style.display='none'; }, 2000);
+}
+function confettiBurst(gold){
+  const cv=document.getElementById('confettiCanvas'); if(!cv) return;
+  const dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr; const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  const colors=gold?['#EE9B2E','#FFC062','#F3EEE3','#6fce93']:['#6fce93','#EE9B2E','#F3EEE3','#3E7D5A'];
+  const N=90, P=[];
+  for(let i=0;i<N;i++){ P.push({x:W/2+(Math.random()-.5)*60, y:H/2, vx:(Math.random()-.5)*9, vy:Math.random()*-11-4, g:.34+Math.random()*.12, s:5+Math.random()*5, c:colors[i%colors.length], r:Math.random()*6, vr:(Math.random()-.5)*.5, life:0}); }
+  const t0=performance.now();
+  (function frame(t){
+    const dt=Math.min(2,(t-t0)/16.7);
+    ctx.clearRect(0,0,W,H);
+    let alive=false;
+    for(const p of P){ p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.r+=p.vr; p.life=t-t0;
+      if(p.y<H+20){ alive=true; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.globalAlpha=Math.max(0,1-(p.life/1900)); ctx.fillStyle=p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); ctx.restore(); } }
+    if(alive && t-t0<1900) requestAnimationFrame(frame); else ctx.clearRect(0,0,W,H);
+  })(t0);
+}
 
 /* ============ boot ============ */
 (async function(){
