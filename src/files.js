@@ -26,6 +26,24 @@ export function verifyPhotoSig(photoId, exp, sig) {
   }
 }
 
+// Private, expiring URL for a price-book SKU's photo (same scheme as job photos).
+export function signSkuImageUrl(skuId, ttl = DEFAULT_TTL) {
+  const exp = Date.now() + ttl;
+  const sig = sign(`skuimg.${skuId}.${exp}`);
+  return `/api/skus/${skuId}/image?exp=${exp}&sig=${sig}`;
+}
+
+export function verifySkuImageSig(skuId, exp, sig) {
+  if (!exp || !sig) return false;
+  if (Number(exp) < Date.now()) return false;
+  const expected = sign(`skuimg.${skuId}.${exp}`);
+  try {
+    return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
 // Public, expiring link to a client proposal page (for texting/emailing a bid).
 // Carries an HMAC over "proposal.<jobId>.<expiry>" — no login needed, and it
 // only exposes buildProposal() data (margin/notes can never appear). 30 days to

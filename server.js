@@ -14,7 +14,7 @@ import { assistBuild, aiConfigured, parseSkus, transcribeAudio, transcribeConfig
 import * as Skus from "./src/skus.js";
 import { buildProposal } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
-import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig } from "./src/files.js";
+import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig } from "./src/files.js";
 import { renderProposalHTML } from "./src/proposalHtml.js";
 import * as Billing from "./src/billing.js";
 import * as Payments from "./src/payments.js";
@@ -76,7 +76,8 @@ app.post("/api/billing/webhook", express.raw({ type: "*/*", limit: "1mb" }), asy
 // applies (otherwise this 256kb cap would reject photos before they're reached).
 const smallJson = express.json({ limit: "256kb" });
 const bigJson = express.json({ limit: "12mb" }); // price-sheet photo for SKU parsing
-const isPhotoUpload = (req) => req.method === "POST" && /^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path);
+const isPhotoUpload = (req) => req.method === "POST" &&
+  (/^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path) || /^\/api\/skus\/[^/]+\/image\/?$/.test(req.path));
 const isBigJson = (req) => req.method === "POST" && (req.path === "/api/skus/parse" || req.path === "/api/assist/transcribe");
 app.use((req, res, next) => (isPhotoUpload(req) ? next() : (isBigJson(req) ? bigJson(req, res, next) : smallJson(req, res, next))));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -382,7 +383,41 @@ app.patch("/api/skus/:id", requireAuth, wrap((req, res) => {
   res.json({ sku });
 }));
 app.delete("/api/skus/:id", requireAuth, wrap((req, res) => {
-  if (!Skus.deleteSku(req.user.id, req.params.id)) return res.status(404).json({ error: "SKU not found." });
+  const r = Skus.deleteSku(req.user.id, req.params.id);
+  if (!r.deleted) return res.status(404).json({ error: "SKU not found." });
+  if (r.image_file) { try { fs.unlinkSync(path.join(PHOTO_DIR, r.image_file)); } catch {} }
+  res.json({ ok: true });
+}));
+
+// ---- Per-SKU photo (private; signed expiring URLs, hard rule #6) ----
+app.post("/api/skus/:id/image", requireAuth, photoJson, wrap((req, res) => {
+  const m = /^data:(image\/[a-z.+-]+);base64,(.+)$/i.exec(String(req.body?.dataUrl || ""));
+  if (!m) return res.status(400).json({ error: "Expected an image data URL." });
+  const buf = Buffer.from(m[2], "base64");
+  if (buf.length > 8 * 1024 * 1024) return res.status(413).json({ error: "Image too large." });
+  const ext = m[1].split("/")[1].replace(/[^a-z0-9]/gi, "").slice(0, 5) || "jpg";
+  const filename = `sku_${req.params.id}_${Date.now()}.${ext}`;
+  fs.writeFileSync(path.join(PHOTO_DIR, filename), buf);
+  const r = Skus.setSkuImage(req.user.id, req.params.id, filename, m[1]);
+  if (!r) { try { fs.unlinkSync(path.join(PHOTO_DIR, filename)); } catch {} return res.status(404).json({ error: "SKU not found." }); }
+  if (r.prior) { try { fs.unlinkSync(path.join(PHOTO_DIR, r.prior)); } catch {} } // drop the replaced photo
+  res.json({ image: r.url });
+}));
+
+// Served by signature (no bearer auth) so <img> tags load directly.
+app.get("/api/skus/:id/image", (req, res) => {
+  if (!verifySkuImageSig(req.params.id, req.query.exp, req.query.sig)) return res.status(403).send("Forbidden");
+  const row = Skus.getSkuImage(req.params.id);
+  if (!row || !row.image_file) return res.status(404).send("Not found");
+  res.type(row.image_mime || "image/jpeg");
+  res.setHeader("Cache-Control", "private, max-age=3600");
+  fs.createReadStream(path.join(PHOTO_DIR, row.image_file)).pipe(res);
+});
+
+app.delete("/api/skus/:id/image", requireAuth, wrap((req, res) => {
+  const r = Skus.clearSkuImage(req.user.id, req.params.id);
+  if (!r) return res.status(404).json({ error: "SKU not found." });
+  if (r.prior) { try { fs.unlinkSync(path.join(PHOTO_DIR, r.prior)); } catch {} }
   res.json({ ok: true });
 }));
 // Organize an uploaded list/photo into structured SKUs (preview — not saved yet).

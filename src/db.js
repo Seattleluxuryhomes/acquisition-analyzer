@@ -225,6 +225,8 @@ ensureColumns("sku", [
   ["unit_price", "REAL DEFAULT 0"],
   ["created_at", "INTEGER NOT NULL DEFAULT 0"],
   ["updated_at", "INTEGER NOT NULL DEFAULT 0"],
+  ["image_file", "TEXT"],   // private photo of the material/color for this SKU
+  ["image_mime", "TEXT"],
 ]);
 
 export default db;

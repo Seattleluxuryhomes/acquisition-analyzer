@@ -3,6 +3,7 @@
 // bids as line items. Every read/write is scoped to the owner (hard rule #5).
 import crypto from "node:crypto";
 import db from "./db.js";
+import { signSkuImageUrl } from "./files.js";
 
 const uid = () => crypto.randomBytes(9).toString("base64url");
 // Units a bid line understands (kept in sync with the front-end UNITS list).
@@ -22,7 +23,8 @@ function cleanSku(s = {}) {
 
 function rowToSku(r) {
   return r && { id: r.id, name: r.name, sku_code: r.sku_code || "", category: r.category || "",
-    unit: r.unit || "each", unit_price: r.unit_price || 0, created_at: r.created_at, updated_at: r.updated_at };
+    unit: r.unit || "each", unit_price: r.unit_price || 0, created_at: r.created_at, updated_at: r.updated_at,
+    image: r.image_file ? signSkuImageUrl(r.id) : null };
 }
 
 export function listSkus(userId, q) {
@@ -76,6 +78,30 @@ export function updateSku(userId, id, patch) {
   return rowToSku(db.prepare("SELECT * FROM sku WHERE id=?").get(id));
 }
 
+// Returns { deleted, image_file } so the route can unlink the photo file too.
 export function deleteSku(userId, id) {
-  return db.prepare("DELETE FROM sku WHERE id=? AND user_id=?").run(id, userId).changes > 0;
+  const row = db.prepare("SELECT image_file FROM sku WHERE id=? AND user_id=?").get(id, userId);
+  const changes = db.prepare("DELETE FROM sku WHERE id=? AND user_id=?").run(id, userId).changes;
+  return { deleted: changes > 0, image_file: (row && row.image_file) || null };
+}
+
+// ---- Per-SKU photo (match a picture to each material/color). Owner-scoped. ----
+// Point the SKU at a stored image file; returns the prior filename (for cleanup).
+export function setSkuImage(userId, id, filename, mime) {
+  const row = db.prepare("SELECT image_file FROM sku WHERE id=? AND user_id=?").get(id, userId);
+  if (!row) return null;
+  db.prepare("UPDATE sku SET image_file=?, image_mime=?, updated_at=? WHERE id=? AND user_id=?")
+    .run(filename, mime, Date.now(), id, userId);
+  return { prior: row.image_file || null, url: signSkuImageUrl(id) };
+}
+export function clearSkuImage(userId, id) {
+  const row = db.prepare("SELECT image_file FROM sku WHERE id=? AND user_id=?").get(id, userId);
+  if (!row) return null;
+  db.prepare("UPDATE sku SET image_file=NULL, image_mime=NULL, updated_at=? WHERE id=? AND user_id=?")
+    .run(Date.now(), id, userId);
+  return { prior: row.image_file || null };
+}
+// For the signed (no-auth) image route: filename + mime by SKU id.
+export function getSkuImage(id) {
+  return db.prepare("SELECT image_file, image_mime FROM sku WHERE id=?").get(id);
 }
