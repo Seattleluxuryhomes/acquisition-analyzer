@@ -679,6 +679,11 @@ const SPEECH_LANG={
 };
 const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
 const money = n => '$' + (Math.round((+n||0))).toLocaleString('en-US');
+// Compact money for dashboard KPIs — $850, $31.6K, $1.4M (clean, no crowding).
+function moneyShort(n){ n=Math.round(+n||0); const a=Math.abs(n), s=n<0?'-':'';
+  if(a>=1e6) return s+'$'+(a/1e6).toFixed(a%1e6?1:0).replace(/\.0$/,'')+'M';
+  if(a>=1e3) return s+'$'+(a/1e3).toFixed(a%1e3?1:0).replace(/\.0$/,'')+'K';
+  return s+'$'+a.toLocaleString('en-US'); }
 // Price formatter that keeps cents (for $29.99 / $299.99 plan prices).
 const priceStr = n => (n==null) ? null : ((Math.round(n*100)%100===0) ? '$'+Math.round(n).toLocaleString('en-US') : '$'+(+n).toFixed(2));
 // Live plan prices from Stripe (fall back to defaults until billing status loads).
@@ -1408,13 +1413,13 @@ function kpiStrip(k){
   return `<div class="kpis">
     <div class="kpi hero rev">
       <div class="kpi-ic">${icon('revenue',22)}</div>
-      <div class="kpi-txt"><div class="kpi-l">Revenue collected</div><div class="kpi-v">${money(k.collected)}</div>
+      <div class="kpi-txt"><div class="kpi-l">Revenue collected</div><div class="kpi-v">${moneyShort(k.collected)}</div>
         <div class="kpi-s">${k.payments?(k.payments+' payment'+(k.payments===1?'':'s')+' received'):'No payments yet'}</div></div>
     </div>
     <div class="kpi-grid">
       ${leadCard()}
-      ${card('won','Won',money(k.wonValue),k.wonCount+' job'+(k.wonCount===1?'':'s'),'won')}
-      ${card('pending','Pending',money(k.pending),k.pendingCount+' out for bid','pend')}
+      ${card('won','Won',moneyShort(k.wonValue),k.wonCount+' job'+(k.wonCount===1?'':'s'),'won')}
+      ${card('pending','Pending',moneyShort(k.pending),k.pendingCount+' out for bid','pend')}
       ${card('close','Close rate',k.close+'%','of decided bids','close')}
       ${card('bell','Follow-ups',k.followups,k.followups?'need attention':'all clear',k.followups?'foll alert':'foll')}
     </div>
