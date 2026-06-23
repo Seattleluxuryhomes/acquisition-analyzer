@@ -161,6 +161,9 @@
   .jobtitle-input{width:100%;background:transparent;border:none;border-bottom:1px solid var(--line);color:var(--paper);font-family:"Archivo";font-weight:900;font-size:1.4rem;letter-spacing:-.02em;padding:2px 0 6px}
   .jobtitle-input:focus{outline:none;border-bottom-color:var(--amber)}
   .jobtitle-input::placeholder{color:var(--muted);font-weight:600;font-size:.95rem;font-family:"IBM Plex Sans"}
+  .addrresolved{background:var(--ink-soft);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:.92rem;color:var(--paper)}
+  .addrresolved .addrok{color:#8fd0a8;font-size:.76rem;font-family:"IBM Plex Mono"}
+  .linklike{background:transparent;border:none;color:var(--amber);font-size:.78rem;padding:6px 0 2px;cursor:pointer;font-family:"IBM Plex Mono"}
   .addrlinks{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .maplink{font-family:"IBM Plex Mono";font-size:.72rem;text-decoration:none;background:var(--blueprint-deep);color:#cfe3f0;padding:7px 11px;border-radius:6px;border:1px solid var(--line)}
   .routecard{display:flex;align-items:stretch;gap:8px;margin-bottom:10px}
@@ -1133,7 +1136,10 @@ function mapsLinks(addr){
     sv:`https://www.google.com/maps?q=${q}&layer=c`
   };
 }
-function setAddress(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.address=v||''; touch(j); saveJobs(); render(); }
+function setAddress(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.address=v||''; touch(j); saveJobs(); refreshAddrBlock(); }
+// Refresh ONLY the address block (map links + note) — not the whole page — so the
+// page doesn't jump or steal focus while you're typing the name/address.
+function refreshAddrBlock(){ const j=currentJob(); const el=document.getElementById('addrWrap'); if(j&&el) el.innerHTML=addrBlock(j); }
 function setCustomer(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.customer=v||''; touch(j); saveJobs(); }
 // One source of truth for a job's location: the explicit address field, or — so
 // you never type it twice — the project name itself when that looks like an
@@ -1164,21 +1170,28 @@ function calLink(j){
     +(jobLocation(j)?'&location='+encodeURIComponent(jobLocation(j)):'')
     +'&details='+encodeURIComponent('Scheduled via Bidtranslator · '+money(bidPrice(j))+(note?'\n\nNotes: '+note:''));
 }
-function setTitle(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.title=v||''; touch(j); saveJobs(); render(); }
+function setTitle(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.title=v||''; touch(j); saveJobs(); refreshAddrBlock(); }
+let REVEAL_ADDR=null; // jobId for which the user chose to add a separate address
+function revealAddr(id){ REVEAL_ADDR=id; refreshAddrBlock(); const el=document.querySelector('#addrWrap .addrinput'); if(el) el.focus(); }
 function addrBlock(j){
-  const loc=jobLocation(j);
-  const usingTitle = !(j.address||'').trim() && loc;
-  const label=`<label class="fld">Address${usingTitle?' <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(optional — using the project name)</span>':''}</label>`;
-  const input=`<input class="addrinput" value="${escAttr(j.address||'')}" onchange="setAddress('${j.id}',this.value)" placeholder="📍 Job address — for maps & directions"/>`;
-  const note = usingTitle
-    ? `<div class="hint" style="margin-top:4px">✓ Your project name is the address, so maps &amp; directions already work — no need to type it again. Only add one here if it's different.</div>`
-    : (!loc ? `<div class="hint" style="margin-top:4px">Add an address for one-tap maps, directions &amp; calendar — or just name the project with the address above.</div>` : '');
-  if(!loc) return `<div class="addrrow">${label}${input}${note}</div>`;
-  const m=mapsLinks(loc);
-  return `<div class="addrrow">${label}${input}${note}<div class="addrlinks">`
+  const sep=(j.address||'').trim();   // explicit, separate address
+  const loc=jobLocation(j);           // the address actually used everywhere
+  const links = loc ? (()=>{ const m=mapsLinks(loc); return `<div class="addrlinks">`
     +`<a class="maplink" href="${m.map}" target="_blank" rel="noopener">📍 Map</a>`
     +`<a class="maplink" href="${m.dir}" target="_blank" rel="noopener">🧭 Directions</a>`
-    +`<a class="maplink" href="${m.sv}" target="_blank" rel="noopener">👁 Street View</a></div></div>`;
+    +`<a class="maplink" href="${m.sv}" target="_blank" rel="noopener">👁 Street View</a></div>`; })() : '';
+  // Project name IS the address (and no separate one): show it resolved — one field,
+  // no second empty box — with a link to add a different address only if needed.
+  if(!sep && loc && REVEAL_ADDR!==j.id){
+    return `<div class="addrrow"><label class="fld">Address</label>
+      <div class="addrresolved">📍 ${esc(loc)} <span class="addrok">· from project name</span></div>
+      ${links}
+      <button type="button" class="linklike" onclick="revealAddr('${j.id}')">Use a different address</button></div>`;
+  }
+  // Otherwise show the input (explicit address set, none yet, or "use different").
+  const input=`<input class="addrinput" value="${escAttr(sep)}" onchange="setAddress('${j.id}',this.value)" placeholder="📍 Job address — for maps & directions"/>`;
+  const note = !loc ? `<div class="hint" style="margin-top:4px">Add an address for one-tap maps, directions &amp; calendar — or just put the address in the project name above and it carries over here.</div>` : '';
+  return `<div class="addrrow"><label class="fld">Address</label>${input}${note}${links}</div>`;
 }
 // Daily-route card (used in the Scheduled tab): job + its address + one-tap directions.
 function routeCardHTML(j){
@@ -1396,7 +1409,7 @@ function viewJob(){
     ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/><input type="time" class="schedinput" value="${escAttr(j.scheduled_time||'')}" onchange="setScheduleTime('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">📲 Add to Calendar</a>`:''}</div>${conflictNote(j)}`:''}
     <label class="fld">Customer</label>
     <div class="addrrow"><input class="addrinput" value="${escAttr(j.customer||'')}" onchange="setCustomer('${j.id}',this.value)" placeholder="👤 Customer name — shown on the proposal"/></div>
-    ${addrBlock(j)}
+    <div id="addrWrap">${addrBlock(j)}</div>
     ${tabs}`;
   let body='';
   if(state.bidTab==='notebook') body=tabNotebook(j);
