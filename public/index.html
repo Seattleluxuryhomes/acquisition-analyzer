@@ -1510,7 +1510,9 @@ async function shareBid(mode, btn){
     const r = await api('/api/jobs/'+j.id+'/share');
     const url = r.url;
     const who = SETTINGS.company || 'your contractor';
-    const msg = `Here's your estimate from ${who}: ${url}`;
+    const firstName = ((j.customer||'').trim().split(/\s+/)[0]||'').slice(0,40);
+    const hi = firstName ? `Hi ${firstName}, here's` : `Here's`;
+    const msg = `${hi} your estimate from ${who}: ${url}`;
     const subject = 'Your estimate'+(j.title?(' — '+j.title):'');
     if(btn){ btn.disabled=false; btn.textContent=orig; }
     if(mode==='text'){ location.href='sms:?&body='+encodeURIComponent(msg); }

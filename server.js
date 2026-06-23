@@ -311,7 +311,8 @@ function proposalOpts(jobRow, owner, proposal, req) {
   const deposit = Math.round((proposal.total || 0) * pct / 100);
   const depositPaid = !!db.prepare("SELECT 1 FROM payment_request WHERE job_id=? AND status='paid' LIMIT 1").get(jobRow.id);
   const canPay = Payments.paymentsConfigured() && !!(owner && owner.connect_charges_enabled) && deposit >= 1;
-  return { id: jobRow.id, accepted, deposit, depositPaid, canPay, justPaid: req.query.paid === "1" };
+  return { id: jobRow.id, accepted, deposit, depositPaid, canPay, justPaid: req.query.paid === "1",
+    company: (owner && owner.company && owner.company !== "Your Company") ? owner.company : "" };
 }
 function acceptJob(jobRow) {
   if (jobRow.status !== "signed" && jobRow.status !== "scheduled") {

@@ -12,12 +12,13 @@ function lineRow(l) {
 // Accept / pay-deposit call-to-action on the public proposal.
 function acceptSection(p, o) {
   if (!o || !o.id) return "";
+  const who = o.company ? esc(o.company) : "Your contractor";
   if (o.depositPaid || o.justPaid)
-    return `<div class="accepted">✓ Accepted — deposit paid. Thank you! Your contractor has been notified.</div>`;
+    return `<div class="accepted">✓ Deposit paid — thank you!<br><span style="font-weight:600">${who} will reach out to schedule your start date.</span></div>`;
   if (o.accepted)
     return `<div class="accepted">✓ Proposal accepted.${o.canPay
       ? `<form method="POST" action="/p/${o.id}/accept-and-pay" class="acceptform"><button class="acceptbtn">💳 Pay deposit · ${money(o.deposit)}</button></form>`
-      : ` Your contractor will be in touch.`}</div>`;
+      : `<br><span style="font-weight:600">${who} will be in touch to schedule.</span>`}</div>`;
   return `<form method="POST" action="/p/${o.id}/${o.canPay ? "accept-and-pay" : "accept"}" class="acceptform">
       <button class="acceptbtn">${o.canPay ? `✅ Accept &amp; Pay Deposit · ${money(o.deposit)}` : "✅ Accept this proposal"}</button>
       <div class="acceptnote">${o.canPay ? "Secure deposit by Stripe — balance due per your agreement." : "Lets your contractor know you're ready to get started."}</div>
