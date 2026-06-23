@@ -34,6 +34,7 @@ is included, so there's nothing to build by hand.
    | `STRIPE_WEBHOOK_SECRET` | from the Stripe webhook endpoint |
    | `BT_STRIPE_TAX` | optional — set to `1` to collect sales tax automatically (requires Stripe Tax enabled + registered). Tax is added on top of the price. |
    | `BT_TRIAL_DAYS` | `14` (default; omit to keep 14) |
+   | `BT_ADMIN_EMAIL` | optional — your email. Unlocks the private **Founder** dashboard (live signups, funnel, per-contractor metrics) for that account only. Your own account is excluded from the contractor metrics. |
 
 6. **Deploy.** Hyperlift builds the image and gives you a URL. Open it — you should see the sign-in screen.
 7. **Point the domain.** In Spaceship's domain settings for **bidtranslator.com**, follow Hyperlift's "custom domain" instructions (usually a CNAME or A record to the app, plus automatic HTTPS). Once it resolves, sign up on two phones and you'll see the same jobs sync.
