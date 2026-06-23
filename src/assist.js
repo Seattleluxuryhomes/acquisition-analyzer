@@ -48,37 +48,52 @@ function checkMonthlyCap(user) {
   return true;
 }
 
-function buildSystemPrompt(from, to) {
+const UNIT_LIST = ["each", "sq ft", "ln ft", "sq yd", "cu yd", "ton", "gal", "hr", "box", "roll", "pallet", "board ft", "slab"];
+
+function buildSystemPrompt(from, to, priceBook) {
   return (
     "You are an estimating assistant for construction contractors. Translate the " +
     "field conversation and turn it into a structured bid draft. Respond with ONLY " +
     "valid minified JSON, no markdown fences and no commentary, matching exactly: " +
-    '{"translation":string,"summary":string,"lines":[{"section":string,"desc":string,"type":"fixed"|"hourly",' +
-    '"price":number,"hours":number,"rate":number}],"assumptions":[string],"exclusions":[string],' +
-    '"upgrades":[{"desc":string,"price":number}]}. Rules: at most 12 lines, at most 4 upgrades. ' +
-    "Group the work by room or area: put the room/area name (e.g. \"Bathroom\", \"Kitchen\") in each " +
-    "line's \"section\". Keep different rooms in different sections — never merge two rooms into one " +
-    "line. If the whole job is one area, use a single section name or leave \"section\" empty. " +
-    "For a fixed line set price and use hours 0 and rate 0. For an hourly line set hours and rate " +
-    "and price 0. IMPORTANT about pricing: if the conversation states a price (for an item, a room, " +
-    "or labor), use that exact number — never replace a stated price with a guess. Only invent a " +
-    "rough USD placeholder when no price is given. When one total price covers a room that has " +
-    "several steps, make ONE line for that room whose desc lists those steps, priced at the stated " +
-    "total. If a price is noted as plus tax (e.g. \"+ sales tax\"), add that as an assumption. If the " +
-    "client is supplying a material, add it as an exclusion. Translate from " +
-    (LANGS[from] || from) + " to " + (LANGS[to] || to) + ". The \"translation\" field is the " +
-    "conversation rendered in " + (LANGS[to] || to) + "."
+    '{"translation":string,"summary":string,"lines":[{"section":string,"desc":string,' +
+    '"type":"fixed"|"hourly"|"unit","price":number,"hours":number,"rate":number,"qty":number,"unit":string}],' +
+    '"assumptions":[string],"exclusions":[string],"upgrades":[{"desc":string,"price":number}]}. ' +
+    "Rules: at most 12 lines, at most 4 upgrades. Group the work by room or area: put the room/area " +
+    "name (e.g. \"Bathroom\", \"Kitchen\") in each line's \"section\". Keep different rooms in " +
+    "different sections — never merge two rooms into one line. If the whole job is one area, use a " +
+    "single section name or leave \"section\" empty. " +
+    "LINE TYPES: 'fixed' = a flat price (set price; hours/rate/qty 0). 'hourly' = labor by time (set " +
+    "hours and rate; price 0). 'unit' = work measured by area/length/count — square feet, linear " +
+    "feet, slabs, each, etc. For 'unit' set qty (the measured amount), unit (one of: " + UNIT_LIST.join(", ") +
+    ") and rate (price per unit); set price 0. Example: \"220 square feet of tile at 12 a foot\" -> " +
+    "{type:\"unit\",qty:220,unit:\"sq ft\",rate:12}. Prefer 'unit' whenever a measurement and a " +
+    "per-unit price are mentioned. NEVER pre-multiply qty by rate. " +
+    "PRICING: if the conversation states a price, use that exact number — never replace a stated " +
+    "price with a guess. Only invent a rough USD placeholder when no price is given. If a price is " +
+    "noted as plus tax, add that as an assumption. If the client supplies a material, add it as an " +
+    "exclusion. " +
+    (priceBook
+      ? "PRICE BOOK — the contractor's real items (name | unit | unit_price). When a line clearly " +
+        "matches one, use that item's exact unit and unit_price as the rate (type 'unit'):\n" + priceBook + "\n"
+      : "") +
+    "Translate from " + (LANGS[from] || from) + " to " + (LANGS[to] || to) + ". The \"translation\" " +
+    "field is the conversation rendered in " + (LANGS[to] || to) + "."
   );
 }
 
 function sanitize(data) {
   const num = (n) => Number(n) || 0;
-  const lines = (Array.isArray(data.lines) ? data.lines : []).slice(0, 12).map((l) => ({
-    section: String(l.section || "").slice(0, 80),
-    desc: String(l.desc || "").slice(0, 200),
-    type: l.type === "hourly" ? "hourly" : "fixed",
-    price: num(l.price), hours: num(l.hours), rate: num(l.rate),
-  }));
+  const unitSet = new Set(UNIT_LIST);
+  const lines = (Array.isArray(data.lines) ? data.lines : []).slice(0, 12).map((l) => {
+    const u = String(l.unit || "").toLowerCase().trim();
+    return {
+      section: String(l.section || "").slice(0, 80),
+      desc: String(l.desc || "").slice(0, 200),
+      type: ["hourly", "unit"].includes(l.type) ? l.type : "fixed",
+      price: num(l.price), hours: num(l.hours), rate: num(l.rate),
+      qty: num(l.qty), unit: unitSet.has(u) ? u : (l.type === "unit" ? "each" : ""),
+    };
+  });
   return {
     translation: String(data.translation || ""),
     summary: String(data.summary || ""),
@@ -170,7 +185,13 @@ export async function parseSkus(user, { text, image }) {
   return sanitizeSkus(parseModelJSON(txt));
 }
 
-export async function assistBuild(user, { text, from_lang, to_lang }) {
+// Compact price-book string for the prompt (cap so it never blows the token budget).
+function priceBookText(skus) {
+  if (!Array.isArray(skus) || !skus.length) return "";
+  return skus.slice(0, 150).map((s) => `${s.name} | ${s.unit || "each"} | $${s.unit_price || 0}`).join("\n");
+}
+
+export async function assistBuild(user, { text, from_lang, to_lang, skus }) {
   if (!aiConfigured()) {
     const e = new Error("AI build is not configured on the server.");
     e.status = 503; e.code = "AI_UNCONFIGURED"; throw e;
@@ -186,7 +207,7 @@ export async function assistBuild(user, { text, from_lang, to_lang }) {
   }
 
   const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
-  const system = buildSystemPrompt(from_lang, to_lang);
+  const system = buildSystemPrompt(from_lang, to_lang, priceBookText(skus));
   let res;
   try {
     res = await fetch("https://api.anthropic.com/v1/messages", {

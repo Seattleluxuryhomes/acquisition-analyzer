@@ -359,7 +359,8 @@ app.delete("/api/jobs/:id/photos/:pid", requireAuth, wrap((req, res) => {
 // ---- AI build (server-side proxy) ----
 app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
   const { text, from_lang, to_lang } = req.body || {};
-  const data = await assistBuild(req.user, { text, from_lang, to_lang });
+  // Feed the contractor's own price book in so the AI uses their real items + prices.
+  const data = await assistBuild(req.user, { text, from_lang, to_lang, skus: Skus.listSkus(req.user.id) });
   res.json(data);
 }));
 
