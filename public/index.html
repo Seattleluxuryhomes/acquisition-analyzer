@@ -2215,11 +2215,23 @@ function viewCatalog(){
     <div class="nb-sec"><h3>Your price book · ${sk.length}</h3>
       ${sk.length?`<div class="hint" style="margin:-4px 0 10px">Tap the 📷 on any item to add a photo of that color or material.</div><input class="input" placeholder="Search…" oninput="skuSearch(this.value)" style="margin-bottom:10px"/>`:''}
       <div id="skuList">${skuListHTML()}</div>
-      <input id="skuRowPhoto" type="file" accept="image/*" capture="environment" style="display:none" onchange="skuRowPhotoPick(this)"/>
+      <input id="skuRowCam" type="file" accept="image/*" capture="environment" style="display:none" onchange="skuRowPhotoPick(this)"/>
+      <input id="skuRowLib" type="file" accept="image/*" style="display:none" onchange="skuRowPhotoPick(this)"/>
+      <div id="skuPhotoSheet" class="sheet-wrap" style="display:none" onclick="closeSkuPhotoSheet()">
+        <div class="sheet" onclick="event.stopPropagation()">
+          <div class="sheet-h">Add a photo</div>
+          <button class="sheet-i" onclick="skuPhotoSource('cam')">📷 Take a photo</button>
+          <button class="sheet-i" onclick="skuPhotoSource('lib')">🖼️ Choose from library</button>
+          <button class="sheet-i" onclick="closeSkuPhotoSheet()">Cancel</button>
+        </div>
+      </div>
     </div>`;
 }
-// Attach a photo to one SKU so each color/material has a picture.
-function skuPhotoTap(id){ CATALOG.photoFor=id; const el=document.getElementById('skuRowPhoto'); if(el) el.click(); }
+// Attach a photo to one SKU so each color/material has a picture. Offer both a
+// camera capture and a library upload (capture-only would skip the gallery).
+function skuPhotoTap(id){ CATALOG.photoFor=id; const el=document.getElementById('skuPhotoSheet'); if(el) el.style.display='flex'; }
+function closeSkuPhotoSheet(){ const el=document.getElementById('skuPhotoSheet'); if(el) el.style.display='none'; }
+function skuPhotoSource(which){ closeSkuPhotoSheet(); const inp=document.getElementById(which==='cam'?'skuRowCam':'skuRowLib'); if(inp) inp.click(); }
 async function skuRowPhotoPick(input){
   const f=input.files&&input.files[0]; const id=CATALOG.photoFor; input.value=''; CATALOG.photoFor=null;
   if(!f||!id) return;
