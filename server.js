@@ -17,6 +17,7 @@ import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig } from
 import { renderProposalHTML } from "./src/proposalHtml.js";
 import * as Billing from "./src/billing.js";
 import * as Payments from "./src/payments.js";
+import * as QuickBooks from "./src/quickbooks.js";
 import * as Analytics from "./src/analytics.js";
 const { track } = Analytics;
 
@@ -173,6 +174,27 @@ app.post("/api/payments/requests/:id/cancel", requireAuth, wrap((req, res) => {
   const r = Payments.cancelPaymentRequest(req.user.id, req.params.id);
   if (!r) return res.status(404).json({ error: "Payment request not found." });
   res.json({ request: r });
+}));
+
+// ---- QuickBooks (per-contractor OAuth; paid payments sync to their books) ----
+const qboRedirect = (req) => `${baseUrl(req)}/api/quickbooks/callback`;
+app.get("/api/quickbooks/status", requireAuth, (req, res) => res.json(QuickBooks.qboStatus(req.user)));
+app.post("/api/quickbooks/connect", requireAuth, Billing.requireEntitled, wrap((req, res) => {
+  if (!QuickBooks.qboConfigured()) return res.status(503).json({ error: "QuickBooks isn't configured on the server yet." });
+  res.json({ url: QuickBooks.authUrl(req.user, qboRedirect(req)) });
+}));
+// Intuit redirects the contractor back here after they authorize.
+app.get("/api/quickbooks/callback", wrap(async (req, res) => {
+  try {
+    await QuickBooks.handleCallback({ code: req.query.code, realmId: req.query.realmId, state: req.query.state, redirectUri: qboRedirect(req) });
+    res.redirect("/?quickbooks=connected#settings");
+  } catch {
+    res.redirect("/?quickbooks=error#settings");
+  }
+}));
+app.post("/api/quickbooks/disconnect", requireAuth, wrap((req, res) => {
+  QuickBooks.disconnect(req.user.id);
+  res.json({ ok: true });
 }));
 
 // ---- Me / settings ----

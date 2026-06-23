@@ -152,6 +152,13 @@ ensureColumns("user", [
   // region; they own the rate (we never auto-file tax). region = US state code.
   ["tax_rate", "REAL DEFAULT 0"],
   ["region", "TEXT"],
+  // QuickBooks Online (per-contractor OAuth). Each contractor connects their own
+  // company; paid payments sync to their books. Tokens are server-only.
+  ["qbo_realm_id", "TEXT"],
+  ["qbo_access_token", "TEXT"],
+  ["qbo_refresh_token", "TEXT"],
+  ["qbo_expires_at", "INTEGER"],
+  ["qbo_connected_at", "INTEGER"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).

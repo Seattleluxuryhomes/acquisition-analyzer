@@ -6,6 +6,7 @@
 import crypto from "node:crypto";
 import db from "./db.js";
 import { track } from "./analytics.js";
+import * as QuickBooks from "./quickbooks.js";
 
 const KEY = () => process.env.STRIPE_SECRET_KEY || "";
 
@@ -196,6 +197,10 @@ export function handleEvent(event) {
         db.prepare("UPDATE payment_request SET status='paid', stripe_payment_intent=?, paid_at=? WHERE id=?")
           .run(obj.payment_intent || null, Date.now(), row.id);
         track(row.user_id, "deposit_paid", { jobId: row.job_id || null, amount: (row.amount_cents || 0) / 100 });
+        // Sync the collected payment into the contractor's QuickBooks (no-op unless
+        // they've connected it). Fire-and-forget — never blocks the webhook ack.
+        const owner = db.prepare("SELECT * FROM user WHERE id=?").get(row.user_id);
+        if (owner) QuickBooks.syncSale(owner, { amount: (row.amount_cents || 0) / 100, description: row.description, customer: row.client_name, date: Date.now() }).catch(() => {});
       }
       break;
     }

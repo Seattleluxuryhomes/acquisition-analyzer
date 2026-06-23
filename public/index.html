@@ -558,6 +558,31 @@ async function loadPayments(){
   if(!TOKEN || !online) return;
   try{ PAYMENTS = await api('/api/payments/status'); localStorage.setItem('bt_payments', JSON.stringify(PAYMENTS)); }catch(e){}
 }
+let QBO = JSON.parse(localStorage.getItem('bt_qbo')||'null'); // {configured,connected,sandbox}
+async function loadQuickbooks(){
+  if(!TOKEN || !online) return;
+  try{ QBO = await api('/api/quickbooks/status'); localStorage.setItem('bt_qbo', JSON.stringify(QBO)); if(state.view==='settings') render(); }catch(e){}
+}
+async function connectQuickbooks(btn){
+  if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
+  try{ const r=await api('/api/quickbooks/connect',{method:'POST'}); window.location.href=r.url; }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Connect QuickBooks'; } alert(e.message||'QuickBooks isn’t set up on the server yet.'); }
+}
+async function disconnectQuickbooks(){
+  if(!confirm('Disconnect QuickBooks? New payments will stop syncing to your books.')) return;
+  try{ await api('/api/quickbooks/disconnect',{method:'POST'}); QBO=Object.assign({},QBO||{},{connected:false}); localStorage.setItem('bt_qbo',JSON.stringify(QBO)); render(); }catch(e){ alert('Could not disconnect.'); }
+}
+function quickbooksSection(){
+  if(!QBO || !QBO.configured) return ''; // hidden until the server has QuickBooks keys
+  const connected = !!QBO.connected;
+  return `<div class="paybox"><h3>QuickBooks${QBO.sandbox?' <span class="mono" style="font-size:.6rem;color:var(--muted)">sandbox</span>':''}</h3>
+    <div class="statline">${connected
+      ? `<span class="badge active">Connected</span><button class="btn ghost sm" onclick="disconnectQuickbooks()">Disconnect</button>`
+      : `<span class="badge none">Not connected</span><button class="btn sm" onclick="connectQuickbooks(this)">Connect QuickBooks</button>`}</div>
+    <div class="hint" style="margin-top:8px">${connected
+      ? 'Every payment your clients make syncs to your QuickBooks as a sales receipt — your books stay current automatically.'
+      : 'Connect your QuickBooks so every payment you collect lands in your books automatically.'}</div></div>`;
+}
 // Sum every PAID payment request for this contractor — the actual money collected,
 // shown on the dashboard (deposits, balances, materials — all of it).
 async function loadCollected(){
@@ -658,7 +683,7 @@ async function doAuth(){
     }); persistSettings(); }
     state.view='home';
     render();
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks()]);
     render();
   }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
 }
@@ -1850,6 +1875,7 @@ function viewSettings(){
     </div>
     ${billingSection()}
     ${paymentsSection()}
+    ${quickbooksSection()}
     <div class="legalbox">
       <h3>Change password</h3>
       <input id="pwCur" type="password" class="input" placeholder="Current password" autocomplete="current-password"/>
@@ -2044,7 +2070,7 @@ function capDelPhoto(i){ CAP_PHOTOS.splice(i,1); renderCapPhotos(); }
   if(billingReturn || paymentsReturn){ history.replaceState({}, '', location.pathname); }
   render();
   if(TOKEN){
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks()]);
     // Coming back from Stripe Connect onboarding — pull the fresh account status
     // and land the contractor on Setup so they see "Ready".
     if(paymentsReturn){ await refreshPayments(); state.view='settings'; }
