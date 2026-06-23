@@ -25,17 +25,28 @@ const uid = () => crypto.randomBytes(9).toString("base64url");
 const app = express();
 app.set("trust proxy", true); // behind Spaceship/Hyperlift's edge proxy
 
-// Force HTTPS: if the edge received the request over plain HTTP
-// (X-Forwarded-Proto: http), redirect it to HTTPS. No effect locally (the header
-// is absent) or on the internal health check. Disable with BT_FORCE_HTTPS=0 if
-// the TLS certificate is still being provisioned. Sends HSTS on secure responses
-// so browsers stick to HTTPS afterward.
+// Force HTTPS + a single canonical host. If the edge received the request over
+// plain HTTP, or on a non-canonical host (e.g. www vs the apex), redirect once to
+// https://<canonical><path>. This gives one URL to certify and link to. No effect
+// locally (X-Forwarded-Proto absent) or on the internal health check. Configure
+// the canonical host with BT_CANONICAL_HOST (e.g. "bidtranslator.com"); disable
+// the HTTPS push with BT_FORCE_HTTPS=0 while a cert is still provisioning. Sends
+// HSTS on secure responses so browsers stick to HTTPS afterward.
 const FORCE_HTTPS = !/^(0|false|off|no)$/i.test(process.env.BT_FORCE_HTTPS || "1");
+const CANONICAL_HOST = (process.env.BT_CANONICAL_HOST || "").trim().toLowerCase();
 app.use((req, res, next) => {
-  if (!FORCE_HTTPS || req.path === "/api/health") return next();
+  if (req.path === "/api/health") return next();
   const proto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
-  if (proto === "http") return res.redirect(307, "https://" + req.headers.host + req.originalUrl);
-  if (proto === "https") res.setHeader("Strict-Transport-Security", "max-age=15552000");
+  const host = String(req.headers.host || "");
+  const hostName = host.toLowerCase().replace(/:\d+$/, "");
+  const needHttps = FORCE_HTTPS && proto === "http";
+  // Only canonicalize the host when the request came through the edge (proto set),
+  // so local dev on localhost is never redirected.
+  const needHost = !!CANONICAL_HOST && !!proto && !!hostName && hostName !== CANONICAL_HOST;
+  if (needHttps || needHost) {
+    return res.redirect(307, "https://" + (needHost ? CANONICAL_HOST : host) + req.originalUrl);
+  }
+  if (proto === "https" && FORCE_HTTPS) res.setHeader("Strict-Transport-Security", "max-age=15552000");
   next();
 });
 
