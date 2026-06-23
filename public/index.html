@@ -158,6 +158,9 @@
   .datetag{display:inline-block;font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.04em;background:rgba(30,66,89,.45);color:#9fc2da;padding:2px 7px;border-radius:3px;margin-left:6px}
   .addrrow{margin:10px 0 2px}
   .addrinput{width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:10px 12px;font-size:.92rem}
+  .jobtitle-input{width:100%;background:transparent;border:none;border-bottom:1px solid var(--line);color:var(--paper);font-family:"Archivo";font-weight:900;font-size:1.4rem;letter-spacing:-.02em;padding:2px 0 6px}
+  .jobtitle-input:focus{outline:none;border-bottom-color:var(--amber)}
+  .jobtitle-input::placeholder{color:var(--muted);font-weight:600;font-size:.95rem;font-family:"IBM Plex Sans"}
   .addrlinks{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .maplink{font-family:"IBM Plex Mono";font-size:.72rem;text-decoration:none;background:var(--blueprint-deep);color:#cfe3f0;padding:7px 11px;border-radius:6px;border:1px solid var(--line)}
   .routecard{display:flex;align-items:stretch;gap:8px;margin-bottom:10px}
@@ -1161,14 +1164,18 @@ function calLink(j){
     +(jobLocation(j)?'&location='+encodeURIComponent(jobLocation(j)):'')
     +'&details='+encodeURIComponent('Scheduled via Bidtranslator · '+money(bidPrice(j))+(note?'\n\nNotes: '+note:''));
 }
+function setTitle(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.title=v||''; touch(j); saveJobs(); render(); }
 function addrBlock(j){
   const loc=jobLocation(j);
   const usingTitle = !(j.address||'').trim() && loc;
+  const label=`<label class="fld">Address${usingTitle?' <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(optional — using the project name)</span>':''}</label>`;
   const input=`<input class="addrinput" value="${escAttr(j.address||'')}" onchange="setAddress('${j.id}',this.value)" placeholder="📍 Job address — for maps & directions"/>`;
-  const note = usingTitle ? `<div class="hint" style="margin-top:4px">Using the project name for directions — add a different address only if needed.</div>` : '';
-  if(!loc) return `<div class="addrrow">${input}</div>`;
+  const note = usingTitle
+    ? `<div class="hint" style="margin-top:4px">✓ Your project name is the address, so maps &amp; directions already work — no need to type it again. Only add one here if it's different.</div>`
+    : (!loc ? `<div class="hint" style="margin-top:4px">Add an address for one-tap maps, directions &amp; calendar — or just name the project with the address above.</div>` : '');
+  if(!loc) return `<div class="addrrow">${label}${input}${note}</div>`;
   const m=mapsLinks(loc);
-  return `<div class="addrrow">${input}${note}<div class="addrlinks">`
+  return `<div class="addrrow">${label}${input}${note}<div class="addrlinks">`
     +`<a class="maplink" href="${m.map}" target="_blank" rel="noopener">📍 Map</a>`
     +`<a class="maplink" href="${m.dir}" target="_blank" rel="noopener">🧭 Directions</a>`
     +`<a class="maplink" href="${m.sv}" target="_blank" rel="noopener">👁 Street View</a></div></div>`;
@@ -1234,8 +1241,9 @@ function viewCapture(){
     <div class="h-eyebrow">Step 1 · Capture</div><h1 class="page">Talk through the job</h1>
     <div class="sub">Type or paste the conversation in your language. We'll translate it and turn it into a bid draft.</div>
 
-    <label class="fld">Job name</label>
-    <input id="capTitle" class="input" placeholder="e.g. Martinez — Kitchen remodel" />
+    <label class="fld">Project name</label>
+    <input id="capTitle" class="input" placeholder="e.g. Martinez — Kitchen, or 9012 NE 117th Pl" />
+    <div class="hint">Use a name or the job's address — if you use the address, you won't need to enter it again for maps.</div>
 
     <div class="row2">
       <div><label class="fld">You speak</label>
@@ -1377,12 +1385,16 @@ function viewJob(){
     <button class="${state.bidTab==='client'?'on':''}" onclick="setTab('client')">Client view</button></div>`;
   const head=`<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-      <div><h1 class="page" style="font-size:1.4rem">${esc(j.title)||'Untitled job'}</h1>
-      <div class="sub">${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}</div></div>
+      <div style="flex:1;min-width:0">
+        <label class="fld" style="margin-top:0">Project name</label>
+        <input class="jobtitle-input" value="${escAttr(j.title||'')}" onchange="setTitle('${j.id}',this.value)" placeholder="Name or address — e.g. Reyes Bath, or 9012 NE 117th Pl"/>
+        <div class="sub" style="margin-top:4px">${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}</div>
+      </div>
       <button class="btn ghost sm" onclick="deleteJob('${j.id}')" title="Delete job">Delete</button>
     </div>
     <div class="stagebar">${JOB_STAGES.map(([k,lab])=>`<button class="stbtn ${jobStatus(j)===k?'on':''}" onclick="setJobStatus('${j.id}','${k}')">${lab}</button>`).join('')}</div>
     ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/><input type="time" class="schedinput" value="${escAttr(j.scheduled_time||'')}" onchange="setScheduleTime('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">📲 Add to Calendar</a>`:''}</div>${conflictNote(j)}`:''}
+    <label class="fld">Customer</label>
     <div class="addrrow"><input class="addrinput" value="${escAttr(j.customer||'')}" onchange="setCustomer('${j.id}',this.value)" placeholder="👤 Customer name — shown on the proposal"/></div>
     ${addrBlock(j)}
     ${tabs}`;
