@@ -204,6 +204,18 @@ export function handleEvent(event) {
       }
       break;
     }
+    case "checkout.session.expired": {
+      // The customer opened Checkout but abandoned it (Stripe expires the session).
+      // The job stays Signed / Payment Pending — we just log the audit event.
+      const reqId = obj.metadata?.payment_request_id;
+      const row = reqId
+        ? db.prepare("SELECT * FROM payment_request WHERE id=?").get(reqId)
+        : db.prepare("SELECT * FROM payment_request WHERE stripe_session_id=?").get(obj.id);
+      if (row && row.status === "pending") {
+        track(row.user_id, "payment_failed", { jobId: row.job_id || null, amount: (row.amount_cents || 0) / 100, reason: "checkout_abandoned" });
+      }
+      break;
+    }
     case "account.updated": {
       // Keep the contractor's "can take charges" flag fresh as they finish onboarding.
       if (obj.id) {

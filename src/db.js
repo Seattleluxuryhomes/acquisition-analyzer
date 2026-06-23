@@ -121,6 +121,24 @@ CREATE TABLE IF NOT EXISTS event (
 CREATE INDEX IF NOT EXISTS event_name_idx ON event(name);
 CREATE INDEX IF NOT EXISTS event_user_idx ON event(user_id);
 CREATE INDEX IF NOT EXISTS event_time_idx ON event(created_at);
+
+-- Customer signatures on accepted proposals. A lightweight contractor approval
+-- record (NOT a full legal e-sign platform): who signed, the inked signature
+-- image, when, from where, and the total they accepted. One job can be re-signed
+-- (latest row wins); kept append-only for the audit trail.
+CREATE TABLE IF NOT EXISTS signature (
+  id TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL REFERENCES job(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,  -- the contractor (owner)
+  signer_name TEXT DEFAULT '',
+  signature_png TEXT NOT NULL,        -- data:image/png;base64 of the inked canvas
+  accepted_total INTEGER DEFAULT 0,   -- dollars the signer accepted (tax-inclusive)
+  approved INTEGER DEFAULT 1,         -- the "I reviewed and approve" box was checked
+  ip TEXT DEFAULT '',
+  user_agent TEXT DEFAULT '',
+  signed_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS signature_job_idx ON signature(job_id);
 `);
 
 // Migrate older databases that predate the billing columns.

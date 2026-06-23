@@ -9,20 +9,61 @@ function lineRow(l) {
   return `<div class="row"><div class="d">${esc(l.desc)}${sub ? `<small>${esc(sub)}</small>` : ""}</div><div class="a">${money(l.amount)}</div></div>`;
 }
 
-// Accept / pay-deposit call-to-action on the public proposal.
+// Accept / sign / pay-deposit call-to-action on the public proposal.
 function acceptSection(p, o) {
   if (!o || !o.id) return "";
   const who = o.company ? esc(o.company) : "Your contractor";
+  const signed = o.signedBy ? `<div class="signedby">Signed by ${esc(o.signedBy)}${o.signedAt ? " · " + esc(o.signedAt) : ""}</div>` : "";
   if (o.depositPaid || o.justPaid)
-    return `<div class="accepted">✓ Deposit paid — thank you!<br><span style="font-weight:600">${who} will reach out to schedule your start date.</span></div>`;
+    return `<div class="accepted">✓ Deposit paid — thank you!<br><span style="font-weight:600">${who} will reach out to schedule your start date.</span>${signed}</div>`;
   if (o.accepted)
-    return `<div class="accepted">✓ Proposal accepted.${o.canPay
-      ? `<form method="POST" action="/p/${o.id}/accept-and-pay" class="acceptform"><button class="acceptbtn">💳 Pay deposit · ${money(o.deposit)}</button></form>`
+    return `<div class="accepted">✓ Proposal accepted &amp; signed.${signed}${o.canPay
+      ? `<form method="POST" action="/p/${o.id}/accept-and-pay" class="acceptform" style="margin-top:12px"><button class="acceptbtn">💳 Pay deposit · ${money(o.deposit)}</button></form>`
       : `<br><span style="font-weight:600">${who} will be in touch to schedule.</span>`}</div>`;
-  return `<form method="POST" action="/p/${o.id}/${o.canPay ? "accept-and-pay" : "accept"}" class="acceptform">
-      <button class="acceptbtn">${o.canPay ? `✅ Accept &amp; Pay Deposit · ${money(o.deposit)}` : "✅ Accept this proposal"}</button>
-      <div class="acceptnote">${o.canPay ? "Secure deposit by Stripe — balance due per your agreement." : "Lets your contractor know you're ready to get started."}</div>
-    </form>`;
+  // Not yet accepted — approval checkbox + signature pad (mouse/touch/stylus).
+  const cta = o.canPay ? `Accept, Sign &amp; Pay Deposit · ${money(o.deposit)}` : "Accept &amp; Sign";
+  return `<div class="signbox" id="signbox">
+    <h3>Approve &amp; sign</h3>
+    <label class="appr"><input type="checkbox" id="apprChk"><span>I have reviewed and approve this proposal.</span></label>
+    <div class="signfield"><label>Your name</label><input id="signName" type="text" autocomplete="name" placeholder="Type your full name"></div>
+    <div class="signfield"><label>Signature</label>
+      <div class="padwrap"><canvas id="sigPad"></canvas><div class="padline"></div><div class="padhint" id="padHint">Sign with your finger or mouse</div><button type="button" class="padclear" id="padClear">Clear</button></div>
+    </div>
+    <button class="acceptbtn signbtn" id="signSubmit" disabled>${cta}</button>
+    <div class="acceptnote">${o.canPay ? "Secure deposit by Stripe — balance due per your agreement." : "Lets your contractor know you're ready to get started."}</div>
+    <div class="signerr" id="signErr"></div>
+  </div>`;
+}
+
+// Inline (no-build) signature pad + submit. Only emitted while the pad is shown.
+function signatureScript(o) {
+  return `<script>(function(){
+  var id=${JSON.stringify(String(o.id))};
+  var chk=document.getElementById('apprChk'),name=document.getElementById('signName');
+  var pad=document.getElementById('sigPad'),hint=document.getElementById('padHint');
+  var clear=document.getElementById('padClear'),submit=document.getElementById('signSubmit'),err=document.getElementById('signErr');
+  if(!pad||!submit) return;
+  var ctx=pad.getContext('2d'),drawing=false,hasInk=false,last=null;
+  (function size(){var r=pad.getBoundingClientRect(),dpr=window.devicePixelRatio||1;pad.width=Math.round(r.width*dpr);pad.height=Math.round(r.height*dpr);ctx.scale(dpr,dpr);ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#1F252C';})();
+  function pt(e){var r=pad.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
+  function ready(){return chk.checked&&name.value.trim().length>0&&hasInk;}
+  function refresh(){submit.disabled=!ready();}
+  pad.addEventListener('pointerdown',function(e){drawing=true;last=pt(e);if(pad.setPointerCapture){try{pad.setPointerCapture(e.pointerId);}catch(x){}}e.preventDefault();});
+  pad.addEventListener('pointermove',function(e){if(!drawing)return;var p=pt(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;if(!hasInk){hasInk=true;if(hint)hint.style.display='none';refresh();}e.preventDefault();});
+  window.addEventListener('pointerup',function(){drawing=false;});
+  clear.addEventListener('click',function(){ctx.clearRect(0,0,pad.width,pad.height);hasInk=false;if(hint)hint.style.display='';refresh();});
+  chk.addEventListener('change',function(){refresh();if(chk.checked){try{navigator.sendBeacon('/p/'+id+'/event',new Blob([JSON.stringify({name:'approval_checked'})],{type:'application/json'}));}catch(x){}}});
+  name.addEventListener('input',refresh);
+  submit.addEventListener('click',async function(){
+    if(!ready())return;var old=submit.textContent;submit.disabled=true;submit.textContent='Submitting…';err.textContent='';
+    try{
+      var res=await fetch('/p/'+id+'/sign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.value.trim(),signature:pad.toDataURL('image/png'),approved:true,payNow:true})});
+      var data=await res.json().catch(function(){return{};});
+      if(!res.ok){err.textContent=data.error||'Something went wrong — please try again.';submit.disabled=false;submit.textContent=old;return;}
+      window.location=data.checkout_url||('/p/'+id);
+    }catch(x){err.textContent='Network error — please try again.';submit.disabled=false;submit.textContent=old;}
+  });
+})();</script>`;
 }
 
 export function renderProposalHTML(p, opts = {}) {
@@ -74,6 +115,22 @@ export function renderProposalHTML(p, opts = {}) {
   .acceptbtn{display:inline-block;width:100%;max-width:440px;background:var(--amber);color:#1F252C;border:none;border-radius:11px;padding:17px;font-size:1.06rem;font-weight:800;cursor:pointer}
   .acceptbtn:hover{filter:brightness(1.04)}
   .acceptnote{color:var(--muted);font-size:.78rem;margin-top:9px}
+  .acceptbtn:disabled{opacity:.45;cursor:not-allowed}
+  .signbox{margin:18px 0 6px;border:1px solid var(--rule);border-radius:12px;padding:16px;background:#fbf9f3}
+  .signbox h3{margin:0 0 12px;font-size:1.02rem}
+  .appr{display:flex;gap:10px;align-items:flex-start;font-size:.93rem;cursor:pointer;margin-bottom:14px;line-height:1.35}
+  .appr input{width:21px;height:21px;margin:1px 0 0;flex:none}
+  .signfield{margin-bottom:13px}
+  .signfield label{display:block;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+  .signfield input{width:100%;padding:12px;border:1px solid var(--rule);border-radius:9px;font-size:1rem;background:#fff;color:var(--ink)}
+  .padwrap{position:relative;border:1px dashed #c9bfa8;border-radius:10px;background:#fff;touch-action:none}
+  .padwrap canvas{display:block;width:100%;height:180px;border-radius:10px;cursor:crosshair}
+  .padline{position:absolute;left:16px;right:16px;bottom:36px;border-bottom:1px solid #e7ddc6;pointer-events:none}
+  .padhint{position:absolute;left:18px;bottom:14px;color:#c2b491;font-size:.82rem;pointer-events:none}
+  .padclear{position:absolute;right:9px;top:8px;background:#f0ead9;border:1px solid var(--rule);border-radius:7px;font-size:.74rem;padding:5px 10px;cursor:pointer;color:#6b6249}
+  .signbtn{margin-top:14px}
+  .signerr{color:#b5341f;font-size:.85rem;margin-top:9px;min-height:1em;text-align:center}
+  .signedby{font-weight:600;font-size:.87rem;margin-top:6px}
   .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:6px}
   .gallery img{width:100%;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--rule);display:block}
   .accepted{margin:18px 0 6px;background:#eaf5ee;border:1px solid #b6dcc4;color:#2f6a44;border-radius:11px;padding:16px;text-align:center;font-weight:700}
@@ -100,5 +157,7 @@ export function renderProposalHTML(p, opts = {}) {
     ${p.assumptions.length ? `<div class="eyebrow">Notes</div>${p.assumptions.map((a) => `<div class="note">• ${esc(a)}</div>`).join("")}` : ""}
   </div>
   <div class="foot">${contact ? `<div class="contact">${contact}</div>` : ""}<div>${esc(p.footer)}</div></div>
-</div></body></html>`;
+</div>
+${(opts.id && !opts.accepted && !opts.depositPaid && !opts.justPaid) ? signatureScript(opts) : ""}
+</body></html>`;
 }

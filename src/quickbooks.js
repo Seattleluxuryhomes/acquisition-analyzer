@@ -129,6 +129,46 @@ async function ensureItem(user, token) {
   return made?.Item?.Id || null;
 }
 
+// Find (or create) a customer by name so estimates/invoices can reference one.
+async function ensureCustomer(user, token, name) {
+  const display = String(name || "Customer").replace(/['\\]/g, " ").slice(0, 100).trim() || "Customer";
+  const q = await qboApi(user, token, "GET", "query?query=" + encodeURIComponent(`select Id from Customer where DisplayName = '${display.replace(/'/g, "\\'")}' maxresults 1`));
+  const found = q?.QueryResponse?.Customer?.[0];
+  if (found) return found.Id;
+  const made = await qboApi(user, token, "POST", "customer", { DisplayName: display });
+  return made?.Customer?.Id || null;
+}
+
+// Record a SIGNED proposal as an Estimate in the contractor's QB (optional — only
+// when they've connected QuickBooks). Estimates need a customer, so we match/create
+// one by name. Fire-and-forget; never throws into the caller.
+export async function syncEstimate(user, { amount, description, customer, date } = {}) {
+  if (!qboConfigured() || !user || !user.qbo_refresh_token) return { skipped: true };
+  if (!(Number(amount) > 0)) return { skipped: true };
+  try {
+    const token = await freshToken(user);
+    if (!token) return { skipped: true };
+    const itemId = await ensureItem(user, token);
+    const customerId = await ensureCustomer(user, token, customer);
+    if (!itemId || !customerId) return { error: "missing item/customer" };
+    const body = {
+      CustomerRef: { value: customerId },
+      TxnDate: date ? new Date(date).toISOString().slice(0, 10) : undefined,
+      PrivateNote: description || "Signed via Bidtranslator",
+      Line: [{
+        Amount: Number(amount),
+        DetailType: "SalesItemLineDetail",
+        Description: description || "Construction work",
+        SalesItemLineDetail: { ItemRef: { value: itemId } },
+      }],
+    };
+    const res = await qboApi(user, token, "POST", "estimate", body);
+    return { ok: true, id: res?.Estimate?.Id || null };
+  } catch (e) {
+    return { error: e.message || "estimate sync failed" };
+  }
+}
+
 // Record a collected payment as a Sales Receipt in the contractor's QB. Fire-and-
 // forget from the payment webhook; never throws into the caller.
 export async function syncSale(user, { amount, description, customer, date } = {}) {

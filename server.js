@@ -18,6 +18,8 @@ import { renderProposalHTML } from "./src/proposalHtml.js";
 import * as Billing from "./src/billing.js";
 import * as Payments from "./src/payments.js";
 import * as QuickBooks from "./src/quickbooks.js";
+import * as Signatures from "./src/signatures.js";
+import * as Notify from "./src/notify.js";
 import * as Analytics from "./src/analytics.js";
 const { track } = Analytics;
 
@@ -389,9 +391,62 @@ function proposalOpts(jobRow, owner, proposal, req) {
   // public page can display them without auth and links can't be hot-linked later.
   const photos = db.prepare("SELECT id FROM photo WHERE job_id=? AND show_on_bid=1 ORDER BY created_at").all(jobRow.id)
     .map((r) => ({ url: signPhotoUrl(jobRow.id, r.id) }));
+  const sig = Signatures.latestSignature(jobRow.id);
   return { id: jobRow.id, accepted, deposit, depositPaid, canPay, justPaid: req.query.paid === "1", photos,
+    signedBy: sig ? sig.signer_name : "", signedAt: sig ? new Date(sig.signed_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "",
     company: (owner && owner.company && owner.company !== "Your Company") ? owner.company : "" };
 }
+// The client's IP for the signature audit trail (behind Hyperlift's edge proxy).
+const clientIp = (req) => (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket?.remoteAddress || "";
+// Lightweight audit beacon from the public proposal page (e.g. approval box ticked).
+const PUBLIC_AUDIT = new Set(["approval_checked", "proposal_viewed"]);
+app.post("/p/:id/event", wrap((req, res) => {
+  const jobRow = db.prepare("SELECT user_id FROM job WHERE id=?").get(req.params.id);
+  const name = String(req.body?.name || "");
+  if (jobRow && PUBLIC_AUDIT.has(name)) track(jobRow.user_id, name, { jobId: req.params.id });
+  res.json({ ok: true });
+}));
+// Customer signs the proposal: approval + inked signature, then (optionally) pay.
+app.post("/p/:id/sign", wrap(async (req, res) => {
+  const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(req.params.id);
+  if (!jobRow) return res.status(404).json({ error: "Estimate not found." });
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(jobRow.user_id);
+  const proposal = buildProposal(Jobs.rowToJob(jobRow), settingsOf(owner || {}));
+  const { name, signature, approved, payNow } = req.body || {};
+
+  // Persist the signature (validates approval box + name + inked PNG).
+  Signatures.saveSignature(jobRow, {
+    name, png: signature, approved: approved === true, total: proposal.total,
+    ip: clientIp(req), userAgent: req.headers["user-agent"] || "",
+  });
+  track(jobRow.user_id, "approval_checked", { jobId: jobRow.id });
+  track(jobRow.user_id, "signature_submitted", { jobId: jobRow.id, total: proposal.total });
+  acceptJob(jobRow); // status -> signed (+ bid_accepted by customer)
+
+  // Optional: mirror the signed proposal into the contractor's QuickBooks as an
+  // Estimate (no-op unless they've connected QB). Fire-and-forget.
+  if (owner) QuickBooks.syncEstimate(owner, { amount: proposal.total, description: `Signed — ${proposal.title}`, customer: name || proposal.customer, date: Date.now() }).catch(() => {});
+
+  // Deposit? Send them straight to Stripe Checkout (status stays Signed / Payment
+  // Pending until the paid webhook lands).
+  const pct = jobRow.deposit_pct == null ? 25 : jobRow.deposit_pct;
+  const deposit = Math.round((proposal.total || 0) * pct / 100);
+  const canPay = Payments.paymentsConfigured() && owner && owner.connect_charges_enabled && deposit >= 1;
+  if (canPay && payNow !== false) {
+    try {
+      const base = baseUrl(req);
+      const reqObj = await Payments.createPaymentRequest(owner, {
+        amount: deposit, description: `Deposit — ${proposal.title}`, clientName: name || proposal.customer,
+        jobId: jobRow.id, successUrl: `${base}/p/${jobRow.id}?paid=1`, cancelUrl: `${base}/p/${jobRow.id}`,
+      }, base);
+      track(jobRow.user_id, "checkout_opened", { jobId: jobRow.id, amount: deposit });
+      Notify.notifySigned({ owner, job: jobRow, signerName: name, total: proposal.total, paid: false });
+      return res.json({ ok: true, checkout_url: reqObj.checkout_url });
+    } catch { /* fall through to the no-payment confirmation */ }
+  }
+  Notify.notifySigned({ owner, job: jobRow, signerName: name, total: proposal.total, paid: false });
+  res.json({ ok: true });
+}));
 function acceptJob(jobRow) {
   if (jobRow.status !== "signed" && jobRow.status !== "scheduled") {
     db.prepare("UPDATE job SET status='signed', updated_at=? WHERE id=?").run(Date.now(), jobRow.id);
@@ -439,6 +494,12 @@ app.get("/api/jobs/:id/pdf", requireAuth, Billing.requireEntitled, wrap((req, re
     .all(job.id, req.user.id)
     .map((r) => { try { return { buf: fs.readFileSync(path.join(PHOTO_DIR, r.filename)), mime: r.mime }; } catch { return null; } })
     .filter(Boolean);
+  // Attach the customer's signature (if they've signed) so the PDF is the signed record.
+  const sig = Signatures.latestSignature(job.id);
+  if (sig) proposal.signature = {
+    name: sig.signer_name, png: sig.signature_png, total: sig.accepted_total,
+    at: new Date(sig.signed_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }), ip: sig.ip || "",
+  };
   const safe = (job.title || "proposal").replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 40);
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `inline; filename="bid-${safe}.pdf"`);

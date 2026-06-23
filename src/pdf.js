@@ -139,6 +139,22 @@ export function renderProposalPDF(proposal, res) {
     doc.moveDown(0.4);
   }
 
+  // ---- Customer signature (the signed record) ----
+  if (proposal.signature && proposal.signature.png) {
+    let sigBuf = null;
+    try { const m = /^data:image\/\w+;base64,(.+)$/.exec(proposal.signature.png); if (m) sigBuf = Buffer.from(m[1], "base64"); } catch { sigBuf = null; }
+    const blockH = 96;
+    if (doc.y + blockH > doc.page.height - doc.page.margins.bottom) doc.addPage();
+    sectionLabel(doc, "ACCEPTED & SIGNED", left);
+    const topY = doc.y;
+    if (sigBuf) { try { doc.image(sigBuf, left, topY, { fit: [220, 60], align: "left", valign: "top" }); } catch { /* a bad image can't break the PDF */ } }
+    doc.moveTo(left, topY + 62).lineTo(left + 220, topY + 62).lineWidth(0.5).strokeColor(RULE).stroke();
+    doc.font("Helvetica-Bold").fontSize(10).fillColor(INK).text(proposal.signature.name || "", left, topY + 66, { width: 220 });
+    const meta = [`Signed ${proposal.signature.at}`, proposal.signature.total ? "Accepted total " + money(proposal.signature.total) : "", proposal.signature.ip ? "IP " + proposal.signature.ip : ""].filter(Boolean).join("   ·   ");
+    doc.font("Helvetica").fontSize(8).fillColor(MUTED).text(meta, left, doc.y + 1, { width });
+    doc.moveDown(0.6);
+  }
+
   // ---- Footer (contact pulled from the contractor's profile + disclaimer) ----
   doc.moveDown(1);
   const fy = doc.y;
