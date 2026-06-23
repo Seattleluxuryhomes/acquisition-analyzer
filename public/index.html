@@ -367,6 +367,21 @@
   .toast.bad{border-left:4px solid var(--rust)}
   @keyframes toastin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
   .flash{outline:2px solid var(--amber)!important;outline-offset:1px;border-radius:8px;transition:outline .2s}
+  /* Bottom navigation (thumb zone). Center + is equidistant for either hand. */
+  #view{padding-bottom:88px}
+  .botnav{position:fixed;left:0;right:0;bottom:0;z-index:900;display:flex;justify-content:space-around;align-items:flex-end;background:#171c22;border-top:1px solid rgba(243,238,227,.1);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0))}
+  .botnav .bn{flex:1;background:none;border:none;color:#9aa3ab;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0;font-family:inherit;font-size:.64rem;font-weight:600;min-height:54px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .botnav .bn .bi{font-size:1.3rem;line-height:1}
+  .botnav .bn.on{color:var(--amber)}
+  .botnav .bn-add{flex:0 0 auto;justify-content:flex-start}
+  .botnav .bn-add .plus{display:flex;align-items:center;justify-content:center;width:56px;height:56px;margin-top:-20px;border-radius:50%;background:var(--amber);color:#1F252C;font-size:2.1rem;font-weight:700;line-height:1;box-shadow:0 6px 18px rgba(207,127,24,.45)}
+  .botnav .bn-add:active .plus{transform:scale(.94)}
+  .sheet-wrap{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end}
+  .sheet{width:100%;background:#1f252c;border-top-left-radius:18px;border-top-right-radius:18px;padding:8px 12px calc(14px + env(safe-area-inset-bottom,0));animation:toastin .2s ease}
+  .sheet-h{color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;padding:12px 8px 6px}
+  .sheet-i{display:block;width:100%;text-align:left;background:none;border:none;color:#F3EEE3;font-family:inherit;font-size:1.02rem;padding:16px 10px;border-radius:11px;cursor:pointer}
+  .sheet-i:active{background:rgba(243,238,227,.08)}
+  .sheet-i.danger{color:#e08a76}
   .jcard-next{font-size:.8rem;font-weight:700;margin-top:5px;color:var(--amber)}
   .jcard-next.signed{color:#6fce93}
   .jcard-next.scheduled{color:#7fb0d6}
@@ -391,15 +406,28 @@
         <button class="trial-chip" id="trialChip" style="display:none" onclick="go('paywall')"></button>
         <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
         <button class="icon-btn bell" id="navBell" onclick="openNotifs()" style="display:none" title="What's new"><span class="ni">🔔</span><span class="nl">🔔</span><span class="badge" id="notifBadge" style="display:none"></span></button>
-        <button class="icon-btn" id="navJobs" onclick="go('home')"><span class="ni">🏠</span><span class="nl">Dashboard</span></button>
-        <button class="icon-btn" id="navSched" onclick="go('schedule')"><span class="ni">📅</span><span class="nl">Schedule</span></button>
-        <button class="icon-btn" id="navAdmin" onclick="go('admin')" style="display:none"><span class="ni">📊</span><span class="nl">Founder</span></button>
-        <button class="icon-btn" id="navSet" onclick="go('settings')"><span class="ni">⚙️</span><span class="nl">Setup</span></button>
       </div>
     </div>
     <div class="offline-banner" id="offlineBanner" style="display:none">Offline — your work is saved on this device and will sync when you reconnect.</div>
   </div>
   <main id="view"></main>
+  <!-- Bottom nav: everything frequent lives in the thumb zone for one-handed
+       jobsite use; the center + (reachable by either thumb) starts a new job. -->
+  <nav class="botnav" id="botnav" style="display:none">
+    <button class="bn" id="bnHome" onclick="go('home')"><span class="bi">🏠</span><span class="bl">Home</span></button>
+    <button class="bn" id="bnJobs" onclick="goJobs()"><span class="bi">🧰</span><span class="bl">Jobs</span></button>
+    <button class="bn bn-add" id="bnAdd" onclick="newJob()" aria-label="New job"><span class="plus">+</span></button>
+    <button class="bn" id="bnSched" onclick="go('schedule')"><span class="bi">📅</span><span class="bl">Schedule</span></button>
+    <button class="bn" id="bnMore" onclick="openMore()"><span class="bi">⋯</span><span class="bl">More</span></button>
+  </nav>
+</div>
+<div id="sheet" class="sheet-wrap" style="display:none" onclick="closeMore()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h">More</div>
+    <button class="sheet-i" onclick="go('settings');closeMore()">⚙️ Setup &amp; integrations</button>
+    <button class="sheet-i" id="sheetAdmin" onclick="go('admin');closeMore()" style="display:none">📊 Founder dashboard</button>
+    <button class="sheet-i danger" onclick="closeMore();signOut()">↩︎ Sign out</button>
+  </div>
 </div>
 <div id="printArea"></div>
 
@@ -808,6 +836,11 @@ function go(v, jobId){ state.view=v; if(jobId!==undefined) state.jobId=jobId; st
   track('page_view', {view:v}); if(v==='home') track('dashboard_viewed', {});
   if(v==='job' && state.jobId && state.jobId!=='new') refreshJob(state.jobId); }
 function newJob(){ if(!entitled()){ go('paywall'); return; } CAP_PHOTOS=[]; go('capture','new'); }
+// "Jobs" bottom-nav tab: the dashboard is the job list — land there and bring the
+// list into view.
+function goJobs(){ go('home'); requestAnimationFrame(()=>{ const el=document.querySelector('.fchips')||document.querySelector('.newbar'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }); }
+function openMore(){ const a=document.getElementById('sheetAdmin'); if(a) a.style.display=ADMIN?'block':'none'; document.getElementById('sheet').style.display='flex'; }
+function closeMore(){ const s=document.getElementById('sheet'); if(s) s.style.display='none'; }
 function currentJob(){ return JOBS.find(j=>j.id===state.jobId); }
 
 // Pull the full job (the list endpoint omits photo URLs). Refreshes signed photo
@@ -830,12 +863,15 @@ async function refreshJob(id){
 function render(){
   const authed = !!TOKEN;
   document.getElementById('topbar').style.display = authed ? 'block' : 'none';
+  document.getElementById('botnav').style.display = authed ? 'flex' : 'none';
   const v = document.getElementById('view');
   if(!authed){ v.innerHTML = viewAuth(); paintSync(); return; }
-  document.getElementById('navJobs').classList.toggle('active', state.view==='home'||state.view==='capture'||state.view==='job');
-  document.getElementById('navSched').classList.toggle('active', state.view==='schedule');
-  document.getElementById('navSet').classList.toggle('active', state.view==='settings');
-  const navAdmin=document.getElementById('navAdmin'); if(navAdmin){ navAdmin.style.display=ADMIN?'':'none'; navAdmin.classList.toggle('active', state.view==='admin'); }
+  // Highlight the active bottom-nav item.
+  const setOn=(id,on)=>{ const e=document.getElementById(id); if(e) e.classList.toggle('on',on); };
+  setOn('bnHome', state.view==='home'||state.view==='capture');
+  setOn('bnJobs', state.view==='job');
+  setOn('bnSched', state.view==='schedule');
+  setOn('bnMore', state.view==='settings'||state.view==='admin');
   paintBell();
   if(state.view==='home'){ v.innerHTML = viewHome(); markNotifsSeen(); }
   else if(state.view==='schedule') v.innerHTML = viewSchedule();
