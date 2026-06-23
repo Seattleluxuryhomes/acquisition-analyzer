@@ -76,8 +76,8 @@ function settingsOf(user) {
 
 function attachPhotos(userId, job) {
   if (!job) return job;
-  const rows = db.prepare("SELECT id FROM photo WHERE job_id=? AND user_id=? ORDER BY created_at").all(job.id, userId);
-  job.photos = rows.map((r) => ({ id: r.id, url: signPhotoUrl(job.id, r.id) }));
+  const rows = db.prepare("SELECT id, show_on_bid FROM photo WHERE job_id=? AND user_id=? ORDER BY created_at").all(job.id, userId);
+  job.photos = rows.map((r) => ({ id: r.id, url: signPhotoUrl(job.id, r.id), showOnBid: !!r.show_on_bid }));
   return job;
 }
 
@@ -253,10 +253,21 @@ app.post("/api/jobs/:id/photos", requireAuth, photoJson, wrap((req, res) => {
   const ext = m[1].split("/")[1].replace(/[^a-z0-9]/gi, "").slice(0, 5) || "jpg";
   const pid = uid();
   const filename = `${pid}.${ext}`;
+  const showOnBid = req.body?.showOnBid ? 1 : 0; // may be flagged offline before upload
   fs.writeFileSync(path.join(PHOTO_DIR, filename), buf);
-  db.prepare("INSERT INTO photo (id, job_id, user_id, filename, mime, created_at) VALUES (?,?,?,?,?,?)")
-    .run(pid, req.params.id, req.user.id, filename, m[1], Date.now());
-  res.json({ photo: { id: pid, url: signPhotoUrl(req.params.id, pid) } });
+  db.prepare("INSERT INTO photo (id, job_id, user_id, filename, mime, show_on_bid, created_at) VALUES (?,?,?,?,?,?,?)")
+    .run(pid, req.params.id, req.user.id, filename, m[1], showOnBid, Date.now());
+  res.json({ photo: { id: pid, url: signPhotoUrl(req.params.id, pid), showOnBid: !!showOnBid } });
+}));
+
+// Toggle whether a photo appears on the client-facing bid (owner only).
+app.patch("/api/jobs/:id/photos/:pid", requireAuth, wrap((req, res) => {
+  const row = db.prepare("SELECT id FROM photo WHERE id=? AND job_id=? AND user_id=?")
+    .get(req.params.pid, req.params.id, req.user.id);
+  if (!row) return res.status(404).json({ error: "Photo not found." });
+  const showOnBid = req.body?.showOnBid ? 1 : 0;
+  db.prepare("UPDATE photo SET show_on_bid=? WHERE id=?").run(showOnBid, req.params.pid);
+  res.json({ ok: true, showOnBid: !!showOnBid });
 }));
 
 // Served via signature, not bearer auth, so <img> tags work. Signature + expiry
@@ -321,7 +332,11 @@ function proposalOpts(jobRow, owner, proposal, req) {
   const deposit = Math.round((proposal.total || 0) * pct / 100);
   const depositPaid = !!db.prepare("SELECT 1 FROM payment_request WHERE job_id=? AND status='paid' LIMIT 1").get(jobRow.id);
   const canPay = Payments.paymentsConfigured() && !!(owner && owner.connect_charges_enabled) && deposit >= 1;
-  return { id: jobRow.id, accepted, deposit, depositPaid, canPay, justPaid: req.query.paid === "1",
+  // Photos the contractor chose to show — freshly signed each render, so the
+  // public page can display them without auth and links can't be hot-linked later.
+  const photos = db.prepare("SELECT id FROM photo WHERE job_id=? AND show_on_bid=1 ORDER BY created_at").all(jobRow.id)
+    .map((r) => ({ url: signPhotoUrl(jobRow.id, r.id) }));
+  return { id: jobRow.id, accepted, deposit, depositPaid, canPay, justPaid: req.query.paid === "1", photos,
     company: (owner && owner.company && owner.company !== "Your Company") ? owner.company : "" };
 }
 function acceptJob(jobRow) {
@@ -366,6 +381,11 @@ app.get("/api/jobs/:id/pdf", requireAuth, Billing.requireEntitled, wrap((req, re
   const job = Jobs.getJob(req.user.id, req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found." });
   const proposal = buildProposal(job, settingsOf(req.user));
+  // Embed the chosen photos' bytes directly (the PDF is generated for the owner).
+  proposal.photos = db.prepare("SELECT filename, mime FROM photo WHERE job_id=? AND user_id=? AND show_on_bid=1 ORDER BY created_at")
+    .all(job.id, req.user.id)
+    .map((r) => { try { return { buf: fs.readFileSync(path.join(PHOTO_DIR, r.filename)), mime: r.mime }; } catch { return null; } })
+    .filter(Boolean);
   const safe = (job.title || "proposal").replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 40);
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `inline; filename="bid-${safe}.pdf"`);

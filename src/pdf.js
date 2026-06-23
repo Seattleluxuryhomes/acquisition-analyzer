@@ -111,6 +111,23 @@ export function renderProposalPDF(proposal, res) {
     doc.moveDown(0.4);
   }
 
+  // ---- Photos the contractor chose to show the client ----
+  if (proposal.photos && proposal.photos.length) {
+    sectionLabel(doc, "PHOTOS", left);
+    const gap = 10, colW = (width - gap) / 2, rowH = 130;
+    let col = 0, rowTop = doc.y;
+    for (const ph of proposal.photos) {
+      if (rowTop + rowH > doc.page.height - doc.page.margins.bottom) { doc.addPage(); rowTop = doc.y; col = 0; }
+      const x = left + col * (colW + gap);
+      try { doc.image(ph.buf, x, rowTop, { fit: [colW, rowH], align: "center", valign: "center" }); }
+      catch { /* a bad image can never break the PDF */ }
+      col += 1;
+      if (col === 2) { col = 0; rowTop += rowH + gap; }
+    }
+    doc.y = (col === 0 ? rowTop : rowTop + rowH + gap);
+    doc.moveDown(0.4);
+  }
+
   // ---- Footer (contact pulled from the contractor's profile + disclaimer) ----
   doc.moveDown(1);
   const fy = doc.y;

@@ -313,11 +313,16 @@
   .mic.rec .dot{animation:pulse 1s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
   .mic-note{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted)}
-  .photogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:2px}
+  .photogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:2px}
   .thumb{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+  .thumb.onbid{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
   .thumb img{width:100%;height:100%;object-fit:cover;display:block}
   .thumb .x{position:absolute;top:3px;right:3px;background:rgba(31,37,44,.82);color:#fff;border:none;border-radius:50%;width:23px;height:23px;font-size:.78rem;line-height:1;display:flex;align-items:center;justify-content:center}
-  .thumb .pend{position:absolute;bottom:3px;left:3px;background:rgba(207,127,24,.9);color:#1F252C;font-family:"IBM Plex Mono";font-size:.55rem;padding:1px 5px;border-radius:3px}
+  .thumb .pend{position:absolute;top:3px;left:3px;background:rgba(207,127,24,.9);color:#1F252C;font-family:"IBM Plex Mono";font-size:.55rem;padding:1px 5px;border-radius:3px}
+  .thumb .bidtog{position:absolute;left:0;right:0;bottom:0;width:100%;border:none;background:rgba(31,37,44,.84);color:#e6e0d4;font-family:"IBM Plex Mono";font-size:.58rem;letter-spacing:.02em;padding:4px 2px;cursor:pointer;white-space:nowrap;overflow:hidden}
+  .thumb .bidtog.on{background:rgba(207,127,24,.94);color:#1F252C;font-weight:700}
+  .cgallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:6px}
+  .cgallery img{width:100%;height:110px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block}
   .addphoto{display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;aspect-ratio:1;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-family:"IBM Plex Mono";font-size:.72rem;background:transparent}
   .addphoto:hover{border-color:var(--amber);color:var(--amber)}
 
@@ -661,7 +666,7 @@ function hydrate(s){
     transcript:s.transcript||'', translation:s.translation||'', summary:s.summary||'',
     assumptions:s.assumptions||[], exclusions:s.exclusions||[], lines:s.lines||[], upgrades:s.upgrades||[],
     notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', scheduled_time:s.scheduled_time||'', address:s.address||'', customer:s.customer||'', deposit_pct:(s.deposit_pct==null?25:s.deposit_pct),
-    photos:(s.photos||[]).map(p=>({id:p.id, url:p.url})), _dirty:false };
+    photos:(s.photos||[]).map(p=>({id:p.id, url:p.url, showOnBid:!!p.showOnBid})), _dirty:false };
 }
 function replaceJob(id, fresh){
   const i=JOBS.findIndex(j=>j.id===id);
@@ -673,8 +678,8 @@ async function uploadPendingPhotos(job){
   const pend=(job.photos||[]).filter(p=>p._pending);
   for(const p of pend){
     try{
-      const r=await api('/api/jobs/'+job.id+'/photos',{method:'POST', body:JSON.stringify({dataUrl:p.dataUrl})});
-      p.id=r.photo.id; p.url=r.photo.url; delete p.dataUrl; delete p._pending;
+      const r=await api('/api/jobs/'+job.id+'/photos',{method:'POST', body:JSON.stringify({dataUrl:p.dataUrl, showOnBid:!!p.showOnBid})});
+      p.id=r.photo.id; p.url=r.photo.url; p.showOnBid=!!r.photo.showOnBid; delete p.dataUrl; delete p._pending;
     }catch(e){ /* retry next sync */ }
   }
 }
@@ -698,7 +703,7 @@ async function refreshJob(id){
   let r; try{ r = await api('/api/jobs/'+id); }catch(e){ return; }
   const s = r.job; const local = JOBS.find(j=>j.id===id); if(!local || !s) return;
   const pend = (local.photos||[]).filter(p=>p._pending);
-  const serverPhotos = (s.photos||[]).map(p=>({id:p.id, url:p.url}));
+  const serverPhotos = (s.photos||[]).map(p=>({id:p.id, url:p.url, showOnBid:!!p.showOnBid}));
   if(!local._dirty && (s.updated_at||0) >= (local.updated_at||0)){
     Object.assign(local, hydrate(s));
   }
@@ -1356,9 +1361,11 @@ function tabNotebook(j){
     `<textarea class="editarea" oninput="updJob('notes',this.value)" placeholder="Just for you — never shown to the client.">${esc(j.notes)}</textarea>`);
   if(j.upgrades&&j.upgrades.length) out+=sec('Upgrade opportunities', `<ul class="nb-list up">${j.upgrades.map(u=>`<li>${esc(u.desc)} — ${money(u.price)}</li>`).join('')}</ul>`);
   const photos=j.photos||[];
+  const onBid=photos.filter(p=>p.showOnBid).length;
   out+=`<div class="nb-sec"><h3>Photos</h3><div class="photogrid">${
-    photos.map((p,i)=>`<div class="thumb"><img src="${p._pending?p.dataUrl:p.url}" alt="job photo"/><button class="x" onclick="delPhoto(${i})" title="Remove">✕</button>${p._pending?'<span class="pend">offline</span>':''}</div>`).join('')
+    photos.map((p,i)=>`<div class="thumb${p.showOnBid?' onbid':''}"><img src="${p._pending?p.dataUrl:p.url}" alt="job photo"/><button class="x" onclick="delPhoto(${i})" title="Remove">✕</button>${p._pending?'<span class="pend">offline</span>':''}<button class="bidtog ${p.showOnBid?'on':''}" onclick="togglePhotoBid(${i})" title="Show this photo on the client bid">${p.showOnBid?'★ On bid':'☆ Add to bid'}</button></div>`).join('')
   }<button class="addphoto" onclick="pickPhoto('cam')"><span style="font-size:1.2rem;line-height:1">📷</span>Camera</button><button class="addphoto" onclick="pickPhoto('lib')"><span style="font-size:1.2rem;line-height:1">🖼️</span>Upload</button></div>
+  <div class="hint">${photos.length?`Tap ☆ on a photo to show it on the client's bid. ${onBid?`<b style="color:var(--paper)">${onBid} on the bid.</b>`:'None on the bid yet.'}`:'Add photos, then choose which ones the client sees on their bid.'}</div>
   <input id="photoInput" type="file" accept="image/*" multiple style="display:none" onchange="handlePhotos(this)"/>
   <input id="photoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="handlePhotos(this)"/></div>`;
   out+=`<div style="margin-top:14px"><button class="btn full" onclick="setTab('build')">Build the bid →</button></div>`;
@@ -1549,6 +1556,7 @@ function clientHTML(j){
 
       ${(j.exclusions||[]).length?`<h4>Not included</h4>${j.exclusions.map(e=>`<div class="cexcl">${esc(e)}</div>`).join('')}`:''}
       ${(j.assumptions||[]).length?`<h4>Notes</h4>${j.assumptions.map(a=>`<div class="cnote">• ${esc(a)}</div>`).join('')}`:''}
+      ${(()=>{const ph=(j.photos||[]).filter(p=>p.showOnBid);return ph.length?`<h4>Photos</h4><div class="cgallery">${ph.map(p=>`<img src="${p._pending?p.dataUrl:p.url}" alt="Project photo"/>`).join('')}</div>`:'';})()}
     </div>
     <div class="cfoot"><div class="ccontact">${[SETTINGS.company,SETTINGS.name,SETTINGS.phone,(USER&&USER.email)||'',SETTINGS.license?('Lic. '+SETTINGS.license):''].filter(Boolean).map(esc).join(' · ')||'Add your contact info in Setup'}</div>This is an estimate, not a contract. Pricing valid 30 days from the date above.</div>
   </div>`;
@@ -1838,6 +1846,15 @@ async function delPhoto(i){
   const j=currentJob(); if(!j)return; const p=j.photos[i]; if(!p) return;
   if(p.id && !p._pending && online && TOKEN){ try{ await api('/api/jobs/'+j.id+'/photos/'+p.id,{method:'DELETE'}); }catch(e){} }
   j.photos.splice(i,1); touch(j); saveJobs(); render();
+}
+// Choose whether a photo appears on the client-facing bid (opt-in, default off).
+async function togglePhotoBid(i){
+  const j=currentJob(); if(!j)return; const p=j.photos[i]; if(!p) return;
+  p.showOnBid=!p.showOnBid; touch(j); saveJobs(); render();
+  // A pending (offline) photo carries the flag when it uploads; a synced one PATCHes now.
+  if(p.id && !p._pending && online && TOKEN){
+    try{ await api('/api/jobs/'+j.id+'/photos/'+p.id,{method:'PATCH', body:JSON.stringify({showOnBid:!!p.showOnBid})}); }catch(e){}
+  }
 }
 
 /* ---------- capture-screen photos (staged before the job exists, then handed

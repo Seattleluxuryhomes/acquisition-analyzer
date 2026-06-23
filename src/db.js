@@ -149,6 +149,11 @@ ensureColumns("user", [
   // (customer accepted / paid). Events newer than this are "unread".
   ["notifications_seen_at", "INTEGER"],
 ]);
+// Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
+// private/internal photo is never exposed unless the contractor chooses it).
+ensureColumns("photo", [
+  ["show_on_bid", "INTEGER DEFAULT 0"],
+]);
 // Calendar: the date a job is scheduled for (YYYY-MM-DD), set at the Scheduled stage.
 ensureColumns("job", [
   ["scheduled_date", "TEXT"],
