@@ -23,6 +23,21 @@ const { track } = Analytics;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uid = () => crypto.randomBytes(9).toString("base64url");
 const app = express();
+app.set("trust proxy", true); // behind Spaceship/Hyperlift's edge proxy
+
+// Force HTTPS: if the edge received the request over plain HTTP
+// (X-Forwarded-Proto: http), redirect it to HTTPS. No effect locally (the header
+// is absent) or on the internal health check. Disable with BT_FORCE_HTTPS=0 if
+// the TLS certificate is still being provisioned. Sends HSTS on secure responses
+// so browsers stick to HTTPS afterward.
+const FORCE_HTTPS = !/^(0|false|off|no)$/i.test(process.env.BT_FORCE_HTTPS || "1");
+app.use((req, res, next) => {
+  if (!FORCE_HTTPS || req.path === "/api/health") return next();
+  const proto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  if (proto === "http") return res.redirect(307, "https://" + req.headers.host + req.originalUrl);
+  if (proto === "https") res.setHeader("Strict-Transport-Security", "max-age=15552000");
+  next();
+});
 
 // Stripe webhook needs the RAW body for signature verification — register it
 // before any JSON parsing so the bytes are untouched.
