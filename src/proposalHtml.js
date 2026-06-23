@@ -61,7 +61,9 @@ export function renderProposalHTML(p, opts = {}) {
   .row.sub{border-bottom:none}
   .row.sub .d{color:var(--muted);font-style:italic}
   .row.sub .a{color:#5a5240}
-  .total{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:2px solid var(--ink)}
+  .taxrow{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--rule);font-size:.95rem;color:var(--ink)}
+  .taxrow.tax{margin-top:4px;padding-top:0;border-top:none;color:var(--muted)}
+  .total{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:12px;border-top:2px solid var(--ink)}
   .total .l{font-weight:800;font-size:1.05rem}
   .total .v{font-weight:900;font-size:1.5rem;color:var(--blue)}
   .upg{display:flex;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid #efe9dc;font-size:.95rem}
@@ -86,6 +88,8 @@ export function renderProposalHTML(p, opts = {}) {
 
     <div class="eyebrow">Scope of work</div>
     ${scope}
+    ${p.tax > 0 ? `<div class="taxrow"><span>Subtotal</span><span>${money(p.subtotal)}</span></div>
+    <div class="taxrow tax"><span>Sales tax (${p.taxRate}%)</span><span>${money(p.tax)}</span></div>` : ""}
     <div class="total"><span class="l">Total</span><span class="v">${money(p.total)}</span></div>
     ${acceptSection(p, opts)}
     ${(opts.photos && opts.photos.length) ? `<div class="eyebrow">Photos</div><div class="gallery">${opts.photos.map((ph) => `<img src="${esc(ph.url)}" alt="Project photo" loading="lazy">`).join("")}</div>` : ""}

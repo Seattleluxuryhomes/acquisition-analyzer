@@ -34,6 +34,7 @@ function rowToJob(row) {
     address: row.address || "",
     customer: row.customer || "",
     deposit_pct: row.deposit_pct == null ? 25 : row.deposit_pct,
+    tax_rate: row.tax_rate == null ? null : row.tax_rate,  // null = no tax set
     sent_at: row.sent_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -76,8 +77,8 @@ export function createJob(userId, data = {}) {
   const createdAt = Number(data.created_at) || now;
   db.prepare(`INSERT INTO job
     (id, user_id, title, from_lang, to_lang, transcript, translation, summary,
-     assumptions, exclusions, lines, upgrades, notes, margin, status, scheduled_date, scheduled_time, address, customer, deposit_pct, sent_at, created_at, updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+     assumptions, exclusions, lines, upgrades, notes, margin, status, scheduled_date, scheduled_time, address, customer, deposit_pct, tax_rate, sent_at, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
     id, userId,
     String(data.title || "Untitled job"),
     String(data.from || "es"), String(data.to || "en"),
@@ -93,6 +94,7 @@ export function createJob(userId, data = {}) {
     String(data.address || "") || null,
     String(data.customer || "") || null,
     data.deposit_pct == null ? null : Math.max(0, Math.min(100, Math.round(Number(data.deposit_pct)) || 0)),
+    data.tax_rate == null ? null : Math.max(0, Number(data.tax_rate) || 0),
     data.sent_at ? Number(data.sent_at) : null,
     createdAt, Number(data.updated_at) || now
   );
@@ -114,6 +116,7 @@ const FIELD_MAP = {
   address: (v) => String(v || "").slice(0, 300),
   customer: (v) => String(v || "").slice(0, 120),
   deposit_pct: (v) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0)),
+  tax_rate: (v) => (v == null ? 0 : Math.max(0, Number(v) || 0)),
   assumptions: (v) => JSON.stringify(cleanStrings(v)),
   exclusions: (v) => JSON.stringify(cleanStrings(v)),
   lines: (v) => JSON.stringify((Array.isArray(v) ? v : []).map(cleanLine)),
@@ -121,7 +124,7 @@ const FIELD_MAP = {
 };
 const COLUMN = { title: "title", from: "from_lang", to: "to_lang", transcript: "transcript",
   translation: "translation", summary: "summary", notes: "notes", margin: "margin", status: "status",
-  scheduled_date: "scheduled_date", scheduled_time: "scheduled_time", address: "address", customer: "customer", deposit_pct: "deposit_pct",
+  scheduled_date: "scheduled_date", scheduled_time: "scheduled_time", address: "address", customer: "customer", deposit_pct: "deposit_pct", tax_rate: "tax_rate",
   assumptions: "assumptions", exclusions: "exclusions", lines: "lines", upgrades: "upgrades" };
 
 export function updateJob(userId, id, patch = {}) {

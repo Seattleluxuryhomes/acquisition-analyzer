@@ -435,7 +435,7 @@ const planSetup = () => (BILLING && BILLING.setup_fee!=null) ? BILLING.setup_fee
 const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:'signin', authError:'', booted:false };
 let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
-let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'' };
+let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'', tax_rate:0, region:'' };
 let JOBS = JSON.parse(localStorage.getItem('bt_jobs')||'[]');
 let CAP_PHOTOS = []; // photos staged on the capture screen before the job exists
 let settingsDirty = false;
@@ -447,7 +447,10 @@ let ADMIN = false; // founder dashboard access (server decides via BT_ADMIN_EMAI
 /* ============ analytics ============ */
 // Fire-and-forget client event; analytics must never block or break the UI.
 function track(ev, props){ if(!TOKEN || !online || !ev) return; try{ api('/api/track',{method:'POST',body:JSON.stringify({event:ev,props:props||{}})}).catch(()=>{}); }catch(e){} }
-async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/api/me'); ADMIN=!!r.admin; }catch(e){} }
+async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/api/me'); ADMIN=!!r.admin;
+  // Hydrate tax settings from the server unless the user has local unsaved edits.
+  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; persistSettings(); }
+}catch(e){} }
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
 let NOTIFS = JSON.parse(localStorage.getItem('bt_notifs')||'null') || {items:[], unread:0};
@@ -690,7 +693,8 @@ async function syncNow(force){
     if(settingsDirty){
       try{ await api('/api/me',{method:'PATCH', body:JSON.stringify({
         company:SETTINGS.company, name:SETTINGS.name, phone:SETTINGS.phone,
-        license:SETTINGS.license, from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'' })}); settingsDirty=false; }catch(e){}
+        license:SETTINGS.license, from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'',
+        tax_rate:Number(SETTINGS.tax_rate)||0, region:SETTINGS.region||'' })}); settingsDirty=false; }catch(e){}
     }
     // 2) pull server jobs
     let server=[];
@@ -731,13 +735,13 @@ async function syncNow(force){
 function jobPayload(j){
   return { id:j.id, title:j.title, from:j.from, to:j.to, transcript:j.transcript, translation:j.translation,
     summary:j.summary, assumptions:j.assumptions, exclusions:j.exclusions, lines:j.lines, upgrades:j.upgrades,
-    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', scheduled_time:j.scheduled_time||'', address:j.address||'', customer:j.customer||'', deposit_pct:(j.deposit_pct==null?25:j.deposit_pct), updated_at:j.updated_at, created_at:j.created };
+    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', scheduled_time:j.scheduled_time||'', address:j.address||'', customer:j.customer||'', deposit_pct:(j.deposit_pct==null?25:j.deposit_pct), tax_rate:(j.tax_rate==null?null:j.tax_rate), updated_at:j.updated_at, created_at:j.created };
 }
 function hydrate(s){
   return { id:s.id, title:s.title, created:s.created_at, updated_at:s.updated_at, from:s.from, to:s.to,
     transcript:s.transcript||'', translation:s.translation||'', summary:s.summary||'',
     assumptions:s.assumptions||[], exclusions:s.exclusions||[], lines:s.lines||[], upgrades:s.upgrades||[],
-    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', scheduled_time:s.scheduled_time||'', address:s.address||'', customer:s.customer||'', deposit_pct:(s.deposit_pct==null?25:s.deposit_pct),
+    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', scheduled_time:s.scheduled_time||'', address:s.address||'', customer:s.customer||'', deposit_pct:(s.deposit_pct==null?25:s.deposit_pct), tax_rate:(s.tax_rate==null?null:s.tax_rate),
     photos:(s.photos||[]).map(p=>({id:p.id, url:p.url, showOnBid:!!p.showOnBid})), _dirty:false };
 }
 function replaceJob(id, fresh){
@@ -1337,7 +1341,7 @@ function makeLocalJob(f, data){
     upgrades:(data&&Array.isArray(data.upgrades)?data.upgrades:[]).slice(0,4).map(u=>({id:uid(),desc:String(u.desc||''),price:+u.price||0})),
     assumptions:(data&&Array.isArray(data.assumptions)?data.assumptions:[]).map(String),
     exclusions:(data&&Array.isArray(data.exclusions)?data.exclusions:[]).map(String),
-    notes:'', margin:20, photos:CAP_PHOTOS.splice(0), status:'draft', _dirty:true
+    notes:'', margin:20, tax_rate:(Number(SETTINGS.tax_rate)||0), photos:CAP_PHOTOS.splice(0), status:'draft', _dirty:true
   };
 }
 
@@ -1474,6 +1478,11 @@ function marginFactor(m){ m=+m||0; return (m>0&&m<100)?1/(1-m/100):1; }
 function pricedAmt(amt,m){ return Math.round((+amt||0)*marginFactor(m)); }
 // Sum the priced lines (not the scaled grand total) so the bid always reconciles.
 function bidPrice(j){ const m=j.margin; return (j.lines||[]).filter(l=>l.furn!=='client').reduce((s,l)=>s+pricedAmt(lineAmt(l),m),0); }
+// Sales tax (contractor's own rate) on the margin-priced subtotal. bidWithTax is
+// what the client actually pays; bidPrice stays the pre-tax work value.
+function jobTaxRate(j){ return j.tax_rate==null ? 0 : Math.max(0, Number(j.tax_rate)||0); }
+function taxAmt(j){ return Math.round(bidPrice(j) * jobTaxRate(j)/100); }
+function bidWithTax(j){ return bidPrice(j) + taxAmt(j); }
 // Mirror of server proposal.js: group scope lines by room/area, in first-seen order.
 function groupSections(lines){
   const groups=[], byName={};
@@ -1534,6 +1543,9 @@ function tabBuild(j){
   const m=+j.margin||0;
   const price=bidPrice(j);
   const profit=price-cost;
+  const taxRate=jobTaxRate(j);
+  const tax=taxAmt(j);
+  const total=bidWithTax(j);
   const depPct=(j.deposit_pct==null?25:j.deposit_pct);
   const ups=(j.upgrades||[]).map((u,i)=>`<div class="line"><div class="ltop">
       <input class="ldesc" value="${escAttr(u.desc)}" oninput="updUp(${i},'desc',this.value)" placeholder="Optional upgrade"/>
@@ -1552,15 +1564,23 @@ function tabBuild(j){
     </select>
     <button class="btn ghost full addline" onclick="addLine()">+ Add line</button>
 
-    <div class="totbar"><span class="tl">Client price</span><span class="tv">${money(price)}</span></div>
+    <div class="totbar"><span class="tl">Client price</span><span class="tv">${money(total)}</span></div>
     ${m>0
       ? `<div class="hint" style="margin-top:-6px">Your cost ${money(cost)} · ${m}% margin · <b style="color:#8fd0a8">profit ${money(profit)}</b></div>`
       : `<div class="hint" style="margin-top:-6px">No margin set — the client pays your line total. Add a profit margin below.</div>`}
 
+    <div class="taxrow-edit" style="display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <label class="fld" style="margin:0">Sales tax</label>
+      <input class="input" type="number" min="0" step="0.1" value="${taxRate}" oninput="updJob('tax_rate',this.value)" style="max-width:84px"/>
+      <span class="mono" style="color:var(--muted)">%</span>
+      ${tax>0?`<span class="mono" style="color:var(--muted)">= ${money(tax)} tax → ${money(total)} total</span>`:''}
+    </div>
+    <div class="hint">Your rate for client bids (set in Setup, editable per job). 0 = no tax — e.g. tax-exempt labor.</div>
+
     <div class="depositbox">
       <label class="fld">💳 Deposit to collect when the client accepts</label>
       <div style="display:flex;align-items:center;gap:8px"><input class="input" type="number" min="0" max="100" value="${depPct}" oninput="updJob('deposit_pct',this.value)" style="max-width:90px"/><span class="mono" style="color:var(--muted)">% of total</span></div>
-      <div class="hint">Client pays <b style="color:var(--paper)">${money(Math.round(price*(depPct/100)))}</b> on acceptance${PAYMENTS&&PAYMENTS.charges_enabled?' (via your Stripe).':'. Finish “Set up payments” to collect it automatically.'}</div>
+      <div class="hint">Client pays <b style="color:var(--paper)">${money(Math.round(total*(depPct/100)))}</b> on acceptance${PAYMENTS&&PAYMENTS.charges_enabled?' (via your Stripe).':'. Finish “Set up payments” to collect it automatically.'}</div>
     </div>
 
     <div class="private"><div class="pl">Private — not shown to client</div>
@@ -1603,7 +1623,7 @@ function paymentsBlock(j){
   }
   const reqs = PAYREQS[j.id];
   if(reqs===undefined){ loadJobPayReqs(j.id); }
-  const total = bidPrice(j);
+  const total = bidWithTax(j); // client pays the tax-inclusive total
   const pct = (j.deposit_pct==null?25:j.deposit_pct);
   const deposit = Math.round(total * pct/100);
   // What's already collected (from any paid link or the proposal's deposit) drives
@@ -1646,7 +1666,7 @@ function clientHTML(j){
   const f=marginFactor(j.margin), showRate=(f===1);
   const cAmt=(l)=>Math.round(lineAmt(l)*f);          // priced line amount
   const cSub=(g)=>g.lines.reduce((s,l)=>s+cAmt(l),0); // subtotal = sum of priced lines
-  const total=bidPrice(j);
+  const subtotal=bidPrice(j), taxRate=jobTaxRate(j), tax=taxAmt(j), total=bidWithTax(j);
   const dt=new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
   return `<div class="client">
     <div class="client-head">
@@ -1665,6 +1685,8 @@ function clientHTML(j){
               ${g.lines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${(showRate&&l.type==='hourly')?`<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`:''}</div><div class="ca">${money(cAmt(l))}</div></div>`).join('')}
               <div class="cline csub"><div class="cd">${esc(g.name||'Other work')} subtotal</div><div class="ca">${money(cSub(g))}</div></div></div>`).join('')
           : baseLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${(showRate&&l.type==='hourly')?`<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`:''}</div><div class="ca">${money(cAmt(l))}</div></div>`).join('') }
+      ${tax>0?`<div class="cline" style="margin-top:10px"><div class="cd">Subtotal</div><div class="ca">${money(subtotal)}</div></div>
+      <div class="cline"><div class="cd" style="color:#8a7f68">Sales tax (${taxRate}%)</div><div class="ca" style="color:#8a7f68">${money(tax)}</div></div>`:''}
       <div class="ctotal"><span class="l">Total</span><span class="v">${money(total)}</span></div>
 
       ${clientLines.length?`<h4>Provided by client</h4>${clientLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)}</div><div class="ca" style="color:#8a7f68">by client</div></div>`).join('')}`:''}
@@ -1782,6 +1804,15 @@ function paymentsSection(){
     <div class="statline">${badge}${btn}</div>
     <div class="hint" style="margin-top:8px">${esc(detail)}</div></div>`;
 }
+// US state BASE sales-tax rates (%) — a starting suggestion only; local rates and
+// construction taxability vary, so the contractor confirms their real rate.
+const US_TAX={AL:4,AK:0,AZ:5.6,AR:6.5,CA:7.25,CO:2.9,CT:6.35,DE:0,DC:6,FL:6,GA:4,HI:4,ID:6,IL:6.25,IN:7,IA:6,KS:6.5,KY:6,LA:4.45,ME:5.5,MD:6,MA:6.25,MI:6,MN:6.875,MS:7,MO:4.225,MT:0,NE:5.5,NV:6.85,NH:0,NJ:6.625,NM:5,NY:4,NC:4.75,ND:5,OH:5.75,OK:4.5,OR:0,PA:6,RI:7,SC:6,SD:4.2,TN:7,TX:6.25,UT:6.1,VT:6,VA:5.3,WA:6.5,WV:6,WI:5,WY:4};
+function setRegion(s){
+  SETTINGS.region=s;
+  // Suggest the state base rate only if they haven't set their own yet.
+  if((Number(SETTINGS.tax_rate)||0)===0 && US_TAX[s]!=null) SETTINGS.tax_rate=US_TAX[s];
+  persistSettings(); settingsDirty=true; paintSync(); clearTimeout(setT); setT=setTimeout(()=>syncNow(),700); render();
+}
 function viewSettings(){
   return `<div class="h-eyebrow">Setup</div><h1 class="page">Your business</h1>
     <div class="sub">This appears on the proposals you send. Synced to your account.</div>
@@ -1803,6 +1834,19 @@ function viewSettings(){
     <div class="row2">
       <div><label class="fld">Default — you speak</label><select class="input" onchange="setS('from',this.value)">${langOpts(SETTINGS.from)}</select></div>
       <div><label class="fld">Default — client reads</label><select class="input" onchange="setS('to',this.value)">${langOpts(SETTINGS.to)}</select></div>
+    </div>
+    <div class="nb-sec" style="margin-top:16px">
+      <h3>Sales tax</h3>
+      <div class="row2">
+        <div><label class="fld">Your state</label>
+          <select class="input" onchange="setRegion(this.value)">
+            <option value="">Select…</option>
+            ${Object.keys(US_TAX).map(s=>`<option value="${s}" ${SETTINGS.region===s?'selected':''}>${s}</option>`).join('')}
+          </select></div>
+        <div><label class="fld">Default tax rate %</label>
+          <input class="input" type="number" min="0" step="0.1" value="${Number(SETTINGS.tax_rate)||0}" oninput="setS('tax_rate',+this.value||0)"/></div>
+      </div>
+      <div class="hint">Applied to new bids (editable per job). Picking your state suggests its base rate — confirm your real combined rate, since local tax and construction rules vary and many states don't tax labor. You set the number; we don't file taxes for you.</div>
     </div>
     ${billingSection()}
     ${paymentsSection()}
@@ -1891,7 +1935,7 @@ function updLine(id,k,v){ const j=currentJob(); const l=j.lines.find(x=>x.id===i
 function addUp(){ const j=currentJob(); j.upgrades.push({id:uid(),desc:'',price:0}); touch(j); saveJobs(); render(); }
 function delUp(i){ const j=currentJob(); j.upgrades.splice(i,1); touch(j); saveJobs(); render(); }
 function updUp(i,k,v){ const j=currentJob(); if(k==='price') j.upgrades[i][k]=+v||0; else j.upgrades[i][k]=v; touch(j); saveJobs(); }
-function updJob(k,v){ const j=currentJob(); j[k]=(k==='margin'||k==='deposit_pct')?(+v||0):v; touch(j); saveJobs(); if(k==='margin') refreshTotals(j); }
+function updJob(k,v){ const j=currentJob(); j[k]=(k==='margin'||k==='deposit_pct'||k==='tax_rate')?(+v||0):v; touch(j); saveJobs(); if(k==='margin'||k==='tax_rate') refreshTotals(j); }
 function updList(k,v){ const j=currentJob(); j[k]=String(v).split('\n').map(s=>s.trim()).filter(Boolean); touch(j); saveJobs(); }
 function deleteJob(id){
   if(!confirm('Delete this job? This removes it from all your devices.')) return;
@@ -1901,7 +1945,7 @@ function deleteJob(id){
 }
 
 function refreshTotals(j){
-  const tot=document.querySelector('.totbar .tv'); if(tot) tot.textContent=money(bidPrice(j));
+  const tot=document.querySelector('.totbar .tv'); if(tot) tot.textContent=money(bidWithTax(j));
   (j.lines||[]).forEach(l=>{ const el=document.querySelector('.lt-amt[data-lid="'+l.id+'"]'); if(el) el.textContent = l.furn==='client'?'by client':money(lineAmt(l)); });
 }
 

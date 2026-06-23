@@ -148,6 +148,10 @@ ensureColumns("user", [
   // Notifications: when the contractor last cleared their "good news" inbox
   // (customer accepted / paid). Events newer than this are "unread".
   ["notifications_seen_at", "INTEGER"],
+  // Sales tax the contractor charges clients. Set/confirmed at signup from their
+  // region; they own the rate (we never auto-file tax). region = US state code.
+  ["tax_rate", "REAL DEFAULT 0"],
+  ["region", "TEXT"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).
@@ -162,6 +166,7 @@ ensureColumns("job", [
   ["address", "TEXT"],
   ["customer", "TEXT"],         // who the proposal is FOR (shown on the bid + PDF)
   ["deposit_pct", "INTEGER"],   // deposit to collect on acceptance, % of total (default 25)
+  ["tax_rate", "REAL"],         // sales tax % for this job; defaults from the contractor, 0 = none
 ]);
 
 export default db;

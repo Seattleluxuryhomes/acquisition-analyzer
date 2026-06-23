@@ -100,6 +100,7 @@ function settingsOf(user) {
   return {
     company: user.company, name: user.name, phone: user.phone, license: user.license,
     from: user.default_from_lang, to: user.default_to_lang, logo: user.logo || "", email: user.email || "",
+    tax_rate: user.tax_rate == null ? 0 : user.tax_rate, region: user.region || "",
   };
 }
 
@@ -183,11 +184,12 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
     return res.status(413).json({ error: "Logo image is too large — please use a smaller file." });
   }
   const map = { company: "company", name: "name", phone: "phone", license: "license",
-    from: "default_from_lang", to: "default_to_lang", logo: "logo" };
+    from: "default_from_lang", to: "default_to_lang", logo: "logo", region: "region" };
   const sets = [], vals = [];
   for (const [k, col] of Object.entries(map)) {
     if (k in b) { sets.push(`${col}=?`); vals.push(String(b[k] ?? "")); }
   }
+  if ("tax_rate" in b) { sets.push("tax_rate=?"); vals.push(Math.max(0, Number(b.tax_rate) || 0)); }
   if (sets.length) { vals.push(req.user.id); db.prepare(`UPDATE user SET ${sets.join(", ")} WHERE id=?`).run(...vals); }
   const fresh = db.prepare("SELECT * FROM user WHERE id=?").get(req.user.id);
   if (typeof b.logo === "string" && b.logo) track(req.user.id, "logo_uploaded", {});

@@ -109,8 +109,15 @@ export function buildProposal(job, settings) {
     upgrades: (job.upgrades || []).map((u) => ({ desc: u.desc || "", price: priced(Number(u.price) || 0) })),
     exclusions: job.exclusions || [],
     assumptions: job.assumptions || [],
-    // Grand total = sum of the priced scope lines (reconciles with what's shown).
-    total: baseLines.reduce((s, l) => s + priced(lineAmount(l)), 0),
+    // Subtotal = sum of the priced scope lines (reconciles with what's shown).
+    // Tax is the contractor's own sales-tax rate applied to that subtotal; total
+    // is what the client pays. taxRate 0 → no tax line.
+    ...(() => {
+      const subtotal = baseLines.reduce((s, l) => s + priced(lineAmount(l)), 0);
+      const taxRate = Math.max(0, Number(job.tax_rate) || 0);
+      const tax = Math.round(subtotal * taxRate / 100);
+      return { subtotal, taxRate, tax, total: subtotal + tax };
+    })(),
     footer: "This is an estimate, not a contract. Pricing valid 30 days from the date above.",
     // NOTE: margin and notes are intentionally absent. Do not add them here.
   };

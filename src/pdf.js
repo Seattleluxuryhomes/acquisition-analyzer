@@ -72,6 +72,17 @@ export function renderProposalPDF(proposal, res) {
     }
   }
 
+  // ---- Subtotal + tax (only when the contractor charges tax) ----
+  if (proposal.tax > 0) {
+    doc.moveDown(0.3);
+    const sy = doc.y;
+    doc.font("Helvetica").fontSize(10).fillColor(INK).text("Subtotal", left, sy, { width: width - 110 });
+    doc.font("Helvetica").fontSize(10).fillColor(INK).text(money(proposal.subtotal), left, sy, { width, align: "right" });
+    const tyx = doc.y;
+    doc.font("Helvetica").fontSize(10).fillColor(MUTED).text(`Sales tax (${proposal.taxRate}%)`, left, tyx, { width: width - 110 });
+    doc.font("Helvetica").fontSize(10).fillColor(MUTED).text(money(proposal.tax), left, tyx, { width, align: "right" });
+  }
+
   // ---- Total ----
   doc.moveDown(0.4);
   const ty = doc.y;
