@@ -423,7 +423,9 @@
   .flash{outline:2px solid var(--amber)!important;outline-offset:1px;border-radius:8px;transition:outline .2s}
   /* Bottom navigation (thumb zone). Center + is equidistant for either hand. */
   #view{padding-bottom:88px}
-  .botnav{position:fixed;left:0;right:0;bottom:0;z-index:900;display:flex;justify-content:space-around;align-items:flex-end;background:var(--surface2);border-top:1px solid rgba(243,238,227,.1);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0))}
+  /* Pin to the bottom but keep it inside the centered app column (matches .app
+     max-width) so on desktop the bar doesn't stretch edge-to-edge. */
+  .botnav{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:760px;bottom:0;z-index:900;display:flex;justify-content:space-around;align-items:flex-end;background:var(--surface2);border-top:1px solid rgba(243,238,227,.1);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0))}
   .botnav .bn{flex:1;background:none;border:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0;font-family:inherit;font-size:.64rem;font-weight:600;min-height:54px;cursor:pointer;-webkit-tap-highlight-color:transparent}
   .botnav .bn .bi{display:flex;align-items:center;justify-content:center;height:24px}
   .botnav .bn.on{color:var(--amber)}
