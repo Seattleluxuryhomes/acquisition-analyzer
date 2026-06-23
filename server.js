@@ -35,7 +35,10 @@ app.set("trust proxy", true); // behind Spaceship/Hyperlift's edge proxy
 const FORCE_HTTPS = !/^(0|false|off|no)$/i.test(process.env.BT_FORCE_HTTPS || "1");
 const CANONICAL_HOST = (process.env.BT_CANONICAL_HOST || "").trim().toLowerCase();
 app.use((req, res, next) => {
-  if (req.path === "/api/health") return next();
+  // Never redirect the health check or the ACME HTTP-01 challenge — the latter is
+  // fetched over plain HTTP by the CA to issue the TLS cert; redirecting it to
+  // HTTPS (no cert yet) would make issuance fail.
+  if (req.path === "/api/health" || req.path.startsWith("/.well-known/acme-challenge/")) return next();
   const proto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
   const host = String(req.headers.host || "");
   const hostName = host.toLowerCase().replace(/:\d+$/, "");
