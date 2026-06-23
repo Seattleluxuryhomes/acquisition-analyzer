@@ -44,6 +44,9 @@
   .icon-btn{background:transparent;border:1px solid var(--line);color:var(--paper);border-radius:6px;padding:7px 12px;font-family:"IBM Plex Mono";font-size:.74rem;letter-spacing:.03em}
   .icon-btn:hover{border-color:var(--amber);color:var(--amber)}
   .icon-btn.active{background:var(--amber);color:var(--ink);border-color:var(--amber)}
+  .icon-btn .ni{display:none}
+  .setupnudge{display:block;width:100%;text-align:left;background:rgba(207,127,24,.14);border:1px solid var(--amber);color:#f0d8af;border-radius:10px;padding:13px 15px;font-size:.9rem;margin:0 0 14px;cursor:pointer;line-height:1.4}
+  .setupnudge .nudge-go{color:var(--amber);font-weight:700;white-space:nowrap}
 
   /* sync + offline status */
   .sync{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.04em;color:var(--muted);padding:5px 9px;border:1px solid var(--line);border-radius:6px}
@@ -61,7 +64,9 @@
     .brand .mark{width:20px;height:20px;flex-shrink:0}
     .top-actions{gap:5px;flex-shrink:0}
     .sync{display:none}
-    .icon-btn{padding:6px 10px;font-size:.72rem}
+    .icon-btn{padding:6px 9px;font-size:.72rem}
+    .icon-btn .nl{display:none}
+    .icon-btn .ni{display:inline;font-size:1.02rem}
     .trial-chip{font-size:.62rem;padding:5px 8px}
   }
 
@@ -343,10 +348,10 @@
       <div class="top-actions">
         <button class="trial-chip" id="trialChip" style="display:none" onclick="go('paywall')"></button>
         <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
-        <button class="icon-btn" id="navJobs" onclick="go('home')">Dashboard</button>
-        <button class="icon-btn" id="navSched" onclick="go('schedule')">Schedule</button>
-        <button class="icon-btn" id="navAdmin" onclick="go('admin')" style="display:none">📊 Founder</button>
-        <button class="icon-btn" id="navSet" onclick="go('settings')">Setup</button>
+        <button class="icon-btn" id="navJobs" onclick="go('home')"><span class="ni">🏠</span><span class="nl">Dashboard</span></button>
+        <button class="icon-btn" id="navSched" onclick="go('schedule')"><span class="ni">📅</span><span class="nl">Schedule</span></button>
+        <button class="icon-btn" id="navAdmin" onclick="go('admin')" style="display:none"><span class="ni">📊</span><span class="nl">Founder</span></button>
+        <button class="icon-btn" id="navSet" onclick="go('settings')"><span class="ni">⚙️</span><span class="nl">Setup</span></button>
       </div>
     </div>
     <div class="offline-banner" id="offlineBanner" style="display:none">Offline — your work is saved on this device and will sync when you reconnect.</div>
@@ -680,7 +685,7 @@ function paintTrialChip(){
 function viewPaywall(){
   const expired = BILLING && !BILLING.entitled;
   const days = trialDaysLeft();
-  return `<button class="backlink" onclick="go('home')">← Jobs</button>
+  return `<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div class="h-eyebrow">${expired?'Trial ended':'Bidtranslator Pro'}</div>
     <h1 class="page">${expired?'Subscribe to keep building bids':'Go unlimited'}</h1>
     <div class="sub">${expired
@@ -922,8 +927,11 @@ function viewHome(){
   const who = (SETTINGS.name||'').trim();
   const hello = `<div class="dash-hello"><div class="h-eyebrow">${esc(SETTINGS.company)||'Your business'}</div>
     <h1 class="page">${greetingWord()}${who?', '+esc(who):''} 👋</h1></div>`;
+  // First-run nudge: a bid sent before setup says "Your Company" — prompt them.
+  const needsSetup = !SETTINGS.company || SETTINGS.company==='Your Company' || !SETTINGS.logo || !(SETTINGS.phone||'').trim();
+  const nudge = needsSetup ? `<button class="setupnudge" onclick="go('settings')">👋 Finish your setup — add your company name, logo &amp; phone so every bid looks professional. <span class="nudge-go">Set up →</span></button>` : '';
   if(visible.length===0){
-    return hello + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
+    return hello + nudge + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
   }
   const f = state.jobFilter || 'all';
   const counts = { all: visible.length, draft:0, sent:0, signed:0, scheduled:0 };
@@ -935,7 +943,7 @@ function viewHome(){
   let list;
   if(filtered.length===0){ list = `<div class="hint" style="margin-top:16px">No ${statusLabel(f).toLowerCase()} jobs yet.</div>`; }
   else { list = (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">🗺️ Tap 🧭 for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
-  return `${hello}
+  return `${hello}${nudge}
     ${kpiStrip(dashKPIs(visible))}
     ${scheduleBlock(visible)}
     <div class="newbar"><div class="sub">Your jobs · ${visible.length}</div><button class="btn sm" onclick="newJob()">+ New job</button></div>
@@ -1099,12 +1107,12 @@ function adminHTML(d, users){
 
 function viewCapture(){
   if(state.loading){
-    return `<button class="backlink" onclick="go('home')">← Jobs</button>
+    return `<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div class="loadingbox"><div class="spinner"></div>
     <div class="mono" style="font-size:.84rem">Translating and building your bid draft…</div>
     <div class="hint">Reading the conversation, structuring the scope.</div></div>`;
   }
-  return `<button class="backlink" onclick="go('home')">← Jobs</button>
+  return `<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div class="h-eyebrow">Step 1 · Capture</div><h1 class="page">Talk through the job</h1>
     <div class="sub">Type or paste the conversation in your language. We'll translate it and turn it into a bid draft.</div>
 
@@ -1249,7 +1257,7 @@ function viewJob(){
     <button class="${state.bidTab==='notebook'?'on':''}" onclick="setTab('notebook')">Notebook</button>
     <button class="${state.bidTab==='build'?'on':''}" onclick="setTab('build')">Build the bid</button>
     <button class="${state.bidTab==='client'?'on':''}" onclick="setTab('client')">Client view</button></div>`;
-  const head=`<button class="backlink" onclick="go('home')">← Jobs</button>
+  const head=`<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
       <div><h1 class="page" style="font-size:1.4rem">${esc(j.title)||'Untitled job'}</h1>
       <div class="sub">${LANGS[j.from]||j.from} → ${LANGS[j.to]||j.to}</div></div>
