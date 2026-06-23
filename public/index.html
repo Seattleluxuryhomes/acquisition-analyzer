@@ -387,9 +387,18 @@
   .botnav .bn{flex:1;background:none;border:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0;font-family:inherit;font-size:.64rem;font-weight:600;min-height:54px;cursor:pointer;-webkit-tap-highlight-color:transparent}
   .botnav .bn .bi{font-size:1.3rem;line-height:1}
   .botnav .bn.on{color:var(--amber)}
-  .botnav .bn-add{flex:0 0 auto;justify-content:flex-start}
-  .botnav .bn-add .plus{display:flex;align-items:center;justify-content:center;width:56px;height:56px;margin-top:-20px;border-radius:50%;background:var(--amber);color:#1F252C;font-size:2.1rem;font-weight:700;line-height:1;box-shadow:0 6px 18px rgba(207,127,24,.45)}
-  .botnav .bn-add:active .plus{transform:scale(.94)}
+  .botnav .bn-add{flex:0 0 auto;justify-content:flex-start;position:relative;touch-action:none;-webkit-user-select:none;user-select:none}
+  .botnav .bn-add .fab{display:flex;align-items:center;justify-content:center;width:58px;height:58px;margin-top:-22px;border-radius:50%;
+    background:radial-gradient(120% 120% at 32% 24%, #FFC264 0%, #EE9B2E 56%, #DC8918 100%);
+    box-shadow:0 9px 22px rgba(207,127,24,.5), inset 0 1px 0 rgba(255,255,255,.4), inset 0 -2px 6px rgba(140,80,8,.25);
+    transition:transform .14s ease, box-shadow .14s ease}
+  .botnav .bn-add .fab svg{display:block;transform:translateY(.5px)}
+  .botnav .bn-add .add-l{margin-top:4px;color:var(--amber);font-weight:700}
+  .botnav .bn-add:active .fab{transform:scale(.91);box-shadow:0 4px 12px rgba(207,127,24,.5), inset 0 1px 0 rgba(255,255,255,.4)}
+  .botnav .bn-add.pulse .fab{animation:fabpulse 2.2s ease-in-out infinite}
+  @keyframes fabpulse{0%,100%{box-shadow:0 9px 22px rgba(207,127,24,.5), inset 0 1px 0 rgba(255,255,255,.4), 0 0 0 0 rgba(238,155,46,.55)}
+    50%{box-shadow:0 9px 22px rgba(207,127,24,.5), inset 0 1px 0 rgba(255,255,255,.4), 0 0 0 11px rgba(238,155,46,0)}}
+  @media(prefers-reduced-motion:reduce){.botnav .bn-add.pulse .fab{animation:none}}
   .sheet-wrap{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end}
   .sheet{width:100%;background:var(--surface);border-top-left-radius:18px;border-top-right-radius:18px;padding:8px 12px calc(14px + env(safe-area-inset-bottom,0));animation:toastin .2s ease}
   .sheet-h{color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;padding:12px 8px 6px}
@@ -436,10 +445,20 @@
   <nav class="botnav" id="botnav" style="display:none">
     <button class="bn" id="bnHome" onclick="go('home')"><span class="bi">🏠</span><span class="bl">Home</span></button>
     <button class="bn" id="bnJobs" onclick="goJobs()"><span class="bi">🧰</span><span class="bl">Jobs</span></button>
-    <button class="bn bn-add" id="bnAdd" onclick="newJob()" aria-label="New job"><span class="plus">+</span></button>
+    <button class="bn bn-add" id="bnAdd" aria-label="New proposal — tap to speak, hold for options">
+      <span class="fab"><svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="#1F252C" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21.5"/></svg></span>
+      <span class="bl add-l">New</span>
+    </button>
     <button class="bn" id="bnSched" onclick="go('schedule')"><span class="bi">📅</span><span class="bl">Schedule</span></button>
     <button class="bn" id="bnMore" onclick="openMore()"><span class="bi">⋯</span><span class="bl">More</span></button>
   </nav>
+</div>
+<div id="createSheet" class="sheet-wrap" style="display:none" onclick="closeCreate()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h">New bid</div>
+    <button class="sheet-i" onclick="newBidVoice()">🎤 Speak a new bid</button>
+    <button class="sheet-i" onclick="newBidType()">⌨️ Type a new bid</button>
+  </div>
 </div>
 <div id="sheet" class="sheet-wrap" style="display:none" onclick="closeMore()">
   <div class="sheet" onclick="event.stopPropagation()">
@@ -861,6 +880,26 @@ function newJob(){ if(!entitled()){ go('paywall'); return; } CAP_PHOTOS=[]; go('
 function goJobs(){ go('home'); requestAnimationFrame(()=>{ const el=document.querySelector('.fchips')||document.querySelector('.newbar'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }); }
 function openMore(){ const a=document.getElementById('sheetAdmin'); if(a) a.style.display=ADMIN?'block':'none'; document.getElementById('sheet').style.display='flex'; }
 function closeMore(){ const s=document.getElementById('sheet'); if(s) s.style.display='none'; }
+
+/* ----- Center action button: voice-first new proposal (tap), menu (long-press) ----- */
+// Tap → straight into capture with the mic already listening (the core workflow:
+// Speak → Generate → Send → Get Paid). Falls back silently if speech is unavailable.
+function fabTap(){ if(!entitled()){ go('paywall'); return; } CAP_PHOTOS=[]; go('capture','new'); if(speechSupported()){ try{ if(!recording) toggleMic(); }catch(e){} } }
+function openCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='flex'; }
+function closeCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='none'; }
+function newBidVoice(){ closeCreate(); fabTap(); }
+function newBidType(){ closeCreate(); if(!entitled()){ go('paywall'); return; } CAP_PHOTOS=[]; go('capture','new'); const ta=document.getElementById('capText'); if(ta){ ta.focus(); window.scrollTo(0,0); } }
+// Wire tap vs long-press on the static FAB once. Long-press (450ms) opens the menu;
+// a quick tap runs the voice path. Keyboard users get the tap action via Enter/Space.
+function attachFab(){
+  const b=document.getElementById('bnAdd'); if(!b || b._wired) return; b._wired=true;
+  let timer=null, longFired=false;
+  b.addEventListener('pointerdown', ()=>{ longFired=false; timer=setTimeout(()=>{ longFired=true; if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(_){} } openCreate(); }, 450); });
+  b.addEventListener('pointerup', (e)=>{ if(timer){ clearTimeout(timer); timer=null; } if(!longFired) fabTap(); e.preventDefault(); });
+  const cancel=()=>{ if(timer){ clearTimeout(timer); timer=null; } };
+  b.addEventListener('pointerleave', cancel); b.addEventListener('pointercancel', cancel);
+  b.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fabTap(); } });
+}
 function currentJob(){ return JOBS.find(j=>j.id===state.jobId); }
 
 // Pull the full job (the list endpoint omits photo URLs). Refreshes signed photo
@@ -892,6 +931,8 @@ function render(){
   setOn('bnJobs', state.view==='job');
   setOn('bnSched', state.view==='schedule');
   setOn('bnMore', state.view==='settings'||state.view==='admin');
+  // Draw the eye to the money button when there's nothing to do yet (first bid).
+  const fab=document.getElementById('bnAdd'); if(fab) fab.classList.toggle('pulse', JOBS.filter(j=>!j._deleted).length===0 && state.view==='home');
   paintBell();
   if(state.view==='home'){ v.innerHTML = viewHome(); markNotifsSeen(); }
   else if(state.view==='schedule') v.innerHTML = viewSchedule();
@@ -2204,6 +2245,7 @@ applyTheme();
 /* ============ boot ============ */
 (async function(){
   state.booted=true;
+  attachFab();
   // Returning from Stripe Checkout / portal: clean the URL and refresh status.
   const params=new URLSearchParams(location.search);
   const billingReturn=params.get('billing');
