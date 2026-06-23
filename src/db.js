@@ -215,12 +215,16 @@ ensureColumns("job", [
 ]);
 
 // Self-heal a price-book (sku) table created before any of these columns existed,
-// so saving/importing SKUs never fails on a 'no column named …' error.
+// so saving/importing SKUs never fails on a 'no column named …' error. Covers
+// every column the INSERT touches (timestamps included, with safe defaults so the
+// ALTER works even on a table that already has rows).
 ensureColumns("sku", [
   ["sku_code", "TEXT DEFAULT ''"],
   ["category", "TEXT DEFAULT ''"],
   ["unit", "TEXT DEFAULT 'each'"],
   ["unit_price", "REAL DEFAULT 0"],
+  ["created_at", "INTEGER NOT NULL DEFAULT 0"],
+  ["updated_at", "INTEGER NOT NULL DEFAULT 0"],
 ]);
 
 export default db;

@@ -95,6 +95,9 @@ const baseUrl = (req) =>
 
 // Deferring fn into .then() means synchronous throws become rejections too.
 const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((err) => {
+  // Surface unexpected (500-class) failures in the server log so issues like a
+  // drifted table column are diagnosable instead of just a generic client error.
+  if (!err.status || err.status >= 500) console.error(`[${req.method} ${req.path}]`, err && (err.stack || err.message || err));
   res.status(err.status || 500).json({ error: err.message || "Server error.", code: err.code });
 });
 
