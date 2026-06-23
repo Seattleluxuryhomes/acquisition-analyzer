@@ -518,16 +518,25 @@ async function loadJobPayReqs(jobId){
   if(!TOKEN || !online) return;
   try{ const r=await api('/api/payments/requests?job_id='+encodeURIComponent(jobId)); PAYREQS[jobId]=r.requests||[]; if(state.view==='job') render(); }catch(e){}
 }
-function setPrAmt(v){ const el=document.getElementById('prAmt'); if(el) el.value=v; }
+// Fill the request form from a preset. amt=null leaves the amount for the user
+// to type (used by "Materials", where they enter the cost); purpose labels it.
+function setPr(amt, purpose){
+  const a=document.getElementById('prAmt'), p=document.getElementById('prPurpose');
+  if(p && purpose!=null) p.value=purpose;
+  if(a){ if(amt!=null) a.value=amt; a.focus(); }
+}
 async function createPayReq(jobId, btn){
-  const amtEl=document.getElementById('prAmt'), nameEl=document.getElementById('prName');
+  const amtEl=document.getElementById('prAmt'), nameEl=document.getElementById('prName'), purpEl=document.getElementById('prPurpose');
   const amount=+(amtEl&&amtEl.value)||0;
   const clientName=(nameEl&&nameEl.value||'').trim();
+  const purpose=(purpEl&&purpEl.value||'').trim();
   if(amount<1){ alert('Enter an amount of at least $1.'); return; }
   const j=JOBS.find(x=>x.id===jobId);
+  // The client sees the purpose on their checkout ("Materials deposit — Kitchen").
+  const description=[purpose, (j&&j.title)||''].filter(Boolean).join(' — ') || 'Construction work';
   if(btn){ btn.disabled=true; btn.textContent='Creating link…'; }
   try{
-    const r=await api('/api/payments/requests',{method:'POST', body:JSON.stringify({ amount, clientName, jobId, description:(j&&j.title)||'Construction work' })});
+    const r=await api('/api/payments/requests',{method:'POST', body:JSON.stringify({ amount, clientName, jobId, description })});
     PAYREQS[jobId]=[r.request, ...(PAYREQS[jobId]||[])];
     render();
   }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Create payment link'; } if(!gate402(e)) alert(e.message||'Could not create the payment link.'); }
@@ -1512,6 +1521,10 @@ function paymentsBlock(j){
   const total = bidPrice(j);
   const pct = (j.deposit_pct==null?25:j.deposit_pct);
   const deposit = Math.round(total * pct/100);
+  // What's already collected (from any paid link or the proposal's deposit) drives
+  // the "remaining balance" so the contractor can bill exactly what's left.
+  const paid = (reqs||[]).filter(r=>r.status==='paid').reduce((s,r)=>s+(+r.amount||0),0);
+  const balance = Math.max(0, total - paid);
   const list = (reqs||[]).map(r=>{
     const st = r.status==='paid'?`<span class="badge active">Paid</span>`
       : r.status==='canceled'?`<span class="badge canceled">Canceled</span>`
@@ -1520,20 +1533,24 @@ function paymentsBlock(j){
       ? `<button class="btn ghost sm" onclick="copyPayLink('${escAttr(r.url||'')}',this)">Copy link</button>
          <button class="btn ghost sm" onclick="cancelPayReq('${j.id}','${r.id}')">Cancel</button>`
       : '';
-    return `<div class="payrow"><div><div class="payamt">${money(r.amount)}</div>${st}</div>
+    return `<div class="payrow"><div><div class="payamt">${money(r.amount)}</div>${r.description?`<div class="hint" style="margin-top:2px">${esc(r.description)}</div>`:''}${st}</div>
       <div class="payact">${actions}</div></div>`;
   }).join('');
   return `<div class="paybox"><h3>Get paid for this job</h3>
-    <div class="row2">
+    <div class="hint">Bid <b style="color:var(--paper)">${money(total)}</b>${paid?` · collected <b style="color:#8fd0a8">${money(paid)}</b> · remaining <b style="color:var(--paper)">${money(balance)}</b>`:''}. Send a card link for any of these — money goes straight to your account.</div>
+    <div class="amtquick" style="margin-top:10px">
+      <button class="btn ghost sm" type="button" onclick="setPr(${deposit},'Deposit')">Deposit ${pct}% · ${money(deposit)}</button>
+      ${paid?`<button class="btn ghost sm" type="button" onclick="setPr(${balance},'Final balance')">Balance · ${money(balance)}</button>`:''}
+      <button class="btn ghost sm" type="button" onclick="setPr(null,'Materials')">Materials upfront</button>
+      <button class="btn ghost sm" type="button" onclick="setPr(${total},'Full payment')">Full · ${money(total)}</button>
+    </div>
+    <div class="row2" style="margin-top:6px">
       <div><label class="fld">Amount</label><input id="prAmt" class="input" type="number" min="1" value="${deposit||total||''}" placeholder="0"/></div>
-      <div><label class="fld">Client name (optional)</label><input id="prName" class="input" placeholder="e.g. Reyes"/></div>
+      <div><label class="fld">What's this for?</label><input id="prPurpose" class="input" placeholder="e.g. Materials deposit" value="Deposit"/></div>
     </div>
-    <div class="amtquick">
-      <button class="btn ghost sm" type="button" onclick="setPrAmt(${deposit})">Deposit ${pct}% · ${money(deposit)}</button>
-      <button class="btn ghost sm" type="button" onclick="setPrAmt(${total})">Full · ${money(total)}</button>
-    </div>
+    <label class="fld">Client name (optional)</label><input id="prName" class="input" placeholder="e.g. Reyes"/>
     <button class="btn blue full" style="margin-top:10px" onclick="createPayReq('${j.id}',this)">Create payment link</button>
-    <div class="hint" style="margin-top:8px">Creates a secure card-payment link to text or email your client. The money goes straight to your account.</div>
+    <div class="hint" style="margin-top:8px">The label shows on your client's checkout, so deposits, material costs and the final balance are easy to tell apart.</div>
     ${(reqs&&reqs.length)?`<div class="paylist">${list}</div>`:(reqs?'':'<div class="hint" style="margin-top:10px">Loading…</div>')}</div>`;
 }
 
