@@ -1528,7 +1528,7 @@ function viewCapture(){
     <textarea id="capText" class="input" oninput="capDraft('text',this.value)" placeholder="Describe the job the way you'd say it on site…">${esc(CAP_DRAFT.text||'')}</textarea>
     <div class="cap-tools">
       ${speechSupported()
-        ? `<button class="mic" id="micBtn" onclick="toggleMic()"><span class="dot"></span><span class="lbl">Dictate</span></button><span class="mic-note">${liveSpeechSupported()?'Speak — it types for you.':'Record — we transcribe it for you.'}</span>`
+        ? `<button class="mic" id="micBtn" onclick="toggleMic()"><span class="dot"></span><span class="lbl">Dictate</span></button><span class="mic-note">${useWhisper()?'Speak — we transcribe it for you.':'Speak — it types for you.'}</span>`
         : `<span class="mic-note">Voice isn't available on this device — type or paste instead.</span>`}
     </div>
 
@@ -2389,11 +2389,13 @@ async function copyText(text){
 
 /* ---------- voice dictation ---------- */
 let rec=null, recording=false, micWanted=false;
-// Live, instant speech (Chrome/Android/desktop). iOS Safari has none — those
-// devices use the record→transcribe fallback when the server supports it.
+// One voice path for every device: record → Whisper (server transcription). It's
+// the most accurate and identical on iPhone, Android, and desktop. The browser's
+// live speech API is only a fallback for when the server has no transcription key.
 function liveSpeechSupported(){ return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window); }
 function recordSupported(){ return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder); }
-function speechSupported(){ return liveSpeechSupported() || (recordSupported() && AI_TRANSCRIBE); }
+function useWhisper(){ return recordSupported() && AI_TRANSCRIBE; } // primary path when configured
+function speechSupported(){ return useWhisper() || liveSpeechSupported(); }
 function updateMic(){ const b=document.getElementById('micBtn'); if(!b)return; b.classList.toggle('rec',recording);
   const l=b.querySelector('.lbl'); if(l) l.textContent = micState==='transcribing'?'Transcribing…' : recording?'Recording… tap to stop' : 'Dictate'; }
 
@@ -2436,8 +2438,13 @@ async function toggleRecord(){
   recording=true; micState='recording'; updateMic();
   const ta0=document.getElementById('capText'); if(ta0) setTimeout(()=>{ try{ const rr=ta0.getBoundingClientRect(); window.scrollTo({top:Math.max(0,window.scrollY+rr.top-104),behavior:'smooth'}); }catch(_){} },90);
 }
+// Router: Whisper (record→transcribe) is preferred everywhere; live speech is the
+// fallback only when the server can't transcribe.
 function toggleMic(){
-  if(!liveSpeechSupported()){ if(recordSupported()&&AI_TRANSCRIBE) return toggleRecord(); return; }
+  if(useWhisper()) return toggleRecord();
+  if(liveSpeechSupported()) return toggleLiveSpeech();
+}
+function toggleLiveSpeech(){
   if(recording){ micWanted=false; if(rec){ try{ rec.stop(); }catch(e){} } recording=false; updateMic(); return; }
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   rec=new SR();

@@ -120,8 +120,10 @@ export function aiConfigured() {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-// Universal voice: record audio in the browser, transcribe server-side. This is the
-// fallback wherever the live Web Speech API isn't available (notably iOS Safari).
+// Universal voice: record audio in the browser, transcribe server-side. When
+// configured this is the primary dictation path on EVERY device (iPhone, Android,
+// desktop) — the most accurate option and the only one iOS Safari supports. The
+// browser's live Web Speech API is just a fallback when this isn't configured.
 // Optional/env-gated like everything else (OPENAI_API_KEY → Whisper).
 export function transcribeConfigured() {
   return !!process.env.OPENAI_API_KEY;
