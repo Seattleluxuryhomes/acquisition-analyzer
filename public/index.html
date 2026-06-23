@@ -1569,22 +1569,23 @@ function viewCapture(){
     <input id="capTitle" class="input" value="${escAttr(CAP_DRAFT.title||'')}" oninput="capDraft('title',this.value)" placeholder="e.g. Martinez — Kitchen, or 9012 NE 117th Pl" />
     <div class="hint">Use a name or the job's address — if you use the address, you won't need to enter it again for maps.</div>
 
+    <label class="fld">Conversation notepad</label>
+    <textarea id="capText" class="input" oninput="capDraft('text',this.value)" placeholder="Describe the job the way you'd say it on site…">${esc(CAP_DRAFT.text||'')}</textarea>
+    <div class="cap-tools">
+      ${!window.isSecureContext
+        ? `<span class="mic-note" style="color:var(--rust)">🎤 Voice needs a secure (https) connection — your site's SSL isn't active yet, so the browser blocks the mic. Type for now.</span>`
+        : speechSupported()
+          ? `<button type="button" class="mic ptt" id="micBtn" onpointerdown="micPressStart(event)" oncontextmenu="return false"><span class="dot"></span><span class="lbl">Hold to talk</span></button><span class="mic-note">${useWhisper()?'Hold &amp; speak — release to add it.':'Hold &amp; speak — it types as you go.'}</span>`
+          : `<span class="mic-note">Voice isn't available on this device — type or paste instead.</span>`}
+    </div>
+    <div class="hint">Tip: include what they want, anything they'll supply, and any deadline. Capture works offline — you can build the draft later.</div>
+
     <div class="row2">
       <div><label class="fld">You speak</label>
       <select id="capFrom" class="input" onchange="capDraft('from',this.value)">${langOpts(dFrom)}</select></div>
       <div><label class="fld">Client reads</label>
       <select id="capTo" class="input" onchange="capDraft('to',this.value)">${langOpts(dTo)}</select></div>
     </div>
-
-    <label class="fld">Conversation notepad</label>
-    <textarea id="capText" class="input" oninput="capDraft('text',this.value)" placeholder="Describe the job the way you'd say it on site…">${esc(CAP_DRAFT.text||'')}</textarea>
-    <div class="cap-tools">
-      ${speechSupported()
-        ? `<button type="button" class="mic ptt" id="micBtn" onpointerdown="micPressStart(event)" oncontextmenu="return false"><span class="dot"></span><span class="lbl">Hold to talk</span></button><span class="mic-note">${useWhisper()?'Hold &amp; speak — release to add it.':'Hold &amp; speak — it types as you go.'}</span>`
-        : `<span class="mic-note">Voice isn't available on this device — type or paste instead.</span>`}
-    </div>
-
-    <div class="hint">Tip: include what they want, anything they'll supply, and any deadline. Capture works offline — you can build the draft later.</div>
 
     ${state.error?`<div class="err" style="margin-top:14px">${esc(state.error)}</div>`:''}
     <button class="btn full" style="margin-top:14px" onclick="buildFromConversation()">Build the bid draft →</button>
