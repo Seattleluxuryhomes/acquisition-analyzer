@@ -12,6 +12,7 @@ import { signup, signin, signout, changePassword, requireAuth, publicUser } from
 import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
 import * as Skus from "./src/skus.js";
+import * as Leads from "./src/leads.js";
 import { buildProposal } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig } from "./src/files.js";
@@ -217,7 +218,8 @@ app.post("/api/quickbooks/disconnect", requireAuth, wrap((req, res) => {
 // ---- Me / settings ----
 app.get("/api/me", requireAuth, (req, res) =>
   res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user),
-    admin: Analytics.isAdmin(req.user), ai: { build: aiConfigured(), transcribe: transcribeConfigured(), visualize: visualizeConfigured() } }));
+    admin: Analytics.isAdmin(req.user), leadsNew: Leads.countNew(req.user.id),
+    ai: { build: aiConfigured(), transcribe: transcribeConfigured(), visualize: visualizeConfigured() } }));
 app.patch("/api/me", requireAuth, wrap((req, res) => {
   const b = req.body || {};
   if (typeof b.logo === "string" && b.logo.length > 250000) {
@@ -492,6 +494,40 @@ app.post("/api/skus/parse", requireAuth, Billing.requireEntitled, wrap(async (re
 // Save the organized rows into the price book.
 app.post("/api/skus/import", requireAuth, wrap((req, res) => {
   res.json(Skus.bulkCreate(req.user.id, (req.body && req.body.items) || []));
+}));
+
+// ---- Leads: inbound contractor leads → jobs (the top of the funnel) ----
+app.get("/api/leads", requireAuth, (req, res) => {
+  const token = Leads.getOrCreateToken(req.user.id);
+  res.json({ leads: Leads.listLeads(req.user.id), new: Leads.countNew(req.user.id),
+    token, webhookUrl: `${baseUrl(req)}/api/inbound/leads?token=${token}` });
+});
+app.post("/api/leads", requireAuth, wrap((req, res) => res.json({ lead: Leads.createLead(req.user.id, req.body || {}) })));
+app.patch("/api/leads/:id", requireAuth, wrap((req, res) => {
+  const lead = Leads.updateLead(req.user.id, req.params.id, req.body || {});
+  if (!lead) return res.status(404).json({ error: "Lead not found." });
+  res.json({ lead });
+}));
+app.delete("/api/leads/:id", requireAuth, wrap((req, res) => {
+  if (!Leads.deleteLead(req.user.id, req.params.id)) return res.status(404).json({ error: "Lead not found." });
+  res.json({ ok: true });
+}));
+app.post("/api/leads/import", requireAuth, wrap((req, res) => res.json(Leads.bulkCreate(req.user.id, (req.body && req.body.items) || []))));
+app.post("/api/leads/token/rotate", requireAuth, wrap((req, res) => {
+  const token = Leads.rotateToken(req.user.id);
+  res.json({ token, webhookUrl: `${baseUrl(req)}/api/inbound/leads?token=${token}` });
+}));
+
+// Inbound webhook for n8n / website forms / lead ads. Auth is the per-user token
+// (query ?token= or x-lead-token header) — NOT a session. Normalizes loose payloads.
+app.post("/api/inbound/leads", wrap((req, res) => {
+  const token = String(req.query.token || req.headers["x-lead-token"] || "");
+  const userId = Leads.userIdForToken(token);
+  if (!userId) return res.status(401).json({ error: "Invalid or missing lead token." });
+  const lead = Leads.createLead(userId, Leads.normalizeInbound(req.body || {}));
+  // Fan out to the contractor's notification sink (email/SMS via their webhook) if set.
+  try { Notify.notify && Notify.notify({ type: "lead", lead, userId }); } catch {}
+  res.json({ ok: true, id: lead.id });
 }));
 
 // ---- Share a bid: a clean public link the contractor texts/emails ----

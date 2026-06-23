@@ -414,6 +414,31 @@
   .cap-photos .photogrid{margin-top:12px;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px}
   .cap-photos .thumb{aspect-ratio:1;border-radius:14px;border:none}
   .cap-photos .thumb .x{background:rgba(0,0,0,.5);border:none;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#fff}
+  /* Leads — money coming in, not a spreadsheet */
+  .leadcard{display:flex;align-items:center;gap:13px;text-align:left;cursor:pointer;width:100%;font-family:inherit;-webkit-tap-highlight-color:transparent}
+  .leadcard.hot{background:rgba(238,155,46,.1);border-color:var(--amber-deep)}
+  .leadcard.hot .kpi-ic{background:var(--amber);color:var(--ink)}
+  .leadcard.hot .kpi-v{color:var(--amber)}
+  .leadcard .lead-go{margin-left:auto;color:var(--muted);flex:0 0 auto}
+  .lead{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:11px;box-shadow:var(--shadow)}
+  .lead-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .lead-who{font-weight:700;font-size:1.02rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lead-st{flex:0 0 auto;font-family:"IBM Plex Mono";font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+  .lead-st.st-new{background:rgba(238,155,46,.18);border-color:var(--amber-deep);color:var(--amber)}
+  .lead-st.st-cont{background:rgba(46,92,126,.18);border-color:var(--blueprint);color:#9cc4e0}
+  .lead-st.st-sched,.lead-st.st-sent{background:rgba(46,92,126,.14);color:#9cc4e0}
+  .lead-st.st-won{background:rgba(62,125,90,.2);border-color:#3e7d5a;color:#8fd0a8}
+  .lead-st.st-lost{background:rgba(169,78,56,.16);border-color:var(--rust);color:#e0a08f}
+  .lead-meta{font-size:.9rem;color:var(--text);margin-top:5px}
+  .lead-contact{font-family:"IBM Plex Mono";font-size:.78rem;color:var(--amber);margin-top:3px}
+  .lead-msg{font-size:.88rem;color:var(--muted);margin-top:7px;line-height:1.4}
+  .lead-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+  .lead-src{font-family:"IBM Plex Mono";font-size:.66rem;color:var(--muted)}
+  .lead-status-sel{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 8px;font-family:"IBM Plex Mono";font-size:.72rem;max-width:170px}
+  .lead-actions{display:flex;gap:8px;align-items:center;margin-top:11px}
+  .lead-del{flex:0 0 auto;background:none;border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:0 13px;height:40px;cursor:pointer}
+  .webhook-box{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:4px;overflow-x:auto}
+  .webhook-box code{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--amber);white-space:nowrap}
   .addline{margin-top:4px}
   .tplsel{width:100%;margin:10px 0 4px;background:var(--surface2);border:1px dashed var(--line);color:var(--text);border-radius:8px;padding:11px 12px;font-family:"IBM Plex Mono";font-size:.82rem}
 
@@ -559,6 +584,7 @@
 <div id="sheet" class="sheet-wrap" style="display:none" onclick="closeMore()">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h">More</div>
+    <button class="sheet-i" onclick="go('leads');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Leads</button>
     <button class="sheet-i" onclick="go('catalog');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16l-8-4-8 4z"/><path d="M9 7h6"/></svg>Price book</button>
     <button class="sheet-i" onclick="go('settings');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 13.4H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 6.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 4.6V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>Setup &amp; integrations</button>
     <button class="sheet-i" onclick="demoProject()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Demo project</button>
@@ -571,6 +597,16 @@
     <div class="sheet-h">Add from price book</div>
     <input class="input" id="pickQ" placeholder="Search SKUs…" oninput="renderPicker()"/>
     <div id="pickList" class="picklist"></div>
+  </div>
+</div>
+<div id="leadAddSheet" class="sheet-wrap" style="display:none" onclick="closeAddLead()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h">Add a lead</div>
+    <input id="laName" class="input" placeholder="Name"/>
+    <div class="row2" style="margin-top:8px"><input id="laPhone" class="input" type="tel" placeholder="Phone"/><input id="laEmail" class="input" type="email" placeholder="Email"/></div>
+    <div class="row2" style="margin-top:8px"><input id="laType" class="input" placeholder="Job type (e.g. Kitchen)"/><input id="laCity" class="input" placeholder="City / address"/></div>
+    <textarea id="laMsg" class="input" style="margin-top:8px;min-height:64px" placeholder="Message / what they need"></textarea>
+    <button class="btn full" style="margin-top:10px" onclick="saveLead()">Add lead</button>
   </div>
 </div>
 <div id="capPhotoSheet" class="sheet-wrap" style="display:none" onclick="closeCapPhotoSheet()">
@@ -672,6 +708,7 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   AI_TRANSCRIBE = !!(r.ai && r.ai.transcribe); localStorage.setItem('bt_transcribe', AI_TRANSCRIBE?'1':'0');
   AI_VISUALIZE = !!(r.ai && r.ai.visualize); localStorage.setItem('bt_visualize', AI_VISUALIZE?'1':'0');
   AI_BUILD = !!(r.ai && r.ai.build); localStorage.setItem('bt_aibuild', AI_BUILD?'1':'0');
+  LEADS_NEW = r.leadsNew||0; if(state.view==='home') render();
   if(state.view==='capture') render();
   // Hydrate tax settings from the server unless the user has local unsaved edits.
   if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; persistSettings(); }
@@ -1106,7 +1143,7 @@ function render(){
   setOn('bnHome', state.view==='home'||state.view==='capture');
   setOn('bnJobs', state.view==='job');
   setOn('bnSched', state.view==='schedule');
-  setOn('bnMore', state.view==='settings'||state.view==='admin'||state.view==='catalog');
+  setOn('bnMore', state.view==='settings'||state.view==='admin'||state.view==='catalog'||state.view==='leads');
   // Draw the eye to the money button when there's nothing to do yet (first bid).
   const fab=document.getElementById('bnAdd'); if(fab) fab.classList.toggle('pulse', JOBS.filter(j=>!j._deleted).length===0 && state.view==='home');
   paintBell();
@@ -1116,6 +1153,7 @@ function render(){
   else if(state.view==='job') v.innerHTML = viewJob();
   else if(state.view==='settings') v.innerHTML = viewSettings();
   else if(state.view==='catalog') { v.innerHTML = viewCatalog(); if(!CATALOG.loaded) loadSkus(); }
+  else if(state.view==='leads') { v.innerHTML = viewLeads(); if(!LEADS.loaded) loadLeads(); }
   else if(state.view==='admin') { v.innerHTML = viewAdmin(); loadAdmin(); }
   else if(state.view==='paywall') v.innerHTML = viewPaywall();
   // If we were typing in the notepad, restore focus + caret so a re-render is invisible.
@@ -1355,6 +1393,16 @@ function dashKPIs(visible){
     wonValue:sum(won), wonCount:won.length, pending:sum(sent), pendingCount:sent.length,
     close: decided?Math.round(won.length/decided*100):0, followups:followups.length };
 }
+// "New leads" — a full-width dashboard card that should feel like money coming in.
+function leadCard(){
+  const n=LEADS_NEW||0;
+  return `<button class="kpi leadcard${n>0?' hot':''}" style="grid-column:1/-1" onclick="go('leads')">
+    <div class="kpi-ic">${icon('activity',18)}</div>
+    <div class="kpi-txt"><div class="kpi-l">New leads</div><div class="kpi-v">${n}</div>
+      <div class="kpi-s">${n>0?'from ads, website &amp; social · ready to bid':'connect your forms, ads &amp; social'}</div></div>
+    <span class="lead-go">${icon('chevron',16)}</span>
+  </button>`;
+}
 function kpiStrip(k){
   const card=(name,label,val,sub,cls)=>`<div class="kpi ${cls||''}"><div class="kpi-ic">${icon(name,18)}</div><div class="kpi-txt"><div class="kpi-l">${label}</div><div class="kpi-v">${val}</div><div class="kpi-s">${sub||''}</div></div></div>`;
   return `<div class="kpis">
@@ -1364,6 +1412,7 @@ function kpiStrip(k){
         <div class="kpi-s">${k.payments?(k.payments+' payment'+(k.payments===1?'':'s')+' received'):'No payments yet'}</div></div>
     </div>
     <div class="kpi-grid">
+      ${leadCard()}
       ${card('won','Won',money(k.wonValue),k.wonCount+' job'+(k.wonCount===1?'':'s'),'won')}
       ${card('pending','Pending',money(k.pending),k.pendingCount+' out for bid','pend')}
       ${card('close','Close rate',k.close+'%','of decided bids','close')}
@@ -2276,9 +2325,112 @@ function setRegion(s){
 }
 /* ============ Price book (AI-organized SKU catalog) ============ */
 let CATALOG = { skus:[], loaded:false, preview:null, image:null };
+let LEADS = { items:[], loaded:false, token:'', webhookUrl:'' };
+let LEADS_NEW = 0; // count of "New" leads, for the dashboard card
 let skuQ='';
 async function loadSkus(){ if(!TOKEN||!online) return; try{ const r=await api('/api/skus'); CATALOG.skus=r.skus||[]; CATALOG.loaded=true; if(state.view==='catalog') render();
   const pk=document.getElementById('skuPicker'); if(pk && pk.style.display!=='none') renderPicker(); }catch(e){} } // refresh the picker if it's open
+
+/* ============ Leads (inbound → jobs) ============ */
+const LEAD_STATUSES=['New','Contacted','Estimate Scheduled','Bid Sent','Won','Lost'];
+async function loadLeads(){ if(!TOKEN||!online) return; try{ const r=await api('/api/leads'); LEADS.items=r.leads||[]; LEADS.token=r.token||''; LEADS.webhookUrl=r.webhookUrl||''; LEADS.loaded=true; LEADS_NEW=r.new||0; if(state.view==='leads'||state.view==='home') render(); }catch(e){} }
+function leadStatusCls(s){ return ({'New':'st-new','Contacted':'st-cont','Estimate Scheduled':'st-sched','Bid Sent':'st-sent','Won':'st-won','Lost':'st-lost'})[s]||'st-new'; }
+function sourceEmoji(s){ s=(s||'').toLowerCase(); if(s.includes('face'))return '📘'; if(s.includes('insta'))return '📸'; if(s.includes('google'))return '🔎'; if(s.includes('web'))return '🌐'; if(s.includes('csv'))return '📄'; if(s.includes('refer'))return '🤝'; return '✨'; }
+function viewLeads(){
+  const items=LEADS.items||[];
+  const fresh=items.filter(l=>l.status==='New').length;
+  return `<div class="h-eyebrow">Pipeline</div><h1 class="page">Leads</h1>
+    <div class="sub">${items.length?`${fresh} new · ${items.length} total — convert any lead into a voice-built bid.`:'Capture every lead from your forms, ads and social — then turn it into a bid in seconds.'}</div>
+    <div style="display:flex;gap:8px;margin:6px 0 4px">
+      <button class="btn" style="flex:1" onclick="openAddLead()">+ Add lead</button>
+      <button class="btn ghost" style="flex:1" onclick="document.getElementById('leadCsv').click()">Import CSV</button>
+    </div>
+    <input id="leadCsv" type="file" accept=".csv,.txt,text/*" style="display:none" onchange="importLeadCsv(this)"/>
+    <div id="leadList">${leadListHTML()}</div>
+    <div class="nb-sec" style="margin-top:18px">
+      <h3>Connect your lead sources</h3>
+      <div class="hint" style="margin-top:0">Send Website forms, Facebook &amp; Instagram lead ads, and Google lead forms here through n8n, Zapier, or your form tool — each new lead lands in this inbox automatically.</div>
+      <label class="fld">Your inbound webhook</label>
+      <div class="webhook-box"><code id="leadHook">${esc(LEADS.webhookUrl||'Loading…')}</code></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn ghost sm" onclick="copyText(LEADS.webhookUrl).then(ok=>toast(ok?'✓ Webhook copied':'Copy failed',ok?'ok':'warn'))">Copy webhook</button>
+        <button class="btn ghost sm" onclick="rotateLeadToken()">Reset link</button>
+      </div>
+      <div class="hint">POST JSON with: name, phone, email, source, job_type, city, message. Keep this link private — anyone with it can add leads.</div>
+    </div>`;
+}
+function leadListHTML(){
+  const items=LEADS.items||[];
+  if(!items.length) return `<div class="hint" style="padding:14px 2px">No leads yet. Add one by hand, import a CSV, or connect your forms &amp; ads below — they'll land here automatically.</div>`;
+  return items.map(leadRow).join('');
+}
+function leadRow(l){
+  const who=esc(l.name)||esc(l.phone)||esc(l.email)||'New lead';
+  const meta=[l.job_type&&esc(l.job_type), l.city&&esc(l.city)].filter(Boolean).join(' · ');
+  const contact=[l.phone&&esc(l.phone), l.email&&esc(l.email)].filter(Boolean).join(' · ');
+  return `<div class="lead">
+    <div class="lead-top"><div class="lead-who">${sourceEmoji(l.source)} ${who}</div><span class="lead-st ${leadStatusCls(l.status)}">${esc(l.status)}</span></div>
+    ${meta?`<div class="lead-meta">${meta}</div>`:''}
+    ${contact?`<div class="lead-contact">${contact}</div>`:''}
+    ${l.message?`<div class="lead-msg">${esc(l.message)}</div>`:''}
+    <div class="lead-foot"><span class="lead-src">${esc(l.source||'Lead')} · ${timeAgo(l.created_at)}</span>
+      <select class="lead-status-sel" onchange="setLeadStatus('${l.id}',this.value)">${LEAD_STATUSES.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select></div>
+    <div class="lead-actions"><button class="btn" style="flex:1" onclick="convertLead('${l.id}')">Convert to job →</button>
+      <button class="lead-del" onclick="delLead('${l.id}')" title="Delete">✕</button></div>
+  </div>`;
+}
+function refreshLeadList(){ const el=document.getElementById('leadList'); if(el) el.innerHTML=leadListHTML(); }
+async function setLeadStatus(id,status){ const l=(LEADS.items||[]).find(x=>x.id===id); if(l) l.status=status; LEADS_NEW=(LEADS.items||[]).filter(x=>x.status==='New').length; try{ await api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({status})}); }catch(e){ toast('Could not update the lead.','bad'); } }
+async function delLead(id){ if(!confirm('Delete this lead?')) return; LEADS.items=(LEADS.items||[]).filter(x=>x.id!==id); LEADS_NEW=LEADS.items.filter(x=>x.status==='New').length; refreshLeadList(); try{ await api('/api/leads/'+id,{method:'DELETE'}); }catch(e){} }
+function openAddLead(){ const el=document.getElementById('leadAddSheet'); if(el) el.style.display='flex'; }
+function closeAddLead(){ const el=document.getElementById('leadAddSheet'); if(el) el.style.display='none'; }
+async function saveLead(){
+  const g=id=>((document.getElementById(id)||{}).value||'').trim();
+  const name=g('laName'), phone=g('laPhone'), email=g('laEmail');
+  if(!name&&!phone&&!email){ toast('Add at least a name, phone or email.','warn'); return; }
+  try{ await api('/api/leads',{method:'POST',body:JSON.stringify({ name, phone, email, source:'Manual', job_type:g('laType'), city:g('laCity'), message:g('laMsg') })});
+    ['laName','laPhone','laEmail','laType','laCity','laMsg'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+    closeAddLead(); await loadLeads(); toast('✓ Lead added','ok'); }
+  catch(e){ toast(e.message||'Could not add the lead.','bad'); }
+}
+async function rotateLeadToken(){ if(!confirm('Reset your webhook link? The old link stops working immediately.')) return; try{ const r=await api('/api/leads/token/rotate',{method:'POST'}); LEADS.webhookUrl=r.webhookUrl; const el=document.getElementById('leadHook'); if(el) el.textContent=r.webhookUrl; toast('✓ New webhook link','ok'); }catch(e){ toast('Could not reset the link.','bad'); } }
+// Convert a lead → seed the voice-first New Job with the lead's details, then open
+// it so the contractor records the rest and builds the bid.
+function convertLead(id){
+  const l=(LEADS.items||[]).find(x=>x.id===id); if(!l) return;
+  const parts=[];
+  if(l.name) parts.push('Customer '+l.name);
+  if(l.phone) parts.push('phone '+l.phone);
+  if(l.email) parts.push('email '+l.email);
+  if(l.city) parts.push('at '+l.city);
+  if(l.job_type) parts.push('— '+l.job_type);
+  let text=parts.join(' '); if(l.message) text+=(text?'. ':'')+l.message; if(text) text+='.';
+  CAP_DRAFT={title:'',from:'',to:'',text:text}; CAP_INTAKE=null; persistIntake();
+  localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT));
+  setLeadStatus(id,'Estimate Scheduled');
+  go('capture'); runIntake(true);
+  toast('Lead loaded — tap the mic to add details, then build the bid.','ok',4200);
+}
+function importLeadCsv(input){
+  const f=input.files&&input.files[0]; input.value=''; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=async e=>{ const rows=parseLeadCsv(String(e.target.result||'')); if(!rows.length){ toast('No rows found in that file.','warn'); return; }
+    try{ const r=await api('/api/leads/import',{method:'POST',body:JSON.stringify({items:rows})}); await loadLeads(); toast('✓ Imported '+(r.added||0)+' leads','ok'); }
+    catch(err){ toast(err.message||'Import failed.','bad'); } };
+  rd.readAsText(f);
+}
+function parseLeadCsv(txt){
+  const lines=txt.split(/\r?\n/).filter(l=>l.trim()); if(lines.length<2) return [];
+  const split=(line)=>{ const out=[]; let cur='',q=false; for(let i=0;i<line.length;i++){ const c=line[i]; if(c==='"'){ if(q&&line[i+1]==='"'){cur+='"';i++;} else q=!q; } else if(c===','&&!q){ out.push(cur); cur=''; } else cur+=c; } out.push(cur); return out.map(s=>s.trim()); };
+  const head=split(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z]/g,''));
+  const idx=(names)=>{ for(const n of names){ const i=head.indexOf(n); if(i>=0) return i; } return -1; };
+  const I={ name:idx(['name','fullname','customer']), phone:idx(['phone','phonenumber','mobile']), email:idx(['email','emailaddress']), source:idx(['source','platform','channel']), type:idx(['jobtype','service','projecttype','type']), city:idx(['city','address','location']), msg:idx(['message','notes','details','description','comments']) };
+  const rows=[];
+  for(let i=1;i<lines.length&&rows.length<1000;i++){ const c=split(lines[i]); const get=k=>k>=0?(c[k]||''):'';
+    const r={ name:get(I.name), phone:get(I.phone), email:get(I.email), source:get(I.source)||'CSV', job_type:get(I.type), city:get(I.city), message:get(I.msg) };
+    if(r.name||r.phone||r.email) rows.push(r); }
+  return rows;
+}
 function readImageScaled(file,max,q){ return new Promise((res,rej)=>{ const rd=new FileReader(); rd.onload=e=>{ const img=new Image(); img.onload=()=>{ let w=img.width||1,h=img.height||1; if(w>max||h>max){ const s=Math.min(max/w,max/h); w=Math.round(w*s); h=Math.round(h*s);} const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); res(c.toDataURL('image/jpeg',q||0.82)); }; img.onerror=rej; img.src=e.target.result; }; rd.onerror=rej; rd.readAsDataURL(file); }); }
 function skuPickCsv(input){ const f=input.files&&input.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=e=>{ const ta=document.getElementById('skuText'); if(ta) ta.value=String(e.target.result||'').slice(0,200000); }; rd.readAsText(f); input.value=''; }
 async function skuPickPhoto(input){ const f=input.files&&input.files[0]; if(!f){return;} if(!/^image\//.test(f.type)){ toast('Choose an image of your price sheet.','warn'); return; } try{ CATALOG.image=await readImageScaled(f,1600,0.82); render(); }catch(e){ toast('Could not read that image.','bad'); } input.value=''; }

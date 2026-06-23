@@ -155,6 +155,25 @@ CREATE TABLE IF NOT EXISTS sku (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS sku_user_idx ON sku(user_id);
+
+-- Leads: inbound contractor leads (website forms, ads, social, CSV, manual) that
+-- convert into jobs. Money coming in — the top of the Lead → Job → Bid funnel.
+CREATE TABLE IF NOT EXISTS lead (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  name TEXT DEFAULT '',
+  phone TEXT DEFAULT '',
+  email TEXT DEFAULT '',
+  source TEXT DEFAULT '',
+  job_type TEXT DEFAULT '',
+  city TEXT DEFAULT '',
+  message TEXT DEFAULT '',
+  status TEXT DEFAULT 'New',
+  job_id TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS lead_user_idx ON lead(user_id);
 `);
 
 // Migrate older databases that predate the billing columns.
@@ -186,6 +205,8 @@ ensureColumns("user", [
   // region; they own the rate (we never auto-file tax). region = US state code.
   ["tax_rate", "REAL DEFAULT 0"],
   ["region", "TEXT"],
+  // Per-contractor inbound-lead webhook token (for n8n / form integrations).
+  ["lead_token", "TEXT"],
   // QuickBooks Online (per-contractor OAuth). Each contractor connects their own
   // company; paid payments sync to their books. Tokens are server-only.
   ["qbo_realm_id", "TEXT"],
