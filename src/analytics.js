@@ -9,7 +9,7 @@
 // is accurate immediately and retroactively — events add behavioural detail
 // (page views, feature usage, where a session stalls) on top.
 import db from "./db.js";
-import { bidTotal } from "./proposal.js";
+import { bidTotal, marginFactor } from "./proposal.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -49,8 +49,8 @@ const WON_SQL = "status IN ('signed','scheduled')";
 
 function wonValueFor(where, ...args) {
   let total = 0;
-  for (const r of db.prepare(`SELECT lines FROM job WHERE ${where}`).all(...args)) {
-    try { total += bidTotal(JSON.parse(r.lines || "[]")); } catch { /* skip */ }
+  for (const r of db.prepare(`SELECT lines, margin FROM job WHERE ${where}`).all(...args)) {
+    try { total += Math.round(bidTotal(JSON.parse(r.lines || "[]")) * marginFactor(r.margin)); } catch { /* skip */ }
   }
   return total;
 }

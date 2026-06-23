@@ -909,7 +909,7 @@ function applyTemplate(trade){
 }
 
 function jobCardHTML(j){
-  const total = bidTotal(j);
+  const total = bidPrice(j);
   const s = jobStatus(j);
   const pend = j._dirty ? `<span class="pendtag">unsynced</span>` : '';
   const ph = (j.photos && j.photos[0]) ? (j.photos[0].url || j.photos[0].dataUrl) : '';
@@ -940,7 +940,7 @@ function timeAgo(ts){ if(!ts) return ''; const m=Math.floor((Date.now()-ts)/6000
 
 // KPI math straight from the jobs we already store. "Won" = signed + scheduled.
 function dashKPIs(visible){
-  const sum=(arr)=>arr.reduce((s,j)=>s+bidTotal(j),0);
+  const sum=(arr)=>arr.reduce((s,j)=>s+bidPrice(j),0);
   const won=visible.filter(j=>jobStatus(j)==='signed'||jobStatus(j)==='scheduled');
   const sent=visible.filter(j=>jobStatus(j)==='sent');
   const now=Date.now();
@@ -970,7 +970,7 @@ function scheduleBlock(visible){
     const loc=jobLocation(j); const m=loc?mapsLinks(loc):null; const ea=(j.address||'').trim();
     return `<div class="sch-item"><button class="sch-main" onclick="go('job','${j.id}')">
       <div class="sch-t">${esc(j.title)||'Untitled'}</div>
-      <div class="sch-s">${j.scheduled_time?`<b style="color:var(--amber)">${fmtTime(j.scheduled_time)}</b> · `:''}${todays.length?'':fmtDate(j.scheduled_date)+' · '}${ea?esc(ea):(loc?money(bidTotal(j)):'No address')}</div>
+      <div class="sch-s">${j.scheduled_time?`<b style="color:var(--amber)">${fmtTime(j.scheduled_time)}</b> · `:''}${todays.length?'':fmtDate(j.scheduled_date)+' · '}${ea?esc(ea):(loc?money(bidPrice(j)):'No address')}</div>
       </button>${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}<a class="sch-dir" href="${calLink(j)}" target="_blank" rel="noopener" title="Add to Calendar">📲</a></div>`;
   }).join('') : `<div class="hint" style="padding:6px 2px">Nothing scheduled. Mark a job “Scheduled” and pick a date.</div>`;
   return `<div class="panel"><button class="panel-h" onclick="go('schedule')"><span>📅 ${heading}</span><span class="panel-link">Weekly →</span></button>${rows}</div>`;
@@ -1026,7 +1026,7 @@ function viewSchedule(){
   const item=(j)=>{ const loc=jobLocation(j); const m=loc?mapsLinks(loc):null; const ea=(j.address||'').trim();
     return `<div class="sch-item"><button class="sch-main" onclick="go('job','${j.id}')">
       <div class="sch-t">${esc(j.title)||'Untitled'}</div>
-      <div class="sch-s">${j.scheduled_time?`<b style="color:var(--amber)">${fmtTime(j.scheduled_time)}</b> · `:''}${ea?esc(ea)+' · ':''}${money(bidTotal(j))}</div></button>
+      <div class="sch-s">${j.scheduled_time?`<b style="color:var(--amber)">${fmtTime(j.scheduled_time)}</b> · `:''}${ea?esc(ea)+' · ':''}${money(bidPrice(j))}</div></button>
       ${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}<a class="sch-dir" href="${calLink(j)}" target="_blank" rel="noopener" title="Add to Calendar">📲</a></div>`; };
   const dayBlocks=days.map(d=>{
     const k=iso(d); const jobs=(byDate[k]||[]).sort(byTime);
@@ -1104,7 +1104,7 @@ function calLink(j){
     +'&text='+encodeURIComponent((j.title||'Job')+' — '+(SETTINGS.company||'Bidtranslator'))
     +'&dates='+dates
     +(jobLocation(j)?'&location='+encodeURIComponent(jobLocation(j)):'')
-    +'&details='+encodeURIComponent('Scheduled via Bidtranslator · '+money(bidTotal(j))+(note?'\n\nNotes: '+note:''));
+    +'&details='+encodeURIComponent('Scheduled via Bidtranslator · '+money(bidPrice(j))+(note?'\n\nNotes: '+note:''));
 }
 function addrBlock(j){
   const loc=jobLocation(j);
@@ -1373,7 +1373,13 @@ function tabNotebook(j){
 }
 
 function lineAmt(l){ return l.type==='hourly' ? (+l.hours||0)*(+l.rate||0) : (+l.price||0); }
+// bidTotal = the contractor's COST (sum of line items). bidPrice = what the client
+// pays, the cost run through the true margin. Mirror of server src/proposal.js.
 function bidTotal(j){ return (j.lines||[]).filter(l=>l.furn!=='client').reduce((s,l)=>s+lineAmt(l),0); }
+function marginFactor(m){ m=+m||0; return (m>0&&m<100)?1/(1-m/100):1; }
+function pricedAmt(amt,m){ return Math.round((+amt||0)*marginFactor(m)); }
+// Sum the priced lines (not the scaled grand total) so the bid always reconciles.
+function bidPrice(j){ const m=j.margin; return (j.lines||[]).filter(l=>l.furn!=='client').reduce((s,l)=>s+pricedAmt(lineAmt(l),m),0); }
 // Mirror of server proposal.js: group scope lines by room/area, in first-seen order.
 function groupSections(lines){
   const groups=[], byName={};
@@ -1430,8 +1436,11 @@ function tabBuild(j){
     lines = (j.lines||[]).map(lineEditor).join('');
   }
 
-  const total=bidTotal(j);
-  const withMargin = Math.round(total*(1+(+j.margin||0)/100));
+  const cost=bidTotal(j);
+  const m=+j.margin||0;
+  const price=bidPrice(j);
+  const profit=price-cost;
+  const depPct=(j.deposit_pct==null?25:j.deposit_pct);
   const ups=(j.upgrades||[]).map((u,i)=>`<div class="line"><div class="ltop">
       <input class="ldesc" value="${escAttr(u.desc)}" oninput="updUp(${i},'desc',this.value)" placeholder="Optional upgrade"/>
       <button class="del" onclick="delUp(${i})">✕</button></div>
@@ -1449,18 +1458,21 @@ function tabBuild(j){
     </select>
     <button class="btn ghost full addline" onclick="addLine()">+ Add line</button>
 
-    <div class="totbar"><span class="tl">Bid total</span><span class="tv">${money(total)}</span></div>
+    <div class="totbar"><span class="tl">Client price</span><span class="tv">${money(price)}</span></div>
+    ${m>0
+      ? `<div class="hint" style="margin-top:-6px">Your cost ${money(cost)} · ${m}% margin · <b style="color:#8fd0a8">profit ${money(profit)}</b></div>`
+      : `<div class="hint" style="margin-top:-6px">No margin set — the client pays your line total. Add a profit margin below.</div>`}
 
     <div class="depositbox">
       <label class="fld">💳 Deposit to collect when the client accepts</label>
-      <div style="display:flex;align-items:center;gap:8px"><input class="input" type="number" min="0" max="100" value="${j.deposit_pct==null?25:j.deposit_pct}" oninput="updJob('deposit_pct',this.value)" style="max-width:90px"/><span class="mono" style="color:var(--muted)">% of total</span></div>
-      <div class="hint">Client pays <b style="color:var(--paper)">${money(Math.round(total*((j.deposit_pct==null?25:j.deposit_pct)/100)))}</b> on acceptance${PAYMENTS&&PAYMENTS.charges_enabled?' (via your Stripe).':'. Finish “Set up payments” to collect it automatically.'}</div>
+      <div style="display:flex;align-items:center;gap:8px"><input class="input" type="number" min="0" max="100" value="${depPct}" oninput="updJob('deposit_pct',this.value)" style="max-width:90px"/><span class="mono" style="color:var(--muted)">% of total</span></div>
+      <div class="hint">Client pays <b style="color:var(--paper)">${money(Math.round(price*(depPct/100)))}</b> on acceptance${PAYMENTS&&PAYMENTS.charges_enabled?' (via your Stripe).':'. Finish “Set up payments” to collect it automatically.'}</div>
     </div>
 
     <div class="private"><div class="pl">Private — not shown to client</div>
-      <label class="fld" style="margin-top:8px">Target margin %</label>
-      <input class="input" type="number" min="0" value="${j.margin||0}" oninput="updJob('margin',this.value)" style="max-width:140px"/>
-      <div class="hint">At ${(+j.margin||0)}% margin, target ≈ <b style="color:var(--paper)">${money(withMargin)}</b>. Adjust your line prices to hit it.</div>
+      <label class="fld" style="margin-top:8px">Profit margin %</label>
+      <input class="input" type="number" min="0" max="99" value="${j.margin||0}" oninput="updJob('margin',this.value)" style="max-width:140px"/>
+      <div class="hint">A <b>true margin</b>: enter your costs as the line items above. At ${m}% your cost ${money(cost)} becomes a client price of <b style="color:var(--paper)">${money(price)}</b>, so you keep <b style="color:#8fd0a8">${money(profit)}</b>. Set 0 to bill your line total as-is.</div>
     </div>
 
     <h3 style="font-family:'IBM Plex Mono';font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin:18px 0 10px">Optional upgrades</h3>
@@ -1497,7 +1509,7 @@ function paymentsBlock(j){
   }
   const reqs = PAYREQS[j.id];
   if(reqs===undefined){ loadJobPayReqs(j.id); }
-  const total = bidTotal(j);
+  const total = bidPrice(j);
   const pct = (j.deposit_pct==null?25:j.deposit_pct);
   const deposit = Math.round(total * pct/100);
   const list = (reqs||[]).map(r=>{
@@ -1529,7 +1541,10 @@ function paymentsBlock(j){
 function clientHTML(j){
   const baseLines=(j.lines||[]).filter(l=>l.furn!=='client');
   const clientLines=(j.lines||[]).filter(l=>l.furn==='client');
-  const total=bidTotal(j);
+  const f=marginFactor(j.margin), showRate=(f===1);
+  const cAmt=(l)=>Math.round(lineAmt(l)*f);          // priced line amount
+  const cSub=(g)=>g.lines.reduce((s,l)=>s+cAmt(l),0); // subtotal = sum of priced lines
+  const total=bidPrice(j);
   const dt=new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
   return `<div class="client">
     <div class="client-head">
@@ -1545,14 +1560,14 @@ function clientHTML(j){
       ${ baseLines.length===0 ? '<div class="cnote">No items yet.</div>'
         : jobHasSections(baseLines)
           ? groupSections(baseLines).map(g=>`<div class="csec"><div class="csec-h">${esc(g.name||'Other work')}</div>
-              ${g.lines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${l.type==='hourly'?`<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`:''}</div><div class="ca">${money(lineAmt(l))}</div></div>`).join('')}
-              <div class="cline csub"><div class="cd">${esc(g.name||'Other work')} subtotal</div><div class="ca">${money(g.subtotal)}</div></div></div>`).join('')
-          : baseLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${l.type==='hourly'?`<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`:''}</div><div class="ca">${money(lineAmt(l))}</div></div>`).join('') }
+              ${g.lines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${(showRate&&l.type==='hourly')?`<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`:''}</div><div class="ca">${money(cAmt(l))}</div></div>`).join('')}
+              <div class="cline csub"><div class="cd">${esc(g.name||'Other work')} subtotal</div><div class="ca">${money(cSub(g))}</div></div></div>`).join('')
+          : baseLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)||'Item'}${(showRate&&l.type==='hourly')?`<small>${l.hours||0} hrs @ ${money(l.rate)}/hr</small>`:''}</div><div class="ca">${money(cAmt(l))}</div></div>`).join('') }
       <div class="ctotal"><span class="l">Total</span><span class="v">${money(total)}</span></div>
 
       ${clientLines.length?`<h4>Provided by client</h4>${clientLines.map(l=>`<div class="cline"><div class="cd">${esc(l.desc)}</div><div class="ca" style="color:#8a7f68">by client</div></div>`).join('')}`:''}
 
-      ${(j.upgrades||[]).length?`<h4>Optional upgrades</h4>${j.upgrades.map(u=>`<div class="cup"><span>${esc(u.desc)}</span><span class="ca">+ ${money(u.price)}</span></div>`).join('')}`:''}
+      ${(j.upgrades||[]).length?`<h4>Optional upgrades</h4>${j.upgrades.map(u=>`<div class="cup"><span>${esc(u.desc)}</span><span class="ca">+ ${money(Math.round((+u.price||0)*f))}</span></div>`).join('')}`:''}
 
       ${(j.exclusions||[]).length?`<h4>Not included</h4>${j.exclusions.map(e=>`<div class="cexcl">${esc(e)}</div>`).join('')}`:''}
       ${(j.assumptions||[]).length?`<h4>Notes</h4>${j.assumptions.map(a=>`<div class="cnote">• ${esc(a)}</div>`).join('')}`:''}
@@ -1784,7 +1799,7 @@ function deleteJob(id){
 }
 
 function refreshTotals(j){
-  const tot=document.querySelector('.totbar .tv'); if(tot) tot.textContent=money(bidTotal(j));
+  const tot=document.querySelector('.totbar .tv'); if(tot) tot.textContent=money(bidPrice(j));
   (j.lines||[]).forEach(l=>{ const el=document.querySelector('.lt-amt[data-lid="'+l.id+'"]'); if(el) el.textContent = l.furn==='client'?'by client':money(lineAmt(l)); });
 }
 

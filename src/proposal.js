@@ -13,6 +13,21 @@ export function bidTotal(lines) {
     .reduce((sum, l) => sum + lineAmount(l), 0);
 }
 
+// True margin (not markup): the contractor's line items are their COST, and the
+// client price is cost / (1 - margin/100), so the set % is the actual share of
+// the price that is profit. 20% margin → price = cost / 0.8. Guarded so an
+// out-of-range margin (or 0) just leaves the price equal to the cost.
+export function marginFactor(margin) {
+  const m = Number(margin) || 0;
+  return (m > 0 && m < 100) ? 1 / (1 - m / 100) : 1;
+}
+// A line/total priced for the client — cost scaled by the margin, rounded to the
+// dollar. Summing these (rather than scaling the grand total) keeps every line,
+// subtotal and total reconciling exactly on the client's bid.
+export function priceWithMargin(amount, margin) {
+  return Math.round((Number(amount) || 0) * marginFactor(margin));
+}
+
 // Group scope lines by their `section` (room/area), preserving first-appearance
 // order. Returns [{ name, lines, subtotal }]. If no line has a section name, this
 // returns a single unnamed group so callers can render a flat list as before.
@@ -46,6 +61,14 @@ export function buildProposal(job, settings) {
   const lines = job.lines || [];
   const baseLines = lines.filter((l) => l.furn !== "client");
   const clientLines = lines.filter((l) => l.furn === "client");
+  // Price every client-facing number through the true margin. The margin % itself
+  // never leaves this function (hard rule #2) — only the resulting prices do.
+  const priced = (amt) => priceWithMargin(amt, job.margin);
+  // When a margin is applied the per-line rate is the contractor's cost, so the
+  // "N hrs @ $X/hr" breakdown wouldn't equal the priced amount — show priced
+  // amounts only. With no margin, the amount equals hrs×rate, so keep the detail.
+  const showRate = marginFactor(job.margin) === 1;
+  const lineType = (l) => (showRate ? l.type : "fixed");
 
   return {
     business: {
@@ -62,31 +85,32 @@ export function buildProposal(job, settings) {
     scope: baseLines.map((l) => ({
       section: l.section || "",
       desc: l.desc || "Item",
-      type: l.type,
+      type: lineType(l),
       hours: l.hours || 0,
       rate: l.rate || 0,
-      amount: lineAmount(l),
+      amount: priced(lineAmount(l)),
     })),
     // Same scope, grouped by room/area with subtotals — used when the job spans
     // more than one room. Empty array signals "render the flat scope list".
     sections: hasSections(baseLines)
-      ? groupBySection(baseLines).map((g) => ({
-          name: g.name || "Other work",
-          subtotal: g.subtotal,
-          lines: g.lines.map((l) => ({
+      ? groupBySection(baseLines).map((g) => {
+          const gl = g.lines.map((l) => ({
             desc: l.desc || "Item",
-            type: l.type,
+            type: lineType(l),
             hours: l.hours || 0,
             rate: l.rate || 0,
-            amount: lineAmount(l),
-          })),
-        }))
+            amount: priced(lineAmount(l)),
+          }));
+          // Subtotal = sum of the priced lines, so the column always adds up.
+          return { name: g.name || "Other work", subtotal: gl.reduce((s, l) => s + l.amount, 0), lines: gl };
+        })
       : [],
     clientFurnished: clientLines.map((l) => ({ desc: l.desc || "Item" })),
-    upgrades: (job.upgrades || []).map((u) => ({ desc: u.desc || "", price: Number(u.price) || 0 })),
+    upgrades: (job.upgrades || []).map((u) => ({ desc: u.desc || "", price: priced(Number(u.price) || 0) })),
     exclusions: job.exclusions || [],
     assumptions: job.assumptions || [],
-    total: bidTotal(lines),
+    // Grand total = sum of the priced scope lines (reconciles with what's shown).
+    total: baseLines.reduce((s, l) => s + priced(lineAmount(l)), 0),
     footer: "This is an estimate, not a contract. Pricing valid 30 days from the date above.",
     // NOTE: margin and notes are intentionally absent. Do not add them here.
   };
