@@ -240,6 +240,7 @@
   .totbar .tv{font-family:"Archivo";font-weight:900;font-size:1.6rem;color:var(--amber)}
   .private{background:rgba(46,92,126,.14);border:1px solid var(--blueprint);border-radius:8px;padding:12px 14px;margin-bottom:12px}
   .depositbox{background:rgba(62,125,90,.12);border:1px solid #3e7d5a;border-radius:8px;padding:12px 14px;margin-bottom:12px}
+  .amtquick{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .private .pl{font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:#8fb6d0}
 
   .client{background:var(--paper);color:var(--ink);border-radius:10px;padding:0;overflow:hidden;border:1px solid var(--kraft-deep)}
@@ -453,6 +454,7 @@ async function loadJobPayReqs(jobId){
   if(!TOKEN || !online) return;
   try{ const r=await api('/api/payments/requests?job_id='+encodeURIComponent(jobId)); PAYREQS[jobId]=r.requests||[]; if(state.view==='job') render(); }catch(e){}
 }
+function setPrAmt(v){ const el=document.getElementById('prAmt'); if(el) el.value=v; }
 async function createPayReq(jobId, btn){
   const amtEl=document.getElementById('prAmt'), nameEl=document.getElementById('prName');
   const amount=+(amtEl&&amtEl.value)||0;
@@ -1423,6 +1425,8 @@ function paymentsBlock(j){
   const reqs = PAYREQS[j.id];
   if(reqs===undefined){ loadJobPayReqs(j.id); }
   const total = bidTotal(j);
+  const pct = (j.deposit_pct==null?25:j.deposit_pct);
+  const deposit = Math.round(total * pct/100);
   const list = (reqs||[]).map(r=>{
     const st = r.status==='paid'?`<span class="badge active">Paid</span>`
       : r.status==='canceled'?`<span class="badge canceled">Canceled</span>`
@@ -1436,8 +1440,12 @@ function paymentsBlock(j){
   }).join('');
   return `<div class="paybox"><h3>Get paid for this job</h3>
     <div class="row2">
-      <div><label class="fld">Amount</label><input id="prAmt" class="input" type="number" min="1" value="${total||''}" placeholder="0"/></div>
+      <div><label class="fld">Amount</label><input id="prAmt" class="input" type="number" min="1" value="${deposit||total||''}" placeholder="0"/></div>
       <div><label class="fld">Client name (optional)</label><input id="prName" class="input" placeholder="e.g. Reyes"/></div>
+    </div>
+    <div class="amtquick">
+      <button class="btn ghost sm" type="button" onclick="setPrAmt(${deposit})">Deposit ${pct}% · ${money(deposit)}</button>
+      <button class="btn ghost sm" type="button" onclick="setPrAmt(${total})">Full · ${money(total)}</button>
     </div>
     <button class="btn blue full" style="margin-top:10px" onclick="createPayReq('${j.id}',this)">Create payment link</button>
     <div class="hint" style="margin-top:8px">Creates a secure card-payment link to text or email your client. The money goes straight to your account.</div>
