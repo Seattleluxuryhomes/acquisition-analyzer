@@ -550,9 +550,22 @@ function gate402(e){ if(e && e.status===402){ loadBilling().then(()=>go('paywall
 /* ============ payments (get paid via Stripe Connect) ============ */
 let PAYMENTS = JSON.parse(localStorage.getItem('bt_payments')||'null'); // {configured,connected,charges_enabled}
 let PAYREQS = {}; // jobId -> [requests]
+let COLLECTED = JSON.parse(localStorage.getItem('bt_collected')||'null') || {total:0,count:0}; // real cash collected
 async function loadPayments(){
   if(!TOKEN || !online) return;
   try{ PAYMENTS = await api('/api/payments/status'); localStorage.setItem('bt_payments', JSON.stringify(PAYMENTS)); }catch(e){}
+}
+// Sum every PAID payment request for this contractor — the actual money collected,
+// shown on the dashboard (deposits, balances, materials — all of it).
+async function loadCollected(){
+  if(!TOKEN || !online) return;
+  try{
+    const r = await api('/api/payments/requests'); // no job_id => all of the user's requests
+    const paid=(r.requests||[]).filter(x=>x.status==='paid');
+    COLLECTED={ total: paid.reduce((s,x)=>s+(+x.amount||0),0), count: paid.length };
+    localStorage.setItem('bt_collected', JSON.stringify(COLLECTED));
+    if(state.view==='home') render();
+  }catch(e){}
 }
 async function refreshPayments(){
   if(!TOKEN || !online) return;
@@ -642,7 +655,7 @@ async function doAuth(){
     }); persistSettings(); }
     state.view='home';
     render();
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected()]);
     render();
   }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
 }
@@ -1007,15 +1020,16 @@ function dashKPIs(visible){
   const now=Date.now();
   const followups=sent.filter(j=>now-(j.sent_at||j.updated_at||now) > 3*86400000);
   const decided=won.length+sent.length;
-  return { revenue:sum(won), wonCount:won.length, pending:sum(sent), pendingCount:sent.length,
+  return { collected:(COLLECTED&&COLLECTED.total)||0, payments:(COLLECTED&&COLLECTED.count)||0,
+    wonValue:sum(won), wonCount:won.length, pending:sum(sent), pendingCount:sent.length,
     close: decided?Math.round(won.length/decided*100):0, followups:followups.length };
 }
 function kpiStrip(k){
   const card=(ic,label,val,sub,cls)=>`<div class="kpi ${cls||''}"><div class="kpi-ic">${ic}</div><div class="kpi-l">${label}</div><div class="kpi-v">${val}</div><div class="kpi-s">${sub||''}</div></div>`;
   return `<div class="kpis">`
-    + card('💰','Revenue',money(k.revenue),k.wonCount+' won','rev')
+    + card('💰','Collected',money(k.collected),k.payments?(k.payments+' payment'+(k.payments===1?'':'s')):'paid in','rev')
+    + card('📐','Won',money(k.wonValue),k.wonCount+' job'+(k.wonCount===1?'':'s'),'won')
     + card('⏳','Pending',money(k.pending),k.pendingCount+' out','pend')
-    + card('✅','Jobs won',k.wonCount,'closed','won')
     + card('🎯','Close rate',k.close+'%','of bids','close')
     + card('🔔','Follow-ups',k.followups,k.followups?'need attention':'all clear', k.followups?'foll alert':'foll')
     + `</div>`;
@@ -1986,7 +2000,7 @@ function capDelPhoto(i){ CAP_PHOTOS.splice(i,1); renderCapPhotos(); }
   if(billingReturn || paymentsReturn){ history.replaceState({}, '', location.pathname); }
   render();
   if(TOKEN){
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected()]);
     // Coming back from Stripe Connect onboarding — pull the fresh account status
     // and land the contractor on Setup so they see "Ready".
     if(paymentsReturn){ await refreshPayments(); state.view='settings'; }
