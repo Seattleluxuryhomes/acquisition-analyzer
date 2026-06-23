@@ -299,10 +299,56 @@ app.get("/p/:id", (req, res) => {
   if (!jobRow) return res.status(404).send("Estimate not found.");
   const owner = db.prepare("SELECT * FROM user WHERE id=?").get(jobRow.user_id);
   // The customer (not logged in) is viewing — attribute to the owner's funnel.
-  track(jobRow.user_id, "bid_viewed", { jobId: jobRow.id });
+  if (!req.query.paid) track(jobRow.user_id, "bid_viewed", { jobId: jobRow.id });
   const proposal = buildProposal(Jobs.rowToJob(jobRow), settingsOf(owner || {}));
-  res.type("html").send(renderProposalHTML(proposal));
+  res.type("html").send(renderProposalHTML(proposal, proposalOpts(jobRow, owner, proposal, req)));
 });
+
+// Accept/pay state for the public proposal.
+function proposalOpts(jobRow, owner, proposal, req) {
+  const accepted = jobRow.status === "signed" || jobRow.status === "scheduled";
+  const pct = jobRow.deposit_pct == null ? 25 : jobRow.deposit_pct;
+  const deposit = Math.round((proposal.total || 0) * pct / 100);
+  const depositPaid = !!db.prepare("SELECT 1 FROM payment_request WHERE job_id=? AND status='paid' LIMIT 1").get(jobRow.id);
+  const canPay = Payments.paymentsConfigured() && !!(owner && owner.connect_charges_enabled) && deposit >= 1;
+  return { id: jobRow.id, accepted, deposit, depositPaid, canPay, justPaid: req.query.paid === "1" };
+}
+function acceptJob(jobRow) {
+  if (jobRow.status !== "signed" && jobRow.status !== "scheduled") {
+    db.prepare("UPDATE job SET status='signed', updated_at=? WHERE id=?").run(Date.now(), jobRow.id);
+    track(jobRow.user_id, "bid_accepted", { jobId: jobRow.id, by: "customer" });
+  }
+}
+// Customer accepts the proposal (no payment, or payments not set up).
+app.post("/p/:id/accept", wrap((req, res) => {
+  const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(req.params.id);
+  if (!jobRow) return res.status(404).send("Estimate not found.");
+  acceptJob(jobRow);
+  res.redirect("/p/" + jobRow.id);
+}));
+// Customer accepts AND pays the deposit via the contractor's connected Stripe.
+app.post("/p/:id/accept-and-pay", wrap(async (req, res) => {
+  const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(req.params.id);
+  if (!jobRow) return res.status(404).send("Estimate not found.");
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(jobRow.user_id);
+  acceptJob(jobRow);
+  const proposal = buildProposal(Jobs.rowToJob(jobRow), settingsOf(owner || {}));
+  const pct = jobRow.deposit_pct == null ? 25 : jobRow.deposit_pct;
+  const deposit = Math.round((proposal.total || 0) * pct / 100);
+  if (!(Payments.paymentsConfigured() && owner && owner.connect_charges_enabled && deposit >= 1)) {
+    return res.redirect("/p/" + jobRow.id);
+  }
+  try {
+    const base = baseUrl(req);
+    const reqObj = await Payments.createPaymentRequest(owner, {
+      amount: deposit, description: `Deposit — ${proposal.title}`, clientName: proposal.customer,
+      jobId: jobRow.id, successUrl: `${base}/p/${jobRow.id}?paid=1`, cancelUrl: `${base}/p/${jobRow.id}`,
+    }, base);
+    return res.redirect(reqObj.checkout_url);
+  } catch {
+    return res.redirect("/p/" + jobRow.id);
+  }
+}));
 
 // ---- Client proposal PDF (margin/notes stripped by buildProposal) ----
 app.get("/api/jobs/:id/pdf", requireAuth, Billing.requireEntitled, wrap((req, res) => {
