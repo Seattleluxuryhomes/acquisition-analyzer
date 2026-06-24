@@ -15,7 +15,7 @@ import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
 import { buildProposal } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
-import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig } from "./src/files.js";
+import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig, signProposalPdfUrl, verifyProposalPdfSig } from "./src/files.js";
 import { renderProposalHTML } from "./src/proposalHtml.js";
 import * as Billing from "./src/billing.js";
 import * as Payments from "./src/payments.js";
@@ -557,6 +557,33 @@ app.get("/p/:id", (req, res) => {
   res.type("html").send(renderProposalHTML(proposal, proposalOpts(jobRow, owner, proposal, req)));
 });
 
+// Public, signed link to the proposal PDF — the client's downloadable signed
+// agreement. Reachable only with a valid HMAC (hard rule #6); margin/notes are
+// stripped by buildProposal (hard rule #2). Includes the ACCEPTED & SIGNED block
+// when the customer has signed.
+app.get("/p/:id/pdf", wrap((req, res) => {
+  if (!verifyProposalPdfSig(req.params.id, req.query.exp, req.query.sig)) {
+    return res.status(403).send("This link has expired or is invalid.");
+  }
+  const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(req.params.id);
+  if (!jobRow) return res.status(404).send("Estimate not found.");
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(jobRow.user_id);
+  const proposal = buildProposal(Jobs.rowToJob(jobRow), settingsOf(owner || {}));
+  proposal.photos = db.prepare("SELECT filename, mime FROM photo WHERE job_id=? AND show_on_bid=1 ORDER BY created_at")
+    .all(jobRow.id)
+    .map((r) => { try { return { buf: fs.readFileSync(path.join(PHOTO_DIR, r.filename)), mime: r.mime }; } catch { return null; } })
+    .filter(Boolean);
+  const sig = Signatures.latestSignature(jobRow.id);
+  if (sig) proposal.signature = {
+    name: sig.signer_name, png: sig.signature_png, total: sig.accepted_total,
+    at: new Date(sig.signed_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }), ip: sig.ip || "",
+  };
+  const safe = (jobRow.title || "agreement").replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 40);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="${sig ? "signed-agreement" : "bid"}-${safe}.pdf"`);
+  renderProposalPDF(proposal, res);
+}));
+
 // Accept/pay state for the public proposal.
 function proposalOpts(jobRow, owner, proposal, req) {
   const accepted = jobRow.status === "signed" || jobRow.status === "scheduled";
@@ -571,6 +598,8 @@ function proposalOpts(jobRow, owner, proposal, req) {
   const sig = Signatures.latestSignature(jobRow.id);
   return { id: jobRow.id, accepted, deposit, depositPaid, canPay, justPaid: req.query.paid === "1", photos,
     signedBy: sig ? sig.signer_name : "", signedAt: sig ? new Date(sig.signed_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "",
+    // Once signed, the client can download their countersigned agreement copy.
+    signedPdfUrl: sig ? signProposalPdfUrl(jobRow.id) : "",
     company: (owner && owner.company && owner.company !== "Your Company") ? owner.company : "" };
 }
 // The client's IP for the signature audit trail (behind Hyperlift's edge proxy).

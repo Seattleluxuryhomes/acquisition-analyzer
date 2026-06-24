@@ -67,6 +67,27 @@ export function verifyProposalSig(jobId, exp, sig) {
   }
 }
 
+// Signed, expiring link to the SIGNED proposal PDF — the client's downloadable
+// agreement copy and the contractor's "attached to the property" record. Same
+// HMAC scheme as the proposal page; PDFs are never reachable without a signature
+// (hard rule #6). 30 days to match the proposal link's validity.
+export function signProposalPdfUrl(jobId, ttl = PROPOSAL_TTL) {
+  const exp = Date.now() + ttl;
+  const sig = sign(`proposalpdf.${jobId}.${exp}`);
+  return `/p/${jobId}/pdf?exp=${exp}&sig=${sig}`;
+}
+
+export function verifyProposalPdfSig(jobId, exp, sig) {
+  if (!exp || !sig) return false;
+  if (Number(exp) < Date.now()) return false;
+  const expected = sign(`proposalpdf.${jobId}.${exp}`);
+  try {
+    return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
 function sign(payload) {
   return crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
 }

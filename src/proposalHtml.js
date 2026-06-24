@@ -19,12 +19,14 @@ function acceptSection(p, o) {
   if (!o || !o.id) return "";
   const who = o.company ? esc(o.company) : "Your contractor";
   const signed = o.signedBy ? `<div class="signedby">Signed by ${esc(o.signedBy)}${o.signedAt ? " · " + esc(o.signedAt) : ""}</div>` : "";
+  // Once signed, the client can download a copy of their countersigned agreement.
+  const dl = o.signedPdfUrl ? `<a class="dlbtn" href="${esc(o.signedPdfUrl)}" target="_blank" rel="noopener">⬇ Download signed agreement (PDF)</a>` : "";
   if (o.depositPaid || o.justPaid)
-    return `<div class="accepted">✓ Deposit paid — thank you!<br><span style="font-weight:600">${who} will reach out to schedule your start date.</span>${signed}</div>`;
+    return `<div class="accepted">✓ Deposit paid — thank you!<br><span style="font-weight:600">${who} will reach out to schedule your start date.</span>${signed}${dl}</div>`;
   if (o.accepted)
     return `<div class="accepted">✓ Proposal accepted &amp; signed.${signed}${o.canPay
       ? `<form method="POST" action="/p/${o.id}/accept-and-pay" class="acceptform" style="margin-top:12px"><button class="acceptbtn">💳 Pay deposit · ${money(o.deposit)}</button></form>`
-      : `<br><span style="font-weight:600">${who} will be in touch to schedule.</span>`}</div>`;
+      : `<br><span style="font-weight:600">${who} will be in touch to schedule.</span>`}${dl}</div>`;
   // Not yet accepted — approval checkbox + signature pad (mouse/touch/stylus).
   const cta = o.canPay ? `Accept, Sign &amp; Pay Deposit · ${money(o.deposit)}` : "Accept &amp; Sign";
   return `<div class="signbox" id="signbox">
@@ -139,6 +141,8 @@ export function renderProposalHTML(p, opts = {}) {
   .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:6px}
   .gallery img{width:100%;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--rule);display:block}
   .accepted{margin:18px 0 6px;background:#eaf5ee;border:1px solid #b6dcc4;color:#2f6a44;border-radius:11px;padding:16px;text-align:center;font-weight:700}
+  .dlbtn{display:inline-block;margin-top:14px;background:var(--blue);color:#fff;text-decoration:none;border-radius:10px;padding:13px 18px;font-weight:700;font-size:.95rem}
+  .dlbtn:hover{filter:brightness(1.08)}
   .foot{padding:18px 24px;border-top:1px solid var(--rule);color:var(--muted);font-size:.78rem}
   .foot .contact{color:var(--ink);font-weight:600;font-size:.86rem;margin-bottom:6px}
 </style></head>

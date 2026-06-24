@@ -2108,7 +2108,32 @@ function tabClient(j){
       <button class="btn ghost" onclick="setTab('build')">← Edit bid</button>
     </div>
     <div class="hint" style="margin-top:10px">Text/Email open your phone with a secure link to this bid — your client taps it to view. No private numbers or margins are shown.</div>
+    ${signedAgreementBlock(j)}
     ${paymentsBlock(j)}`;
+}
+
+// Once the client signs, the countersigned agreement is attached to this job
+// (the "property" record). The contractor can pull it up or re-send it anytime.
+function signedAgreementBlock(j){
+  if(!['signed','scheduled'].includes(jobStatus(j))) return '';
+  return `<div class="paybox"><h3>Signed agreement</h3>
+    <div class="hint">Your client signed this proposal — a countersigned PDF is attached to this job. Download or re-send it anytime.</div>
+    <button class="btn ghost" id="signedPdfBtn" style="margin-top:10px" onclick="downloadSignedAgreement(this)">⬇ Download signed agreement (PDF)</button></div>`;
+}
+async function downloadSignedAgreement(btn){
+  const j=currentJob(); if(!j) return;
+  if(!online || !TOKEN){ toast('Connect to the internet to open the signed agreement.','warn'); return; }
+  const orig = btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent='Preparing…'; }
+  try{
+    const res = await fetch(API+'/api/jobs/'+j.id+'/pdf', { headers:{'Authorization':'Bearer '+TOKEN} });
+    if(!res.ok) throw new Error('pdf '+res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(()=>URL.revokeObjectURL(url), 60000);
+  }catch(e){ toast('Could not open the signed agreement.','bad'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=orig; } }
 }
 
 // "Request a payment" block — only shown when the server has payments configured.
