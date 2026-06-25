@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Moon, Sun, Mic, Zap, Trash2, Info, Brain, Sparkles } from 'lucide-react';
+import { Moon, Sun, Mic, Zap, Trash2, Info, Brain, Sparkles, Globe } from 'lucide-react';
 import { useApp } from '../store';
 import { WORKFLOWS } from '../data/workflows';
 import { learningStats } from '../lib/learning';
+import { globalRuns } from '../lib/insights';
 
 function Row({
   icon,
@@ -133,6 +134,20 @@ export function Settings() {
           >
             Reset
           </button>
+        </Row>
+        <Row
+          icon={<Globe className="h-4.5 w-4.5" />}
+          title="Improve the shared library"
+          desc={
+            globalRuns() > 0
+              ? `Anonymous signals only — never prompts or inputs. Learning from ${globalRuns().toLocaleString()} shared runs.`
+              : 'Contribute anonymous signals (which buttons/variants work — never your prompts or inputs) so the library gets smarter for everyone.'
+          }
+        >
+          <Toggle
+            on={settings.shareLearning}
+            onChange={(v) => setSettings((p) => ({ ...p, shareLearning: v }))}
+          />
         </Row>
       </section>
 

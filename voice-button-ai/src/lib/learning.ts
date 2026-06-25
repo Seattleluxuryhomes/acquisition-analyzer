@@ -20,6 +20,7 @@
 
 import { storage, KEYS } from './storage';
 import { tokenize } from './intentMatcher';
+import { globalTokenPrior, globalVariantMean } from './insights';
 import type { PromptVariant, Settings, Workflow } from '../types/workflow';
 
 export interface VariantStat {
@@ -39,6 +40,8 @@ export interface LearningState {
 const EPSILON = 0.2; // exploration rate
 const PER_TOKEN_CAP = 2; // max boost a single token can contribute
 const PER_WORKFLOW_CAP = 6; // max total learned boost for one workflow
+const GLOBAL_TOKEN_WEIGHT = 1.5; // how much the crowd's routing nudges a new user
+const GLOBAL_BOOST_CAP = 3; // crowd priors never outweigh personal learning
 
 function freshState(): LearningState {
   return { tokenToWorkflow: {}, bandit: {} };
@@ -63,6 +66,45 @@ export function isAdaptiveEnabled(): boolean {
   return s.adaptiveLearning !== false;
 }
 
+/** Contributing to the shared library is on unless explicitly turned off. */
+function isSharingEnabled(): boolean {
+  if (!isAdaptiveEnabled()) return false;
+  const s = storage.get<Partial<Settings>>(KEYS.settings, {});
+  return s.shareLearning !== false;
+}
+
+/* ----------------------- aggregate flywheel (egress) -------------------- */
+
+type ShareEvent =
+  | { type: 'choice'; workflowId: string; tokens: string[] }
+  | { type: 'reward'; workflowId: string; variantId: string; reward: number };
+
+const shareQueue: ShareEvent[] = [];
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function queueShare(event: ShareEvent): void {
+  if (!isSharingEnabled() || typeof fetch === 'undefined') return;
+  shareQueue.push(event);
+  if (shareQueue.length > 100) shareQueue.shift();
+  if (!flushTimer) flushTimer = setTimeout(flushShare, 4000);
+}
+
+async function flushShare(): Promise<void> {
+  flushTimer = null;
+  if (shareQueue.length === 0) return;
+  const events = shareQueue.splice(0, shareQueue.length);
+  try {
+    await fetch('/api/learn', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events }),
+      keepalive: true,
+    });
+  } catch {
+    /* best-effort; drop on failure (offline / no server / extension popup) */
+  }
+}
+
 /* --------------------------- adaptive matcher --------------------------- */
 
 /** Reinforce the words of `transcript` toward the workflow the user chose. */
@@ -78,6 +120,7 @@ export function recordChoice(transcript: string, workflowId: string): void {
     t2w[tok] = row;
   }
   save({ ...s, tokenToWorkflow: t2w });
+  queueShare({ type: 'choice', workflowId, tokens });
 }
 
 /**
@@ -88,12 +131,15 @@ export function recordChoice(transcript: string, workflowId: string): void {
 export function adaptiveBoost(tokens: string[], workflowId: string): number {
   if (!isAdaptiveEnabled() || tokens.length === 0) return 0;
   const { tokenToWorkflow } = getState();
-  let boost = 0;
+  let personal = 0;
+  let crowd = 0;
   for (const tok of tokens) {
     const count = tokenToWorkflow[tok]?.[workflowId];
-    if (count) boost += Math.min(PER_TOKEN_CAP, 0.5 * count);
+    if (count) personal += Math.min(PER_TOKEN_CAP, 0.5 * count);
+    // Crowd prior: helps a new user before they have personal data of their own.
+    crowd += globalTokenPrior(tok, workflowId) * GLOBAL_TOKEN_WEIGHT;
   }
-  return Math.min(PER_WORKFLOW_CAP, boost);
+  return Math.min(PER_WORKFLOW_CAP, personal) + Math.min(GLOBAL_BOOST_CAP, crowd);
 }
 
 /* ------------------------------- bandit -------------------------------- */
@@ -129,12 +175,15 @@ export function selectVariant(wf: Workflow): PromptVariant {
     return variants[Math.floor(Math.random() * variants.length)];
   }
 
-  // Exploit: highest mean reward, optimistic for untried arms.
+  // Exploit: highest mean reward. Cold-start (no personal data) falls back to
+  // the crowd's mean for that variant, then to optimistic 1.0 — so a new user's
+  // first runs already prefer the globally best-performing prompt.
   let best = variants[0];
   let bestMean = -Infinity;
   for (const v of variants) {
     const st = stats[v.id];
-    const mean = st && st.n > 0 ? st.reward / st.n : 1;
+    const mean =
+      st && st.n > 0 ? st.reward / st.n : (globalVariantMean(wf.id, v.id) ?? 1);
     if (mean > bestMean) {
       bestMean = mean;
       best = v;
@@ -154,6 +203,7 @@ export function recordReward(workflowId: string, variantId: string, reward: numb
   wfStats[variantId] = { n: cur.n + 1, reward: cur.reward + r };
   bandit[workflowId] = wfStats;
   save({ ...s, bandit });
+  queueShare({ type: 'reward', workflowId, variantId, reward: r });
 }
 
 /* ------------------------------- admin --------------------------------- */

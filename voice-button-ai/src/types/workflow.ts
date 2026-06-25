@@ -94,4 +94,9 @@ export interface Settings {
   voiceLang: string;
   /** Master switch for on-device learning (adaptive matcher + bandit). */
   adaptiveLearning: boolean;
+  /**
+   * Contribute anonymous workflow signals (which buttons/variants work — never
+   * prompts or inputs) to improve the shared library for everyone.
+   */
+  shareLearning: boolean;
 }

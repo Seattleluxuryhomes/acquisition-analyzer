@@ -19,6 +19,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runWorkflow } from './fable.mjs';
+import { record as recordAggregate, insights as getInsights } from './aggregate.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -43,6 +44,8 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === '/api/health') return json(res, 200, healthBody());
     if (url.pathname === '/api/run' && req.method === 'POST') return handleRun(req, res);
+    if (url.pathname === '/api/learn' && req.method === 'POST') return handleLearn(req, res);
+    if (url.pathname === '/api/insights' && req.method === 'GET') return handleInsights(res);
     if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'not found' });
 
     return serveStatic(url.pathname, res);
@@ -89,6 +92,21 @@ async function handleRun(req, res) {
     clearInterval(beat);
     res.end();
   }
+}
+
+async function handleLearn(req, res) {
+  const body = await readJson(req).catch(() => null);
+  const result = await recordAggregate(body?.events).catch(() => ({ recorded: 0 }));
+  return json(res, 200, { ok: true, ...result });
+}
+
+async function handleInsights(res) {
+  const data = await getInsights().catch(() => ({ runs: 0, variants: {}, tokens: {} }));
+  res.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'public, max-age=60',
+  });
+  res.end(JSON.stringify(data));
 }
 
 async function serveStatic(pathname, res) {

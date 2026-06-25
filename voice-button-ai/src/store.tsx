@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS: Settings = {
   autoLaunch: true,
   voiceLang: 'en-US',
   adaptiveLearning: true,
+  shareLearning: true,
 };
 const MAX_RECENTS = 12;
 const MAX_HISTORY = 60;
