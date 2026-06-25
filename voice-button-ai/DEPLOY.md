@@ -7,7 +7,22 @@ file you edit.**
 The easiest host for this is **Render** (free tier, no credit card to start).
 Any Node host works (Railway, Fly.io); the steps are the same idea.
 
-## Render — click by click
+## Easiest — one-click Blueprint (recommended)
+
+A `render.yaml` at the repo root configures everything (folder, build/start
+commands, free plan, health check). Your only input is the key.
+
+1. Go to **render.com** → sign up with GitHub.
+2. **New → Blueprint**.
+3. Connect the repo `Seattleluxuryhomes/acquisition-analyzer` (branch
+   `claude/voice-button-ai-mvp-ka7a8f`). Render finds `render.yaml`.
+4. It shows the **voice-button-ai** service and asks for one secret:
+   **`ANTHROPIC_API_KEY`** → paste your `sk-ant-...` key (Render hides it).
+5. Click **Apply**. ~3 min later you get a URL. Open it on your phone.
+
+That's the whole job. Everything else is pre-filled by `render.yaml`.
+
+## Manual alternative — Render web service, click by click
 
 1. Go to **render.com** → sign up (you can use your GitHub account).
 2. Click **New → Web Service**.

@@ -1,0 +1,19 @@
+# One-click deploy for Voice Button AI (Render Blueprint).
+# New → Blueprint → connect this repo → Render reads this file and configures
+# everything below. The only thing you provide is ANTHROPIC_API_KEY (sync:false
+# means Render prompts you for it and stores it as a secret — never in the repo).
+services:
+  - type: web
+    name: voice-button-ai
+    runtime: node
+    rootDir: voice-button-ai
+    branch: claude/voice-button-ai-mvp-ka7a8f
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node server/index.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VBAI_FREE_DAILY_CREDITS
+        value: "60"
