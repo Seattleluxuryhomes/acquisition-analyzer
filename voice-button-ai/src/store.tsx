@@ -7,16 +7,17 @@ import {
 } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { KEYS } from './lib/storage';
-import type { RunRecord, Workflow } from './types/workflow';
+import { resetLearning as resetLearningStore } from './lib/learning';
+import type { RunRecord, Settings, Workflow } from './types/workflow';
 
 export type Theme = 'dark' | 'light';
+export type { Settings } from './types/workflow';
 
-export interface Settings {
-  autoLaunch: boolean; // auto-open top match on confident voice intent
-  voiceLang: string;
-}
-
-const DEFAULT_SETTINGS: Settings = { autoLaunch: true, voiceLang: 'en-US' };
+const DEFAULT_SETTINGS: Settings = {
+  autoLaunch: true,
+  voiceLang: 'en-US',
+  adaptiveLearning: true,
+};
 const MAX_RECENTS = 12;
 const MAX_HISTORY = 60;
 
@@ -34,8 +35,11 @@ interface AppState {
     workflow: Workflow,
     inputs: Record<string, string>,
     prompt: string,
-  ) => void;
+    variantId?: string,
+  ) => string;
+  setRunFeedback: (runId: string, feedback: 'up' | 'down') => void;
   clearHistory: () => void;
+  resetLearning: () => void;
   setTheme: (t: Theme) => void;
   toggleTheme: () => void;
   setSettings: (s: Settings | ((p: Settings) => Settings)) => void;
@@ -86,21 +90,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
           prev.includes(id) ? prev.filter((x) => x !== id) : [id, ...prev],
         ),
       touchWorkflow,
-      recordRun: (workflow, inputs, prompt) => {
+      recordRun: (workflow, inputs, prompt, variantId) => {
         touchWorkflow(workflow.id);
         const at = Date.now();
+        const id = runId(at);
         const record: RunRecord = {
-          id: runId(at),
+          id,
           workflowId: workflow.id,
           title: workflow.title,
           command: workflow.command,
           at,
           inputs,
           prompt,
+          variantId,
         };
         setHistory((prev) => [record, ...prev].slice(0, MAX_HISTORY));
+        return id;
       },
+      setRunFeedback: (id, feedback) =>
+        setHistory((prev) =>
+          prev.map((r) => (r.id === id ? { ...r, feedback } : r)),
+        ),
       clearHistory: () => setHistory([]),
+      resetLearning: () => resetLearningStore(),
       setTheme,
       toggleTheme: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
       setSettings,

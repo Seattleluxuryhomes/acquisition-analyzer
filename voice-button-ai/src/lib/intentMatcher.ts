@@ -9,6 +9,7 @@
 
 import type { IntentMatch, Workflow } from '../types/workflow';
 import { WORKFLOWS } from '../data/workflows';
+import { adaptiveBoost } from './learning';
 
 /** Words too common to carry intent. */
 const STOP = new Set([
@@ -18,7 +19,7 @@ const STOP = new Set([
   'have', 'just', 'let', 'us', 'we', 'be', 'am',
 ]);
 
-function tokenize(text: string): string[] {
+export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9\s/]/g, ' ')
@@ -105,7 +106,8 @@ export function matchIntent(transcript: string): MatchResult {
 
   const matches: IntentMatch[] = WORKFLOWS.map((workflow) => ({
     workflow,
-    score: scoreWorkflow(workflow, tokens, raw),
+    // Base score (hand-tuned) + per-user learned boost from past choices.
+    score: scoreWorkflow(workflow, tokens, raw) + adaptiveBoost(tokens, workflow.id),
   }))
     .filter((m) => m.score > 0)
     .sort((a, b) => b.score - a.score);

@@ -81,6 +81,28 @@ The intent matcher is **fully offline** — no external AI API. It uses keyword
 and tag matching with hand-tuned boosts for the high-signal cases (offer,
 land/zoning, debug, contractor bid, counteroffer, etc.).
 
+### On-device learning (the jewel)
+
+The app gets better the more you use it — privately, with no backend and no ML
+libraries (`src/lib/learning.ts`):
+
+- **Adaptive intent matcher.** Every time a spoken/typed request leads you to
+  open a workflow, the words are reinforced toward that workflow
+  (`recordChoice`). Those associations feed back into the matcher's score
+  (`adaptiveBoost`), so it learns *your* phrasing and can eventually flip a
+  wrong default. The boost is diminishing per token and capped per workflow, so
+  learning nudges ranking without steamrolling the hand-tuned signals.
+- **Prompt-variant bandit.** Workflows can ship alternative prompt phrasings.
+  An **epsilon-greedy multi-armed bandit** with optimistic cold-start
+  (`selectVariant`) serves a variant per run and learns which earns the best
+  feedback — explicit (👍/👎) or implicit (copied = good, regenerated = weak
+  negative). Per user, per task.
+
+Everything persists through the local-first storage layer, is gated by a
+Settings toggle, and can be reset. When cloud sync lands, this state syncs like
+any other. Verified by unit checks on the matcher/bandit and an end-to-end
+browser run (feedback → history → reward).
+
 ---
 
 ## Project structure

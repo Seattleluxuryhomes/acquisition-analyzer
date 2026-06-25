@@ -93,4 +93,5 @@ export const KEYS = {
   history: 'history',
   theme: 'theme',
   settings: 'settings',
+  learning: 'learning',
 } as const;

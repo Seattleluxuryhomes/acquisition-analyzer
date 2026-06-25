@@ -74,10 +74,24 @@ export interface RunRecord {
   inputs: Record<string, string>;
   /** The generated prompt. */
   prompt: string;
+  /** Which prompt variant the bandit served for this run (e.g. "base"). */
+  variantId?: string;
+  /** User feedback on the generated prompt, once given. */
+  feedback?: 'up' | 'down';
 }
 
 /** Result of matching a transcript against the workflow library. */
 export interface IntentMatch {
   workflow: Workflow;
   score: number;
+}
+
+/** User-tunable app settings (persisted locally). */
+export interface Settings {
+  /** Auto-open the top match when voice intent is confident. */
+  autoLaunch: boolean;
+  /** Speech-recognition locale. */
+  voiceLang: string;
+  /** Master switch for on-device learning (adaptive matcher + bandit). */
+  adaptiveLearning: boolean;
 }

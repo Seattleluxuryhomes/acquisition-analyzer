@@ -42,14 +42,17 @@ export interface BuildResult {
 export function buildPrompt(
   workflow: Workflow,
   inputs: Record<string, string>,
+  /** Optional prompt-variant template (from the bandit); defaults to baseline. */
+  templateOverride?: string,
 ): BuildResult {
   const clean = (v: string | undefined) => (v ?? '').trim();
+  const template = templateOverride ?? workflow.promptTemplate;
 
   const missingRequired = workflow.requiredInputs
     .filter((i) => !clean(inputs[i.key]))
     .map((i) => i.key);
 
-  const refKeys = referencedKeys(workflow.promptTemplate);
+  const refKeys = referencedKeys(template);
 
   // Build the "extra details" block from any provided-but-unreferenced inputs.
   const extras = allInputs(workflow)
@@ -62,7 +65,7 @@ export function buildPrompt(
     : '';
 
   // Replace variables. {{__details__}} gets the extras block.
-  let out = workflow.promptTemplate.replace(VAR_RE, (_full, key: string) => {
+  let out = template.replace(VAR_RE, (_full, key: string) => {
     if (key === '__details__') return detailsBlock;
     return clean(inputs[key]);
   });

@@ -9,12 +9,21 @@ import {
   MicOff,
   History,
   RotateCcw,
+  ThumbsUp,
+  ThumbsDown,
+  FlaskConical,
 } from 'lucide-react';
-import type { RunRecord, Workflow, WorkflowInput } from '../types/workflow';
+import type { PromptVariant, RunRecord, Workflow, WorkflowInput } from '../types/workflow';
 import { allInputs, buildPrompt } from '../lib/promptBuilder';
 import { copyToClipboard } from '../lib/clipboard';
 import { useApp } from '../store';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import {
+  effectiveVariants,
+  hasVariants,
+  recordReward,
+  selectVariant,
+} from '../lib/learning';
 import { Icon } from './Icon';
 
 /**
@@ -30,7 +39,8 @@ export function WorkflowScreen({
   onClose: () => void;
   initialInputs?: Record<string, string>;
 }) {
-  const { isFavorite, toggleFavorite, recordRun, history, settings } = useApp();
+  const { isFavorite, toggleFavorite, recordRun, setRunFeedback, history, settings } =
+    useApp();
   const speech = useSpeechRecognition(settings.voiceLang);
 
   const [inputs, setInputs] = useState<Record<string, string>>(
@@ -40,9 +50,16 @@ export function WorkflowScreen({
   const [copied, setCopied] = useState(false);
   const [missing, setMissing] = useState<string[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [variant, setVariant] = useState<PromptVariant | null>(null);
+  const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
   const baseRef = useRef('');
+  // Refs so async copy / feedback handlers always see the latest values.
+  const variantRef = useRef<PromptVariant | null>(null);
+  const rewardedRef = useRef(false);
+  const runIdRef = useRef<string | null>(null);
 
   const fav = isFavorite(workflow.id);
+  const showVariants = hasVariants(workflow);
   const workflowRuns = useMemo(
     () => history.filter((h) => h.workflowId === workflow.id).slice(0, 5),
     [history, workflow.id],
@@ -54,6 +71,11 @@ export function WorkflowScreen({
     setPrompt('');
     setMissing([]);
     setCopied(false);
+    setVariant(null);
+    setFeedback(null);
+    variantRef.current = null;
+    rewardedRef.current = false;
+    runIdRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflow.id]);
 
@@ -80,22 +102,55 @@ export function WorkflowScreen({
     speech.start();
   };
 
-  const handleGenerate = () => {
-    const result = buildPrompt(workflow, inputs);
+  // One bandit pull: pick a variant, build with it, record the run. Regenerating
+  // an un-rated prompt counts as a weak negative for the previous variant.
+  const generate = (): string => {
+    if (prompt && !rewardedRef.current && variantRef.current) {
+      recordReward(workflow.id, variantRef.current.id, 0.25);
+    }
+    const v = selectVariant(workflow);
+    variantRef.current = v;
+    setVariant(v);
+
+    const result = buildPrompt(workflow, inputs, v.promptTemplate);
     setPrompt(result.prompt);
     setMissing(result.missingRequired);
-    if (result.missingRequired.length === 0) {
-      recordRun(workflow, inputs, result.prompt);
-    }
+
+    rewardedRef.current = false;
+    setFeedback(null);
+    const id =
+      result.missingRequired.length === 0
+        ? recordRun(workflow, inputs, result.prompt, v.id)
+        : null;
+    runIdRef.current = id;
+    return result.prompt;
+  };
+
+  const handleGenerate = () => {
+    generate();
   };
 
   const handleCopy = async () => {
-    const text = prompt || buildPrompt(workflow, inputs).prompt;
-    if (!prompt) setPrompt(text);
+    const text = prompt || generate();
     const ok = await copyToClipboard(text);
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
+      // Implicit positive: copied without rating or regenerating.
+      if (!rewardedRef.current && variantRef.current) {
+        recordReward(workflow.id, variantRef.current.id, 0.7);
+        rewardedRef.current = true;
+      }
+    }
+  };
+
+  // Explicit feedback — the strongest training signal.
+  const onFeedback = (kind: 'up' | 'down') => {
+    setFeedback(kind);
+    if (runIdRef.current) setRunFeedback(runIdRef.current, kind);
+    if (!rewardedRef.current && variantRef.current) {
+      recordReward(workflow.id, variantRef.current.id, kind === 'up' ? 1 : 0);
+      rewardedRef.current = true;
     }
   };
 
@@ -103,6 +158,13 @@ export function WorkflowScreen({
     setInputs(run.inputs);
     setPrompt(run.prompt);
     setMissing([]);
+    const v =
+      effectiveVariants(workflow).find((x) => x.id === run.variantId) ?? null;
+    variantRef.current = v;
+    setVariant(v);
+    runIdRef.current = run.id;
+    rewardedRef.current = !!run.feedback;
+    setFeedback(run.feedback ?? null);
   };
 
   const renderField = (field: WorkflowInput, required: boolean) => {
@@ -237,6 +299,15 @@ export function WorkflowScreen({
               <div className="flex items-center justify-between border-b border-white/10 px-3.5 py-2">
                 <span className="flex items-center gap-1.5 text-xs font-medium text-brand-200">
                   <Sparkles className="h-3.5 w-3.5" /> Generated prompt
+                  {showVariants && variant && (
+                    <span
+                      className="ml-1 flex items-center gap-1 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-zinc-300"
+                      title="The app is A/B-testing prompt phrasings and learning which you prefer"
+                    >
+                      <FlaskConical className="h-2.5 w-2.5" />
+                      {variant.label ?? variant.id}
+                    </span>
+                  )}
                 </span>
                 <button
                   type="button"
@@ -250,6 +321,44 @@ export function WorkflowScreen({
               <pre className="max-h-72 overflow-auto whitespace-pre-wrap px-3.5 py-3 text-xs leading-relaxed text-zinc-200">
                 {prompt}
               </pre>
+              {/* Feedback — trains the per-task bandit */}
+              <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3.5 py-2">
+                <span className="text-[11px] text-zinc-400">
+                  {feedback === 'up'
+                    ? 'Thanks — learning from that 👍'
+                    : feedback === 'down'
+                      ? 'Noted — we’ll try a different angle'
+                      : 'Did this prompt work?'}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onFeedback('up')}
+                    aria-label="Good prompt"
+                    aria-pressed={feedback === 'up'}
+                    className={`rounded-md p-1.5 transition-colors ${
+                      feedback === 'up'
+                        ? 'bg-emerald-500/20 text-emerald-300'
+                        : 'text-zinc-400 hover:bg-white/10 hover:text-emerald-300'
+                    }`}
+                  >
+                    <ThumbsUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onFeedback('down')}
+                    aria-label="Bad prompt"
+                    aria-pressed={feedback === 'down'}
+                    className={`rounded-md p-1.5 transition-colors ${
+                      feedback === 'down'
+                        ? 'bg-rose-500/20 text-rose-300'
+                        : 'text-zinc-400 hover:bg-white/10 hover:text-rose-300'
+                    }`}
+                  >
+                    <ThumbsDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

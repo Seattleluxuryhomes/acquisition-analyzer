@@ -1,6 +1,8 @@
-import { Moon, Sun, Mic, Zap, Trash2, Info } from 'lucide-react';
+import { useState } from 'react';
+import { Moon, Sun, Mic, Zap, Trash2, Info, Brain, Sparkles } from 'lucide-react';
 import { useApp } from '../store';
 import { WORKFLOWS } from '../data/workflows';
+import { learningStats } from '../lib/learning';
 
 function Row({
   icon,
@@ -47,9 +49,15 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
   );
 }
 
-/** App settings: theme, voice, behavior, data. */
+/** App settings: theme, voice, behavior, learning, data. */
 export function Settings() {
-  const { theme, toggleTheme, settings, setSettings, history, clearHistory } = useApp();
+  const { theme, toggleTheme, settings, setSettings, history, clearHistory, resetLearning } =
+    useApp();
+  // Learning stats aren't React state (they live in the storage layer), so we
+  // bump a counter to re-read them after a reset.
+  const [statsTick, setStatsTick] = useState(0);
+  void statsTick;
+  const stats = learningStats();
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 pb-6 pt-5">
@@ -92,6 +100,39 @@ export function Settings() {
             <option value="fr-FR">Français</option>
             <option value="pt-BR">Português (BR)</option>
           </select>
+        </Row>
+      </section>
+
+      <section className="flex flex-col gap-2.5">
+        <p className="px-1 text-xs font-medium uppercase tracking-wide text-zinc-500">
+          Learning
+        </p>
+        <Row
+          icon={<Brain className="h-4.5 w-4.5" />}
+          title="On-device learning"
+          desc="Adapt intent matching to your phrasing and learn your best prompts — privately, on this device"
+        >
+          <Toggle
+            on={settings.adaptiveLearning}
+            onChange={(v) => setSettings((p) => ({ ...p, adaptiveLearning: v }))}
+          />
+        </Row>
+        <Row
+          icon={<Sparkles className="h-4.5 w-4.5" />}
+          title="What it has learned"
+          desc={`${stats.signals} intent signal${stats.signals === 1 ? '' : 's'} · ${stats.trials} prompt trial${stats.trials === 1 ? '' : 's'}`}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              resetLearning();
+              setStatsTick((t) => t + 1);
+            }}
+            disabled={stats.signals === 0 && stats.trials === 0}
+            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-40"
+          >
+            Reset
+          </button>
         </Row>
       </section>
 

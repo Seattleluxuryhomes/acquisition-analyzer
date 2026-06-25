@@ -9,6 +9,7 @@ import { RecentWorkflows } from '../components/RecentWorkflows';
 import { Icon } from '../components/Icon';
 import { WORKFLOWS, homeButtons, getWorkflow } from '../data/workflows';
 import { matchIntent } from '../lib/intentMatcher';
+import { recordChoice } from '../lib/learning';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useWorkflowIntent } from '../hooks/useWorkflowIntent';
 import { useApp } from '../store';
@@ -82,6 +83,8 @@ export function Home({
   }, [speech.listening]);
 
   const openWithTranscript = (w: Workflow, transcript: string) => {
+    // Reinforce this phrasing → workflow so the matcher learns your intent.
+    recordChoice(transcript, w.id);
     const target = w.requiredInputs[0];
     onOpen(w, target ? { [target.key]: transcript } : undefined);
     setMicState('ready');
