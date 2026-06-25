@@ -24,7 +24,7 @@ import { identityOf, canSpend, spend, status as creditStatus } from './ledger.mj
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
-const PORT = Number(process.env.VBAI_PORT || 8787);
+const PORT = Number(process.env.PORT || process.env.VBAI_PORT || 8787);
 const HAS_KEY = !!process.env.ANTHROPIC_API_KEY;
 const MOCK = process.env.VBAI_MOCK === '1';
 
