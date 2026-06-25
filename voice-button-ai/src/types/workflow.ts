@@ -47,7 +47,19 @@ export interface Workflow {
    * tidy bulleted list of any inputs not referenced elsewhere.
    */
   promptTemplate: string;
+  /**
+   * Optional A/B prompt variants. The bandit picks among these plus the
+   * baseline (`promptTemplate`, id "base") and learns which performs best.
+   */
+  promptVariants?: PromptVariant[];
   examples: string[];
+}
+
+/** An alternative prompt phrasing the bandit can test against the baseline. */
+export interface PromptVariant {
+  id: string;
+  label?: string;
+  promptTemplate: string;
 }
 
 /** A workflow run kept in history. */
