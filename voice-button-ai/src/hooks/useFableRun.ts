@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { getClientId } from '../lib/identity';
 
 /**
  * Drives a streaming run against the Fable Execution Engine (POST /api/run).
@@ -12,6 +13,7 @@ export type RunStatus =
   | 'thinking'
   | 'streaming'
   | 'done'
+  | 'quota'
   | 'error';
 
 export interface RunMeta {
@@ -27,6 +29,10 @@ export interface RunDone {
   outputTokens?: number;
   costUsd?: number;
   credits?: number;
+  /** Credits left after this run (from the ledger). */
+  remaining?: number;
+  plan?: string;
+  resetsAt?: string;
 }
 
 export interface UseFableRun {
@@ -103,10 +109,24 @@ export function useFableRun(): UseFableRun {
     try {
       const resp = await fetch('/api/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-vbai-client': getClientId() },
         body: JSON.stringify({ prompt, effort }),
         signal: ac.signal,
       });
+
+      // Budget guard: out of credits for today.
+      if (resp.status === 402) {
+        const info = await resp.json().catch(() => ({}));
+        setDone(info as RunDone);
+        setError(
+          typeof info.message === 'string'
+            ? info.message
+            : "You're out of free Fable runs for today.",
+        );
+        setStatus('quota');
+        return;
+      }
+
       if (!resp.ok || !resp.body) {
         throw new Error(
           resp.status === 404

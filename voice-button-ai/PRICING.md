@@ -108,5 +108,9 @@ together.
 
 - `server/pricing.mjs` — `MODEL_PRICING`, `MARGIN`, `creditsForCost`, `meter()`
 - `server/fable.mjs` — the Fable call (model, effort, fallback) + offline degrade
-- The UI shows the per-run credit cost on every completed run, so the unit
-  economics are never hidden from the operator.
+- `server/ledger.mjs` — **enforced** free daily allowance (`VBAI_FREE_DAILY_CREDITS`,
+  default 30), per-run debit, 402 with reset time on exhaustion, and a `grant()`
+  hook a checkout flow calls to add purchased balance.
+- The UI shows the per-run credit cost **and remaining balance** on every run,
+  and Settings shows the plan — so the unit economics are never hidden from the
+  operator or the user.

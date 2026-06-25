@@ -39,6 +39,8 @@ function fableStatusLabel(status: string): string {
       return 'Fable is thinking…';
     case 'streaming':
       return 'Fable result';
+    case 'quota':
+      return 'Out of credits';
     case 'error':
       return 'Fable run';
     default:
@@ -410,9 +412,10 @@ export function WorkflowScreen({
                 <span className="flex items-center gap-1.5 text-xs font-medium text-amber-200">
                   <Zap className="h-3.5 w-3.5" />
                   {fableStatusLabel(fable.status)}
-                  {fable.done?.credits != null && (
+                  {fable.done?.credits != null && fable.status === 'done' && (
                     <span className="ml-1 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-zinc-300">
                       {fable.done.model ?? 'fable'} · {fable.done.credits} cr
+                      {fable.done.remaining != null && ` · ${fable.done.remaining} left`}
                     </span>
                   )}
                   {fable.done?.source === 'offline' && (
@@ -445,7 +448,15 @@ export function WorkflowScreen({
                 </div>
               </div>
 
-              {fable.error ? (
+              {fable.status === 'quota' ? (
+                <div className="px-3.5 py-3">
+                  <p className="text-xs text-amber-200">{fable.error}</p>
+                  <p className="mt-1 text-[11px] text-zinc-400">
+                    Your prompt is still ready above — copy it to run by hand, or upgrade for
+                    more daily runs.
+                  </p>
+                </div>
+              ) : fable.error ? (
                 <p className="px-3.5 py-3 text-xs text-amber-300">{fable.error}</p>
               ) : (
                 <pre className="max-h-80 overflow-auto whitespace-pre-wrap px-3.5 py-3 text-xs leading-relaxed text-zinc-100">

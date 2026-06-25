@@ -1,9 +1,17 @@
-import { useState } from 'react';
-import { Moon, Sun, Mic, Zap, Trash2, Info, Brain, Sparkles, Globe } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Moon, Sun, Mic, Zap, Trash2, Info, Brain, Sparkles, Globe, CreditCard } from 'lucide-react';
 import { useApp } from '../store';
 import { WORKFLOWS } from '../data/workflows';
 import { learningStats } from '../lib/learning';
 import { globalRuns } from '../lib/insights';
+import { getClientId } from '../lib/identity';
+
+interface CreditStatus {
+  plan?: string;
+  dailyAllowance?: number;
+  remaining?: number | null;
+  resetsAt?: string;
+}
 
 function Row({
   icon,
@@ -60,9 +68,38 @@ export function Settings() {
   void statsTick;
   const stats = learningStats();
 
+  const [credits, setCredits] = useState<CreditStatus | null>(null);
+  useEffect(() => {
+    let on = true;
+    fetch('/api/credits', { headers: { 'x-vbai-client': getClientId() } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (on && d) setCredits(d);
+      })
+      .catch(() => {});
+    return () => {
+      on = false;
+    };
+  }, []);
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 pb-6 pt-5">
       <h1 className="text-xl font-bold tracking-tight text-zinc-100">Settings</h1>
+
+      {credits && credits.remaining != null && (
+        <section className="flex flex-col gap-2.5">
+          <p className="px-1 text-xs font-medium uppercase tracking-wide text-zinc-500">Plan</p>
+          <Row
+            icon={<CreditCard className="h-4.5 w-4.5" />}
+            title="Fable credits"
+            desc={`${credits.remaining} of ${credits.dailyAllowance} daily credits left · resets at UTC midnight`}
+          >
+            <span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium capitalize text-zinc-300">
+              {credits.plan ?? 'free'}
+            </span>
+          </Row>
+        </section>
+      )}
 
       <section className="flex flex-col gap-2.5">
         <Row

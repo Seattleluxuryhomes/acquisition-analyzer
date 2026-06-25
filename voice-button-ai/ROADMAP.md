@@ -22,6 +22,9 @@ the failure modes we're designing around now so they never become incidents.
   anonymous signals only (never prompts/inputs), aggregated server-side, shipped
   back as priors so a brand-new user is smart on tap #1. **This is the moat** —
   the product gets better for everyone with use, and the data advantage compounds.
+- **Credits ledger + budget guard** — per-identity free daily allowance, debit
+  after each run, 402 with reset time when exhausted, purchased-balance hook for
+  checkout. The monetization spine and the abuse throttle in one mechanism.
 
 ---
 
@@ -30,7 +33,7 @@ the failure modes we're designing around now so they never become incidents.
 | Future problem | Designed-in answer (status) |
 |---|---|
 | **A better/cheaper model ships** (Fable N+1, a fast tier) | Model choice is isolated in `server/fable.mjs` + `server/pricing.mjs`. Adopting a new model is a constant change. *Next: a `models` registry mapping task-tier → model so the engine auto-routes (fast vs. max).* |
-| **Cost runaway** as usage scales | Metering already computes USD→credits per run. *Next: a server-side credits ledger + per-identity daily cap + 402 when exhausted — the monetization spine.* |
+| **Cost runaway** as usage scales | **Built:** server-side credits ledger debits each run, per-identity free daily cap, 402 when exhausted. *Next: wire a checkout to `grant()` for purchased balance.* |
 | **Prompt injection via voice transcripts** | The engine system prompt constrains output and never trusts transcript as instructions. *Next: an input-guard pass + output policy checks before client-facing render.* |
 | **Privacy / trust** as the flywheel grows | Egress is opt-in, anonymized, generic-words-only; server sanitizes (PII-shaped tokens and bad ids are dropped today). *Next: client-side hashing + k-anonymity thresholds before a token prior is published.* |
 | **Multi-device / team** expectations | `storage.ts` is a single get/set seam built for a cloud adapter. *Next: Supabase adapter + auth; the flywheel state syncs like any other.* |
@@ -44,13 +47,15 @@ the failure modes we're designing around now so they never become incidents.
 ## Horizons
 
 **Now → next (highest leverage)**
-1. **Credits ledger + budget guard** — turn metering into enforced monetization;
-   also the abuse throttle.
+1. ~~Credits ledger + budget guard~~ — **built** (free daily allowance enforced,
+   402 on exhaustion, purchased-balance hook). Next: a Stripe checkout calling
+   `grant()`.
 2. **Model registry / task-tier routing** — future-proof for the next model and
    cut cost on routine runs (fast tier) while reserving max-effort for the hard
    ones.
 3. **Cloud sync adapter (Supabase) + optional auth** — cross-device favorites,
-   history, and learning; unlocks Team.
+   history, and learning; unlocks Team and replaces the soft client id with a
+   real user id (the ledger's `identityOf` is the only thing that changes).
 
 **Soon**
 4. **Workflow Composer** — let power users (and Fable) *author* new workflows

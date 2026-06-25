@@ -20,6 +20,7 @@ import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runWorkflow } from './fable.mjs';
 import { record as recordAggregate, insights as getInsights } from './aggregate.mjs';
+import { identityOf, canSpend, spend, status as creditStatus } from './ledger.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -44,6 +45,7 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === '/api/health') return json(res, 200, healthBody());
     if (url.pathname === '/api/run' && req.method === 'POST') return handleRun(req, res);
+    if (url.pathname === '/api/credits' && req.method === 'GET') return handleCredits(req, res);
     if (url.pathname === '/api/learn' && req.method === 'POST') return handleLearn(req, res);
     if (url.pathname === '/api/insights' && req.method === 'GET') return handleInsights(res);
     if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'not found' });
@@ -73,6 +75,17 @@ async function handleRun(req, res) {
   if (!prompt) return json(res, 400, { error: 'prompt required' });
   if (prompt.length > 60_000) return json(res, 413, { error: 'prompt too large' });
 
+  // Budget guard: refuse to start a run with no credits left.
+  const id = identityOf(req);
+  if (!(await canSpend(id))) {
+    const st = await creditStatus(id);
+    return json(res, 402, {
+      error: 'quota',
+      message: "You're out of free Fable runs for today. They reset at UTC midnight, or top up to keep going.",
+      ...st,
+    });
+  }
+
   const send = openSse(res);
   send('meta', { online: HAS_KEY && !MOCK, model: 'claude-fable-5' });
 
@@ -84,7 +97,8 @@ async function handleRun(req, res) {
     if (result.refused) {
       send('error', { message: 'The model declined this request. Try rephrasing.' });
     } else {
-      send('done', result);
+      const st = await spend(id, result.credits ?? 0);
+      send('done', { ...result, remaining: st.remaining, plan: st.plan, resetsAt: st.resetsAt });
     }
   } catch (err) {
     send('error', { message: err?.message || 'run failed' });
@@ -92,6 +106,12 @@ async function handleRun(req, res) {
     clearInterval(beat);
     res.end();
   }
+}
+
+async function handleCredits(req, res) {
+  const st = await creditStatus(identityOf(req)).catch(() => null);
+  if (!st) return json(res, 200, { plan: 'free', remaining: null });
+  return json(res, 200, st);
 }
 
 async function handleLearn(req, res) {
