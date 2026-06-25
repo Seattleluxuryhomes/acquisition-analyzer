@@ -1,4 +1,7 @@
 node_modules/
 .env
-data/
+# Anchored to the repo root so it only ignores the root data/ dir (the
+# Bidtranslator sqlite store) — NOT nested data/ folders like
+# voice-button-ai/src/data/, which holds source the app needs.
+/data/
 *.log
