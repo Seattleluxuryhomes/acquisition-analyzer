@@ -36,15 +36,15 @@ function fableStatusLabel(status: string): string {
     case 'connecting':
       return 'Connecting…';
     case 'thinking':
-      return 'Fable is thinking…';
+      return 'AI is thinking…';
     case 'streaming':
-      return 'Fable result';
+      return 'AI result';
     case 'quota':
       return 'Out of credits';
     case 'error':
-      return 'Fable run';
+      return 'AI result';
     default:
-      return 'Fable result';
+      return 'AI result';
   }
 }
 
@@ -557,7 +557,7 @@ export function WorkflowScreen({
             ) : (
               <Zap className="h-4 w-4" />
             )}
-            Run with Fable
+            Run with AI
           </button>
           <button
             type="button"

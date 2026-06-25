@@ -20,8 +20,12 @@
 
 import { meter } from './pricing.mjs';
 
-const FABLE = 'claude-fable-5';
-const FALLBACK = 'claude-opus-4-8';
+// The model is a setting, not baked in. Defaults to Claude Opus 4.8 — top-tier
+// and available on any API account today. Set VBAI_MODEL=claude-fable-5 (and a
+// 30-day-retention org) once you have Fable access; nothing else changes.
+const MODEL = process.env.VBAI_MODEL || 'claude-opus-4-8';
+const FALLBACK = process.env.VBAI_FALLBACK_MODEL || 'claude-opus-4-8';
+const IS_FABLE = MODEL.startsWith('claude-fable') || MODEL.startsWith('claude-mythos');
 
 const SYSTEM = `You are Voice Button AI's execution engine. The user hands you a structured request. Produce the finished, ready-to-use deliverable it asks for — not a plan to make it. Lead with the result.
 
@@ -51,15 +55,23 @@ export async function runWorkflow({ prompt, effort = 'medium', onText }) {
   const { default: Anthropic } = await import('@anthropic-ai/sdk');
   const client = new Anthropic({ apiKey: key });
 
-  const stream = client.beta.messages.stream({
-    model: FABLE,
+  const base = {
+    model: MODEL,
     max_tokens: 8000,
-    betas: ['server-side-fallback-2026-06-01'],
-    fallbacks: [{ model: FALLBACK }],
     output_config: { effort },
     system: SYSTEM,
     messages: [{ role: 'user', content: prompt }],
-  });
+  };
+
+  // Fable supports server-side refusal fallback; other models use the plain
+  // streaming endpoint. Both expose .on('text') and .finalMessage().
+  const stream = IS_FABLE
+    ? client.beta.messages.stream({
+        ...base,
+        betas: ['server-side-fallback-2026-06-01'],
+        fallbacks: [{ model: FALLBACK }],
+      })
+    : client.messages.stream(base);
 
   stream.on('text', (t) => onText(t));
   const final = await stream.finalMessage();
@@ -87,8 +99,8 @@ async function runSimulated({ prompt, onText, reason }) {
 
   const text =
     reason === 'offline'
-      ? `⚠️ The Fable engine isn't connected (no ANTHROPIC_API_KEY), so I can't run this for you yet.\n\nYour prompt is ready to paste into Claude or ChatGPT:\n\n${prompt}`
-      : `Simulated Fable run (set VBAI_MOCK=0 and ANTHROPIC_API_KEY to go live).\n\nWorking from: "${firstLine.slice(0, 80)}"\n\nThis is where the finished, ready-to-use deliverable streams in — drafted, structured, and copy-ready. With a live key, Claude Fable 5 produces the real output here in seconds.`;
+      ? `⚠️ The AI engine isn't connected (no ANTHROPIC_API_KEY), so I can't run this for you yet.\n\nYour prompt is ready to paste into Claude or ChatGPT:\n\n${prompt}`
+      : `Simulated AI run (set VBAI_MOCK=0 and ANTHROPIC_API_KEY to go live).\n\nWorking from: "${firstLine.slice(0, 80)}"\n\nThis is where the finished, ready-to-use deliverable streams in — drafted, structured, and copy-ready. With a live key, the AI produces the real output here in seconds.`;
 
   // Stream it in word-ish chunks so the UI exercises the real streaming path.
   for (const chunk of text.match(/\S+\s*/g) ?? [text]) {
