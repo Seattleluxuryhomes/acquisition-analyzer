@@ -11,4 +11,13 @@ export default defineConfig({
     emptyOutDir: true,
     target: 'es2020',
   },
+  server: {
+    // Forward the Fable Execution Engine to the local server during dev.
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+      },
+    },
+  },
 });

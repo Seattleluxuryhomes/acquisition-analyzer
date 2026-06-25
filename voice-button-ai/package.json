@@ -6,6 +6,8 @@
   "description": "Voice-first and push-button AI command center. A remote control for AI.",
   "scripts": {
     "dev": "vite",
+    "server": "node server/index.mjs",
+    "start": "tsc --noEmit && vite build && node server/index.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "build": "tsc --noEmit && vite build",
     "build:extension": "tsc --noEmit && vite build && node scripts/pack-extension.mjs",
@@ -13,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.1",
     "lucide-react": "^0.469.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

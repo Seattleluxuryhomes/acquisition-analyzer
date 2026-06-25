@@ -12,12 +12,17 @@ import {
   ThumbsUp,
   ThumbsDown,
   FlaskConical,
+  Zap,
+  Loader2,
+  Square,
+  WifiOff,
 } from 'lucide-react';
 import type { PromptVariant, RunRecord, Workflow, WorkflowInput } from '../types/workflow';
 import { allInputs, buildPrompt } from '../lib/promptBuilder';
 import { copyToClipboard } from '../lib/clipboard';
 import { useApp } from '../store';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { useFableRun } from '../hooks/useFableRun';
 import {
   effectiveVariants,
   hasVariants,
@@ -26,9 +31,25 @@ import {
 } from '../lib/learning';
 import { Icon } from './Icon';
 
+function fableStatusLabel(status: string): string {
+  switch (status) {
+    case 'connecting':
+      return 'Connecting…';
+    case 'thinking':
+      return 'Fable is thinking…';
+    case 'streaming':
+      return 'Fable result';
+    case 'error':
+      return 'Fable run';
+    default:
+      return 'Fable result';
+  }
+}
+
 /**
  * Full-screen workflow runner: collect inputs (typed or dictated), generate a
- * clean copy-ready prompt, copy/export, favorite, and revisit run history.
+ * clean copy-ready prompt, copy/export, favorite, run it for real with Fable,
+ * and revisit run history.
  */
 export function WorkflowScreen({
   workflow,
@@ -42,6 +63,8 @@ export function WorkflowScreen({
   const { isFavorite, toggleFavorite, recordRun, setRunFeedback, history, settings } =
     useApp();
   const speech = useSpeechRecognition(settings.voiceLang);
+  const fable = useFableRun();
+  const [outputCopied, setOutputCopied] = useState(false);
 
   const [inputs, setInputs] = useState<Record<string, string>>(
     () => initialInputs ?? {},
@@ -73,9 +96,11 @@ export function WorkflowScreen({
     setCopied(false);
     setVariant(null);
     setFeedback(null);
+    setOutputCopied(false);
     variantRef.current = null;
     rewardedRef.current = false;
     runIdRef.current = null;
+    fable.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workflow.id]);
 
@@ -144,7 +169,23 @@ export function WorkflowScreen({
     }
   };
 
-  // Explicit feedback — the strongest training signal.
+  // Run the workflow for real with Fable — streams the finished deliverable.
+  const runFable = () => {
+    const text = prompt || generate();
+    fable.run(text, 'medium');
+  };
+
+  const copyOutput = async () => {
+    if (!fable.output) return;
+    const ok = await copyToClipboard(fable.output);
+    if (ok) {
+      setOutputCopied(true);
+      setTimeout(() => setOutputCopied(false), 1800);
+    }
+  };
+
+  // Explicit feedback — the strongest training signal. Now that Fable can
+  // produce the actual result, a thumb rates the *outcome*, not just the prompt.
   const onFeedback = (kind: 'up' | 'down') => {
     setFeedback(kind);
     if (runIdRef.current) setRunFeedback(runIdRef.current, kind);
@@ -362,6 +403,101 @@ export function WorkflowScreen({
             </div>
           )}
 
+          {/* Fable execution result */}
+          {fable.status !== 'idle' && (
+            <div className="rounded-xl border border-amber-400/30 bg-amber-500/[0.05]">
+              <div className="flex items-center justify-between border-b border-white/10 px-3.5 py-2">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-amber-200">
+                  <Zap className="h-3.5 w-3.5" />
+                  {fableStatusLabel(fable.status)}
+                  {fable.done?.credits != null && (
+                    <span className="ml-1 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-zinc-300">
+                      {fable.done.model ?? 'fable'} · {fable.done.credits} cr
+                    </span>
+                  )}
+                  {fable.done?.source === 'offline' && (
+                    <span className="ml-1 flex items-center gap-1 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-zinc-400">
+                      <WifiOff className="h-2.5 w-2.5" /> offline
+                    </span>
+                  )}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {fable.status === 'streaming' || fable.status === 'thinking' ? (
+                    <button
+                      type="button"
+                      onClick={fable.cancel}
+                      className="flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[11px] font-medium text-zinc-100 hover:bg-white/20"
+                    >
+                      <Square className="h-3 w-3" /> Stop
+                    </button>
+                  ) : (
+                    fable.output && (
+                      <button
+                        type="button"
+                        onClick={copyOutput}
+                        className="flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-[11px] font-medium text-zinc-100 hover:bg-white/20"
+                      >
+                        {outputCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        {outputCopied ? 'Copied' : 'Copy'}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {fable.error ? (
+                <p className="px-3.5 py-3 text-xs text-amber-300">{fable.error}</p>
+              ) : (
+                <pre className="max-h-80 overflow-auto whitespace-pre-wrap px-3.5 py-3 text-xs leading-relaxed text-zinc-100">
+                  {fable.output}
+                  {(fable.status === 'thinking' || fable.status === 'streaming') && (
+                    <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-amber-300/80 align-text-bottom" />
+                  )}
+                </pre>
+              )}
+
+              {fable.status === 'done' && (
+                <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3.5 py-2">
+                  <span className="text-[11px] text-zinc-400">
+                    {feedback === 'up'
+                      ? 'Thanks — learning from that 👍'
+                      : feedback === 'down'
+                        ? 'Noted — we’ll try a different angle'
+                        : 'How was the result?'}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onFeedback('up')}
+                      aria-label="Good result"
+                      aria-pressed={feedback === 'up'}
+                      className={`rounded-md p-1.5 transition-colors ${
+                        feedback === 'up'
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'text-zinc-400 hover:bg-white/10 hover:text-emerald-300'
+                      }`}
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onFeedback('down')}
+                      aria-label="Bad result"
+                      aria-pressed={feedback === 'down'}
+                      className={`rounded-md p-1.5 transition-colors ${
+                        feedback === 'down'
+                          ? 'bg-rose-500/20 text-rose-300'
+                          : 'text-zinc-400 hover:bg-white/10 hover:text-rose-300'
+                      }`}
+                    >
+                      <ThumbsDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Run history for this workflow */}
           {workflowRuns.length > 0 && (
             <div>
@@ -395,17 +531,30 @@ export function WorkflowScreen({
           <button
             type="button"
             onClick={handleGenerate}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 py-3 text-sm font-semibold text-white shadow-glow transition-transform hover:scale-[1.01] active:scale-[0.99]"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.06] py-3 text-sm font-semibold text-zinc-100 transition-transform hover:bg-white/10 active:scale-[0.99]"
           >
-            <Sparkles className="h-4 w-4" /> Generate prompt
+            <Sparkles className="h-4 w-4 text-brand-300" /> Generate
+          </button>
+          <button
+            type="button"
+            onClick={runFable}
+            disabled={fable.status === 'thinking' || fable.status === 'streaming'}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-amber-500 to-brand-600 py-3 text-sm font-semibold text-white shadow-glow transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70"
+          >
+            {fable.status === 'thinking' || fable.status === 'streaming' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
+            Run with Fable
           </button>
           <button
             type="button"
             onClick={handleCopy}
-            className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-zinc-100 hover:bg-white/10"
+            aria-label="Copy prompt"
+            className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-3.5 py-3 text-sm font-semibold text-zinc-100 hover:bg-white/10"
           >
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
           </button>
         </div>
       </footer>
