@@ -31,7 +31,7 @@ That's the whole job. Everything else is pre-filled by `render.yaml`.
 4. Fill in these fields:
    - **Root Directory:** `voice-button-ai`
    - **Runtime:** Node
-   - **Build Command:** `npm install && npm run build`
+   - **Build Command:** `npm install --include=dev && npm run build`
    - **Start Command:** `node server/index.mjs`
    - **Instance Type:** Free
 5. Open the **Environment** section and add your secret there (this is the safe

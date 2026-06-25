@@ -9,7 +9,9 @@ services:
     rootDir: voice-button-ai
     branch: claude/voice-button-ai-mvp-ka7a8f
     plan: free
-    buildCommand: npm install && npm run build
+    # --include=dev so the build tools (vite, tsc) install even though Render
+    # sets NODE_ENV=production (which would otherwise skip devDependencies).
+    buildCommand: npm install --include=dev && npm run build
     startCommand: node server/index.mjs
     healthCheckPath: /api/health
     envVars:
