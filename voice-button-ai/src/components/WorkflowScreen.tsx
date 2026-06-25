@@ -30,6 +30,7 @@ import {
   selectVariant,
 } from '../lib/learning';
 import { Icon } from './Icon';
+import { Markdown } from './Markdown';
 
 function fableStatusLabel(status: string): string {
   switch (status) {
@@ -459,12 +460,12 @@ export function WorkflowScreen({
               ) : fable.error ? (
                 <p className="px-3.5 py-3 text-xs text-amber-300">{fable.error}</p>
               ) : (
-                <pre className="max-h-80 overflow-auto whitespace-pre-wrap px-3.5 py-3 text-xs leading-relaxed text-zinc-100">
-                  {fable.output}
+                <div className="max-h-80 overflow-auto px-3.5 py-3 text-xs text-zinc-200">
+                  <Markdown text={fable.output} />
                   {(fable.status === 'thinking' || fable.status === 'streaming') && (
                     <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-amber-300/80 align-text-bottom" />
                   )}
-                </pre>
+                </div>
               )}
 
               {fable.status === 'done' && (

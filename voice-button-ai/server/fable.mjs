@@ -113,7 +113,7 @@ async function runSimulated({ prompt, onText, reason }) {
   return {
     ok: true,
     source: reason,
-    ...meter(FABLE, inputTokens, outputTokens),
+    ...meter(MODEL, inputTokens, outputTokens),
   };
 }
 
