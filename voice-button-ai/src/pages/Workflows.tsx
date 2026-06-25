@@ -13,7 +13,7 @@ export function Workflows({ onOpen }: { onOpen: (w: Workflow) => void }) {
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return WORKFLOWS.filter((w) => {
+    return WORKFLOWS.filter((w: Workflow) => {
       if (category !== 'All' && w.category !== category) return false;
       if (!q) return true;
       return (
@@ -21,7 +21,7 @@ export function Workflows({ onOpen }: { onOpen: (w: Workflow) => void }) {
         w.buttonLabel.toLowerCase().includes(q) ||
         w.command.toLowerCase().includes(q) ||
         w.description.toLowerCase().includes(q) ||
-        w.tags.some((t) => t.includes(q))
+        w.tags.some((t: string) => t.includes(q))
       );
     });
   }, [query, category]);
@@ -58,7 +58,7 @@ export function Workflows({ onOpen }: { onOpen: (w: Workflow) => void }) {
       <p className="px-1 text-xs text-zinc-500">{filtered.length} workflows</p>
 
       <div className="flex flex-col gap-2">
-        {filtered.map((w) => (
+        {filtered.map((w: Workflow) => (
           <WorkflowCard
             key={w.id}
             workflow={w}

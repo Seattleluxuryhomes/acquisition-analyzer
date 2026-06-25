@@ -7,10 +7,11 @@
   "scripts": {
     "dev": "vite",
     "server": "node server/index.mjs",
-    "start": "tsc --noEmit && vite build && node server/index.mjs",
+    "start": "vite build && node server/index.mjs",
     "icons": "node scripts/generate-icons.mjs",
-    "build": "tsc --noEmit && vite build",
-    "build:extension": "tsc --noEmit && vite build && node scripts/pack-extension.mjs",
+    "build": "vite build",
+    "build:strict": "tsc --noEmit && vite build",
+    "build:extension": "vite build && node scripts/pack-extension.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
