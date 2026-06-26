@@ -164,6 +164,7 @@ export function renderProposalHTML(p, opts = {}) {
     ${p.upgrades.length ? `<div class="eyebrow">Optional upgrades</div>${p.upgrades.map((u) => `<div class="upg"><span>${esc(u.desc)}</span><span class="a">+ ${money(u.price)}</span></div>`).join("")}` : ""}
     ${p.exclusions.length ? `<div class="eyebrow">Not included</div>${p.exclusions.map((e) => `<div class="excl">✗ ${esc(e)}</div>`).join("")}` : ""}
     ${p.assumptions.length ? `<div class="eyebrow">Notes</div>${p.assumptions.map((a) => `<div class="note">• ${esc(a)}</div>`).join("")}` : ""}
+    ${(p.terms && p.terms.length) ? `<div class="eyebrow">Terms &amp; protections</div>${p.terms.map((t) => `<div class="note">• ${esc(t)}</div>`).join("")}` : ""}
   </div>
   <div class="foot">${contact ? `<div class="contact">${contact}</div>` : ""}<div>${esc(p.footer)}</div></div>
 </div>

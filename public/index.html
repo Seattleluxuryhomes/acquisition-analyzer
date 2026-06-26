@@ -716,7 +716,7 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   LEADS_NEW = r.leadsNew||0; if(state.view==='home') render();
   if(state.view==='capture') render();
   // Hydrate tax settings from the server unless the user has local unsaved edits.
-  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; persistSettings(); }
+  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; persistSettings(); }
 }catch(e){} }
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
@@ -999,10 +999,11 @@ async function syncNow(force){
   try{
     // 1) push settings if changed
     if(settingsDirty){
-      try{ await api('/api/me',{method:'PATCH', body:JSON.stringify({
-        company:SETTINGS.company, name:SETTINGS.name, phone:SETTINGS.phone,
+      const _sp={ company:SETTINGS.company, name:SETTINGS.name, phone:SETTINGS.phone,
         license:SETTINGS.license, from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'',
-        tax_rate:Number(SETTINGS.tax_rate)||0, region:SETTINGS.region||'' })}); settingsDirty=false; }catch(e){}
+        tax_rate:Number(SETTINGS.tax_rate)||0, region:SETTINGS.region||'' };
+      if(SETTINGS.terms!==undefined) _sp.terms=SETTINGS.terms; // never blank out server terms before they've loaded
+      try{ await api('/api/me',{method:'PATCH', body:JSON.stringify(_sp)}); settingsDirty=false; }catch(e){}
     }
     // 2) pull server jobs
     let server=[];
@@ -2222,6 +2223,7 @@ function clientHTML(j){
 
       ${(j.exclusions||[]).length?`<h4>Not included</h4>${j.exclusions.map(e=>`<div class="cexcl">${esc(e)}</div>`).join('')}`:''}
       ${(j.assumptions||[]).length?`<h4>Notes</h4>${j.assumptions.map(a=>`<div class="cnote">• ${esc(a)}</div>`).join('')}`:''}
+      ${(()=>{const tl=String(SETTINGS.terms==null?'':SETTINGS.terms).split('\n').map(s=>s.trim()).filter(Boolean);return tl.length?`<h4>Terms &amp; protections</h4>${tl.map(t=>`<div class="cnote">• ${esc(t)}</div>`).join('')}`:'';})()}
       ${(()=>{const ph=(j.photos||[]).filter(p=>p.showOnBid);return ph.length?`<h4>Photos</h4><div class="cgallery">${ph.map(p=>`<img src="${p._pending?p.dataUrl:p.url}" alt="Project photo"/>`).join('')}</div>`:'';})()}
     </div>
     <div class="cfoot"><div class="ccontact">${[SETTINGS.company,SETTINGS.name,SETTINGS.phone,(USER&&USER.email)||'',SETTINGS.license?('Lic. '+SETTINGS.license):''].filter(Boolean).map(esc).join(' · ')||'Add your contact info in Setup'}</div>This is an estimate, not a contract. Pricing valid 30 days from the date above.</div>
@@ -2712,6 +2714,11 @@ function viewSettings(){
     </div>
     <label class="fld">License # (optional)</label>
     <input class="input" value="${escAttr(SETTINGS.license)}" oninput="setS('license',this.value)" style="max-width:240px"/>
+    <div class="nb-sec" style="margin-top:16px">
+      <h3>Terms &amp; protections</h3>
+      <div class="hint" style="margin-bottom:8px">Shown on every bid &amp; PDF — warranty, change orders, allowances, payment terms, permits. One per line. Edit to match your business. (Placeholder language — have it reviewed before you rely on it.)</div>
+      <textarea class="input" rows="9" style="min-height:170px;line-height:1.4;font-size:.9rem" oninput="setS('terms',this.value)" placeholder="One term per line…">${esc(SETTINGS.terms!==undefined?SETTINGS.terms:'')}</textarea>
+    </div>
     <div class="nb-sec" style="margin-top:16px">
       <h3>Languages</h3>
       <div class="row2">

@@ -13,7 +13,7 @@ import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
-import { buildProposal } from "./src/proposal.js";
+import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig, signProposalPdfUrl, verifyProposalPdfSig } from "./src/files.js";
 import { renderProposalHTML } from "./src/proposalHtml.js";
@@ -120,6 +120,9 @@ function settingsOf(user) {
     company: user.company, name: user.name, phone: user.phone, license: user.license,
     from: user.default_from_lang, to: user.default_to_lang, logo: user.logo || "", email: user.email || "",
     tax_rate: user.tax_rate == null ? 0 : user.tax_rate, region: user.region || "",
+    // null → contractor hasn't customized; surface the default so the Settings
+    // editor is pre-filled and proposals show terms out of the box.
+    terms: user.terms == null ? DEFAULT_TERMS : user.terms,
   };
 }
 
@@ -225,8 +228,9 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
   if (typeof b.logo === "string" && b.logo.length > 250000) {
     return res.status(413).json({ error: "Logo image is too large — please use a smaller file." });
   }
+  if (typeof b.terms === "string" && b.terms.length > 6000) b.terms = b.terms.slice(0, 6000);
   const map = { company: "company", name: "name", phone: "phone", license: "license",
-    from: "default_from_lang", to: "default_to_lang", logo: "logo", region: "region" };
+    from: "default_from_lang", to: "default_to_lang", logo: "logo", region: "region", terms: "terms" };
   const sets = [], vals = [];
   for (const [k, col] of Object.entries(map)) {
     if (k in b) { sets.push(`${col}=?`); vals.push(String(b[k] ?? "")); }

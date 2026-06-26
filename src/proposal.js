@@ -57,6 +57,26 @@ export function hasSections(lines) {
   return named.size > 1 || (named.size === 1 && blank);
 }
 
+// Default "Terms & Protections" shown on every proposal until the contractor
+// edits their own in Settings. Placeholder boilerplate the contractor reviews
+// (hard rule #8: terms need legal review before launch) — one clause per line.
+export const DEFAULT_TERMS = [
+  "Workmanship is guaranteed for 1 year from completion.",
+  "Any change to this scope is priced in writing and approved before work continues (change order).",
+  "Allowances (e.g. tile, fixtures, appliances) are estimates — your final selections may adjust the price.",
+  "Hidden conditions found after demolition (rot, mold, code issues) are handled as a change order.",
+  "Required permits are pulled as needed; permit fees are billed at cost unless stated otherwise.",
+  "Payment schedule: deposit to reserve your start date, a progress payment at rough-in, balance due on completion.",
+  "We are licensed and insured; proof of insurance is available on request.",
+].join("\n");
+
+// Settings value → clean list of clause strings. null/undefined → the default
+// template; an explicit empty string → no terms (contractor opted out).
+export function termsList(settingsTerms) {
+  const raw = settingsTerms == null ? DEFAULT_TERMS : String(settingsTerms);
+  return raw.split("\n").map((s) => s.trim()).filter(Boolean);
+}
+
 // Takes a full job row (with margin/notes) and returns ONLY what a client may see.
 export function buildProposal(job, settings) {
   const lines = job.lines || [];
@@ -114,6 +134,9 @@ export function buildProposal(job, settings) {
     upgrades: (job.upgrades || []).map((u) => ({ desc: u.desc || "", price: priced(Number(u.price) || 0) })),
     exclusions: job.exclusions || [],
     assumptions: job.assumptions || [],
+    // Standard terms & protections (warranty, change orders, allowances, etc.),
+    // set per-contractor in Settings; defaults applied when never customized.
+    terms: termsList(settings.terms),
     // Subtotal = sum of the priced scope lines (reconciles with what's shown).
     // Tax is the contractor's own sales-tax rate applied to that subtotal; total
     // is what the client pays. taxRate 0 → no tax line.

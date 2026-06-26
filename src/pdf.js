@@ -124,6 +124,14 @@ export function renderProposalPDF(proposal, res) {
     doc.moveDown(0.4);
   }
 
+  if (proposal.terms && proposal.terms.length) {
+    sectionLabel(doc, "TERMS & PROTECTIONS", left);
+    for (const t of proposal.terms) {
+      doc.font("Helvetica").fontSize(9.5).fillColor("#5a5240").text("•  " + t, left, doc.y, { width });
+    }
+    doc.moveDown(0.4);
+  }
+
   // ---- Photos the contractor chose to show the client ----
   if (proposal.photos && proposal.photos.length) {
     sectionLabel(doc, "PHOTOS", left);
