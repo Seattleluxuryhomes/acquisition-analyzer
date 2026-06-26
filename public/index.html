@@ -489,6 +489,11 @@
   .brand-big{display:flex;align-items:center;gap:10px;justify-content:center;font-family:"Archivo";font-weight:800;font-size:1.3rem}
   .brand-big .mark{width:28px;height:28px;border-radius:5px;background:var(--amber);display:flex;align-items:center;justify-content:center}
   .tagline{text-align:center;color:var(--muted);font-size:.9rem;margin-top:8px}
+  .auth-hero{text-align:center;margin-top:20px}
+  .auth-mic{width:74px;height:74px;border-radius:50%;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 10px 26px rgba(207,127,24,.4)}
+  .auth-mic .ico{width:34px;height:34px;stroke-width:2}
+  .auth-hero-h{font-family:"Archivo";font-weight:800;font-size:1.55rem;line-height:1.16;color:var(--text);margin:0 6px}
+  .auth-hero-sub{color:var(--muted);font-size:.92rem;margin:9px auto 0;max-width:330px;line-height:1.45}
 
   #printArea{display:none}
   /* Non-blocking toasts (replace alert/prompt for confirmations + soft errors). */
@@ -1238,7 +1243,11 @@ function viewAuth(){
   const isUp = state.authMode==='signup';
   return `<div class="auth">
     <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">translator</span></div>
-    <div class="tagline">Capture the job. Build the bid. Send it from your phone.</div>
+    <div class="auth-hero">
+      <div class="auth-mic">${icon('mic',34)}</div>
+      <div class="auth-hero-h">Just talk. We write the bid.</div>
+      <div class="auth-hero-sub">Say the job out loud — in English or Spanish — and Bidtranslator turns it into a clean, priced proposal you can send from your phone.</div>
+    </div>
     <div class="auth-card">
       <div class="h-eyebrow">${isUp?'Create your account':'Welcome back'}</div>
       <h1>${isUp?'Get started':'Sign in'}</h1>
