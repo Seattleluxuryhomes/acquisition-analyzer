@@ -495,6 +495,85 @@ Capital ask: {{ask}}
 
 Deliver: a punchy summary, the numbers that matter, the risk/mitigation, and a clear ask. Confident but honest — returns are projections, not promises.`,
   }),
+  wf({
+    id: 'real-estate-flyer',
+    title: 'Property Flyer Copy',
+    category: 'Real Estate',
+    buttonLabel: 'Flyer',
+    description: 'Writes listing-flyer copy — headline, description, features, CTA — ready for Canva.',
+    icon: 'Image',
+    command: '/flyer',
+    tags: ['real estate', 'flyer', 'marketing', 'listing', 'open house', 'print', 'canva'],
+    required: [
+      'property|Property address & basics|123 Main St · 3bd/2ba · 1,800 sqft',
+      'price|List price|$',
+      'features|Standout features||ml',
+    ],
+    optional: [
+      'audience|Ideal buyer|first-time, downsizers, investors',
+      'vibe|Tone / vibe|warm, luxury, modern, family',
+      'openHouse|Open house details|Sat 1–3pm',
+      'contact|Your name & contact|',
+    ],
+    promptTemplate: `
+You are a top real estate marketing copywriter. Write the copy for a one-page property flyer for {{property}}.
+
+List price: {{price}}
+Standout features: {{features}}
+Ideal buyer: {{audience}}
+Tone / vibe: {{vibe}}
+Open house: {{openHouse}}
+Agent contact: {{contact}}
+
+Deliver, clearly labeled and ready to paste into a Canva flyer template:
+1. HEADLINE — short and magnetic (5–8 words).
+2. SUBHEAD — one line.
+3. DESCRIPTION — 2–3 sentences that sell the lifestyle, not just the specs.
+4. FEATURE BULLETS — 5–7 punchy lines.
+5. CALL TO ACTION — with the contact / open-house details.
+
+Stay fair-housing compliant: describe the home, not the buyer. No emojis unless the vibe calls for it.
+{{__details__}}`,
+    examples: ['3bd rambler, updated kitchen, big fenced yard, $725k'],
+  }),
+  wf({
+    id: 'real-estate-video',
+    title: 'Listing Video Script',
+    category: 'Real Estate',
+    buttonLabel: 'Video',
+    description: 'A scene-by-scene reel / walkthrough script — what to show and what to say.',
+    icon: 'Clapperboard',
+    command: '/video',
+    tags: ['real estate', 'video', 'reel', 'script', 'listing', 'social', 'walkthrough', 'tour'],
+    required: [
+      'property|Property address & basics|',
+      'features|Key features to show||ml',
+    ],
+    optional: [
+      'price|List price|$',
+      'length|Length|30–60s reel, 2-min tour',
+      'platform|Platform|Instagram reel, YouTube, TikTok',
+      'vibe|Tone / vibe|upbeat, luxury, cozy',
+      'contact|Your name & call to action|',
+    ],
+    promptTemplate: `
+You are a real estate video producer who writes high-retention scripts. Write a scene-by-scene script for a property video of {{property}}.
+
+List price: {{price}}
+Key features to show: {{features}}
+Length: {{length}}
+Platform: {{platform}}
+Tone / vibe: {{vibe}}
+Agent / call to action: {{contact}}
+
+Deliver a SHOT-BY-SHOT script. For each scene give two lines:
+- SHOT — what the camera shows.
+- VOICEOVER / ON-SCREEN TEXT — what you say or caption.
+
+Open with a 3-second hook that stops the scroll, move through the home in a natural flow, highlight standout features with specifics, and close with a clear call to action. Then add 3 caption + hashtag options for the post. Fair-housing compliant.
+{{__details__}}`,
+    examples: ['60-sec reel: waterfront condo, rooftop deck, $1.1M'],
+  }),
 
   /* ----------------------------- BUSINESS ------------------------------- */
   wf({
@@ -1465,6 +1544,8 @@ export const CATEGORIES: WorkflowCategory[] = [
 
 /** The buttons surfaced on the Home hero grid (curated "most common"). */
 export const HOME_BUTTON_IDS: string[] = [
+  'real-estate-flyer',
+  'real-estate-video',
   'write',
   'build-app',
   'deep-dive',
