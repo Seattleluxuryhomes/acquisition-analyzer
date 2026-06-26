@@ -153,7 +153,7 @@ const AUDIO_EXT = { "audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "mp4"
 
 export async function transcribeAudio(user, { audio, lang }) {
   if (!transcribeConfigured()) { const e = new Error("Voice transcription isn't configured on the server."); e.status = 503; e.code = "TRANSCRIBE_UNCONFIGURED"; throw e; }
-  const m = /^data:([\w.+-]+\/[\w.+-]+);base64,([A-Za-z0-9+/=\s]+)$/.exec(String(audio || ""));
+  const m = /^data:([\w.+-]+\/[\w.+-]+)(?:;[\w.+=-]+)*;base64,([A-Za-z0-9+/=\s]+)$/.exec(String(audio || ""));
   if (!m || !AUDIO_EXT[m[1]]) { const e = new Error("No audio to transcribe."); e.status = 400; throw e; }
   if (!checkRate(user.id)) { const e = new Error("Too many recordings in a short window — wait a moment."); e.status = 429; throw e; }
   if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached. You can still type."); e.status = 429; throw e; }
