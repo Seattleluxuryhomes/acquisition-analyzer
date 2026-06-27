@@ -2245,6 +2245,7 @@ function tabClient(j){
     ${html}
     <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn" onclick="shareBid('text',this)">💬 Text</button>
+      <button class="btn" onclick="shareBid('whatsapp',this)">🟢 WhatsApp</button>
       <button class="btn" onclick="shareBid('email',this)">✉️ Email</button>
       <button class="btn ghost" onclick="shareBid('copy',this)">🔗 Copy link</button>
       <button class="btn ghost" onclick="shareBid('share',this)">Share…</button>
@@ -2404,6 +2405,7 @@ async function shareBid(mode, btn){
     const subject = 'Your estimate'+(j.title?(' — '+j.title):'');
     if(btn){ btn.disabled=false; btn.textContent=orig; }
     if(mode==='text'){ location.href='sms:?&body='+encodeURIComponent(msg); }
+    else if(mode==='whatsapp'){ window.open('https://wa.me/?text='+encodeURIComponent(msg), '_blank'); }
     else if(mode==='email'){ location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(msg); }
     else if(mode==='copy'){ const ok=await copyText(url); toast(ok?'✓ Bid link copied — paste it anywhere.':('Link: '+url), ok?'ok':'warn', ok?2600:7000); }
     else if(navigator.share){ try{ await navigator.share({title:subject, text:`Here's your estimate from ${who}`, url}); }catch(e){} }
