@@ -13,22 +13,23 @@ export function isValidSignaturePng(png) {
 
 // Persist a signature for a job. Returns the stored record, or throws (400) on a
 // bad payload so the route can surface a clean message.
-export function saveSignature(jobRow, { name, png, total, ip, userAgent, approved } = {}) {
+export function saveSignature(jobRow, { name, png, total, ip, userAgent, approved, email } = {}) {
   const signer = String(name || "").trim().slice(0, 120);
   if (!signer) { const e = new Error("Please type your name to sign."); e.status = 400; throw e; }
   if (approved !== true) { const e = new Error("Please check the approval box before signing."); e.status = 400; throw e; }
   if (!isValidSignaturePng(png)) { const e = new Error("Your signature didn't come through — please sign again."); e.status = 400; throw e; }
+  const signerEmail = String(email || "").trim().slice(0, 160);
 
   const id = crypto.randomBytes(9).toString("base64url");
   const now = Date.now();
   db.prepare(`INSERT INTO signature
-    (id, job_id, user_id, signer_name, signature_png, accepted_total, approved, ip, user_agent, signed_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?)`).run(
-    id, jobRow.id, jobRow.user_id, signer, png,
+    (id, job_id, user_id, signer_name, signer_email, signature_png, accepted_total, approved, ip, user_agent, signed_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(
+    id, jobRow.id, jobRow.user_id, signer, signerEmail, png,
     Math.max(0, Math.round(Number(total) || 0)), 1,
     String(ip || "").slice(0, 64), String(userAgent || "").slice(0, 300), now
   );
-  return { id, job_id: jobRow.id, signer_name: signer, accepted_total: Math.round(Number(total) || 0), signed_at: now };
+  return { id, job_id: jobRow.id, signer_name: signer, signer_email: signerEmail, accepted_total: Math.round(Number(total) || 0), signed_at: now };
 }
 
 // Most recent signature on a job (what the proposal page + PDF show).

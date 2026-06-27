@@ -169,6 +169,42 @@ export async function syncEstimate(user, { amount, description, customer, date }
   }
 }
 
+// Attach a file (the signed agreement PDF) to a QuickBooks Estimate, so the
+// signed record is stored on the transaction in the contractor's books. Uses the
+// multipart /upload endpoint (built by hand — no SDK). Fire-and-forget.
+function buildMultipart(boundary, meta, filename, fileBuf) {
+  const CRLF = "\r\n";
+  const head = Buffer.from(
+    `--${boundary}${CRLF}` +
+    `Content-Disposition: form-data; name="file_metadata_01"${CRLF}` +
+    `Content-Type: application/json${CRLF}${CRLF}` +
+    JSON.stringify(meta) + CRLF +
+    `--${boundary}${CRLF}` +
+    `Content-Disposition: form-data; name="file_content_01"; filename="${filename}"${CRLF}` +
+    `Content-Type: application/pdf${CRLF}${CRLF}`
+  );
+  const tail = Buffer.from(`${CRLF}--${boundary}--${CRLF}`);
+  return Buffer.concat([head, fileBuf, tail]);
+}
+export async function attachToEstimate(user, estimateId, { filename, pdf } = {}) {
+  if (!qboConfigured() || !user || !user.qbo_refresh_token || !estimateId || !pdf || !pdf.length) return { skipped: true };
+  try {
+    const token = await freshToken(user);
+    if (!token) return { skipped: true };
+    const name = String(filename || "signed-agreement.pdf");
+    const boundary = "BT" + crypto.randomBytes(12).toString("hex");
+    const meta = { AttachableRef: [{ EntityRef: { type: "Estimate", value: String(estimateId) } }], FileName: name, ContentType: "application/pdf" };
+    const res = await fetch(`${API_BASE()}/v3/company/${user.qbo_realm_id}/upload`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, Accept: "application/json", "Content-Type": "multipart/form-data; boundary=" + boundary },
+      body: buildMultipart(boundary, meta, name, pdf),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) return { error: json?.Fault?.Error?.[0]?.Message || "attach failed" };
+    return { ok: true };
+  } catch (e) { return { error: e.message || "attach failed" }; }
+}
+
 // Record a collected payment as a Sales Receipt in the contractor's QB. Fire-and-
 // forget from the payment webhook; never throws into the caller.
 export async function syncSale(user, { amount, description, customer, date } = {}) {

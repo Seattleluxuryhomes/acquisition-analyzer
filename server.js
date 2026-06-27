@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { PassThrough } from "node:stream";
 
 import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset } from "./src/auth.js";
@@ -647,20 +648,21 @@ app.post("/p/:id/sign", wrap(async (req, res) => {
   if (!jobRow) return res.status(404).json({ error: "Estimate not found." });
   const owner = db.prepare("SELECT * FROM user WHERE id=?").get(jobRow.user_id);
   const proposal = buildProposal(Jobs.rowToJob(jobRow), settingsOf(owner || {}));
-  const { name, signature, approved, payNow } = req.body || {};
+  const { name, email, signature, approved, payNow } = req.body || {};
 
   // Persist the signature (validates approval box + name + inked PNG).
   Signatures.saveSignature(jobRow, {
-    name, png: signature, approved: approved === true, total: proposal.total,
+    name, email, png: signature, approved: approved === true, total: proposal.total,
     ip: clientIp(req), userAgent: req.headers["user-agent"] || "",
   });
   track(jobRow.user_id, "approval_checked", { jobId: jobRow.id });
   track(jobRow.user_id, "signature_submitted", { jobId: jobRow.id, total: proposal.total });
   acceptJob(jobRow); // status -> signed (+ bid_accepted by customer)
 
-  // Optional: mirror the signed proposal into the contractor's QuickBooks as an
-  // Estimate (no-op unless they've connected QB). Fire-and-forget.
-  if (owner) QuickBooks.syncEstimate(owner, { amount: proposal.total, description: `Signed — ${proposal.title}`, customer: name || proposal.customer, date: Date.now() }).catch(() => {});
+  // Deliver the signed agreement: email the PDF to the client + contractor, and
+  // file it in the contractor's QuickBooks (Estimate + attached PDF). All
+  // fire-and-forget — signing must never block or fail on email/QB.
+  deliverSignedAgreement(jobRow, owner, proposal, { name, email }).catch(() => {});
 
   // Deposit? Send them straight to Stripe Checkout (status stays Signed / Payment
   // Pending until the paid webhook lands).
@@ -686,6 +688,69 @@ function acceptJob(jobRow) {
   if (jobRow.status !== "signed" && jobRow.status !== "scheduled") {
     db.prepare("UPDATE job SET status='signed', updated_at=? WHERE id=?").run(Date.now(), jobRow.id);
     track(jobRow.user_id, "bid_accepted", { jobId: jobRow.id, by: "customer" });
+  }
+}
+const escHtml = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const EMAIL_OK = (s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(s || ""));
+
+// Render the signed proposal PDF (photos + signature block) to a Buffer.
+function signedPdfBuffer(jobRow, owner) {
+  return new Promise((resolve, reject) => {
+    try {
+      const proposal = buildProposal(Jobs.rowToJob(jobRow), settingsOf(owner || {}));
+      proposal.photos = db.prepare("SELECT filename, mime FROM photo WHERE job_id=? AND show_on_bid=1 ORDER BY created_at")
+        .all(jobRow.id)
+        .map((r) => { try { return { buf: fs.readFileSync(path.join(PHOTO_DIR, r.filename)), mime: r.mime }; } catch { return null; } })
+        .filter(Boolean);
+      const sig = Signatures.latestSignature(jobRow.id);
+      if (sig) proposal.signature = {
+        name: sig.signer_name, png: sig.signature_png, total: sig.accepted_total,
+        at: new Date(sig.signed_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }), ip: sig.ip || "",
+      };
+      const pt = new PassThrough(); const chunks = [];
+      pt.on("data", (c) => chunks.push(c));
+      pt.on("end", () => resolve(Buffer.concat(chunks)));
+      pt.on("error", reject);
+      renderProposalPDF(proposal, pt);
+    } catch (e) { reject(e); }
+  });
+}
+
+// Email the signed agreement to client + contractor, and file it in QuickBooks
+// (Estimate + attached PDF). Every step is best-effort; never throws.
+async function deliverSignedAgreement(jobRow, owner, proposal, { name, email } = {}) {
+  let pdf = null;
+  try { pdf = await signedPdfBuffer(jobRow, owner); } catch { pdf = null; }
+  const safe = (jobRow.title || "agreement").replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 40);
+  const filename = `signed-agreement-${safe}.pdf`;
+  const company = (owner && owner.company && owner.company !== "Your Company") ? owner.company : "your contractor";
+
+  if (pdf && Mail.mailConfigured()) {
+    const to = [];
+    if (EMAIL_OK(email)) to.push(String(email).trim());
+    if (owner && owner.email) to.push(owner.email);
+    if (to.length) {
+      const html = `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;color:#1F252C">
+        <h2 style="margin:0 0 8px">Signed &amp; accepted ✔</h2>
+        <p style="color:#5a5240">Attached is the signed copy of the proposal for <b>${escHtml(proposal.title)}</b>${name ? `, signed by ${escHtml(name)}` : ""}. ${escHtml(company)} will be in touch about next steps.</p>
+        <p style="color:#8a7f68;font-size:.85rem">Sent by Bidtranslator on behalf of ${escHtml(company)}.</p>
+      </div>`;
+      try {
+        await Mail.sendMail({
+          to, subject: `Signed agreement — ${proposal.title}`,
+          html, text: `Attached is the signed agreement for ${proposal.title}.`,
+          attachments: [{ filename, content: pdf.toString("base64") }],
+          replyTo: owner && owner.email ? owner.email : undefined,
+        });
+      } catch { /* never fail signing */ }
+    }
+  }
+
+  if (owner) {
+    try {
+      const est = await QuickBooks.syncEstimate(owner, { amount: proposal.total, description: `Signed — ${proposal.title}`, customer: name || proposal.customer, date: Date.now() });
+      if (est && est.id && pdf) await QuickBooks.attachToEstimate(owner, est.id, { filename, pdf });
+    } catch { /* fire-and-forget */ }
   }
 }
 // Customer accepts the proposal (no payment, or payments not set up).

@@ -256,4 +256,10 @@ ensureColumns("sku", [
   ["image_mime", "TEXT"],
 ]);
 
+// The signer's email (so the client can be emailed their signed copy, and the
+// contractor has it on record with the signed agreement).
+ensureColumns("signature", [
+  ["signer_email", "TEXT DEFAULT ''"],
+]);
+
 export default db;

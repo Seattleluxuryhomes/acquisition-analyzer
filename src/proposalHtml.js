@@ -33,6 +33,7 @@ function acceptSection(p, o) {
     <h3>Approve &amp; sign</h3>
     <label class="appr"><input type="checkbox" id="apprChk"><span>I have reviewed and approve this proposal.</span></label>
     <div class="signfield"><label>Your name</label><input id="signName" type="text" autocomplete="name" placeholder="Type your full name"></div>
+    <div class="signfield"><label>Email <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(we'll send your signed copy)</span></label><input id="signEmail" type="email" autocomplete="email" placeholder="you@email.com"></div>
     <div class="signfield"><label>Signature</label>
       <div class="padwrap"><canvas id="sigPad"></canvas><div class="padline"></div><div class="padhint" id="padHint">Sign with your finger or mouse</div><button type="button" class="padclear" id="padClear">Clear</button></div>
     </div>
@@ -46,7 +47,7 @@ function acceptSection(p, o) {
 function signatureScript(o) {
   return `<script>(function(){
   var id=${JSON.stringify(String(o.id))};
-  var chk=document.getElementById('apprChk'),name=document.getElementById('signName');
+  var chk=document.getElementById('apprChk'),name=document.getElementById('signName'),emailEl=document.getElementById('signEmail');
   var pad=document.getElementById('sigPad'),hint=document.getElementById('padHint');
   var clear=document.getElementById('padClear'),submit=document.getElementById('signSubmit'),err=document.getElementById('signErr');
   if(!pad||!submit) return;
@@ -64,7 +65,7 @@ function signatureScript(o) {
   submit.addEventListener('click',async function(){
     if(!ready())return;var old=submit.textContent;submit.disabled=true;submit.textContent='Submitting…';err.textContent='';
     try{
-      var res=await fetch('/p/'+id+'/sign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.value.trim(),signature:pad.toDataURL('image/png'),approved:true,payNow:true})});
+      var res=await fetch('/p/'+id+'/sign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.value.trim(),email:((emailEl&&emailEl.value)||'').trim(),signature:pad.toDataURL('image/png'),approved:true,payNow:true})});
       var data=await res.json().catch(function(){return{};});
       if(!res.ok){err.textContent=data.error||'Something went wrong — please try again.';submit.disabled=false;submit.textContent=old;return;}
       window.location=data.checkout_url||('/p/'+id);
