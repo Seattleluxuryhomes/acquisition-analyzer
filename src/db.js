@@ -210,6 +210,9 @@ ensureColumns("user", [
   // Standard "Terms & Protections" shown on every proposal (one clause per line).
   // NULL = use the default template; "" = contractor turned terms off.
   ["terms", "TEXT"],
+  // Single-use password-reset token (sha256 hash) + its expiry (ms).
+  ["reset_token_hash", "TEXT"],
+  ["reset_token_exp", "INTEGER"],
   // QuickBooks Online (per-contractor OAuth). Each contractor connects their own
   // company; paid payments sync to their books. Tokens are server-only.
   ["qbo_realm_id", "TEXT"],

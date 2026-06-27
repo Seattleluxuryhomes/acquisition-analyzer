@@ -104,6 +104,40 @@ export function changePassword({ userId, currentPassword, newPassword, keepToken
   return { ok: true };
 }
 
+// ---- Password reset (forgot password) ----
+const RESET_TTL = 60 * 60 * 1000; // 1 hour
+
+function sha256(s) { return crypto.createHash("sha256").update(String(s)).digest("hex"); }
+function safeEq(a, b) { try { return crypto.timingSafeEqual(Buffer.from(String(a)), Buffer.from(String(b))); } catch { return false; } }
+
+// Start a reset: store a single-use token hash + expiry on the user and return
+// the raw token so the caller can email the link. Returns null when no account
+// matches — the caller should still respond ok (no email-enumeration).
+export function createResetToken(email) {
+  email = String(email || "").trim().toLowerCase();
+  const row = db.prepare("SELECT * FROM user WHERE email=?").get(email);
+  if (!row) return null;
+  const token = crypto.randomBytes(32).toString("base64url");
+  db.prepare("UPDATE user SET reset_token_hash=?, reset_token_exp=? WHERE id=?")
+    .run(sha256(token), Date.now() + RESET_TTL, row.id);
+  return { user: publicUser(row), token };
+}
+
+// Finish a reset: verify the single-use token, set the new password, clear the
+// token, and revoke every session (so any old/leaked login is killed).
+export function confirmPasswordReset({ email, token, newPassword }) {
+  email = String(email || "").trim().toLowerCase();
+  newPassword = String(newPassword || "");
+  const row = db.prepare("SELECT * FROM user WHERE email=?").get(email);
+  const ok = row && row.reset_token_hash && row.reset_token_exp > Date.now() && safeEq(sha256(token), row.reset_token_hash);
+  if (!ok) throw httpError(400, "This reset link is invalid or has expired — request a new one.");
+  if (newPassword.length < 8) throw httpError(400, "Password must be at least 8 characters.");
+  db.prepare("UPDATE user SET password_hash=?, reset_token_hash=NULL, reset_token_exp=NULL WHERE id=?")
+    .run(hashPassword(newPassword), row.id);
+  db.prepare("DELETE FROM session WHERE user_id=?").run(row.id);
+  return { ok: true };
+}
+
 // Express middleware: resolves the bearer token to req.user, or 401s.
 export function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";

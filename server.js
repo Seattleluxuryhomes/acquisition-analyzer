@@ -8,7 +8,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import db, { PHOTO_DIR } from "./src/db.js";
-import { signup, signin, signout, changePassword, requireAuth, publicUser } from "./src/auth.js";
+import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset } from "./src/auth.js";
+import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
 import * as Skus from "./src/skus.js";
@@ -158,9 +159,33 @@ app.post("/api/auth/change-password", requireAuth, wrap((req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   res.json(changePassword({ userId: req.user.id, currentPassword, newPassword, keepToken: req.token }));
 }));
-// Password reset by email is stubbed for Phase 1 (no mail provider wired). Always
-// returns ok so the endpoint can't be used to probe which emails exist.
-app.post("/api/auth/reset", wrap((req, res) => res.json({ ok: true, note: "Email reset not configured in this build." })));
+// Forgot password: email a single-use reset link. Always responds ok (never
+// reveals whether an account exists). No-op email when the mail provider isn't
+// configured — the flow is wired and waiting on RESEND_API_KEY.
+app.post("/api/auth/reset", wrap(async (req, res) => {
+  const email = String((req.body && req.body.email) || "");
+  const out = createResetToken(email);
+  if (out && Mail.mailConfigured()) {
+    const link = `${baseUrl(req)}/reset?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
+    try { await Mail.sendMail({ to: out.user.email, subject: "Reset your Bidtranslator password", html: resetEmailHtml(link), text: `Reset your Bidtranslator password:\n${link}\n\nThis link expires in 1 hour. If you didn't request it, ignore this email.` }); }
+    catch { /* never surface send errors to the caller (no enumeration) */ }
+  }
+  res.json({ ok: true, sent: Mail.mailConfigured() });
+}));
+// Complete the reset with the emailed token + a new password.
+app.post("/api/auth/reset-confirm", wrap((req, res) => {
+  const { email, token, password } = req.body || {};
+  res.json(confirmPasswordReset({ email, token, newPassword: password }));
+}));
+function resetEmailHtml(link) {
+  return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
+    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
+    <h2 style="margin:18px 0 8px">Reset your password</h2>
+    <p style="color:#5a5240">Tap the button below to set a new password. This link expires in 1 hour.</p>
+    <p style="margin:22px 0"><a href="${link}" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Set a new password</a></p>
+    <p style="color:#8a7f68;font-size:.85rem">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+  </div>`;
+}
 
 // ---- Billing ----
 app.get("/api/billing/status", requireAuth, (req, res) => res.json(Billing.billingStatus(req.user)));

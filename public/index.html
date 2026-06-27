@@ -491,6 +491,8 @@
   .auth-card{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:22px;margin-top:18px}
   .auth-switch{text-align:center;margin-top:16px;font-size:.86rem;color:var(--muted)}
   .auth-switch a{color:var(--amber);cursor:pointer}
+  .authlink{color:var(--amber);cursor:pointer;font-size:.85rem}
+  .authnote{color:var(--muted);font-size:.92rem;margin:2px 0 14px;line-height:1.45}
   .brand-big{display:flex;align-items:center;gap:10px;justify-content:center;font-family:"Archivo";font-weight:800;font-size:1.3rem}
   .brand-big .mark{width:28px;height:28px;border-radius:5px;background:var(--amber);display:flex;align-items:center;justify-content:center}
   .tagline{text-align:center;color:var(--muted);font-size:.9rem;margin-top:8px}
@@ -710,7 +712,7 @@ const priceStr = n => (n==null) ? null : ((Math.round(n*100)%100===0) ? '$'+Math
 const planMonthly = () => (BILLING && BILLING.monthly!=null) ? BILLING.monthly : 29.99;
 const planSetup = () => (BILLING && BILLING.setup_fee!=null) ? BILLING.setup_fee : null;
 
-const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:'signin', authError:'', booted:false };
+const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:'signin', authError:'', authSent:false, booted:false };
 let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
 let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'', tax_rate:0, region:'', autoTranslate:true, bidLang:'' };
@@ -990,7 +992,7 @@ async function doAuth(){
     render();
   }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
 }
-function setAuthMode(m){ state.authMode=m; state.authError=''; render(); }
+function setAuthMode(m){ state.authMode=m; state.authError=''; state.authSent=false; render(); }
 async function signOut(){
   try{ if(TOKEN) await api('/api/auth/signout',{method:'POST'}); }catch(e){}
   TOKEN=null; USER=null; BILLING=null; PAYMENTS=null; PAYREQS={};
@@ -1272,7 +1274,8 @@ async function notifyInterest(feature, btn){
 
 /* ---------- AUTH ---------- */
 function viewAuth(){
-  const isUp = state.authMode==='signup';
+  const m = state.authMode;
+  const card = m==='forgot' ? authForgotCard() : m==='reset' ? authResetCard() : authSigninCard(m==='signup');
   return `<div class="auth">
     <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">translator</span></div>
     <div class="auth-hero">
@@ -1280,21 +1283,83 @@ function viewAuth(){
       <div class="auth-hero-h">Just talk. We write the bid.</div>
       <div class="auth-hero-sub">Say the job out loud — in English or Spanish — and Bidtranslator turns it into a clean, priced proposal you can send from your phone.</div>
     </div>
-    <div class="auth-card">
+    ${card}
+    <div class="hint" style="text-align:center;margin-top:14px">One account = your jobs, synced across your devices.</div>
+  </div>`;
+}
+function authSigninCard(isUp){
+  return `<div class="auth-card">
       <div class="h-eyebrow">${isUp?'Create your account':'Welcome back'}</div>
       <h1>${isUp?'Get started':'Sign in'}</h1>
       <label class="fld">Email</label>
       <input id="authEmail" class="input" type="email" autocomplete="email" placeholder="you@yourcompany.com" value="${escAttr(USER&&USER.email||'')}"/>
       <label class="fld">Password</label>
       <input id="authPass" class="input" type="password" autocomplete="${isUp?'new-password':'current-password'}" placeholder="${isUp?'At least 8 characters':'Your password'}" onkeydown="if(event.key==='Enter')doAuth()"/>
+      ${isUp?'':`<div style="text-align:right;margin-top:8px"><a class="authlink" onclick="setAuthMode('forgot')">Forgot password?</a></div>`}
       ${state.authError?`<div class="err">${esc(state.authError)}</div>`:''}
       <div style="margin-top:18px"><button class="btn full" onclick="doAuth()">${isUp?'Create account':'Sign in'}</button></div>
       <div class="auth-switch">${isUp
         ? `Already have an account? <a onclick="setAuthMode('signin')">Sign in</a>`
         : `New here? <a onclick="setAuthMode('signup')">Create an account</a>`}</div>
-    </div>
-    <div class="hint" style="text-align:center;margin-top:14px">One account = your jobs, synced across your devices.</div>
-  </div>`;
+    </div>`;
+}
+function authForgotCard(){
+  if(state.authSent) return `<div class="auth-card">
+      <div class="h-eyebrow">Check your email</div>
+      <h1>Reset link sent</h1>
+      <p class="authnote">If an account exists for that email, we just sent a link to set a new password. It expires in 1 hour.</p>
+      <div style="margin-top:18px"><button class="btn full" onclick="setAuthMode('signin')">Back to sign in</button></div>
+    </div>`;
+  return `<div class="auth-card">
+      <div class="h-eyebrow">Forgot password</div>
+      <h1>Reset it</h1>
+      <p class="authnote">Enter your email and we'll send you a link to set a new password.</p>
+      <label class="fld">Email</label>
+      <input id="forgotEmail" class="input" type="email" autocomplete="email" placeholder="you@yourcompany.com" onkeydown="if(event.key==='Enter')doForgot()"/>
+      ${state.authError?`<div class="err">${esc(state.authError)}</div>`:''}
+      <div style="margin-top:18px"><button class="btn full" onclick="doForgot()">Send reset link</button></div>
+      <div class="auth-switch"><a onclick="setAuthMode('signin')">Back to sign in</a></div>
+    </div>`;
+}
+function authResetCard(){
+  if(state.authSent) return `<div class="auth-card">
+      <div class="h-eyebrow">All set</div>
+      <h1>Password updated</h1>
+      <p class="authnote">Your password's been changed. Sign in with your new one.</p>
+      <div style="margin-top:18px"><button class="btn full" onclick="setAuthMode('signin')">Sign in</button></div>
+    </div>`;
+  return `<div class="auth-card">
+      <div class="h-eyebrow">Set a new password</div>
+      <h1>New password</h1>
+      <p class="authnote">For ${esc((RESET&&RESET.email)||'your account')}.</p>
+      <label class="fld">New password</label>
+      <input id="resetPass" class="input" type="password" autocomplete="new-password" placeholder="At least 8 characters"/>
+      <label class="fld">Confirm password</label>
+      <input id="resetPass2" class="input" type="password" autocomplete="new-password" placeholder="Re-type it" onkeydown="if(event.key==='Enter')doReset()"/>
+      ${state.authError?`<div class="err">${esc(state.authError)}</div>`:''}
+      <div style="margin-top:18px"><button class="btn full" onclick="doReset()">Update password</button></div>
+      <div class="auth-switch"><a onclick="setAuthMode('signin')">Back to sign in</a></div>
+    </div>`;
+}
+let RESET=null;
+async function doForgot(){
+  const el=document.getElementById('forgotEmail'); const email=((el&&el.value)||'').trim();
+  if(!email){ state.authError='Enter your email.'; render(); return; }
+  if(!online){ state.authError='Connect to the internet to reset your password.'; render(); return; }
+  state.authError='';
+  try{ await api('/api/auth/reset',{method:'POST',body:JSON.stringify({email})}); }catch(e){}
+  state.authSent=true; render(); // generic confirmation regardless (no account enumeration)
+}
+async function doReset(){
+  const p=((document.getElementById('resetPass')||{}).value)||'';
+  const p2=((document.getElementById('resetPass2')||{}).value)||'';
+  if(p.length<8){ state.authError='Password must be at least 8 characters.'; render(); return; }
+  if(p!==p2){ state.authError='Passwords don’t match.'; render(); return; }
+  state.authError='';
+  try{
+    await api('/api/auth/reset-confirm',{method:'POST',body:JSON.stringify({ email:(RESET&&RESET.email)||'', token:(RESET&&RESET.token)||'', password:p })});
+    state.authSent=true; RESET=null; render();
+  }catch(e){ state.authError=e.message||'Could not reset your password — request a new link.'; render(); }
 }
 
 /* ---------- HOME ---------- */
@@ -3225,6 +3290,12 @@ function confettiBurst(gold){
   const billingReturn=params.get('billing');
   const paymentsReturn=params.get('payments'); // 'connected' | 'refresh' after Stripe onboarding
   if(billingReturn || paymentsReturn){ history.replaceState({}, '', location.pathname); }
+  // Password-reset link (/reset?token=…&e=…): show the set-new-password screen.
+  if(location.pathname==='/reset' || params.get('token')){
+    RESET={ token:params.get('token')||'', email:params.get('e')||'' };
+    state.authMode='reset'; state.authSent=false;
+    history.replaceState({}, '', '/');
+  }
   render();
   if(TOKEN){
     await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks()]);
