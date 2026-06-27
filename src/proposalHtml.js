@@ -167,7 +167,7 @@ export function renderProposalHTML(p, opts = {}) {
     ${p.assumptions.length ? `<div class="eyebrow">Notes</div>${p.assumptions.map((a) => `<div class="note">• ${esc(a)}</div>`).join("")}` : ""}
     ${(p.terms && p.terms.length) ? `<div class="eyebrow">Terms &amp; protections</div>${p.terms.map((t) => `<div class="note">• ${esc(t)}</div>`).join("")}` : ""}
   </div>
-  <div class="foot">${contact ? `<div class="contact">${contact}</div>` : ""}<div>${esc(p.footer)}</div></div>
+  <div class="foot">${contact ? `<div class="contact">${contact}</div>` : ""}${p.business.whatsapp ? `<div style="margin-top:6px"><a href="https://wa.me/${p.business.whatsapp.length === 10 ? "1" + p.business.whatsapp : p.business.whatsapp}" style="color:var(--ink);font-weight:600;text-decoration:none">💬 WhatsApp ${esc(p.business.company || "us")}</a></div>` : ""}<div style="margin-top:6px">${esc(p.footer)}</div></div>
 </div>
 ${(opts.id && !opts.accepted && !opts.depositPaid && !opts.justPaid) ? signatureScript(opts) : ""}
 </body></html>`;

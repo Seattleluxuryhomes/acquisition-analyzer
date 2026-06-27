@@ -213,6 +213,8 @@ ensureColumns("user", [
   // Single-use password-reset token (sha256 hash) + its expiry (ms).
   ["reset_token_hash", "TEXT"],
   ["reset_token_exp", "INTEGER"],
+  // Optional WhatsApp number; blank falls back to the phone number.
+  ["whatsapp", "TEXT DEFAULT ''"],
   // QuickBooks Online (per-contractor OAuth). Each contractor connects their own
   // company; paid payments sync to their books. Tokens are server-only.
   ["qbo_realm_id", "TEXT"],

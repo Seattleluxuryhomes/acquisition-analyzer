@@ -749,7 +749,7 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   LEADS_NEW = r.leadsNew||0; if(state.view==='home') render();
   if(state.view==='capture') render();
   // Hydrate tax settings from the server unless the user has local unsaved edits.
-  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; persistSettings(); }
+  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; persistSettings(); }
 }catch(e){} }
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
@@ -1033,7 +1033,7 @@ async function syncNow(force){
     // 1) push settings if changed
     if(settingsDirty){
       const _sp={ company:SETTINGS.company, name:SETTINGS.name, phone:SETTINGS.phone,
-        license:SETTINGS.license, from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'',
+        license:SETTINGS.license, whatsapp:SETTINGS.whatsapp||'', from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'',
         tax_rate:Number(SETTINGS.tax_rate)||0, region:SETTINGS.region||'' };
       if(SETTINGS.terms!==undefined) _sp.terms=SETTINGS.terms; // never blank out server terms before they've loaded
       try{ await api('/api/me',{method:'PATCH', body:JSON.stringify(_sp)}); settingsDirty=false; }catch(e){}
@@ -2861,6 +2861,9 @@ function viewSettings(){
     </div>
     <label class="fld">License # (optional)</label>
     <input class="input" value="${escAttr(SETTINGS.license)}" oninput="setS('license',this.value)" style="max-width:240px"/>
+    <label class="fld">WhatsApp number <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(optional — blank uses your phone)</span></label>
+    <input class="input" value="${escAttr(SETTINGS.whatsapp||'')}" oninput="setS('whatsapp',this.value)" placeholder="${escAttr(SETTINGS.phone||'+1 206 555 0100')}" style="max-width:280px"/>
+    <div class="hint" style="margin-top:6px">Shown on your client proposals as a “💬 WhatsApp me” button. Include your country code (e.g. +1).</div>
     <div class="nb-sec" style="margin-top:16px">
       <h3>Terms &amp; protections</h3>
       <div class="hint" style="margin-bottom:8px">Shown on every bid &amp; PDF — warranty, change orders, allowances, payment terms, permits. One per line. Edit to match your business. (Placeholder language — have it reviewed before you rely on it.)</div>

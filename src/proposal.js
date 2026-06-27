@@ -99,6 +99,8 @@ export function buildProposal(job, settings) {
       email: settings.email || "",
       license: settings.license || "",
       logo: settings.logo || "",
+      // WhatsApp link for the client to reach the contractor; blank falls back to phone.
+      whatsapp: String(settings.whatsapp || settings.phone || "").replace(/\D/g, ""),
     },
     title: job.title || "Project",
     customer: job.customer || "",
