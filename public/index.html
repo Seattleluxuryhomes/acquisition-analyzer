@@ -494,6 +494,14 @@
   .auth-mic .ico{width:34px;height:34px;stroke-width:2}
   .auth-hero-h{font-family:"Archivo";font-weight:800;font-size:1.55rem;line-height:1.16;color:var(--text);margin:0 6px}
   .auth-hero-sub{color:var(--muted);font-size:.92rem;margin:9px auto 0;max-width:330px;line-height:1.45}
+  .why{max-width:560px;margin:0 auto}
+  .why-h{font-family:"Archivo";font-weight:800;font-size:1.5rem;margin:4px 0 6px;color:var(--text)}
+  .why-sub{color:var(--muted);font-size:.95rem;line-height:1.5;margin-bottom:16px}
+  .why-list{display:flex;flex-direction:column;gap:10px}
+  .why-card{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 14px}
+  .why-emoji{font-size:1.35rem;line-height:1.2;flex:none;width:30px;text-align:center}
+  .why-t{font-weight:700;font-size:.98rem;color:var(--text)}
+  .why-d{color:var(--muted);font-size:.88rem;line-height:1.42;margin-top:2px}
 
   #printArea{display:none}
   /* Non-blocking toasts (replace alert/prompt for confirmations + soft errors). */
@@ -592,6 +600,7 @@
     <button class="sheet-i" onclick="go('leads');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Leads</button>
     <button class="sheet-i" onclick="go('catalog');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16l-8-4-8 4z"/><path d="M9 7h6"/></svg>Price book</button>
     <button class="sheet-i" onclick="go('settings');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 13.4H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 6.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 4.6V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>Setup &amp; integrations</button>
+    <button class="sheet-i" onclick="go('why');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>Why Bidtranslator</button>
     <button class="sheet-i" onclick="demoProject()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Demo project</button>
     <button class="sheet-i" id="sheetAdmin" onclick="go('admin');closeMore()" style="display:none"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg>Founder dashboard</button>
     <button class="sheet-i danger" onclick="closeMore();signOut()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign out</button>
@@ -1154,7 +1163,7 @@ function render(){
   setOn('bnHome', state.view==='home'||state.view==='capture');
   setOn('bnJobs', state.view==='job');
   setOn('bnSched', state.view==='schedule');
-  setOn('bnMore', state.view==='settings'||state.view==='admin'||state.view==='catalog'||state.view==='leads');
+  setOn('bnMore', state.view==='settings'||state.view==='admin'||state.view==='catalog'||state.view==='leads'||state.view==='why');
   // Draw the eye to the money button when there's nothing to do yet (first bid).
   const fab=document.getElementById('bnAdd'); if(fab) fab.classList.toggle('pulse', JOBS.filter(j=>!j._deleted).length===0 && state.view==='home');
   paintBell();
@@ -1165,6 +1174,7 @@ function render(){
   else if(state.view==='settings') v.innerHTML = viewSettings();
   else if(state.view==='catalog') { v.innerHTML = viewCatalog(); if(!CATALOG.loaded) loadSkus(); }
   else if(state.view==='leads') { v.innerHTML = viewLeads(); if(!LEADS.loaded) loadLeads(); }
+  else if(state.view==='why') v.innerHTML = viewWhy();
   else if(state.view==='admin') { v.innerHTML = viewAdmin(); loadAdmin(); }
   else if(state.view==='paywall') v.innerHTML = viewPaywall();
   // If we were typing in the notepad, restore focus + caret so a re-render is invisible.
@@ -1782,6 +1792,28 @@ function loadSample(){
 // Demo project lives in More now, not the primary workflow. Loads the sample into
 // a fresh New Job screen.
 function demoProject(){ closeMore(); go('capture'); loadSample(); }
+// "Why Bidtranslator" — the value story, every benefit framed as time/energy saved.
+function viewWhy(){
+  const items=[
+    ['🗣️','Talk instead of type','Describe the job out loud — the AI writes and structures the bid for you. You never type a proposal from scratch again.'],
+    ['🌎','One bid, two languages','Talk in your language; your client reads theirs — automatically. No translating by hand.'],
+    ['💰','Priced the moment you finish','Your margin is built in, so a real, priced bid appears instantly. No calculator, no markup math.'],
+    ['🎩','Professional proposal, auto-built','Your logo, organized scope, and clean totals — generated for you. Looks like a seasoned GC sent it.'],
+    ['🛡️','Terms &amp; protections on every bid','Warranty, change orders, allowances, permits, and payment terms included by default — fewer disputes.'],
+    ['✍️','Signed on the spot','Your client reviews and signs on their phone; everyone gets a signed PDF. No chasing for days.'],
+    ['💳','Get paid by card, immediately','The deposit is paid the moment they sign — money straight to your account. Start the job already paid.'],
+    ['📒','Your books update themselves','Connect QuickBooks once; signed bids sync in as Estimates. No double data entry.'],
+    ['🗂️','Everything in one place','Notes, photos, bids, signatures, and payments live in one app that remembers everything.'],
+    ['📱','All on your phone, on site','Capture, price, send, sign, and collect — before you leave the driveway. Get your evenings back.'],
+  ];
+  return `<div class="why">
+    <div class="h-eyebrow">Why Bidtranslator</div>
+    <h1 class="why-h">Bid more jobs in less time.</h1>
+    <div class="why-sub">Talk through the job and Bidtranslator hands you a finished, priced, professional bid — in your client's language. They sign and pay on their phone, and it lands in your books automatically.</div>
+    <div class="why-list">${items.map(([e,t,d])=>`<div class="why-card"><div class="why-emoji">${e}</div><div><div class="why-t">${t}</div><div class="why-d">${d}</div></div></div>`).join('')}</div>
+    <button class="btn full" style="margin-top:18px" onclick="go('capture')">${icon('mic',16)} Start a bid with your voice</button>
+  </div>`;
+}
 
 function newJobFromForm(){
   const text=((document.getElementById('capText')||{}).value||CAP_DRAFT.text||'').trim();
