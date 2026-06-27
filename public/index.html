@@ -1146,7 +1146,13 @@ function closeMore(){ const s=document.getElementById('sheet'); if(s) s.style.di
 /* ----- Center action button: voice-first new proposal (tap), menu (long-press) ----- */
 // Tap → straight into capture with the mic already listening (the core workflow:
 // Speak → Generate → Send → Get Paid). Falls back silently if speech is unavailable.
-function fabTap(){ if(!entitled()){ go('paywall'); return; } freshCapture(); go('capture','new'); }
+function fabTap(){ if(!entitled()){ go('paywall'); return; }
+  // Don't silently wipe an in-progress dictation: if there are unsaved voice notes
+  // on the capture screen, confirm before clearing them for a brand-new bid.
+  const ta=document.getElementById('capText');
+  const hasDraft = !!((ta && ta.value.trim()) || (CAP_DRAFT.text||'').trim());
+  if(state.view==='capture' && hasDraft && !confirm('Start a new bid? Your current voice notes will be cleared.')) return;
+  freshCapture(); go('capture','new'); }
 function openCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='flex'; }
 function closeCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='none'; }
 function newBidVoice(){ closeCreate(); fabTap(); }
