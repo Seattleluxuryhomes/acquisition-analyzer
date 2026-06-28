@@ -14,6 +14,33 @@
 // uses that exact unit + unit_price as the rate.
 
 export const TRADES = {
+  "general-contractor": {
+    label: "General Contractor (whole project)", emoji: "👷",
+    inputs: [
+      "The whole scope — which phases/trades the job covers (demo, foundation, framing, mechanicals, finishes…)",
+      "Which items are owner allowances or owner-supplied (fixtures, finishes, appliances)",
+      "Who pulls permits, and your markup on subs",
+    ],
+    prompt:
+      "GENERAL CONTRACTOR / WHOLE-PROJECT ESTIMATING. This is a multi-trade project the GC manages — organize the bid " +
+      "by PHASE/DIVISION, not as a flat list: put the phase in each line's section, in build order — Site/Demo, " +
+      "Foundation, Framing, Roofing & Exterior, Plumbing, Electrical, HVAC, Insulation, Drywall, Interior Finishes " +
+      "(paint, flooring, tile, cabinets & counters, trim & doors), Final. Each major trade is a line (or a few) as a " +
+      "SUBCONTRACTOR / scope cost. ALWAYS carry GENERAL CONDITIONS as their own lines: project management & " +
+      "supervision, permits & fees, dumpster(s), portable toilet, temporary power/water, site protection & safety, and " +
+      "final cleanup. Use ALLOWANCES for owner-selected items (fixtures, finishes, appliances, flooring, countertops) — " +
+      "label them as allowances in the desc and note that final selections adjust the price. PRICING: each line is the " +
+      "GC's COST (sub price + materials + own labor); the GC's markup / overhead & profit is the PRIVATE margin the app " +
+      "applies — NEVER a client-facing 'markup' line (hard rule #2). Typical GC markup 10–20% (a cost-plus job states a " +
+      "fee % instead). Add a CONTINGENCY/allowance line for unknowns on renovations. Use the SKU unit + unit_price when " +
+      "a line matches the price book. ASSUMPTIONS: scope per the plans/selections provided; allowances as stated; owner " +
+      "selections made on time; permit responsibility; normal working hours; existing conditions sound unless noted — " +
+      "on renovations, hidden conditions behind walls (rot, mold, code) are handled as change orders. EXCLUSIONS when " +
+      "not stated: owner-supplied items, architectural/engineering & design, survey, structural changes not shown, " +
+      "hazmat (asbestos/lead/mold) abatement, landscaping, offsite/utility work, permit fees beyond an allowance, and " +
+      "anything outside the documented scope. Group by room/area within a phase when the job spans rooms.",
+  },
+
   windows: {
     label: "Windows & Doors", emoji: "🪟",
     inputs: [
