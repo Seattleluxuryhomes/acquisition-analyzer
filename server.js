@@ -17,6 +17,8 @@ import * as SiteProjects from "./src/siteProjects.js";
 import { growthScore } from "./src/growth.js";
 import * as Inbox from "./src/inbox.js";
 import * as Funnels from "./src/funnels.js";
+import * as Prospecting from "./src/prospecting.js";
+import * as Prospects from "./src/prospects.js";
 import { tradeList, sampleScope, tradeLabel } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
@@ -412,6 +414,37 @@ app.get("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
 });
 app.get("/api/admin/events", requireAuth, requireAdmin, (req, res) =>
   res.json({ events: Analytics.recentEvents(req.query.limit) }));
+
+// ---- Outbound prospecting (Gojiberry) — founder-only recruiting engine ----
+// The provider key stays server-side; the client only ever gets a boolean.
+app.get("/api/prospecting/config", requireAuth, requireAdmin, (req, res) =>
+  res.json({ ...Prospecting.prospectingStatus(), statuses: Prospects.STATUSES }));
+app.post("/api/prospecting/search", requireAuth, requireAdmin, wrap(async (req, res) => {
+  const b = req.body || {};
+  try {
+    const results = await Prospecting.search({
+      trade: b.trade, city: b.city, state: b.state, keyword: b.keyword, businessType: b.businessType, limit: b.limit,
+    });
+    track(req.user.id, "prospect_search", { count: results.length });
+    res.json({ results });
+  } catch (e) { res.status(e.status || 500).json({ error: e.message, code: e.code }); }
+}));
+app.get("/api/prospects", requireAuth, requireAdmin, (req, res) =>
+  res.json({ prospects: Prospects.list(req.user.id, req.query.status), counts: Prospects.counts(req.user.id) }));
+app.post("/api/prospects", requireAuth, requireAdmin, wrap((req, res) => {
+  const saved = Prospects.save(req.user.id, (req.body && req.body.prospects) || []);
+  track(req.user.id, "prospect_saved", { count: saved.length });
+  res.json({ saved, counts: Prospects.counts(req.user.id) });
+}));
+app.patch("/api/prospects/:id", requireAuth, requireAdmin, wrap((req, res) => {
+  const p = Prospects.update(req.user.id, req.params.id, req.body || {});
+  if (!p) return res.status(404).json({ error: "Prospect not found." });
+  res.json({ prospect: p, counts: Prospects.counts(req.user.id) });
+}));
+app.delete("/api/prospects/:id", requireAuth, requireAdmin, wrap((req, res) => {
+  if (!Prospects.remove(req.user.id, req.params.id)) return res.status(404).json({ error: "Not found." });
+  res.json({ ok: true, counts: Prospects.counts(req.user.id) });
+}));
 // Contractors who asked us to build them a custom website (the "we won't know
 // unless they ask" list). Founder-only — who + their note + when, newest first.
 app.get("/api/admin/site-requests", requireAuth, requireAdmin, (req, res) => {

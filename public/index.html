@@ -513,6 +513,14 @@
   .reachbar-b{display:flex;gap:6px;flex:0 0 auto}
   .reachbtn{background:var(--blue,#1E4259);color:#fff;border-radius:8px;padding:6px 12px;font-size:.84rem;font-weight:700;text-decoration:none}
   .reachbtn.wa{background:#25D366;color:#08331c}
+  .ps-form{display:flex;flex-direction:column;gap:9px}.ps-form .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .ps-card{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:11px;margin-bottom:8px;background:var(--surface)}
+  .ps-n{font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ps-m{font-size:.8rem;color:var(--muted)}
+  .ps-saved{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--surface)}
+  .ps-saved-top{display:flex;align-items:center;gap:8px}
+  .pstatus{flex:none!important;width:130px;font-weight:700}
+  .ps-src{text-transform:uppercase;font-size:.66rem;letter-spacing:.06em;color:var(--amber)}
+  .ps-reach{display:flex;gap:6px;margin:9px 0}.ps-note{min-height:44px;font-size:.86rem}
   .lead{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:11px;box-shadow:var(--shadow)}
   .lead-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .lead-who{font-weight:700;font-size:1.02rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -703,6 +711,7 @@
     <button class="sheet-i" onclick="go('why');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>Why Bidtranslator</button>
     <button class="sheet-i" id="sheetInstall" onclick="installApp()" style="display:none"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/><path d="M9 6h6"/></svg>Add to home screen</button>
     <button class="sheet-i" onclick="demoProject()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><polygon points="5 3 19 12 5 21 5 3"/></svg>Demo project</button>
+    <button class="sheet-i" id="sheetProspect" onclick="go('prospecting');closeMore()" style="display:none"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Prospecting</button>
     <button class="sheet-i" id="sheetAdmin" onclick="go('admin');closeMore()" style="display:none"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/></svg>Founder dashboard</button>
     <button class="sheet-i danger" onclick="closeMore();signOut()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign out</button>
   </div>
@@ -1005,6 +1014,60 @@ async function createFunnel(btn){
 }
 function copyFunnel(id){ const link=location.origin+'/f/'+id; try{ navigator.clipboard.writeText(link); toast('Link copied.','ok'); }catch(e){ prompt('Copy:',link); } }
 async function delFunnel(id){ if(!confirm('Delete this offer page?'))return; try{ await api('/api/funnels/'+id,{method:'DELETE'}); FUNNELS.items=(FUNNELS.items||[]).filter(f=>f.id!==id); render(); }catch(e){} }
+
+/* ===== Outbound Prospecting (Gojiberry) — founder-only ===== */
+let PROSPECT={config:null,results:[],saved:[],counts:{},loaded:false,searching:false};
+const PSTATUS_LABEL={new:'New',contacted:'Contacted',interested:'Interested',demo_booked:'Demo Booked',converted:'Converted',not_interested:'Not Interested'};
+async function loadProspecting(){
+  if(!TOKEN||!online||!ADMIN){ PROSPECT.loaded=true; return; }
+  try{ PROSPECT.config=await api('/api/prospecting/config'); const r=await api('/api/prospects'); PROSPECT.saved=r.prospects||[]; PROSPECT.counts=r.counts||{}; PROSPECT.loaded=true; if(state.view==='prospecting') render(); }catch(e){ PROSPECT.loaded=true; }
+}
+async function prospectSearch(){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  const body={trade:g('psTrade'),city:g('psCity'),state:g('psState'),keyword:g('psKeyword'),businessType:g('psType')};
+  PROSPECT.searching=true; render();
+  try{ const r=await api('/api/prospecting/search',{method:'POST',body:JSON.stringify(body)}); PROSPECT.results=r.results||[]; if(!PROSPECT.results.length) toast('No prospects found — try broadening the search.','warn'); }
+  catch(e){ toast(e.code==='PROSPECTING_UNCONFIGURED'?'Connect Gojiberry first — add GOJIBERRY_API_KEY + GOJIBERRY_BASE_URL.':(e.message||'Search failed.'),'bad',5000); }
+  PROSPECT.searching=false; render();
+}
+async function prospectSaveOne(i){
+  const p=PROSPECT.results[i]; if(!p) return;
+  try{ const r=await api('/api/prospects',{method:'POST',body:JSON.stringify({prospects:[p]})}); PROSPECT.saved=[...(r.saved||[]),...PROSPECT.saved]; PROSPECT.counts=r.counts||PROSPECT.counts; PROSPECT.results[i]._saved=true; toast('Saved to CRM.','ok'); render(); }catch(e){ toast(e.message||'Could not save.','bad'); }
+}
+async function prospectSaveAll(){
+  const ps=PROSPECT.results.filter(p=>!p._saved); if(!ps.length) return;
+  try{ const r=await api('/api/prospects',{method:'POST',body:JSON.stringify({prospects:ps})}); PROSPECT.saved=[...(r.saved||[]),...PROSPECT.saved]; PROSPECT.counts=r.counts||PROSPECT.counts; PROSPECT.results.forEach(p=>p._saved=true); toast('✓ '+((r.saved||[]).length)+' saved to CRM.','ok'); render(); }catch(e){ toast(e.message||'Could not save.','bad'); }
+}
+async function prospectStatus(id,status){ try{ const r=await api('/api/prospects/'+id,{method:'PATCH',body:JSON.stringify({status})}); PROSPECT.saved=PROSPECT.saved.map(p=>p.id===id?r.prospect:p); PROSPECT.counts=r.counts||PROSPECT.counts; render(); }catch(e){} }
+async function prospectNote(id,notes){ try{ await api('/api/prospects/'+id,{method:'PATCH',body:JSON.stringify({notes})}); }catch(e){} }
+async function prospectDelete(id){ if(!confirm('Remove this prospect?'))return; try{ const r=await api('/api/prospects/'+id,{method:'DELETE'}); PROSPECT.saved=PROSPECT.saved.filter(p=>p.id!==id); PROSPECT.counts=r.counts||PROSPECT.counts; render(); }catch(e){} }
+function psName(p){ return esc(p.name||p.contact_name||'Business'); }
+function psMeta(p){ return esc([p.trade||p.business_type,[p.city,p.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ')); }
+function viewProspecting(){
+  if(!PROSPECT.loaded){ loadProspecting(); }
+  const cfg=PROSPECT.config;
+  const connect=(cfg&&!cfg.configured)?`<div class="freecallout" style="margin-bottom:14px">🔌 <b>Gojiberry not connected.</b> Add <b>GOJIBERRY_API_KEY</b> + <b>GOJIBERRY_BASE_URL</b> to your environment to search. Your CRM below works either way.</div>`:'';
+  const tradeOpts=`<option value="">Any trade</option>`+TRADE_PICK.map(t=>`<option value="${t.key}">${esc(t.label)}</option>`).join('');
+  const form=`<div class="ps-form">
+    <select id="psTrade" class="input">${tradeOpts}</select>
+    <input id="psType" class="input" placeholder="Business type (e.g. remodeler, stager, vendor)"/>
+    <div class="row2"><input id="psCity" class="input" placeholder="City"/><input id="psState" class="input" placeholder="State"/></div>
+    <input id="psKeyword" class="input" placeholder="Keyword (optional)"/>
+    <button class="btn full" onclick="prospectSearch()">${PROSPECT.searching?'Searching…':'🔎 Find prospects'}</button></div>`;
+  const results=PROSPECT.results.length?`<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px"><b>${PROSPECT.results.length} found</b><button class="btn ghost sm" onclick="prospectSaveAll()">Save all to CRM</button></div>`+
+    PROSPECT.results.map((p,i)=>`<div class="ps-card"><div style="flex:1;min-width:0"><div class="ps-n">${psName(p)}</div><div class="ps-m">${psMeta(p)}${p.phone?(' · '+esc(p.phone)):''}</div></div><button class="btn sm ${p._saved?'ghost':''}" onclick="prospectSaveOne(${i})" ${p._saved?'disabled':''}>${p._saved?'✓':'+ Save'}</button></div>`).join(''):'';
+  const saved=PROSPECT.saved;
+  const crm=`<h3 class="grow-h" style="margin-top:24px">Your prospects (${saved.length})</h3>`+(saved.length?saved.map(p=>{
+    const opts=Object.keys(PSTATUS_LABEL).map(s=>`<option value="${s}" ${p.status===s?'selected':''}>${PSTATUS_LABEL[s]}</option>`).join('');
+    const tel=telDigits(p.phone), site=p.website?(p.website.startsWith('http')?p.website:'https://'+p.website):'';
+    return `<div class="ps-saved"><div class="ps-saved-top"><div style="flex:1;min-width:0"><div class="ps-n">${psName(p)}</div><div class="ps-m">${psMeta(p)} · <span class="ps-src">${esc(p.source)}</span></div></div><select class="input sm pstatus" onchange="prospectStatus('${p.id}',this.value)">${opts}</select><button class="x-btn" onclick="prospectDelete('${p.id}')">✕</button></div>
+      <div class="ps-reach">${p.phone?`<a class="reachbtn" href="tel:${escAttr(tel)}">Call</a><a class="reachbtn" href="sms:${escAttr(tel)}">Text</a>`:''}${p.email?`<a class="reachbtn" href="mailto:${escAttr(p.email)}">Email</a>`:''}${site?`<a class="reachbtn wa" href="${escAttr(site)}" target="_blank" rel="noopener">Site</a>`:''}</div>
+      <textarea class="input sm ps-note" placeholder="Notes…" onchange="prospectNote('${p.id}',this.value)">${esc(p.notes||'')}</textarea></div>`;
+  }).join(''):'<div class="hint">No prospects yet — search above, or save them as you go.</div>');
+  return `<div class="h-eyebrow">Growth · outbound</div><h1 class="page">Prospecting</h1>
+    <div class="sub">Find &amp; qualify contractors, vendors, stagers, designers &amp; other home-service businesses — and work them into Bidtranslator.</div>
+    ${connect}${form}${results}${crm}`;
+}
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
 let NOTIFS = JSON.parse(localStorage.getItem('bt_notifs')||'null') || {items:[], unread:0};
@@ -1389,6 +1452,7 @@ function newJob(){ if(!entitled()){ go('paywall'); return; } freshCapture(); go(
 // list into view.
 function goJobs(){ go('home'); requestAnimationFrame(()=>{ const el=document.querySelector('.fchips')||document.querySelector('.newbar'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }); }
 function openMore(){ const a=document.getElementById('sheetAdmin'); if(a) a.style.display=ADMIN?'block':'none';
+  const pr=document.getElementById('sheetProspect'); if(pr) pr.style.display=ADMIN?'block':'none';
   const ins=document.getElementById('sheetInstall'); if(ins) ins.style.display=isStandalone()?'none':'block';
   document.getElementById('sheet').style.display='flex'; }
 // ---- Install as an app (PWA) ----
@@ -1482,6 +1546,7 @@ function render(){
   else if(state.view==='team') { v.innerHTML = viewTeam(); if(!TEAM.loaded) loadTeam(); }
   else if(state.view==='growth') { v.innerHTML = viewGrowth(); if(!GROWTH) loadGrowth(); }
   else if(state.view==='inbox') { v.innerHTML = viewInbox(); loadInbox(); }
+  else if(state.view==='prospecting') { v.innerHTML = viewProspecting(); }
   else if(state.view==='why') v.innerHTML = viewWhy();
   else if(state.view==='admin') { v.innerHTML = viewAdmin(); loadAdmin(); }
   else if(state.view==='paywall') v.innerHTML = viewPaywall();

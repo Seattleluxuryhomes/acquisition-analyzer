@@ -324,6 +324,34 @@ CREATE TABLE IF NOT EXISTS funnel (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS funnel_user_idx ON funnel(user_id);
+
+-- Outbound prospecting CRM (Gojiberry integration). A prospect is a home-service
+-- business we're recruiting TO Bidtranslator (separate from inbound homeowner
+-- leads). Sourced from a provider (gojiberry/…) or added by hand, then worked
+-- through the pipeline. Provider-agnostic: 'source' records where it came from.
+CREATE TABLE IF NOT EXISTS prospect (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  name TEXT DEFAULT '',            -- business name
+  contact_name TEXT DEFAULT '',
+  trade TEXT DEFAULT '',
+  business_type TEXT DEFAULT '',
+  phone TEXT DEFAULT '',
+  email TEXT DEFAULT '',
+  website TEXT DEFAULT '',
+  address TEXT DEFAULT '',
+  city TEXT DEFAULT '',
+  state TEXT DEFAULT '',
+  status TEXT DEFAULT 'new',       -- new|contacted|interested|demo_booked|converted|not_interested
+  source TEXT DEFAULT 'manual',    -- gojiberry|manual|…
+  notes TEXT DEFAULT '',
+  raw TEXT DEFAULT '{}',           -- the original provider record (for future enrichment)
+  dedupe_key TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS prospect_user_idx ON prospect(user_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS prospect_dedupe ON prospect(user_id, dedupe_key);
 `);
 
 // Migrate older databases that predate the billing columns.
