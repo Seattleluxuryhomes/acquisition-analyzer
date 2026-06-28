@@ -1041,6 +1041,38 @@ async function prospectSaveAll(){
 async function prospectStatus(id,status){ try{ const r=await api('/api/prospects/'+id,{method:'PATCH',body:JSON.stringify({status})}); PROSPECT.saved=PROSPECT.saved.map(p=>p.id===id?r.prospect:p); PROSPECT.counts=r.counts||PROSPECT.counts; render(); }catch(e){} }
 async function prospectNote(id,notes){ try{ await api('/api/prospects/'+id,{method:'PATCH',body:JSON.stringify({notes})}); }catch(e){} }
 async function prospectDelete(id){ if(!confirm('Remove this prospect?'))return; try{ const r=await api('/api/prospects/'+id,{method:'DELETE'}); PROSPECT.saved=PROSPECT.saved.filter(p=>p.id!==id); PROSPECT.counts=r.counts||PROSPECT.counts; render(); }catch(e){} }
+// Export the CRM as CSV — the handoff into Instantly (email) / LinkedHelper. Authenticated
+// fetch → Blob → download (a plain <a href> can't carry the bearer token).
+async function prospectExportCsv(){
+  try{ const res=await fetch(API+'/api/prospects/export',{headers:{'Authorization':'Bearer '+TOKEN}});
+    if(!res.ok){ toast('Export failed.','bad'); return; }
+    const blob=await res.blob(), url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url; a.download='bidtranslator-prospects.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    toast('✓ Exported '+PROSPECT.saved.length+' prospects','ok');
+  }catch(e){ toast('Export failed.','bad'); }
+}
+// Import a prospect list (e.g. from Scrap.io). Parses client-side, fuzzy-maps the
+// headers, then POSTs to the same save endpoint (idempotent via dedupe_key).
+function prospectImportCsv(input){
+  const f=input.files&&input.files[0]; input.value=''; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=async e=>{ const rows=parseProspectCsv(String(e.target.result||'')); if(!rows.length){ toast('No rows found in that file.','warn'); return; }
+    try{ const r=await api('/api/prospects',{method:'POST',body:JSON.stringify({prospects:rows})}); PROSPECT.saved=[...(r.saved||[]),...PROSPECT.saved]; PROSPECT.counts=r.counts||PROSPECT.counts; toast('✓ Imported '+((r.saved||[]).length)+' of '+rows.length+' (duplicates skipped)','ok'); render(); }
+    catch(err){ toast(err.message||'Import failed.','bad'); } };
+  rd.readAsText(f);
+}
+function parseProspectCsv(txt){
+  const lines=txt.split(/\r?\n/).filter(l=>l.trim()); if(lines.length<2) return [];
+  const split=(line)=>{ const out=[]; let cur='',q=false; for(let i=0;i<line.length;i++){ const c=line[i]; if(c==='"'){ if(q&&line[i+1]==='"'){cur+='"';i++;} else q=!q; } else if(c===','&&!q){ out.push(cur); cur=''; } else cur+=c; } out.push(cur); return out.map(s=>s.trim()); };
+  const head=split(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z]/g,''));
+  const idx=(names)=>{ for(const n of names){ const i=head.indexOf(n); if(i>=0) return i; } return -1; };
+  const I={ name:idx(['name','business','businessname','company','companyname']), contact:idx(['contactname','contact','owner','person','fullname']), trade:idx(['trade','category','industry','vertical']), type:idx(['businesstype','type']), phone:idx(['phone','phonenumber','mobile','tel','telephone']), email:idx(['email','emailaddress','contactemail']), website:idx(['website','url','domain','web']), address:idx(['address','street','formattedaddress']), city:idx(['city','locality','town']), state:idx(['state','region','province','statecode']) };
+  const rows=[];
+  for(let i=1;i<lines.length&&rows.length<2000;i++){ const c=split(lines[i]); const get=k=>k>=0?(c[k]||''):'';
+    const r={ name:get(I.name), contact_name:get(I.contact), trade:get(I.trade), business_type:get(I.type), phone:get(I.phone), email:get(I.email), website:get(I.website), address:get(I.address), city:get(I.city), state:get(I.state), source:'import' };
+    if(r.name||r.phone||r.email) rows.push(r); }
+  return rows;
+}
 function psName(p){ return esc(p.name||p.contact_name||'Business'); }
 function psMeta(p){ return esc([p.trade||p.business_type,[p.city,p.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ')); }
 function viewProspecting(){
@@ -1057,7 +1089,12 @@ function viewProspecting(){
   const results=PROSPECT.results.length?`<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px"><b>${PROSPECT.results.length} found</b><button class="btn ghost sm" onclick="prospectSaveAll()">Save all to CRM</button></div>`+
     PROSPECT.results.map((p,i)=>`<div class="ps-card"><div style="flex:1;min-width:0"><div class="ps-n">${psName(p)}</div><div class="ps-m">${psMeta(p)}${p.phone?(' · '+esc(p.phone)):''}</div></div><button class="btn sm ${p._saved?'ghost':''}" onclick="prospectSaveOne(${i})" ${p._saved?'disabled':''}>${p._saved?'✓':'+ Save'}</button></div>`).join(''):'';
   const saved=PROSPECT.saved;
-  const crm=`<h3 class="grow-h" style="margin-top:24px">Your prospects (${saved.length})</h3>`+(saved.length?saved.map(p=>{
+  const crmTools=`<div style="display:flex;gap:8px;margin:24px 0 10px;align-items:center">
+    <h3 class="grow-h" style="margin:0;flex:1">Your prospects (${saved.length})</h3>
+    <button class="btn ghost sm" onclick="document.getElementById('prospectCsv').click()">Import CSV</button>
+    <button class="btn ghost sm" onclick="prospectExportCsv()" ${saved.length?'':'disabled'}>Export CSV</button>
+    <input id="prospectCsv" type="file" accept=".csv,.txt,text/*" style="display:none" onchange="prospectImportCsv(this)"/></div>`;
+  const crm=crmTools+(saved.length?saved.map(p=>{
     const opts=Object.keys(PSTATUS_LABEL).map(s=>`<option value="${s}" ${p.status===s?'selected':''}>${PSTATUS_LABEL[s]}</option>`).join('');
     const tel=telDigits(p.phone), site=p.website?(p.website.startsWith('http')?p.website:'https://'+p.website):'';
     return `<div class="ps-saved"><div class="ps-saved-top"><div style="flex:1;min-width:0"><div class="ps-n">${psName(p)}</div><div class="ps-m">${psMeta(p)} · <span class="ps-src">${esc(p.source)}</span></div></div><select class="input sm pstatus" onchange="prospectStatus('${p.id}',this.value)">${opts}</select><button class="x-btn" onclick="prospectDelete('${p.id}')">✕</button></div>

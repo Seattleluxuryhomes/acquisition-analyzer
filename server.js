@@ -445,6 +445,16 @@ app.delete("/api/prospects/:id", requireAuth, requireAdmin, wrap((req, res) => {
   if (!Prospects.remove(req.user.id, req.params.id)) return res.status(404).json({ error: "Not found." });
   res.json({ ok: true, counts: Prospects.counts(req.user.id) });
 }));
+// Export the prospect CRM as CSV — the handoff into Instantly (email) / LinkedHelper.
+app.get("/api/prospects/export", requireAuth, requireAdmin, (req, res) => {
+  const rows = Prospects.list(req.user.id);
+  const cols = ["name", "contact_name", "trade", "business_type", "phone", "email", "website", "address", "city", "state", "status", "source", "notes"];
+  const cell = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+  const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\r\n");
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", 'attachment; filename="bidtranslator-prospects.csv"');
+  res.send(csv);
+});
 // Contractors who asked us to build them a custom website (the "we won't know
 // unless they ask" list). Founder-only — who + their note + when, newest first.
 app.get("/api/admin/site-requests", requireAuth, requireAdmin, (req, res) => {
