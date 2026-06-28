@@ -48,14 +48,15 @@ things shipped in the latest sessions: the **Spanish landing page** and the
 - Follow Up Boss founder-CRM push.
 - Notify webhook fan-out.
 - PWA (installable).
-- Marketing: `landing.html` (live) + `landing-es.html` (built, on dev branch).
+- Marketing: `landing.html` (live) + `landing-es.html` (built + deployed).
 - WhatsApp share + per-contractor number + landing CTA.
+- **24 per-trade estimator brains** (`src/trades.js`) + capture trade picker — *deployed, but live AI output still un-smoke-tested.*
+- **Team/Subs + scope-of-work dispatch** (the network engine, task #11) — add crew, invite, "Build your team" nudge, dispatch a job's scope to a sub (public bilingual page, work-only, accept loop). *Deployed; verified end-to-end incl. privacy.*
 
 ### DESIGNED (agreed, NOT built) — build-ready specs in §3
 - Concierge onboarding ("Onboard a contractor" → account + sample bid + secure link).
 - Founder sales pipeline + 5-part behavior-triggered follow-up (copy written, §4).
 - Pricing model: $0 setup + $49/mo + referral credit → $0 + founder rate-lock.
-- Team/Subs + scope-of-work dispatch (free sub seat) — the network engine (task #11).
 - Referral program ("Invite — get a month free," reward on referee *paying*) — task #10, lives under More menu.
 - Photo/plan ingestion into the AI build (so trade brains can see images).
 
@@ -95,14 +96,17 @@ things shipped in the latest sessions: the **Spanish landing page** and the
 - **Fallback when `RESEND_API_KEY` is off:** show Ben the invite link to copy/send by hand.
 - Login method decided: **secure set-password link**, not an emailed password (safer *and* one-tap simpler for a non-tech contractor).
 
-### 3.2 Team/Subs + scope dispatch (the network engine) — task #11
+### 3.2 Team/Subs + scope dispatch (the network engine) — task #11 — BUILT (v1)
 - New **Team/Subs** section, placed **above Price book** in the More menu.
-- Add a sub: name, phone, **trade**, **language** (language set once → every dispatched scope auto-translates).
+- Add a sub: name, phone, **trade**, **language** (language drives the scope page chrome; full scope-text translation is a future AI enhancement).
 - Adding the contact **auto-fires an invite link** (reuse WhatsApp/SMS share plumbing).
-- **Free sub seat:** can *receive* scope of work (voice-captured scope + photos + scoped "access": address, gate code, client contact, signed agreement, in their language) and **tap to ACCEPT** (creates a change-order-protection record). **Cannot create/send their own bids** — "New bid" hits the existing paywall (`requireEntitled`).
-- Sub upgrades to pay → becomes a GC who adds their own subs (self-replicating loop).
-- **Privacy:** sub sees scope, never margin/notes (reuse `buildProposal()` strip — hard rule #2). Secure handoff via existing signed/expiring URLs (hard rule #6).
-- **New build needed:** the sub-seat account type (logs in, receives scope, not entitled to bid) + scope-dispatch/assign + accept loop. Everything else reuses existing machinery.
+- **A sub has TWO free on-ramps (REVISED MODEL — Ben, 6/28):**
+  1. **Just receive scope** — opens the dispatch link, sees the work + photos in their language, taps ACCEPT (a change-order-protection record). **No account needed** — the unguessable link is the grant. Free forever.
+  2. **Sign up** — and they're a *normal contractor*: the **full trial** (AI bidding, payments — the whole package), then they fall to the **free manual version** (build by hand, no AI) when the trial ends, with AI/payments behind a subscription. Same as any signup.
+- **No crippled "sub tier."** The old "subs can't bid" framing is REJECTED — letting the sub taste the full product on trial is what converts them. (This is already the live behavior: new signups get a trial; manual bidding is free; AI is gated by `requireEntitled`.)
+- Sub subscribes → counts toward the GC's "5 paying subs → free" credit AND becomes a GC who adds their own subs (self-replicating loop).
+- **Privacy:** the sub sees the WORK only — never margin/notes/prices (`buildScope()` whitelist, sibling of `buildProposal()` — hard rule #2). Verified end-to-end.
+- **Future enhancements (not blocking):** per-sub AI translation of the scope TEXT (chrome is translated today); a logged-in sub dashboard of received jobs; tie the dispatch "joined" status to a real sub signup.
 
 ### 3.3 Referral program — task #10
 - **One line under the More menu:** "Invite a contractor — get a month free." Tap → existing share sheet with personal link (`/?r=CODE`).
@@ -165,12 +169,12 @@ random — signed URLs break on restart without it) · `LITESTREAM_*` (R2) · `B
 
 ## 6. Open questions for the founder (decisions pending)
 
-1. **Trade picker scope** — keep all 16 trades, or trim to a focused set for the pitch?
+1. **Trade picker scope** — keep all 24 trades, or trim to a focused set for the pitch? (Currently all 24 ship.)
 2. **Pricing final** — confirm $49 (vs. $39 more aggressive), and the credit amount (−$10/sub → 5 = free), and whether founders also skip setup vs. just rate-lock.
 3. **Sales pipeline home** — build the in-app founder pipeline (recommended, behavior-triggered) or run it in a separate Follow Up Boss login?
 4. **Onboarding email voice** — confirmed "from Ben personally."
-5. **Sub tier** — start with "5 *paying* subs → free," or add a lighter receive-only sub tier later?
-6. **Sequencing** — when do we flip from "perfect the single-contractor loop" to "ship subs/referral"? What's the go signal?
+5. ~~Sub tier~~ — **RESOLVED (6/28):** a sub who signs up is a *normal contractor* — full trial (AI/payments), then free manual version (no AI) after, AI/payments behind subscription. PLUS receive-scope-via-link is free with no account. No crippled "sub tier." Already the live behavior.
+6. **Sequencing** — the network engine (subs/scope dispatch) is now SHIPPED. Remaining sequencing call: when to build referral credit + pricing changes vs. keep perfecting the core loop. Go-signal still TBD (a happy contractor pulling in crew).
 
 ---
 
