@@ -793,7 +793,10 @@ const planSetup = () => (BILLING && BILLING.setup_fee!=null) ? BILLING.setup_fee
 // True when a setup fee exists but is waived for this user (founder / crew signup).
 const setupWaivedView = () => !!(BILLING && BILLING.setup_waived && BILLING.setup_fee_base>0);
 
-const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:'signin', authError:'', authSent:false, booted:false };
+// New visitors should land on "Create account" (the landing CTA is "Start free");
+// returning users (who've signed in on this device before) land on "Sign in".
+const _returning = (function(){ try{ return localStorage.getItem('bt_returning')==='1'; }catch(e){ return false; } })();
+const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:_returning?'signin':'signup', authError:'', authSent:false, booted:false };
 let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
 let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'', tax_rate:0, region:'', autoTranslate:true, bidLang:'' };
@@ -1069,6 +1072,7 @@ async function doAuth(){
     const body = state.authMode==='signup' ? {email, password:pass, ref:REFCODE||'', role:SIGNUP_ROLE||''} : {email, password:pass};
     const r = await api(path, { method:'POST', body:JSON.stringify(body) });
     TOKEN=r.token; USER=r.user; persistAuth();
+    try{ localStorage.setItem('bt_returning','1'); }catch(e){} // next visit on this device defaults to Sign in
     if(r.user){ SETTINGS=Object.assign({}, SETTINGS, {
       company:r.user.company||SETTINGS.company, name:r.user.name||'', phone:r.user.phone||'',
       license:r.user.license||'', from:r.user.default_from_lang||'es', to:r.user.default_to_lang||'en',
