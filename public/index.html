@@ -301,6 +301,15 @@
   .fval{position:relative;z-index:1;font-family:"Archivo";font-weight:800;font-size:1rem}
   .fdrop{font-family:"IBM Plex Mono";font-size:.64rem;color:#ff9b7a;font-weight:400}
   .subpill{font-family:"IBM Plex Mono";font-size:.56rem;background:rgba(62,125,90,.22);color:#8fd0a8;padding:2px 6px;border-radius:4px;margin-left:4px;text-transform:uppercase}
+  .tlink{background:none;border:none;color:var(--muted);font-weight:600;font-size:.82rem;cursor:pointer;padding:4px 6px}
+  .tlink.danger{color:#c0593f}
+  .teamprog{margin-top:16px}
+  .teamprog-bar{height:10px;background:var(--line,#e2dac9);border-radius:999px;overflow:hidden}
+  .teamprog-fill{height:100%;background:var(--amber,#CF7F18);border-radius:999px;transition:width .4s ease}
+  .teamprog-lbl{margin-top:6px;font-weight:700;font-size:.9rem;color:var(--text)}
+  .teamnudge{background:var(--card,#fff);border:1px solid var(--amber,#CF7F18);border-radius:14px;padding:16px;margin-bottom:14px}
+  .teamnudge h3{margin:0 0 4px;font-size:1.05rem}
+  .teamnudge p{margin:0 0 10px;color:var(--muted);font-size:.9rem}
   @media(min-width:720px){ .kpi{flex:1 1 0} }
   .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
   .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
@@ -616,6 +625,7 @@
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h">More</div>
     <button class="sheet-i" onclick="go('leads');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Leads</button>
+    <button class="sheet-i" onclick="go('team');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Team &amp; subs</button>
     <button class="sheet-i" onclick="go('catalog');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16l-8-4-8 4z"/><path d="M9 7h6"/></svg>Price book</button>
     <button class="sheet-i" onclick="go('settings');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 13.4H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 6.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 4.6V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>Setup &amp; integrations</button>
     <button class="sheet-i" onclick="go('why');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>Why Bidtranslator</button>
@@ -1204,17 +1214,18 @@ function render(){
   setOn('bnHome', state.view==='home'||state.view==='capture');
   setOn('bnJobs', state.view==='job');
   setOn('bnSched', state.view==='schedule');
-  setOn('bnMore', state.view==='settings'||state.view==='admin'||state.view==='catalog'||state.view==='leads'||state.view==='why');
+  setOn('bnMore', state.view==='settings'||state.view==='admin'||state.view==='catalog'||state.view==='leads'||state.view==='team'||state.view==='why');
   // Draw the eye to the money button when there's nothing to do yet (first bid).
   const fab=document.getElementById('bnAdd'); if(fab) fab.classList.toggle('pulse', JOBS.filter(j=>!j._deleted).length===0 && state.view==='home');
   paintBell();
-  if(state.view==='home'){ v.innerHTML = viewHome(); markNotifsSeen(); }
+  if(state.view==='home'){ v.innerHTML = viewHome(); markNotifsSeen(); if(!TEAM.loaded) loadTeam(); }
   else if(state.view==='schedule') v.innerHTML = viewSchedule();
   else if(state.view==='capture') v.innerHTML = viewCapture();
   else if(state.view==='job') v.innerHTML = viewJob();
   else if(state.view==='settings') v.innerHTML = viewSettings();
   else if(state.view==='catalog') { v.innerHTML = viewCatalog(); if(!CATALOG.loaded) loadSkus(); }
   else if(state.view==='leads') { v.innerHTML = viewLeads(); if(!LEADS.loaded) loadLeads(); }
+  else if(state.view==='team') { v.innerHTML = viewTeam(); if(!TEAM.loaded) loadTeam(); }
   else if(state.view==='why') v.innerHTML = viewWhy();
   else if(state.view==='admin') { v.innerHTML = viewAdmin(); loadAdmin(); }
   else if(state.view==='paywall') v.innerHTML = viewPaywall();
@@ -1583,8 +1594,9 @@ function viewHome(){
   const needsSetup = !SETTINGS.company || SETTINGS.company==='Your Company' || !SETTINGS.logo || !(SETTINGS.phone||'').trim();
   const nudge = needsSetup ? `<button class="setupnudge" onclick="go('settings')">Finish your setup — add your company name, logo &amp; phone so every bid looks professional. <span class="nudge-go">Set up ${icon('chevron',12)}</span></button>` : '';
   const news = notifBanner();
+  const crew = teamNudge();
   if(visible.length===0){
-    return hello + news + nudge + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
+    return hello + news + nudge + crew + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
   }
   const f = state.jobFilter || 'all';
   const counts = { all: visible.length, draft:0, sent:0, signed:0, scheduled:0 };
@@ -1596,7 +1608,7 @@ function viewHome(){
   let list;
   if(filtered.length===0){ list = `<div class="hint" style="margin-top:16px">No ${statusLabel(f).toLowerCase()} jobs yet.</div>`; }
   else { list = (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">🗺️ Tap 🧭 for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
-  return `${hello}${news}${nudge}
+  return `${hello}${news}${nudge}${crew}
     ${kpiStrip(dashKPIs(visible))}
     ${scheduleBlock(visible)}
     <div class="newbar"><div class="sub">Your jobs · ${visible.length}</div><button class="btn sm" onclick="newJob()">+ New job</button></div>
@@ -2549,6 +2561,8 @@ function setRegion(s){
 let CATALOG = { skus:[], loaded:false, preview:null, image:null };
 let LEADS = { items:[], loaded:false, token:'', webhookUrl:'' };
 let LEADS_NEW = 0; // count of "New" leads, for the dashboard card
+let TEAM = { items:[], counts:{total:0,invited:0,target:5}, loaded:false };
+async function loadTeam(){ if(!TOKEN||!online) return; try{ const r=await api('/api/team'); TEAM.items=r.subs||[]; TEAM.counts=r.counts||TEAM.counts; TEAM.loaded=true; if(state.view==='team'||state.view==='home') render(); }catch(e){} }
 let skuQ='';
 async function loadSkus(){ if(!TOKEN||!online) return; try{ const r=await api('/api/skus'); CATALOG.skus=r.skus||[]; CATALOG.loaded=true; if(state.view==='catalog') render();
   const pk=document.getElementById('skuPicker'); if(pk && pk.style.display!=='none') renderPicker(); }catch(e){} } // refresh the picker if it's open
@@ -2708,6 +2722,74 @@ function skuListHTML(){
       <input class="mini skuprice" type="number" min="0" value="${s.unit_price||0}" onchange="updSku('${s.id}','unit_price',this.value)"/>
       <button class="del" onclick="delSku('${s.id}')" title="Remove">✕</button>
     </div>`).join('');
+}
+/* ============ Team / subs — build your crew + the viral invite loop ============ */
+function viewTeam(){
+  const c=TEAM.counts||{invited:0,target:5}, target=c.target||5;
+  const pct=Math.min(100,Math.round((c.invited/target)*100));
+  const tradeOpts='<option value="">Trade…</option>'+TRADE_PICK.map(t=>`<option value="${t.key}">${t.emoji} ${t.label}</option>`).join('');
+  const langSel=SETTINGS.bidLang||SETTINGS.to||'es';
+  const rows=(TEAM.items||[]).map(s=>{
+    const tl=(TRADE_PICK.find(t=>t.key===s.trade)||{}).label||s.trade||'';
+    const meta=[tl, LANGS[s.lang]||'', s.phone].filter(Boolean).join(' · ');
+    const invited=(s.status==='invited'||s.status==='joined');
+    const action=invited
+      ? `<span class="subpill">✓ invited</span><button class="tlink" onclick="inviteSub('${s.id}')">resend</button>`
+      : `<button class="btn sm" onclick="inviteSub('${s.id}')">📲 Send invite</button><button class="tlink" onclick="inviteSub('${s.id}','sms')">text</button>`;
+    return `<div class="act-item" style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${esc(s.name)||esc(s.phone)||'Sub'}</div><div class="act-s">${esc(meta)||'—'}</div></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">${action}<button class="tlink danger" onclick="deleteSubRow('${s.id}')" title="Remove">✕</button></div></div>`;
+  }).join('');
+  return `<button class="backlink" onclick="go('home')">← Dashboard</button>
+   <div class="h-eyebrow">Your crew</div>
+   <h1 class="page">Build your team</h1>
+   <div class="sub">Add your subs and send them the app. They get it free to receive your job scope — in their language. Get five of your crew on and the bids start flowing both ways.</div>
+   <div class="teamprog"><div class="teamprog-bar"><div class="teamprog-fill" style="width:${pct}%"></div></div>
+     <div class="teamprog-lbl">${c.invited} of ${target} subs invited${c.invited>=target?' 🎉 — nice, your crew is on it':''}</div></div>
+   <div class="panel" style="margin-top:14px"><div class="panel-h static"><span>➕ Add a sub</span></div>
+     <div style="padding:10px">
+       <div class="row2"><input id="subName" class="input" placeholder="Name"/><input id="subPhone" class="input" type="tel" placeholder="Phone / WhatsApp"/></div>
+       <div class="row2" style="margin-top:8px"><select id="subTrade" class="input">${tradeOpts}</select><select id="subLang" class="input">${langOpts(langSel)}</select></div>
+       <button class="btn full" style="margin-top:10px" onclick="saveSub()">Add to crew</button>
+     </div>
+   </div>
+   <div class="panel" style="margin-top:14px"><div class="panel-h static"><span>👷 Your crew (${(TEAM.items||[]).length})</span></div>
+     ${rows||'<div class="hint" style="padding:10px">No subs yet — add your first above, then send them the app.</div>'}
+   </div>`;
+}
+async function saveSub(){
+  const g=id=>((document.getElementById(id)||{}).value||'').trim();
+  const name=g('subName'), phone=g('subPhone'), trade=g('subTrade'), lang=g('subLang');
+  if(!name && !phone){ toast('Add a name or phone for your sub.','warn'); return; }
+  try{ const r=await api('/api/team',{method:'POST',body:JSON.stringify({name,phone,trade,lang})});
+    TEAM.items.unshift(r.sub); TEAM.counts=r.counts; render(); toast('Added — now send them the app.','ok'); }
+  catch(e){ toast(e.message||'Could not add sub.','bad'); }
+}
+// The viral act: open WhatsApp (or SMS) prefilled, then mark the sub invited so the
+// "X of 5" progress moves. App link is the live site; the sub taps it and signs up.
+async function inviteSub(id, mode){
+  const s=(TEAM.items||[]).find(x=>x.id===id); if(!s) return;
+  const appUrl=location.origin+'/';
+  const me=SETTINGS.name||SETTINGS.company||'your contractor';
+  const first=((s.name||'').trim().split(/\s+/)[0]||'');
+  const msg=`Hey${first?' '+first:''}, it's ${me}. I'm using Bidtranslator to send job scope and bids — it's free, take a look: ${appUrl}`;
+  const digits=(s.phone||'').replace(/\D/g,'');
+  if(mode==='sms'){ location.href='sms:'+(s.phone||'')+'?&body='+encodeURIComponent(msg); }
+  else { window.open('https://wa.me/'+(digits?(digits.length===10?'1'+digits:digits):'')+'?text='+encodeURIComponent(msg),'_blank'); }
+  try{ const r=await api('/api/team/'+id+'/invite',{method:'POST'});
+    const i=(TEAM.items||[]).findIndex(x=>x.id===id); if(i>=0) TEAM.items[i]=r.sub; TEAM.counts=r.counts; render(); }catch(e){}
+}
+async function deleteSubRow(id){
+  if(!confirm('Remove this sub from your crew?')) return;
+  try{ const r=await api('/api/team/'+id,{method:'DELETE'}); TEAM.items=(TEAM.items||[]).filter(x=>x.id!==id); TEAM.counts=r.counts; render(); }catch(e){}
+}
+// Dashboard nudge — until the GC has invited 5 subs, push the viral step front & center.
+function teamNudge(){
+  if(!TEAM.loaded) return '';
+  const c=TEAM.counts||{invited:0,target:5}, target=c.target||5;
+  if(c.invited>=target) return '';
+  const left=target-c.invited;
+  return `<div class="teamnudge"><h3>👷 Build your team — send it to ${left} more sub${left===1?'':'s'}</h3>
+    <p>Add your crew and send them Bidtranslator. They get it free to receive your scope in their language — and you're building the network you bid through.</p>
+    <button class="btn full" onclick="go('team')">${c.invited>0?`Add more of your crew (${c.invited}/${target})`:'Add your subs'}</button></div>`;
 }
 function viewCatalog(){
   const sk=CATALOG.skus||[], pv=CATALOG.preview;

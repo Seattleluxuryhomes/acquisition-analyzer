@@ -174,6 +174,24 @@ CREATE TABLE IF NOT EXISTS lead (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS lead_user_idx ON lead(user_id);
+
+-- Team / subs: a contractor's crew. The viral loop — a GC adds his subs and sends
+-- each the app. A sub gets a free seat to RECEIVE scope of work (the bid/payment
+-- engine stays gated). 'lang' drives auto-translation of dispatched scope. Status:
+-- added (entered) -> invited (link sent) -> joined (they signed up). Owner-scoped.
+CREATE TABLE IF NOT EXISTS sub (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  name TEXT DEFAULT '',
+  phone TEXT DEFAULT '',
+  trade TEXT DEFAULT '',
+  lang TEXT DEFAULT '',
+  status TEXT DEFAULT 'added',
+  invited_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS sub_user_idx ON sub(user_id);
 `);
 
 // Migrate older databases that predate the billing columns.

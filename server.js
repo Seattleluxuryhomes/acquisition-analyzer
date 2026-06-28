@@ -16,6 +16,7 @@ import { assistBuild, assistIntake, aiConfigured, parseSkus, transcribeAudio, tr
 import { tradeList } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
+import * as Team from "./src/team.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig, signProposalPdfUrl, verifyProposalPdfSig } from "./src/files.js";
@@ -550,6 +551,32 @@ app.post("/api/leads/import", requireAuth, wrap((req, res) => res.json(Leads.bul
 app.post("/api/leads/token/rotate", requireAuth, wrap((req, res) => {
   const token = Leads.rotateToken(req.user.id);
   res.json({ token, webhookUrl: `${baseUrl(req)}/api/inbound/leads?token=${token}` });
+}));
+
+// ---- Team / subs (the contractor's crew + the viral invite loop) ----
+app.get("/api/team", requireAuth, (req, res) => {
+  res.json({ subs: Team.listSubs(req.user.id), counts: Team.counts(req.user.id) });
+});
+app.post("/api/team", requireAuth, wrap((req, res) => {
+  const sub = Team.createSub(req.user.id, req.body || {});
+  track(req.user.id, "sub_added", { trade: sub.trade || "", lang: sub.lang || "" });
+  res.json({ sub, counts: Team.counts(req.user.id) });
+}));
+app.patch("/api/team/:id", requireAuth, wrap((req, res) => {
+  const sub = Team.updateSub(req.user.id, req.params.id, req.body || {});
+  if (!sub) return res.status(404).json({ error: "Sub not found." });
+  res.json({ sub, counts: Team.counts(req.user.id) });
+}));
+// Mark that the GC sent this sub the app (the invite went out) — drives "X of 5".
+app.post("/api/team/:id/invite", requireAuth, wrap((req, res) => {
+  const sub = Team.markInvited(req.user.id, req.params.id);
+  if (!sub) return res.status(404).json({ error: "Sub not found." });
+  track(req.user.id, "sub_invited", { trade: sub.trade || "" });
+  res.json({ sub, counts: Team.counts(req.user.id) });
+}));
+app.delete("/api/team/:id", requireAuth, wrap((req, res) => {
+  if (!Team.deleteSub(req.user.id, req.params.id)) return res.status(404).json({ error: "Sub not found." });
+  res.json({ ok: true, counts: Team.counts(req.user.id) });
 }));
 
 // Inbound webhook for n8n / website forms / lead ads. Auth is the per-user token
