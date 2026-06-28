@@ -320,6 +320,12 @@
   .svcpick{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
   .svcchip{background:var(--surface2,#f3eee3);border:1px solid var(--line,#e2dac9);border-radius:999px;padding:7px 12px;font-size:.85rem;font-weight:600;color:var(--text);cursor:pointer}
   .svcchip.on{background:var(--amber,#CF7F18);border-color:var(--amber,#CF7F18);color:#1F252C}
+  .modetog{display:flex;gap:6px}
+  .modetog .mt{flex:1;padding:10px;border:1px solid var(--line,#e2dac9);background:var(--surface2,#f3eee3);border-radius:9px;font-weight:700;font-size:.9rem;color:var(--text);cursor:pointer}
+  .modetog .mt.on{background:var(--amber,#CF7F18);border-color:var(--amber,#CF7F18);color:#1F252C}
+  .cklist{max-height:180px;overflow:auto;border:1px solid var(--line,#e2dac9);border-radius:9px;padding:6px}
+  .ckrow{display:flex;align-items:center;gap:9px;padding:7px 6px;font-size:.92rem;cursor:pointer}
+  .ckrow input{width:18px;height:18px;flex:none}
   @media(min-width:720px){ .kpi{flex:1 1 0} }
   .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
   .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
@@ -2950,41 +2956,73 @@ async function loadDispatches(jobId){
 function dispatchStatusHTML(jobId){
   const arr=DISPATCHES[jobId]; if(arr===undefined){ loadDispatches(jobId); return ''; }
   if(!arr.length) return '';
-  const pill=s=>({sent:'sent',viewed:'👀 viewed',accepted:'✓ accepted'})[s]||s;
-  return '<div style="margin-top:10px">'+arr.map(d=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center"><div class="act-t">📤 ${esc(d.sub_name||'Sub')}</div><div class="act-s">${pill(d.status)}${d.accepted_by&&d.status==='accepted'?' · '+esc(d.accepted_by):''}</div></div>`).join('')+'</div>';
+  const money=n=>'$'+(Number(n)||0).toLocaleString('en-US');
+  const pill=s=>({sent:'sent',viewed:'👀 viewed',accepted:'✓ accepted',bid:'💰 bid in',declined:'—'})[s]||s;
+  return '<div style="margin-top:10px">'+arr.map(d=>{
+    const amt=(d.bid_amount!=null&&d.bid_amount!=='')?(' · <b style="color:#8fd0a8">'+money(d.bid_amount)+'</b>'):'';
+    const accept=d.status==='bid'?`<button class="btn sm" onclick="acceptBidUI('${jobId}','${d.id}')">Accept</button>`:'';
+    return `<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${d.kind==='rfq'?'💬':'📤'} ${esc(d.sub_name||'Sub')}</div><div class="act-s">${pill(d.status)}${amt}${d.accepted_by&&d.status==='accepted'?' · '+esc(d.accepted_by):''}</div></div>${accept}</div>`;
+  }).join('')+'</div>';
 }
+let DISPATCH_MODE='work', LAST_SENDS=[];
 async function openDispatch(jobId){
   const j=JOBS.find(x=>x.id===jobId)||currentJob(); if(!j) return;
   if(!TEAM.loaded){ await loadTeam(); }
+  DISPATCH_MODE='work'; LAST_SENDS=[];
+  renderDispatchBody(j);
+  const el=document.getElementById('dispatchSheet'); if(el) el.style.display='flex';
+}
+function setDispatchMode(m){ DISPATCH_MODE=m; const j=currentJob(); if(j) renderDispatchBody(j); }
+function renderDispatchBody(j){
   const body=document.getElementById('dispatchBody'); if(!body) return;
   if(!(TEAM.items||[]).length){
     body.innerHTML=`<div class="hint">You haven't added any subs yet — add your crew first.</div><button class="btn full" style="margin-top:10px" onclick="closeDispatch();go('team')">Add your crew</button>`;
-  } else {
-    const opts=(TEAM.items||[]).map(s=>`<option value="${s.id}">${esc(s.name||s.phone||'Sub')}${s.trade?(' · '+esc((TRADE_PICK.find(t=>t.key===s.trade)||{}).label||s.trade)):''}</option>`).join('');
-    body.innerHTML=`<label class="fld">Which sub?</label><select id="dispSub" class="input">${opts}</select>
-      <textarea id="dispNote" class="input" style="margin-top:8px;min-height:64px" placeholder="Note for your sub (optional) — when to start, gate code, etc."></textarea>
-      <button class="btn full" style="margin-top:10px" onclick="sendDispatch('${j.id}')">Create &amp; send scope</button>
-      <div class="hint" style="margin-top:6px">Opens WhatsApp with a link. They see the work &amp; photos — never your prices.</div>`;
+    return;
   }
-  const el=document.getElementById('dispatchSheet'); if(el) el.style.display='flex';
+  const rfq=DISPATCH_MODE==='rfq';
+  const lines=(j.lines||[]).filter(l=>l.desc);
+  const items=lines.map((l,i)=>`<label class="ckrow"><input type="checkbox" class="dispItem" data-i="${i}" checked/> <span>${esc(l.desc)}${l.section?(' · '+esc(l.section)):''}</span></label>`).join('')||'<div class="hint" style="padding:6px">No line items yet.</div>';
+  const subs=(TEAM.items||[]).map(s=>`<label class="ckrow"><input type="checkbox" class="dispSub2" data-id="${escAttr(s.id)}" data-name="${escAttr(s.name||s.phone||'Sub')}" data-lang="${escAttr(s.lang||'')}" data-phone="${escAttr(s.phone||'')}"/> <span>${esc(s.name||s.phone||'Sub')}${s.trade?(' · '+esc((TRADE_PICK.find(t=>t.key===s.trade)||{}).label||s.trade)):''}</span></label>`).join('');
+  body.innerHTML=`
+    <div class="modetog"><button class="mt ${!rfq?'on':''}" onclick="setDispatchMode('work')">📤 Assign work</button><button class="mt ${rfq?'on':''}" onclick="setDispatchMode('rfq')">💬 Request bids</button></div>
+    <div class="hint" style="margin:8px 0">${rfq?'Send to a few contractors — each enters their price, you accept the best.':'Send the work to a sub — they tap to accept. They see the work &amp; photos, never your prices.'}</div>
+    <label class="fld">Scope to send <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(uncheck what they don't need)</span></label>
+    <div class="cklist">${items}</div>
+    <label class="fld" style="margin-top:10px">Send to${rfq?' — pick a few':''}</label>
+    <div class="cklist">${subs}</div>
+    <textarea id="dispNote" class="input" style="margin-top:8px;min-height:54px" placeholder="Note (optional) — when to start, gate code, etc."></textarea>
+    <button class="btn full" style="margin-top:10px" onclick="sendDispatch('${j.id}')">${rfq?'Create bid requests':'Create &amp; send scope'}</button>
+    <div id="dispResult"></div>`;
 }
 function closeDispatch(){ const el=document.getElementById('dispatchSheet'); if(el) el.style.display='none'; }
+function dispSend(i){ const s=LAST_SENDS[i]; if(!s) return; const digits=(s.phone||'').replace(/\D/g,''); window.open('https://wa.me/'+(digits?(digits.length===10?'1'+digits:digits):'')+'?text='+encodeURIComponent(s.msg),'_blank'); }
 async function sendDispatch(jobId){
-  const subId=(document.getElementById('dispSub')||{}).value||'';
+  const j=JOBS.find(x=>x.id===jobId)||currentJob(); if(!j) return;
   const note=(document.getElementById('dispNote')||{}).value||'';
-  const sub=(TEAM.items||[]).find(s=>s.id===subId);
-  if(!sub){ toast('Pick a sub.','warn'); return; }
+  const lines=(j.lines||[]).filter(l=>l.desc);
+  const items=[...document.querySelectorAll('.dispItem:checked')].map(c=>{const l=lines[+c.dataset.i]; return l?{section:l.section,desc:l.desc,qty:l.qty,unit:l.unit}:null;}).filter(Boolean);
+  const subs=[...document.querySelectorAll('.dispSub2:checked')].map(c=>({id:c.dataset.id,name:c.dataset.name,lang:c.dataset.lang,phone:c.dataset.phone}));
+  if(!subs.length){ toast('Pick at least one contractor.','warn'); return; }
+  if(!items.length){ toast('Pick at least one scope item.','warn'); return; }
+  const kind=DISPATCH_MODE, me=SETTINGS.name||SETTINGS.company||'your contractor';
   try{
-    const r=await api('/api/jobs/'+jobId+'/dispatch',{method:'POST',body:JSON.stringify({subId:sub.id, subName:sub.name||sub.phone||'Sub', subLang:sub.lang||'', note})});
-    DISPATCHES[jobId]=[r.dispatch, ...(DISPATCHES[jobId]||[])];
-    closeDispatch(); render();
-    const me=SETTINGS.name||SETTINGS.company||'your contractor';
-    const first=((sub.name||'').trim().split(/\s+/)[0]||'');
-    const msg=`Hey${first?' '+first:''}, it's ${me}. Here's the scope for a job — take a look and tap to accept: ${r.url}`;
-    const digits=(sub.phone||'').replace(/\D/g,'');
-    window.open('https://wa.me/'+(digits?(digits.length===10?'1'+digits:digits):'')+'?text='+encodeURIComponent(msg),'_blank');
-    toast('Scope sent to '+(sub.name||'your sub')+'.','ok');
-  }catch(e){ toast(e.message||'Could not send scope.','bad'); }
+    const r=await api('/api/jobs/'+jobId+'/dispatch',{method:'POST',body:JSON.stringify({subs:subs.map(s=>({id:s.id,name:s.name,lang:s.lang})), items, note, kind})});
+    DISPATCHES[jobId]=[...(r.sent||[]).map(x=>x.dispatch), ...(DISPATCHES[jobId]||[])];
+    LAST_SENDS=(r.sent||[]).map(x=>{
+      const s=subs.find(z=>z.id===x.sub.id)||{}; const first=((s.name||'').trim().split(/\s+/)[0]||'');
+      const msg=`Hey${first?' '+first:''}, it's ${me}. ${kind==='rfq'?"Here's a job — can you send me a bid?":"Here's the scope for a job — take a look and tap to accept:"} ${x.url}`;
+      return { name:s.name||'Sub', phone:s.phone||'', msg };
+    });
+    const rows=LAST_SENDS.map((s,i)=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="act-t">${esc(s.name)}</div><button class="btn sm" onclick="dispSend(${i})">📲 Send</button></div>`).join('');
+    const rr=document.getElementById('dispResult'); if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ ${kind==='rfq'?'Bid requests':'Scope'} created — tap to send each:</div>${rows}`;
+    render();
+    toast(kind==='rfq'?'Bid requests created.':'Scope created.','ok');
+  }catch(e){ toast(e.message||'Could not send.','bad'); }
+}
+async function acceptBidUI(jobId, did){
+  if(!confirm('Accept this bid? The other contractors will be declined.')) return;
+  try{ const r=await api('/api/jobs/'+jobId+'/dispatch/'+did+'/accept',{method:'POST'}); DISPATCHES[jobId]=r.dispatches||DISPATCHES[jobId]; render(); toast('Bid accepted.','ok'); }
+  catch(e){ toast(e.message||'Could not accept.','bad'); }
 }
 function viewCatalog(){
   const sk=CATALOG.skus||[], pv=CATALOG.preview;

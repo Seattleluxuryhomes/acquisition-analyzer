@@ -673,15 +673,31 @@ app.post("/api/inbound/leads", wrap((req, res) => {
 
 // ---- Scope dispatch: send a job's scope of work to a sub (free for the sub) ----
 app.post("/api/jobs/:id/dispatch", requireAuth, wrap((req, res) => {
-  const { subId, subName, subLang, note } = req.body || {};
-  const d = Dispatch.createDispatch(req.user.id, { jobId: req.params.id, subId, subName, subLang, note });
-  if (!d) return res.status(404).json({ error: "Job not found." });
-  track(req.user.id, "scope_dispatched", { jobId: req.params.id, sub: d.sub_name || "" });
-  res.json({ dispatch: d, url: baseUrl(req) + "/s/" + d.id });
+  const b = req.body || {};
+  const { note, kind } = b;
+  // Selected work subset (already stripped client-side to {section,desc,qty,unit}).
+  const sel = Array.isArray(b.items) ? b.items.map((l) => ({ section: l.section, desc: l.desc, qty: l.qty, unit: l.unit })) : null;
+  // One sub, or several (RFQ to 3 contractors) — each gets its own dispatch + link.
+  const recipients = Array.isArray(b.subs) && b.subs.length ? b.subs : [{ id: b.subId, name: b.subName, lang: b.subLang }];
+  const out = [];
+  for (const r of recipients) {
+    const d = Dispatch.createDispatch(req.user.id, { jobId: req.params.id, subId: r.id, subName: r.name, subLang: r.lang, note, kind, items: sel });
+    if (d) out.push({ dispatch: d, url: baseUrl(req) + "/s/" + d.id, sub: r });
+  }
+  if (!out.length) return res.status(404).json({ error: "Job not found." });
+  track(req.user.id, "scope_dispatched", { jobId: req.params.id, kind: kind === "rfq" ? "rfq" : "work", count: out.length });
+  res.json({ sent: out });
 }));
 app.get("/api/jobs/:id/dispatches", requireAuth, (req, res) => {
   res.json({ dispatches: Dispatch.listForJob(req.user.id, req.params.id) });
 });
+// GC accepts a specific contractor's bid (RFQ) — owner-scoped; others auto-declined.
+app.post("/api/jobs/:id/dispatch/:did/accept", requireAuth, wrap((req, res) => {
+  const d = Dispatch.acceptBid(req.user.id, req.params.id, req.params.did);
+  if (!d) return res.status(404).json({ error: "Bid not found." });
+  track(req.user.id, "bid_accepted", { jobId: req.params.id, sub: d.accepted_by || "", amount: d.bid_amount || 0 });
+  res.json({ dispatch: d, dispatches: Dispatch.listForJob(req.user.id, req.params.id) });
+}));
 
 // Public, login-free scope page a sub opens. Only buildScope() data is rendered —
 // the work + photos, never price/margin (hard rule #2). The unguessable id is the
@@ -692,13 +708,15 @@ app.get("/s/:id", (req, res) => {
   const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(d.job_id);
   if (!jobRow) return res.status(404).send("Job not found.");
   const owner = db.prepare("SELECT * FROM user WHERE id=?").get(d.user_id);
-  const scope = Dispatch.buildScope(Jobs.rowToJob(jobRow));
+  // Only the SELECTED scope subset for this dispatch (frozen snapshot), else the job.
+  const scope = Dispatch.scopeForDispatch(d, Jobs.rowToJob(jobRow));
   // All of the GC's job photos (signed, expiring) — the sub needs to see the work.
   const photos = db.prepare("SELECT id FROM photo WHERE job_id=? ORDER BY created_at").all(jobRow.id)
     .map((r) => ({ url: signPhotoUrl(jobRow.id, r.id) }));
   res.type("html").send(renderScopeHTML(scope, {
     id: d.id, company: (owner && owner.company) || "Your contractor", note: d.note,
     photos, status: d.status, acceptedBy: d.accepted_by, subName: d.sub_name, lang: d.sub_lang,
+    kind: d.kind, bidAmount: d.bid_amount,
   }));
 });
 app.post("/s/:id/viewed", wrap((req, res) => { const d = Dispatch.getPublic(req.params.id); if (d) Dispatch.markViewed(d.id); res.json({ ok: true }); }));
@@ -708,6 +726,15 @@ app.post("/s/:id/accept", wrap((req, res) => {
   const out = Dispatch.accept(d.id, (req.body && req.body.name) || d.sub_name);
   track(d.user_id, "scope_accepted", { jobId: d.job_id, sub: out.accepted_by || "" });
   try { Notify.notify && Notify.notify({ type: "scope_accepted", userId: d.user_id, jobId: d.job_id, sub: out.accepted_by }); } catch {}
+  res.json({ ok: true });
+}));
+// A contractor submits their bid back (RFQ). Public — the link is the grant.
+app.post("/s/:id/bid", wrap((req, res) => {
+  const d = Dispatch.getPublic(req.params.id);
+  if (!d) return res.status(404).json({ error: "Invalid scope link." });
+  const out = Dispatch.submitBid(d.id, { amount: (req.body && req.body.amount) || 0, note: (req.body && req.body.note) || "" });
+  track(d.user_id, "scope_bid", { jobId: d.job_id, sub: out.sub_name || "", amount: out.bid_amount || 0 });
+  try { Notify.notify && Notify.notify({ type: "scope_bid", userId: d.user_id, jobId: d.job_id, sub: out.sub_name, amount: out.bid_amount }); } catch {}
   res.json({ ok: true });
 }));
 

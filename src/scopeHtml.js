@@ -13,6 +13,8 @@ const T = {
     accept: "✓ Got it — I'll do this", accepted: "Accepted", acceptedBy: "Accepted by",
     your: "Your name", confirm: "Confirm you'll take this job",
     thanks: "Thanks — the contractor has been notified you accepted.", est: "This is a scope of work, not a price.",
+    bidTitle: "Send your bid", amount: "Your price ($)", bidNote: "Note (optional)",
+    submitBid: "Send my bid", bidThanks: "Thanks — your bid was sent to the contractor.", bidSent: "Bid sent",
   },
   es: {
     scope: "Alcance del trabajo", from: "De", where: "Dónde", notes: "Nota del contratista",
@@ -20,6 +22,8 @@ const T = {
     accept: "✓ Entendido — yo lo hago", accepted: "Aceptado", acceptedBy: "Aceptado por",
     your: "Tu nombre", confirm: "Confirma que tomas este trabajo",
     thanks: "Gracias — el contratista fue notificado de que aceptaste.", est: "Esto es un alcance de trabajo, no un precio.",
+    bidTitle: "Envía tu cotización", amount: "Tu precio ($)", bidNote: "Nota (opcional)",
+    submitBid: "Enviar mi cotización", bidThanks: "Gracias — tu cotización fue enviada al contratista.", bidSent: "Cotización enviada",
   },
 };
 
@@ -43,13 +47,23 @@ export function renderScopeHTML(scope, opts = {}) {
     ? `<div class="sec"><div class="sec-h">${t.assumptions}</div><ul>${scope.assumptions.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>`
     : "";
 
+  const isRfq = opts.kind === "rfq";
+  const alreadyBid = opts.status === "bid";
   const acceptBlock = accepted
     ? `<div class="accepted">✓ ${t.accepted}${opts.acceptedBy ? ` · ${t.acceptedBy} ${esc(opts.acceptedBy)}` : ""}</div>`
-    : `<div class="acceptbox">
-         <input id="who" class="in" placeholder="${t.your}" value="${esc(opts.subName || "")}"/>
-         <button id="acceptBtn" class="btn" onclick="accept()">${t.accept}</button>
-         <div class="fine">${t.confirm}</div>
-       </div>`;
+    : isRfq
+      ? (alreadyBid
+          ? `<div class="accepted">✓ ${t.bidSent}${opts.bidAmount ? ` · $${esc(opts.bidAmount)}` : ""}</div>`
+          : `<div class="acceptbox"><div class="bidh">${t.bidTitle}</div>
+               <input id="who" class="in" placeholder="${t.your}" value="${esc(opts.subName || "")}"/>
+               <input id="amt" class="in" type="number" inputmode="numeric" placeholder="${t.amount}"/>
+               <textarea id="bnote" class="in" placeholder="${t.bidNote}" style="min-height:64px"></textarea>
+               <button id="bidBtn" class="btn" onclick="sendBid()">${t.submitBid}</button></div>`)
+      : `<div class="acceptbox">
+           <input id="who" class="in" placeholder="${t.your}" value="${esc(opts.subName || "")}"/>
+           <button id="acceptBtn" class="btn" onclick="accept()">${t.accept}</button>
+           <div class="fine">${t.confirm}</div>
+         </div>`;
 
   return `<!doctype html><html lang="${opts.lang === "es" ? "es" : "en"}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -70,6 +84,8 @@ export function renderScopeHTML(scope, opts = {}) {
   ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:.9rem}li{margin:3px 0}
   .photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.photos img{width:100%;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--rule)}
   .acceptbox{margin-top:24px;border-top:2px solid var(--ink);padding-top:18px}
+  .bidh{font-weight:800;font-size:1.05rem;margin-bottom:10px}
+  .acceptbox .in{margin-bottom:10px}
   .in{width:100%;padding:13px;border:1px solid var(--rule);border-radius:10px;font-size:1rem;margin-bottom:10px}
   .btn{width:100%;background:var(--amber);color:#1F252C;border:none;border-radius:10px;padding:15px;font-weight:800;font-size:1.05rem;cursor:pointer}
   .btn:disabled{opacity:.6}.fine{color:var(--muted);font-size:.8rem;text-align:center;margin-top:8px}
@@ -86,7 +102,7 @@ export function renderScopeHTML(scope, opts = {}) {
   ${photos}
   ${assumptions}
   <div id="acceptRegion">${acceptBlock}</div>
-  <div class="est">${t.est}</div>
+  ${isRfq ? "" : `<div class="est">${t.est}</div>`}
 </div></div>
 <script>
   var ID=${JSON.stringify(opts.id || "")};
@@ -97,6 +113,16 @@ export function renderScopeHTML(scope, opts = {}) {
       .then(function(r){return r.json()}).then(function(){
         document.getElementById('acceptRegion').innerHTML='<div class="accepted">✓ '+${JSON.stringify(t.thanks)}+'</div>';
       }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent=${JSON.stringify(t.accept)}; } });
+  }
+  function sendBid(){
+    var btn=document.getElementById('bidBtn');
+    var amt=(document.getElementById('amt')||{}).value||'', who=(document.getElementById('who')||{}).value||'', note=(document.getElementById('bnote')||{}).value||'';
+    if(!amt){ var a=document.getElementById('amt'); if(a){ a.focus(); } return; }
+    if(btn){ btn.disabled=true; btn.textContent='…'; }
+    fetch('/s/'+ID+'/bid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:amt,note:(who?('['+who+'] '):'')+note})})
+      .then(function(r){return r.json()}).then(function(){
+        document.getElementById('acceptRegion').innerHTML='<div class="accepted">✓ '+${JSON.stringify(t.bidThanks)}+'</div>';
+      }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent=${JSON.stringify(t.submitBid)}; } });
   }
   // beacon: mark viewed
   try{ fetch('/s/'+ID+'/viewed',{method:'POST'}); }catch(e){}

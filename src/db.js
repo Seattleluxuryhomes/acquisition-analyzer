@@ -206,6 +206,10 @@ CREATE TABLE IF NOT EXISTS dispatch (
   sub_lang TEXT DEFAULT '',
   note TEXT DEFAULT '',
   status TEXT DEFAULT 'sent',
+  kind TEXT DEFAULT 'work',        -- 'work' = assign/accept · 'rfq' = request a bid
+  scope_json TEXT,                 -- frozen snapshot of the SELECTED work items (no prices)
+  bid_amount INTEGER,              -- the contractor's bid back (RFQ), dollars
+  bid_note TEXT DEFAULT '',
   viewed_at INTEGER,
   accepted_at INTEGER,
   accepted_by TEXT DEFAULT '',
@@ -312,6 +316,15 @@ ensureColumns("sku", [
 // contractor has it on record with the signed agreement).
 ensureColumns("signature", [
   ["signer_email", "TEXT DEFAULT ''"],
+]);
+// The `dispatch` table already exists in production from the first scope-dispatch
+// deploy, so CREATE TABLE won't add these — they must be migrated in explicitly:
+// selective-scope snapshot + the RFQ (request-a-bid) fields.
+ensureColumns("dispatch", [
+  ["kind", "TEXT DEFAULT 'work'"],
+  ["scope_json", "TEXT"],
+  ["bid_amount", "INTEGER"],
+  ["bid_note", "TEXT DEFAULT ''"],
 ]);
 
 export default db;
