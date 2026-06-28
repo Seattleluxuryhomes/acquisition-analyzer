@@ -201,6 +201,11 @@
   .routedir{display:flex;align-items:center;justify-content:center;min-width:54px;font-size:1.1rem;text-decoration:none}
   /* ===== Dashboard ===== */
   .dash-hello{margin:6px 0 14px}
+  .greet-emoji{display:inline-block;transform-origin:72% 75%}
+  @keyframes bt-wave{0%{transform:rotate(0)}15%{transform:rotate(14deg)}30%{transform:rotate(-8deg)}45%{transform:rotate(12deg)}60%{transform:rotate(-4deg)}75%{transform:rotate(8deg)}100%{transform:rotate(0)}}
+  .greet-emoji.wave{animation:bt-wave 1s ease-in-out 1}
+  @media(prefers-reduced-motion:reduce){.greet-emoji.wave{animation:none}}
+  .daily-insight{font-size:.95rem;color:var(--muted);margin-top:5px;line-height:1.45}
   .kpis{display:flex;flex-direction:column;gap:11px;margin:2px 0 20px}
   .kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 16px;display:flex;gap:13px;align-items:flex-start;box-shadow:var(--shadow)}
   .kpi-ic{flex:0 0 auto;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--surface2);color:var(--muted)}
@@ -1840,6 +1845,70 @@ function jobCardHTML(j){
 }
 
 function greetingWord(){ const h=new Date().getHours(); return h<12?'Good morning':(h<18?'Good afternoon':'Good evening'); }
+function greetEmoji(){ const h=new Date().getHours(); return h<12?'👋':(h<18?'🌅':'🌙'); }
+let greetWaved=false; // the hand waves once per dashboard session, then rests
+// A rotating pool of upbeat-but-professional lines — only used when there's no real
+// business signal to surface. Kept large so the same one rarely shows twice.
+const GREET_MOTIVATION=[
+  "🚀 Ready to send another estimate?",
+  "🎯 Every estimate gets you closer to your next job.",
+  "🏆 Small actions today build a bigger business tomorrow.",
+  "⚡ Ready to win another project?",
+  "💪 One good bid can change your whole week.",
+  "📈 Consistency wins jobs — keep it going.",
+  "🔨 Talk a job into a finished bid in 60 seconds.",
+  "🤝 Your next customer is one estimate away.",
+  "🎉 Welcome back — let's build something great today.",
+  "🌟 A little momentum today goes a long way.",
+  "💼 Let's make today a productive one.",
+  "🧱 Steady work, steady growth. Let's go.",
+  "📣 The contractors who follow up, win. That's you today.",
+  "🔑 One conversation today could be your next signed job.",
+];
+function pickMotivation(){
+  let last=-1; try{ last=+localStorage.getItem('bt_insightIdx'); }catch(e){}
+  let i=Math.floor(Math.random()*GREET_MOTIVATION.length);
+  if(GREET_MOTIVATION.length>1 && i===last) i=(i+1)%GREET_MOTIVATION.length;
+  try{ localStorage.setItem('bt_insightIdx', String(i)); }catch(e){}
+  return GREET_MOTIVATION[i];
+}
+function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// The "AI assistant already knows what matters today" line. REAL business signal
+// first (most urgent/rewarding wins), motivational only as the last resort.
+function dailyInsight(){
+  const jobs=(JOBS||[]).filter(j=>!j._deleted);
+  const now=Date.now();
+  // 1) money in overnight — the best possible thing to greet them with
+  const paid=((NOTIFS&&NOTIFS.items)||[]).filter(i=>i.type==='paid' && (now-(i.at||0))<16*3600*1000);
+  if(paid.length){ const amt=paid.reduce((s,i)=>s+(i.amount||0),0); return '💵 '+(amt?('You received '+money(amt)+' — great way to start the day.'):'You received a payment — great way to start.'); }
+  // 2) appointments today
+  const appts=jobs.filter(j=>j.scheduled_date===todayKey());
+  if(appts.length){ return '📅 You have '+appts.length+' appointment'+(appts.length>1?'s':'')+' today.'; }
+  // 3) follow-ups your AI assistant already drafted
+  const fu=((INBOX&&INBOX.items)||[]).filter(i=>i.type==='follow_up').length;
+  if(fu){ return '💬 You have '+fu+' follow-up'+(fu>1?'s':'')+' ready — one could be your next customer.'; }
+  // 4) fresh leads
+  if((LEADS_NEW||0)>0){ return '🚀 You have '+LEADS_NEW+' new lead'+(LEADS_NEW>1?'s':'')+' — strike while it’s hot.'; }
+  // 5) estimates ready to send (drafts with real content)
+  const drafts=jobs.filter(j=>jobStatus(j)==='draft' && (j.lines||[]).some(l=>l.desc));
+  if(drafts.length){ return '🎯 You have '+drafts.length+' estimate'+(drafts.length>1?'s':'')+' ready to send.'; }
+  // 6) wins this week
+  const wk=now-7*86400000;
+  const closed=jobs.filter(j=>(jobStatus(j)==='signed'||jobStatus(j)==='scheduled') && (j.sent_at||0)>wk).length;
+  if(closed){ return '🔥 You’ve closed '+closed+' project'+(closed>1?'s':'')+' this week — great work.'; }
+  // 7) brand new / quiet — point them at growth
+  if(!jobs.length){ return '🌱 Let’s generate your next customer today.'; }
+  // 8) no urgent signal → an upbeat nudge
+  return pickMotivation();
+}
+function greetingHTML(){
+  const who=(SETTINGS.name||'').trim();
+  const e=greetEmoji(), isHand=(e==='👋');
+  const waveCls=(isHand && !greetWaved)?' wave':''; greetWaved=true;
+  return `<div class="dash-hello"><div class="h-eyebrow">${esc(SETTINGS.company)||'Your business'}</div>
+    <h1 class="page"><span class="greet-emoji${waveCls}">${e}</span> ${greetingWord()}${who?', '+esc(who):''}</h1>
+    <div class="daily-insight">${esc(dailyInsight())}</div></div>`;
+}
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function timeAgo(ts){ if(!ts) return ''; const m=Math.floor((Date.now()-ts)/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
 
@@ -1910,8 +1979,7 @@ function activityBlock(visible){
 function viewHome(){
   const visible = JOBS.filter(j=>!j._deleted);
   const who = (SETTINGS.name||'').trim();
-  const hello = `<div class="dash-hello"><div class="h-eyebrow">${esc(SETTINGS.company)||'Your business'}</div>
-    <h1 class="page">${greetingWord()}${who?', '+esc(who):''}</h1></div>`;
+  const hello = greetingHTML();
   // First-run nudge: a bid sent before setup says "Your Company" — prompt them.
   const needsSetup = !SETTINGS.company || SETTINGS.company==='Your Company' || !SETTINGS.logo || !(SETTINGS.phone||'').trim();
   const nudge = needsSetup ? `<button class="setupnudge" onclick="go('settings')">Finish your setup — add your company name, logo &amp; phone so every bid looks professional. <span class="nudge-go">Set up ${icon('chevron',12)}</span></button>` : '';
