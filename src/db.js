@@ -352,6 +352,31 @@ CREATE TABLE IF NOT EXISTS prospect (
 );
 CREATE INDEX IF NOT EXISTS prospect_user_idx ON prospect(user_id, status);
 CREATE UNIQUE INDEX IF NOT EXISTS prospect_dedupe ON prospect(user_id, dedupe_key);
+
+-- Private vendor book: a contractor's OWN suppliers/vendors, reachable in one tap
+-- from a job (call/text/email a material quote). Single-player now; the dormant
+-- 'shared'/'verified' flags let this become a shared directory later (post-traction)
+-- without a migration. 'materials' is free text/tags of what they carry.
+CREATE TABLE IF NOT EXISTS vendor (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  name TEXT DEFAULT '',            -- vendor / supplier business name
+  contact_name TEXT DEFAULT '',
+  trade TEXT DEFAULT '',           -- category (lumber, windows, electrical supply…)
+  materials TEXT DEFAULT '',       -- what they carry (free text / comma tags)
+  phone TEXT DEFAULT '',
+  email TEXT DEFAULT '',
+  website TEXT DEFAULT '',
+  address TEXT DEFAULT '',
+  notes TEXT DEFAULT '',
+  shared INTEGER DEFAULT 0,        -- forward-compat: future shared directory (not exposed yet)
+  verified INTEGER DEFAULT 0,      -- forward-compat: future verification (not exposed yet)
+  dedupe_key TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS vendor_user_idx ON vendor(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS vendor_dedupe ON vendor(user_id, dedupe_key);
 `);
 
 // Migrate older databases that predate the billing columns.

@@ -19,6 +19,7 @@ import * as Inbox from "./src/inbox.js";
 import * as Funnels from "./src/funnels.js";
 import * as Prospecting from "./src/prospecting.js";
 import * as Prospects from "./src/prospects.js";
+import * as Vendors from "./src/vendors.js";
 import { tradeList, sampleScope, tradeLabel } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
@@ -455,6 +456,25 @@ app.get("/api/prospects/export", requireAuth, requireAdmin, (req, res) => {
   res.setHeader("Content-Disposition", 'attachment; filename="bidtranslator-prospects.csv"');
   res.send(csv);
 });
+
+// ---- Private vendor book (every contractor; their own suppliers, owner-scoped) ----
+app.get("/api/vendors", requireAuth, (req, res) =>
+  res.json({ vendors: Vendors.list(req.user.id, req.query.q), count: Vendors.count(req.user.id) }));
+app.post("/api/vendors", requireAuth, wrap((req, res) => {
+  const body = req.body || {};
+  const saved = Vendors.save(req.user.id, body.vendors || body);
+  res.json({ saved, count: Vendors.count(req.user.id) });
+}));
+app.patch("/api/vendors/:id", requireAuth, wrap((req, res) => {
+  const v = Vendors.update(req.user.id, req.params.id, req.body || {});
+  if (!v) return res.status(404).json({ error: "Vendor not found." });
+  res.json({ vendor: v });
+}));
+app.delete("/api/vendors/:id", requireAuth, wrap((req, res) => {
+  if (!Vendors.remove(req.user.id, req.params.id)) return res.status(404).json({ error: "Vendor not found." });
+  res.json({ ok: true, count: Vendors.count(req.user.id) });
+}));
+
 // Contractors who asked us to build them a custom website (the "we won't know
 // unless they ask" list). Founder-only — who + their note + when, newest first.
 app.get("/api/admin/site-requests", requireAuth, requireAdmin, (req, res) => {
