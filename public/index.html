@@ -480,6 +480,19 @@
   .vf-mic-grow{position:fixed;z-index:9999;background:var(--amber);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 26px rgba(207,127,24,.45),inset 0 2px 0 rgba(255,255,255,.35);pointer-events:none}
   @media(prefers-reduced-motion:reduce){.vf-mic-stage.recording .vf-ring{animation:none}.vf-timer::before{animation:none}}
   .vf-text{min-height:96px}
+  /* While recording, the "What you said" box comes alive — glowing border + an
+     equalizer/"Listening…" strip anchored at the bottom (and live caption words if
+     the opt-in preview is on). It never overwrites the box; Whisper fills it on stop. */
+  .vf-textwrap{position:relative}
+  .vf-textwrap.live textarea{border-color:var(--amber);box-shadow:0 0 0 3px rgba(238,155,46,.16);transition:box-shadow .2s,border-color .2s}
+  .vf-live{position:absolute;left:1px;right:1px;bottom:1px;display:none;align-items:center;gap:9px;pointer-events:none;padding:20px 13px 11px;border-radius:0 0 7px 7px;background:linear-gradient(to top,var(--surface2) 58%,transparent);color:var(--muted);font-size:.88rem}
+  .vf-textwrap.live .vf-live{display:flex}
+  .vf-live-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vf-live-eq{display:inline-flex;align-items:flex-end;gap:2px;height:14px;flex:0 0 auto}
+  .vf-live-eq i{width:3px;height:14px;background:var(--amber);border-radius:2px;transform-origin:bottom;animation:vfeq .9s ease-in-out infinite}
+  .vf-live-eq i:nth-child(2){animation-delay:.15s}.vf-live-eq i:nth-child(3){animation-delay:.3s}.vf-live-eq i:nth-child(4){animation-delay:.45s}
+  @keyframes vfeq{0%,100%{transform:scaleY(.28)}50%{transform:scaleY(1)}}
+  @media(prefers-reduced-motion:reduce){.vf-live-eq i{animation:none;transform:scaleY(.6)}}
   .reread{float:right;background:none;border:1px solid var(--line);color:var(--amber);border-radius:6px;font-family:"IBM Plex Mono";font-size:.64rem;padding:2px 7px;cursor:pointer;margin-top:-2px}
   .intake{margin-top:12px}
   .intake-h{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin-bottom:6px;display:flex;align-items:center;gap:6px}
@@ -2439,8 +2452,7 @@ function viewCapture(){
          </div>
          <div class="vf-timer" id="vfTimer">0:00</div>
          <div class="vf-wave" id="vfWave">${vfBars()}</div>
-         <div class="vf-mic-lbl" id="micLbl">Tap to speak</div>
-         <div class="vf-caption" id="vfCaption"></div>`
+         <div class="vf-mic-lbl" id="micLbl">Tap to speak</div>`
       : `<div class="vf-mic off">🎤</div><div class="vf-mic-lbl">Voice isn't available on this device — type below.</div>`;
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div class="vf-hero">
@@ -2450,7 +2462,10 @@ function viewCapture(){
     </div>
 
     <label class="fld" style="margin-top:6px">What you said${AI_BUILD?`<button class="reread" onclick="runIntake(true)" title="Re-read the job">${icon('chart',13)} Update</button>`:''}</label>
-    <textarea id="capText" class="input vf-text" oninput="capDraft('text',this.value); scheduleIntake()" placeholder="Example: Kitchen remodel for Maria Martinez at 123 Main Street. Remove cabinets, install quartz counters, new undermount sink, paint walls, and haul debris.">${esc(CAP_DRAFT.text||'')}</textarea>
+    <div class="vf-textwrap" id="capWrap">
+      <textarea id="capText" class="input vf-text" oninput="capDraft('text',this.value); scheduleIntake()" placeholder="Example: Kitchen remodel for Maria Martinez at 123 Main Street. Remove cabinets, install quartz counters, new undermount sink, paint walls, and haul debris.">${esc(CAP_DRAFT.text||'')}</textarea>
+      <div class="vf-live" id="capLive"><span class="vf-live-eq"><i></i><i></i><i></i><i></i></span><span class="vf-live-t" id="capLiveT">Listening…</span></div>
+    </div>
 
     <input id="capPhotoInput" type="file" accept="image/*" multiple style="display:none" onchange="capHandlePhotos(this)"/>
     <input id="capPhotoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="capHandlePhotos(this)"/>
@@ -4212,8 +4227,10 @@ async function copyText(text){
 let rec=null, recording=false, micWanted=false, recStartAt=0;
 // Live on-screen captions are a cosmetic *preview* (phone speech engine) shown while
 // recording — they NEVER write into the bid; Whisper is the source of truth on stop.
-// Kill switch if it ever fights the mic on a device: localStorage.bt_live_captions='off'.
-let LIVE_CAPTIONS = (localStorage.getItem('bt_live_captions')||'on')!=='off';
+// OFF by default: on some Android builds a second mic consumer can disrupt the actual
+// recording, and a working recording matters more than a live preview. Opt in to test:
+// localStorage.bt_live_captions='on'  (waveform + timer still show either way).
+let LIVE_CAPTIONS = localStorage.getItem('bt_live_captions')==='on';
 // One voice path for every device: record → Whisper (server transcription). It's
 // the most accurate and identical on iPhone, Android, and desktop. The browser's
 // live speech API is only a fallback for when the server has no transcription key.
@@ -4231,6 +4248,9 @@ function updateMic(){ const b=document.getElementById('micBtn'); if(b) b.classLi
   const stage=document.getElementById('micStage'); if(stage) stage.classList.toggle('recording',recording);
   const wave=document.getElementById('vfWave'); if(wave) wave.classList.toggle('on',recording);
   const tm=document.getElementById('vfTimer'); if(tm){ tm.classList.toggle('on',recording); if(!recording&&!analyzing) tm.textContent='0:00'; }
+  // The "What you said" box: glow + a live strip so it's never dead while you talk.
+  const wrap=document.getElementById('capWrap'); if(wrap) wrap.classList.toggle('live',recording||analyzing);
+  const lt=document.getElementById('capLiveT'); if(lt && (analyzing || (recording && !capRec))) lt.textContent = analyzing?'Analyzing what you said…':'Listening…';
   const l=b&&b.querySelector('.lbl'); if(l) l.textContent=txt; }
 
 /* ---- Record → server transcription (universal voice, incl. iPhone) ---- */
@@ -4347,15 +4367,14 @@ function startLiveCaptions(){
     capWanted=true;
     capRec.onresult=(e)=>{
       let txt=''; for(let i=0;i<e.results.length;i++) txt+=' '+(e.results[i][0].transcript||'');
-      const el=document.getElementById('vfCaption'); if(el){ el.textContent=txt.trim().slice(-180); el.classList.add('on'); }
+      txt=txt.trim(); const el=document.getElementById('capLiveT'); if(el && txt) el.textContent=txt.slice(-220);
     };
     capRec.onend=()=>{ if(capWanted){ try{ capRec.start(); }catch(_){} } };
     capRec.onerror=()=>{}; // best-effort only — never disturb the real recording
     capRec.start();
   }catch(_){ capRec=null; }
 }
-function stopLiveCaptions(){ capWanted=false; if(capRec){ try{ capRec.stop(); }catch(_){} capRec=null; }
-  const el=document.getElementById('vfCaption'); if(el){ el.textContent=''; el.classList.remove('on'); } }
+function stopLiveCaptions(){ capWanted=false; if(capRec){ try{ capRec.stop(); }catch(_){} capRec=null; } }
 
 // Shared-element grow: the floating bottom-nav mic visually expands into the big
 // center mic so opening Voice Capture feels like one object, not a page load.
