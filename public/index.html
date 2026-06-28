@@ -481,6 +481,19 @@
   .leadcard.hot .kpi-ic{background:var(--amber);color:var(--ink)}
   .leadcard.hot .kpi-v{color:var(--amber)}
   .leadcard .lead-go{margin-left:auto;color:var(--muted);flex:0 0 auto}
+  .growthcard{display:flex;align-items:center;gap:13px;width:100%;text-align:left;font-family:inherit;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 14px;margin-bottom:12px;-webkit-tap-highlight-color:transparent}
+  .growthcard .gc-l{font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+  .growthcard .gc-s{font-size:.92rem;color:var(--text);margin:1px 0 2px}
+  .growthcard .gc-next{font-size:.84rem;color:var(--muted)}.growthcard .gc-imp{color:#2f6d4a;font-weight:700}
+  .growhero{display:flex;align-items:center;gap:18px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin:14px 0}
+  .growhero-c{font-size:1rem;font-weight:600;margin-bottom:10px}
+  .growbar{height:8px;background:var(--line,#e2dac9);border-radius:5px;overflow:hidden;max-width:240px}.growbar-f{height:100%;background:var(--amber);border-radius:5px}
+  .growbar-l{font-size:.76rem;color:var(--muted);margin-top:6px}
+  .grow-h{font-size:.74rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:18px 0 8px}
+  .grow-row{display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--line);border-radius:11px;margin-bottom:8px;background:var(--surface)}
+  .grow-row.done{opacity:.6}.grow-ic{flex:none;font-size:1.05rem}
+  .grow-t{font-weight:600;font-size:.95rem}.grow-m{font-size:.8rem;color:var(--muted)}
+  .grow-soon{font-size:.72rem;color:var(--muted);flex:none}
   .lead{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:11px;box-shadow:var(--shadow)}
   .lead-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .lead-who{font-weight:700;font-size:1.02rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -661,6 +674,7 @@
 <div id="sheet" class="sheet-wrap" style="display:none" onclick="closeMore()">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h">More</div>
+    <button class="sheet-i" onclick="go('growth');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Growth Score</button>
     <button class="sheet-i" onclick="go('leads');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Leads</button>
     <button class="sheet-i" onclick="go('team');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Team &amp; subs</button>
     <button class="sheet-i" onclick="openMySite()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>Your website</button>
@@ -836,6 +850,58 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   // Hydrate tax settings from the server unless the user has local unsaved edits.
   if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_about!==undefined) SETTINGS.site_about=r.settings.site_about; if(r.settings.site_published!==undefined) SETTINGS.site_published=r.settings.site_published; if(r.settings.site_branded_url!==undefined) SETTINGS.site_branded_url=r.settings.site_branded_url; if(r.settings.site_slug!==undefined) SETTINGS.site_slug=r.settings.site_slug; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
 }catch(e){} }
+
+/* ============ AI Growth Score (Sprint 13) ============ */
+let GROWTH = JSON.parse(localStorage.getItem('bt_growth')||'null'); // {score, items, coach, next, ...}
+async function loadGrowth(){
+  if(!TOKEN||!online) return;
+  try{ const r=await api('/api/me/growth'); GROWTH=r; localStorage.setItem('bt_growth', JSON.stringify(r)); if(state.view==='home'||state.view==='growth') render(); }catch(e){}
+}
+function growthRing(score,size){
+  size=size||64; const r=(size-8)/2, c=2*Math.PI*r, off=c*(1-(score/100));
+  const col = score>=80?'#2f6d4a':(score>=50?'var(--amber)':'#b06a2c');
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex:none"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--line,#e2dac9)" stroke-width="6"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${off}" transform="rotate(-90 ${size/2} ${size/2})"/><text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" font-size="${size*0.3}" font-weight="800" fill="var(--text)">${score}</text></svg>`;
+}
+function growthCard(){
+  if(!GROWTH){ loadGrowth(); return ''; }
+  const g=GROWTH, n=g.next;
+  return `<button class="growthcard" onclick="go('growth')">
+    ${growthRing(g.score,58)}
+    <div style="flex:1;min-width:0">
+      <div class="gc-l">Growth Score</div>
+      <div class="gc-s">${esc(g.coach||'')}</div>
+      ${n?`<div class="gc-next">▶ ${esc(n.title)} <span class="gc-imp">${esc(n.impact)}</span></div>`:''}
+    </div>
+    <span style="color:var(--muted);flex:0 0 auto">${icon('chevron',16)}</span>
+  </button>`;
+}
+function growthRoute(it){
+  if(it.coming_soon){ toast('Connecting Google reviews is coming soon — it’ll auto-fill your site & score.','ok',4500); return; }
+  const r=it.route;
+  if(r==='settings') go('settings');
+  else if(r==='jobs'||r==='job'){ const j=JOBS.find(x=>!x._deleted); if(j) go('job',j.id); else { go('home'); newJob(); } }
+  else go('home');
+}
+function viewGrowth(){
+  if(!GROWTH){ loadGrowth(); return `<div class="h-eyebrow">Growth</div><h1 class="page">Growth Score</h1><div class="hint">Loading…</div>`; }
+  const g=GROWTH;
+  const rowOf=(it)=>`<div class="grow-row ${it.done?'done':''}">
+    <span class="grow-ic">${it.done?'✅':(it.coming_soon?'🔒':'⚠️')}</span>
+    <div style="flex:1;min-width:0"><div class="grow-t">${esc(it.title)}</div><div class="grow-m">${it.done?'Done':(it.coming_soon?'Coming soon':('Worth '+esc(it.impact)))}</div></div>
+    ${(!it.done&&!it.coming_soon)?`<button class="btn sm" onclick="growthRoute(${jsAttr(it)})">${esc(it.cta||'Do it')}</button>`:(it.coming_soon?'<span class="grow-soon">soon</span>':'')}
+  </div>`;
+  const todo=(g.items||[]).filter(i=>!i.done);
+  const done=(g.items||[]).filter(i=>i.done);
+  return `<div class="h-eyebrow">Your growth</div><h1 class="page">Growth Score</h1>
+    <div class="growhero">${growthRing(g.score,96)}
+      <div><div class="growhero-c">${esc(g.coach||'')}</div>
+      <div class="growbar"><div class="growbar-f" style="width:${g.foundation_earned/0.8}%"></div></div>
+      <div class="growbar-l">Foundation ${g.foundation_earned}/80 · Momentum ${g.momentum_earned}/20</div></div>
+    </div>
+    ${todo.length?`<h3 class="grow-h">Your next wins</h3>${todo.map(rowOf).join('')}`:'<div class="hint" style="margin-top:14px">🎉 You\'ve done everything available — keep publishing fresh work to hold the top.</div>'}
+    ${done.length?`<h3 class="grow-h" style="margin-top:22px">Done</h3>${done.map(rowOf).join('')}`:''}`;
+}
+function jsAttr(o){ return JSON.stringify(o).replace(/"/g,'&quot;'); }
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
 let NOTIFS = JSON.parse(localStorage.getItem('bt_notifs')||'null') || {items:[], unread:0};
@@ -1092,7 +1158,7 @@ async function doAuth(){
     }); persistSettings(); }
     state.view='home';
     render();
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth()]);
     render();
   }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
 }
@@ -1311,6 +1377,7 @@ function render(){
   else if(state.view==='catalog') { v.innerHTML = viewCatalog(); if(!CATALOG.loaded) loadSkus(); }
   else if(state.view==='leads') { v.innerHTML = viewLeads(); if(!LEADS.loaded) loadLeads(); }
   else if(state.view==='team') { v.innerHTML = viewTeam(); if(!TEAM.loaded) loadTeam(); }
+  else if(state.view==='growth') { v.innerHTML = viewGrowth(); if(!GROWTH) loadGrowth(); }
   else if(state.view==='why') v.innerHTML = viewWhy();
   else if(state.view==='admin') { v.innerHTML = viewAdmin(); loadAdmin(); }
   else if(state.view==='paywall') v.innerHTML = viewPaywall();
@@ -1771,6 +1838,7 @@ function viewHome(){
   if(filtered.length===0){ list = `<div class="hint" style="margin-top:16px">No ${statusLabel(f).toLowerCase()} jobs yet.</div>`; }
   else { list = (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">🗺️ Tap 🧭 for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
   return `${hello}${news}${nudge}${crew}
+    ${growthCard()}
     ${kpiStrip(dashKPIs(visible))}
     ${scheduleBlock(visible)}
     <div class="newbar"><div class="sub">Your jobs · ${visible.length}</div><button class="btn sm" onclick="newJob()">+ New job</button></div>
@@ -4101,7 +4169,7 @@ function confettiBurst(gold){
   }
   render();
   if(TOKEN){
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth()]);
     // Coming back from Stripe Connect onboarding — pull the fresh account status
     // and land the contractor on Setup so they see "Ready".
     if(paymentsReturn){ await refreshPayments(); state.view='settings'; }

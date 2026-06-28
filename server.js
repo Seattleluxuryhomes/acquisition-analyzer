@@ -14,6 +14,7 @@ import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
 import * as SiteProjects from "./src/siteProjects.js";
+import { growthScore } from "./src/growth.js";
 import { tradeList, sampleScope, tradeLabel } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
@@ -312,6 +313,8 @@ app.get("/api/me", requireAuth, (req, res) =>
   res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user),
     admin: Analytics.isAdmin(req.user), leadsNew: Leads.countNew(req.user.id),
     ai: { build: aiConfigured(), transcribe: transcribeConfigured(), visualize: visualizeConfigured() } }));
+// AI Growth Score (Sprint 13) — the coaching screen; pure data, no AI.
+app.get("/api/me/growth", requireAuth, (req, res) => res.json(growthScore(req.user)));
 app.patch("/api/me", requireAuth, wrap((req, res) => {
   const b = req.body || {};
   if (typeof b.logo === "string" && b.logo.length > 250000) {
