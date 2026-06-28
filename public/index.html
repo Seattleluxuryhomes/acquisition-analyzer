@@ -652,6 +652,12 @@
     <button class="btn full" style="margin-top:10px" onclick="saveLead()">Add lead</button>
   </div>
 </div>
+<div id="dispatchSheet" class="sheet-wrap" style="display:none" onclick="closeDispatch()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h">Send scope to a sub</div>
+    <div id="dispatchBody"></div>
+  </div>
+</div>
 <div id="capPhotoSheet" class="sheet-wrap" style="display:none" onclick="closeCapPhotoSheet()">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h">Add Photos</div>
@@ -2281,6 +2287,12 @@ function tabBuild(j){
       <div class="hint">Client pays <b style="color:var(--paper)">${money(Math.round(total*(depPct/100)))}</b> on acceptance${PAYMENTS&&PAYMENTS.charges_enabled?' (via your Stripe).':'. Finish “Set up payments” to collect it automatically.'}</div>
     </div>
 
+    <div class="dispatchbox" style="margin-top:14px">
+      <button class="btn ghost full" onclick="openDispatch('${j.id}')">📤 Send this scope to a sub</button>
+      <div class="hint" style="margin-top:6px">Your crew sees the work &amp; photos — never your prices. They tap to accept.</div>
+      <div id="dispatchStatus">${dispatchStatusHTML(j.id)}</div>
+    </div>
+
     <div class="private"><div class="pl">Private — not shown to client</div>
       <label class="fld" style="margin-top:8px">Profit margin %</label>
       <input class="input" type="number" min="0" max="99" value="${j.margin||0}" oninput="updJob('margin',this.value)" style="max-width:140px"/>
@@ -2790,6 +2802,53 @@ function teamNudge(){
   return `<div class="teamnudge"><h3>👷 Build your team — send it to ${left} more sub${left===1?'':'s'}</h3>
     <p>Add your crew and send them Bidtranslator. They get it free to receive your scope in their language — and you're building the network you bid through.</p>
     <button class="btn full" onclick="go('team')">${c.invited>0?`Add more of your crew (${c.invited}/${target})`:'Add your subs'}</button></div>`;
+}
+
+/* ---- Scope dispatch: send a job's scope of work to a sub (work + photos, no prices) ---- */
+let DISPATCHES = {}; // jobId -> [dispatch]
+async function loadDispatches(jobId){
+  if(!TOKEN||!online){ DISPATCHES[jobId]=DISPATCHES[jobId]||[]; return; }
+  try{ const r=await api('/api/jobs/'+jobId+'/dispatches'); DISPATCHES[jobId]=r.dispatches||[]; if(state.view==='job') render(); }
+  catch(e){ DISPATCHES[jobId]=DISPATCHES[jobId]||[]; }
+}
+function dispatchStatusHTML(jobId){
+  const arr=DISPATCHES[jobId]; if(arr===undefined){ loadDispatches(jobId); return ''; }
+  if(!arr.length) return '';
+  const pill=s=>({sent:'sent',viewed:'👀 viewed',accepted:'✓ accepted'})[s]||s;
+  return '<div style="margin-top:10px">'+arr.map(d=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center"><div class="act-t">📤 ${esc(d.sub_name||'Sub')}</div><div class="act-s">${pill(d.status)}${d.accepted_by&&d.status==='accepted'?' · '+esc(d.accepted_by):''}</div></div>`).join('')+'</div>';
+}
+async function openDispatch(jobId){
+  const j=JOBS.find(x=>x.id===jobId)||currentJob(); if(!j) return;
+  if(!TEAM.loaded){ await loadTeam(); }
+  const body=document.getElementById('dispatchBody'); if(!body) return;
+  if(!(TEAM.items||[]).length){
+    body.innerHTML=`<div class="hint">You haven't added any subs yet — add your crew first.</div><button class="btn full" style="margin-top:10px" onclick="closeDispatch();go('team')">Add your crew</button>`;
+  } else {
+    const opts=(TEAM.items||[]).map(s=>`<option value="${s.id}">${esc(s.name||s.phone||'Sub')}${s.trade?(' · '+esc((TRADE_PICK.find(t=>t.key===s.trade)||{}).label||s.trade)):''}</option>`).join('');
+    body.innerHTML=`<label class="fld">Which sub?</label><select id="dispSub" class="input">${opts}</select>
+      <textarea id="dispNote" class="input" style="margin-top:8px;min-height:64px" placeholder="Note for your sub (optional) — when to start, gate code, etc."></textarea>
+      <button class="btn full" style="margin-top:10px" onclick="sendDispatch('${j.id}')">Create &amp; send scope</button>
+      <div class="hint" style="margin-top:6px">Opens WhatsApp with a link. They see the work &amp; photos — never your prices.</div>`;
+  }
+  const el=document.getElementById('dispatchSheet'); if(el) el.style.display='flex';
+}
+function closeDispatch(){ const el=document.getElementById('dispatchSheet'); if(el) el.style.display='none'; }
+async function sendDispatch(jobId){
+  const subId=(document.getElementById('dispSub')||{}).value||'';
+  const note=(document.getElementById('dispNote')||{}).value||'';
+  const sub=(TEAM.items||[]).find(s=>s.id===subId);
+  if(!sub){ toast('Pick a sub.','warn'); return; }
+  try{
+    const r=await api('/api/jobs/'+jobId+'/dispatch',{method:'POST',body:JSON.stringify({subId:sub.id, subName:sub.name||sub.phone||'Sub', subLang:sub.lang||'', note})});
+    DISPATCHES[jobId]=[r.dispatch, ...(DISPATCHES[jobId]||[])];
+    closeDispatch(); render();
+    const me=SETTINGS.name||SETTINGS.company||'your contractor';
+    const first=((sub.name||'').trim().split(/\s+/)[0]||'');
+    const msg=`Hey${first?' '+first:''}, it's ${me}. Here's the scope for a job — take a look and tap to accept: ${r.url}`;
+    const digits=(sub.phone||'').replace(/\D/g,'');
+    window.open('https://wa.me/'+(digits?(digits.length===10?'1'+digits:digits):'')+'?text='+encodeURIComponent(msg),'_blank');
+    toast('Scope sent to '+(sub.name||'your sub')+'.','ok');
+  }catch(e){ toast(e.message||'Could not send scope.','bad'); }
 }
 function viewCatalog(){
   const sk=CATALOG.skus||[], pv=CATALOG.preview;

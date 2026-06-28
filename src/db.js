@@ -192,6 +192,28 @@ CREATE TABLE IF NOT EXISTS sub (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS sub_user_idx ON sub(user_id);
+
+-- Scope dispatch: a GC sends a job's scope of work to a sub. The sub opens a
+-- public link (the unguessable id is the grant, like /p/:id) and sees the WORK
+-- and photos — never prices/margin (a buildScope() whitelist, hard rule #2) — and
+-- taps Accept. The acceptance is the change-order-protection record.
+CREATE TABLE IF NOT EXISTS dispatch (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL REFERENCES job(id) ON DELETE CASCADE,
+  sub_id TEXT REFERENCES sub(id) ON DELETE SET NULL,
+  sub_name TEXT DEFAULT '',
+  sub_lang TEXT DEFAULT '',
+  note TEXT DEFAULT '',
+  status TEXT DEFAULT 'sent',
+  viewed_at INTEGER,
+  accepted_at INTEGER,
+  accepted_by TEXT DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS dispatch_job_idx ON dispatch(job_id);
+CREATE INDEX IF NOT EXISTS dispatch_user_idx ON dispatch(user_id);
 `);
 
 // Migrate older databases that predate the billing columns.

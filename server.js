@@ -17,6 +17,8 @@ import { tradeList } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
 import * as Team from "./src/team.js";
+import * as Dispatch from "./src/dispatch.js";
+import { renderScopeHTML } from "./src/scopeHtml.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig, signProposalPdfUrl, verifyProposalPdfSig } from "./src/files.js";
@@ -589,6 +591,46 @@ app.post("/api/inbound/leads", wrap((req, res) => {
   // Fan out to the contractor's notification sink (email/SMS via their webhook) if set.
   try { Notify.notify && Notify.notify({ type: "lead", lead, userId }); } catch {}
   res.json({ ok: true, id: lead.id });
+}));
+
+// ---- Scope dispatch: send a job's scope of work to a sub (free for the sub) ----
+app.post("/api/jobs/:id/dispatch", requireAuth, wrap((req, res) => {
+  const { subId, subName, subLang, note } = req.body || {};
+  const d = Dispatch.createDispatch(req.user.id, { jobId: req.params.id, subId, subName, subLang, note });
+  if (!d) return res.status(404).json({ error: "Job not found." });
+  track(req.user.id, "scope_dispatched", { jobId: req.params.id, sub: d.sub_name || "" });
+  res.json({ dispatch: d, url: baseUrl(req) + "/s/" + d.id });
+}));
+app.get("/api/jobs/:id/dispatches", requireAuth, (req, res) => {
+  res.json({ dispatches: Dispatch.listForJob(req.user.id, req.params.id) });
+});
+
+// Public, login-free scope page a sub opens. Only buildScope() data is rendered —
+// the work + photos, never price/margin (hard rule #2). The unguessable id is the
+// access grant (same model as /p/:id).
+app.get("/s/:id", (req, res) => {
+  const d = Dispatch.getPublic(req.params.id);
+  if (!d) return res.status(404).send("This scope link is invalid.");
+  const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(d.job_id);
+  if (!jobRow) return res.status(404).send("Job not found.");
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(d.user_id);
+  const scope = Dispatch.buildScope(Jobs.rowToJob(jobRow));
+  // All of the GC's job photos (signed, expiring) — the sub needs to see the work.
+  const photos = db.prepare("SELECT id FROM photo WHERE job_id=? ORDER BY created_at").all(jobRow.id)
+    .map((r) => ({ url: signPhotoUrl(jobRow.id, r.id) }));
+  res.type("html").send(renderScopeHTML(scope, {
+    id: d.id, company: (owner && owner.company) || "Your contractor", note: d.note,
+    photos, status: d.status, acceptedBy: d.accepted_by, subName: d.sub_name, lang: d.sub_lang,
+  }));
+});
+app.post("/s/:id/viewed", wrap((req, res) => { const d = Dispatch.getPublic(req.params.id); if (d) Dispatch.markViewed(d.id); res.json({ ok: true }); }));
+app.post("/s/:id/accept", wrap((req, res) => {
+  const d = Dispatch.getPublic(req.params.id);
+  if (!d) return res.status(404).json({ error: "Invalid scope link." });
+  const out = Dispatch.accept(d.id, (req.body && req.body.name) || d.sub_name);
+  track(d.user_id, "scope_accepted", { jobId: d.job_id, sub: out.accepted_by || "" });
+  try { Notify.notify && Notify.notify({ type: "scope_accepted", userId: d.user_id, jobId: d.job_id, sub: out.accepted_by }); } catch {}
+  res.json({ ok: true });
 }));
 
 // ---- Share a bid: a clean public link the contractor texts/emails ----
