@@ -303,6 +303,77 @@ export async function parseSkus(user, { text, image }) {
   return sanitizeSkus(parseModelJSON(txt));
 }
 
+// ---- AI Material Scanner ----------------------------------------------------
+// Snap a photo of a room/exterior; identify the materials & finishes a contractor
+// would need to spec or match for a bid. Doesn't need to be perfect — it saves the
+// pro from typing. EVERY category below is always considered so nothing is missed.
+const SCAN_CATEGORIES = [
+  "Paint", "Flooring", "Tile", "Fixtures", "Light fixtures",
+  "Windows", "Molding & trim", "Doors", "Roofing", "Landscaping", "Other",
+];
+function scanSystemPrompt() {
+  return (
+    "You are a construction material identifier helping a contractor build a bid from a photo. " +
+    "Look at the image and identify the visible MATERIALS and FINISHES across these categories — " +
+    "consider EVERY one, and only include a category if something for it is actually visible:\n" +
+    "🎨 Paint · 🪵 Flooring · 🧱 Tile · 🚰 Fixtures (plumbing: faucets, sinks, toilets, tubs) · " +
+    "💡 Light fixtures · 🪟 Windows · 〰️ Molding & trim · 🚪 Doors · 🏠 Roofing · 🌿 Landscaping.\n" +
+    "Respond with ONLY valid minified JSON, no markdown: " +
+    '{"materials":[{"category":string,"item":string,"spec":string,"confidence":"low"|"med"|"high","note":string}],"summary":string}. ' +
+    "category = EXACTLY one of: " + SCAN_CATEGORIES.join(", ") + " (use \"Other\" for anything not covered, e.g. cabinets/countertops/siding/insulation). " +
+    "item = a short material name a contractor would write on a bid (e.g. \"Luxury vinyl plank flooring\", \"3-tab asphalt shingles\", \"Satin interior wall paint\"). " +
+    "spec = the useful detail to spec or match: color family, finish, material, profile, or style (e.g. \"Wood-look LVP, ~7in planks, warm gray\"; \"Matte white subway tile 3x6\"). " +
+    "confidence = how sure you are from the photo alone. note = a SHORT bid tip when helpful (e.g. \"measure floor SF\", \"looks like brushed nickel\") or empty. " +
+    "Identify what you can SEE — it's fine to be approximate (this saves the pro time, it isn't a lab result), but never invent items that aren't visible. " +
+    "List the most prominent materials first; at most 20 items. summary = one short line on the space (e.g. \"Updated kitchen — LVP, quartz, shaker cabinets\")."
+  );
+}
+function sanitizeScan(data) {
+  const catSet = new Set(SCAN_CATEGORIES);
+  const conf = new Set(["low", "med", "high"]);
+  const materials = (Array.isArray(data.materials) ? data.materials : []).slice(0, 20).map((mm) => {
+    let category = String(mm.category || "Other").trim();
+    if (!catSet.has(category)) category = "Other";
+    let c = String(mm.confidence || "med").toLowerCase().trim();
+    if (!conf.has(c)) c = "med";
+    return {
+      category,
+      item: String(mm.item || "").trim().slice(0, 120),
+      spec: String(mm.spec || "").trim().slice(0, 160),
+      confidence: c,
+      note: String(mm.note || "").trim().slice(0, 120),
+    };
+  }).filter((mm) => mm.item);
+  return { materials, summary: String(data.summary || "").trim().slice(0, 200), categories: SCAN_CATEGORIES };
+}
+
+// Identify materials in a photo. Accepts { image } as a data: URL (jpeg/png/webp).
+export async function scanMaterials(user, { image }) {
+  if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
+  const m = /^data:(image\/(?:png|jpe?g|webp|gif));base64,([A-Za-z0-9+/=\s]+)$/.exec(String(image || ""));
+  if (!m) { const e = new Error("Add a clear photo to scan."); e.status = 400; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Too many scans in a short window — wait a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached. You can still add materials by hand."); e.status = 429; throw e; }
+
+  const content = [
+    { type: "image", source: { type: "base64", media_type: m[1], data: m[2].replace(/\s+/g, "") } },
+    { type: "text", text: "Identify the materials and finishes in this photo for a contractor's bid." },
+  ];
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 1500, system: scanSystemPrompt(), messages: [{ role: "user", content }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json();
+  const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  return sanitizeScan(parseModelJSON(txt));
+}
+
 // Compact price-book string for the prompt (cap so it never blows the token budget).
 function priceBookText(skus) {
   if (!Array.isArray(skus) || !skus.length) return "";

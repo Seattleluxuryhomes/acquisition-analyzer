@@ -702,6 +702,14 @@
     <div id="coBody"></div>
   </div>
 </div>
+<div id="scanSheet" class="sheet-wrap" style="display:none" onclick="closeScan()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h">📷 AI Material Scanner</div>
+    <div id="scanBody"></div>
+  </div>
+</div>
+<input id="scanCam" type="file" accept="image/*" capture="environment" style="display:none" onchange="scanPick(this)"/>
+<input id="scanLib" type="file" accept="image/*" style="display:none" onchange="scanPick(this)"/>
 <div id="capPhotoSheet" class="sheet-wrap" style="display:none" onclick="closeCapPhotoSheet()">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h">Add Photos</div>
@@ -2430,6 +2438,8 @@ function tabBuild(j){
     ${AI_BUILD && (j.lines||[]).length ? `<button class="btn ghost full" style="margin-top:10px" onclick="reviewBidAI('${j.id}',this)">💡 Find missing money — check this bid</button>
       <div class="hint" style="margin-top:4px">AI checks your bid against what ${tradeLbl(j.trade)||'this trade'}'s bids usually include — so you don't eat costs you forgot to charge for.</div>` : ''}
     <div id="reviewBox"></div>
+    ${AI_BUILD?`<button class="btn full" style="margin-top:10px" onclick="openScan('${j.id}')">📷 Scan materials with AI</button>
+      <div class="hint" style="margin-top:4px">Snap a room or exterior — AI identifies the paint, flooring, tile, fixtures, trim, doors, windows, roofing &amp; landscaping so you don't type the scope. Tap to drop any into the bid.</div>`:''}
     <select class="tplsel" onchange="applyTemplate(this.value);this.value=''" title="Add a typical starter checklist for your trade">
       <option value="">📋 Start from a trade template…</option>
       ${Object.entries(TRADE_TEMPLATES).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}
@@ -3197,6 +3207,66 @@ async function sendCO(jobId){
     render();
     toast('Change order created.','ok');
   }catch(e){ toast(e.message||'Could not create change order.','bad'); }
+}
+
+/* ---- AI Material Scanner: a photo → identified materials → drop into the bid ---- */
+const SCAN_EMOJI={'Paint':'🎨','Flooring':'🪵','Tile':'🧱','Fixtures':'🚰','Light fixtures':'💡','Windows':'🪟','Molding & trim':'〰️','Doors':'🚪','Roofing':'🏠','Landscaping':'🌿','Other':'📦'};
+let SCAN={jobId:null,image:null,loading:false,results:null,added:{}};
+function openScan(jobId){ SCAN={jobId,image:null,loading:false,results:null,added:{}}; renderScanBody(); const el=document.getElementById('scanSheet'); if(el) el.style.display='flex'; }
+function closeScan(){ const el=document.getElementById('scanSheet'); if(el) el.style.display='none'; }
+async function scanPick(input){
+  const f=input.files&&input.files[0]; input.value=''; if(!f) return;
+  try{ SCAN.image=await downscale(f); }catch(e){ toast('Could not read that photo.','bad'); return; }
+  SCAN.results=null; SCAN.added={}; renderScanBody(); runScan();
+}
+function renderScanBody(){
+  const body=document.getElementById('scanBody'); if(!body) return;
+  if(!SCAN.image){
+    body.innerHTML=`<div class="hint" style="margin-bottom:12px">Take a photo of a room or the outside of a house. AI identifies the materials &amp; finishes — paint, flooring, tile, fixtures, lighting, windows, trim, doors, roofing &amp; landscaping — so you don't type the scope. It just has to save you time, not be perfect.</div>
+      <button class="btn full" onclick="document.getElementById('scanCam').click()">📸 Take a photo</button>
+      <button class="btn ghost full" style="margin-top:8px" onclick="document.getElementById('scanLib').click()">🖼️ Choose from library</button>`;
+    return;
+  }
+  let res='';
+  if(SCAN.loading) res=`<div class="hint" style="text-align:center;padding:14px">🔎 Identifying materials…</div>`;
+  else if(SCAN.results){
+    const ms=SCAN.results.materials||[];
+    if(!ms.length) res=`<div class="hint">No materials picked out — try a closer or better-lit photo.</div>`;
+    else{
+      const conf=c=>({high:'',med:' · likely',low:' · maybe'})[c]||'';
+      res=`<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 8px"><b>${ms.length} found</b><button class="btn ghost sm" onclick="scanAddAll()">Add all to bid</button></div>`+
+        ms.map((mm,i)=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div style="flex:1;min-width:0"><div class="act-t">${SCAN_EMOJI[mm.category]||'📦'} ${esc(mm.item)}<span style="color:var(--muted);font-weight:400">${esc(conf(mm.confidence))}</span></div>
+          <div class="act-s">${esc(mm.spec||mm.category)}${mm.note?(' · '+esc(mm.note)):''}</div></div>
+          <button class="btn sm ${SCAN.added[i]?'ghost':''}" onclick="scanAdd(${i})" ${SCAN.added[i]?'disabled':''}>${SCAN.added[i]?'✓ Added':'+ Bid'}</button></div>`).join('')+
+        (SCAN.results.summary?`<div class="hint" style="margin-top:10px">🧱 ${esc(SCAN.results.summary)}</div>`:'');
+    }
+  }
+  body.innerHTML=`<img src="${SCAN.image}" alt="scan" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"/>
+    <button class="btn ghost sm" style="margin-top:8px" onclick="SCAN.image=null;SCAN.results=null;renderScanBody()">↻ Different photo</button>
+    <div style="margin-top:12px">${res}</div>`;
+}
+async function runScan(){
+  if(!SCAN.image) return;
+  if(!online||!TOKEN){ toast('Connect to the internet to scan materials.','warn'); return; }
+  SCAN.loading=true; renderScanBody();
+  try{
+    const r=await api('/api/assist/scan',{method:'POST',body:JSON.stringify({image:SCAN.image})});
+    SCAN.results=r;
+  }catch(e){ if(e.status===402){ closeScan(); gate402(e); return; } toast(e.code==='AI_UNCONFIGURED'?'AI isn’t switched on yet (add ANTHROPIC_API_KEY).':(e.message||'Could not scan that photo.'),'bad',5000); }
+  SCAN.loading=false; renderScanBody();
+}
+function scanAdd(i){
+  const mm=(SCAN.results&&SCAN.results.materials)?SCAN.results.materials[i]:null; if(!mm) return;
+  const j=JOBS.find(x=>x.id===SCAN.jobId)||currentJob(); if(!j) return;
+  const desc=(mm.item+(mm.spec?(' — '+mm.spec):'')).slice(0,200);
+  j.lines=j.lines||[]; j.lines.push({id:uid(),section:mm.category,desc,type:'fixed',price:0,hours:0,rate:0,qty:0,furn:'you'});
+  touch(j); saveJobs(); SCAN.added[i]=true; renderScanBody(); if(state.view==='job') render();
+}
+function scanAddAll(){
+  const ms=(SCAN.results&&SCAN.results.materials)||[];
+  ms.forEach((_,i)=>{ if(!SCAN.added[i]) scanAdd(i); });
+  toast('Materials added to the bid.','ok');
 }
 function viewCatalog(){
   const sk=CATALOG.skus||[], pv=CATALOG.preview;

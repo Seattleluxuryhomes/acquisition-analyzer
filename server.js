@@ -12,7 +12,7 @@ import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
+import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
 import { tradeList, sampleScope } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
@@ -92,7 +92,7 @@ const bigJson = express.json({ limit: "12mb" }); // price-sheet photo for SKU pa
 const isPhotoUpload = (req) => req.method === "POST" &&
   (/^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path) || /^\/api\/skus\/[^/]+\/image\/?$/.test(req.path) ||
    /^\/api\/jobs\/[^/]+\/visualize\/?$/.test(req.path));
-const isBigJson = (req) => req.method === "POST" && (req.path === "/api/skus/parse" || req.path === "/api/assist/transcribe");
+const isBigJson = (req) => req.method === "POST" && (req.path === "/api/skus/parse" || req.path === "/api/assist/transcribe" || req.path === "/api/assist/scan");
 app.use((req, res, next) => (isPhotoUpload(req) ? next() : (isBigJson(req) ? bigJson(req, res, next) : smallJson(req, res, next))));
 app.use(express.static(path.join(__dirname, "public"), {
   // Cache static images/icons hard (they're versioned by deploy); keep the app
@@ -557,6 +557,13 @@ app.post("/api/assist/review", requireAuth, Billing.requireEntitled, wrap(async 
 app.post("/api/assist/transcribe", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
   const { audio, lang } = req.body || {};
   res.json(await transcribeAudio(req.user, { audio, lang }));
+}));
+// AI Material Scanner: a photo → materials/finishes across every category, to save
+// the contractor from typing the bid scope. Identifications drop into the bid.
+app.post("/api/assist/scan", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const out = await scanMaterials(req.user, { image: (req.body || {}).image });
+  track(req.user.id, "material_scan", { found: (out.materials || []).length });
+  res.json(out);
 }));
 
 // ---- Price book (contractor's reusable SKU catalog) ----
