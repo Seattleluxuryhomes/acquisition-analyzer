@@ -19,9 +19,11 @@ import * as Leads from "./src/leads.js";
 import * as Team from "./src/team.js";
 import * as Dispatch from "./src/dispatch.js";
 import * as Draws from "./src/draws.js";
+import * as ChangeOrders from "./src/changeOrders.js";
 import * as Referrals from "./src/referrals.js";
 import { renderScopeHTML } from "./src/scopeHtml.js";
 import { renderDrawHTML } from "./src/drawHtml.js";
+import { renderChangeOrderHTML } from "./src/changeOrderHtml.js";
 import { renderContractorSite } from "./src/contractorSite.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
@@ -790,6 +792,60 @@ app.post("/d/:id/approve", wrap((req, res) => {
   const out = Draws.approve(draw.id, (req.body && req.body.name) || "");
   track(draw.user_id, "draw_approved", { jobId: draw.job_id, amount: draw.amount, by: out.approved_by || "" });
   try { Notify.notify && Notify.notify({ type: "draw_approved", userId: draw.user_id, jobId: draw.job_id, amount: draw.amount, by: out.approved_by }); } catch {}
+  res.json({ ok: true });
+}));
+
+// ---- Change orders: document extra/changed work → client e-signs → optional pay ----
+app.post("/api/jobs/:id/change-orders", requireAuth, wrap(async (req, res) => {
+  const b = req.body || {};
+  let co;
+  try {
+    co = ChangeOrders.createChangeOrder(req.user.id, { jobId: req.params.id, title: b.title, description: b.description, amount: b.amount, items: b.items });
+  } catch (e) { return res.status(e.status || 400).json({ error: e.message }); }
+  if (!co) return res.status(404).json({ error: "Job not found." });
+  // Attach a pay-now link when Connect is set up and the CO is a charge (not a credit).
+  if (Payments.paymentsConfigured() && req.user.connect_charges_enabled && co.amount >= 1) {
+    try {
+      const reqObj = await Payments.createPaymentRequest(req.user, {
+        amount: co.amount, description: `Change order #${co.number}${b.title ? " — " + b.title : ""}`.slice(0, 200),
+        clientName: "", jobId: req.params.id,
+      }, baseUrl(req));
+      if (reqObj && reqObj.url) ChangeOrders.setCheckoutUrl(req.user.id, co.id, reqObj.url);
+    } catch { /* approval-only CO */ }
+  }
+  track(req.user.id, "change_order_sent", { jobId: req.params.id, number: co.number, amount: co.amount });
+  res.json({ change_order: ChangeOrders.getPublic(co.id), url: baseUrl(req) + "/co/" + co.id });
+}));
+app.get("/api/jobs/:id/change-orders", requireAuth, (req, res) => {
+  res.json({ change_orders: ChangeOrders.listForJob(req.user.id, req.params.id) });
+});
+
+// Public, login-free change-order page (the client opens the shared link).
+app.get("/co/:id", (req, res) => {
+  const co = ChangeOrders.getPublic(req.params.id);
+  if (!co) return res.status(404).send("This change-order link is invalid.");
+  const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(co.job_id);
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(co.user_id);
+  if (co.status === "sent") { try { db.prepare("UPDATE change_order SET updated_at=? WHERE id=?").run(Date.now(), co.id); } catch {} }
+  res.type("html").send(renderChangeOrderHTML(co, {
+    id: co.id, company: (owner && owner.company) || "Your contractor",
+    jobTitle: (jobRow && jobRow.title) || "Project",
+  }));
+});
+app.post("/co/:id/approve", wrap((req, res) => {
+  const co = ChangeOrders.getPublic(req.params.id);
+  if (!co) return res.status(404).json({ error: "Invalid change-order link." });
+  const out = ChangeOrders.approve(co.id, (req.body && req.body.name) || "");
+  track(co.user_id, "change_order_approved", { jobId: co.job_id, number: co.number, amount: co.amount, by: out.signed_by || "" });
+  try { Notify.notify && Notify.notify({ type: "change_order_approved", userId: co.user_id, jobId: co.job_id, amount: co.amount, by: out.signed_by }); } catch {}
+  res.json({ ok: true });
+}));
+app.post("/co/:id/decline", wrap((req, res) => {
+  const co = ChangeOrders.getPublic(req.params.id);
+  if (!co) return res.status(404).json({ error: "Invalid change-order link." });
+  ChangeOrders.decline(co.id);
+  track(co.user_id, "change_order_declined", { jobId: co.job_id, number: co.number });
+  try { Notify.notify && Notify.notify({ type: "change_order_declined", userId: co.user_id, jobId: co.job_id }); } catch {}
   res.json({ ok: true });
 }));
 

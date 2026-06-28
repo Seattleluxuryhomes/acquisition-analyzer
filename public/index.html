@@ -696,6 +696,12 @@
     <div id="drawBody"></div>
   </div>
 </div>
+<div id="coSheet" class="sheet-wrap" style="display:none" onclick="closeCO()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h">New change order</div>
+    <div id="coBody"></div>
+  </div>
+</div>
 <div id="capPhotoSheet" class="sheet-wrap" style="display:none" onclick="closeCapPhotoSheet()">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h">Add Photos</div>
@@ -2470,6 +2476,12 @@ function tabBuild(j){
       ${permitsHTML(j)}
     </div>
 
+    <div class="dispatchbox" style="margin-top:14px">
+      <button class="btn ghost full" onclick="openCO('${j.id}')">📝 New change order</button>
+      <div class="hint" style="margin-top:6px">Scope grew? Document the extra work and have the client e-sign${PAYMENTS&&PAYMENTS.charges_enabled?' &amp; pay':''} — so you never do it for free.</div>
+      <div id="coStatus">${coStatusHTML(j.id)}</div>
+    </div>
+
     <div class="private"><div class="pl">Private — not shown to client</div>
       <label class="fld" style="margin-top:8px">Profit margin %</label>
       <input class="input" type="number" min="0" max="99" value="${j.margin||0}" oninput="updJob('margin',this.value)" style="max-width:140px"/>
@@ -3126,6 +3138,65 @@ async function sendDraw(jobId){
     render();
     toast('Draw request created.','ok');
   }catch(e){ toast(e.message||'Could not create draw.','bad'); }
+}
+
+/* ---- Change orders: document extra/changed work → client e-signs → optional pay ---- */
+let COS={}; // jobId -> [change order]
+let CO_ITEMS=[]; // working line items in the create sheet
+async function loadCOs(jobId){
+  if(!TOKEN||!online){ COS[jobId]=COS[jobId]||[]; return; }
+  try{ const r=await api('/api/jobs/'+jobId+'/change-orders'); COS[jobId]=r.change_orders||[]; if(state.view==='job') render(); }
+  catch(e){ COS[jobId]=COS[jobId]||[]; }
+}
+function coStatusHTML(jobId){
+  const arr=COS[jobId]; if(arr===undefined){ loadCOs(jobId); return ''; }
+  if(!arr.length) return '';
+  const money=n=>(n<0?'-$':'$')+Math.abs(Number(n)||0).toLocaleString('en-US');
+  const pill=s=>({sent:'sent — awaiting signature',approved:'✓ signed',paid:'✓ paid',declined:'declined'})[s]||s;
+  return '<div style="margin-top:10px">'+arr.map(co=>{
+    const link=location.origin+'/co/'+co.id;
+    const send=co.status==='sent'?`<button class="btn sm" onclick="copyCOLink('${escAttr(link)}')">📋 Link</button>`:'';
+    return `<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">📝 CO #${co.number} · ${money(co.amount)}${co.title?(' · '+esc(co.title)):''}</div><div class="act-s">${pill(co.status)}${co.signed_by&&(co.status==='approved'||co.status==='paid')?' · '+esc(co.signed_by):''}</div></div>${send}</div>`;
+  }).join('')+'</div>';
+}
+function openCO(jobId){ const j=JOBS.find(x=>x.id===jobId)||currentJob(); if(!j) return; CO_ITEMS=[{desc:'',amount:0}]; renderCOBody(j); const el=document.getElementById('coSheet'); if(el) el.style.display='flex'; }
+function closeCO(){ const el=document.getElementById('coSheet'); if(el) el.style.display='none'; }
+function coAddItem(){ CO_ITEMS.push({desc:'',amount:0}); const j=currentJob(); if(j) renderCOBody(j); }
+function coDelItem(i){ CO_ITEMS.splice(i,1); if(!CO_ITEMS.length) CO_ITEMS=[{desc:'',amount:0}]; const j=currentJob(); if(j) renderCOBody(j); }
+function coItemChange(i,k,v){ if(!CO_ITEMS[i])return; CO_ITEMS[i][k]=(k==='amount')?(+v||0):v; const t=CO_ITEMS.reduce((s,l)=>s+(+l.amount||0),0); const el=document.getElementById('coTotal'); if(el) el.textContent='$'+t.toLocaleString('en-US'); }
+function renderCOBody(j){
+  const body=document.getElementById('coBody'); if(!body) return;
+  const rows=CO_ITEMS.map((l,i)=>`<div class="permit-row"><input class="input sm" placeholder="What changed (e.g. Rock excavation, extra 40 CY)" value="${escAttr(l.desc||'')}" oninput="coItemChange(${i},'desc',this.value)"/><div class="permit-fee"><span class="mono" style="color:var(--muted)">$</span><input class="input sm" type="number" placeholder="0" value="${l.amount||''}" oninput="coItemChange(${i},'amount',this.value)"/></div><button class="x-btn" onclick="coDelItem(${i})">✕</button></div>`).join('');
+  const t=CO_ITEMS.reduce((s,l)=>s+(+l.amount||0),0);
+  body.innerHTML=`
+    <div class="hint" style="margin-bottom:8px">The client opens a link, reviews the change, and e-signs to approve${PAYMENTS&&PAYMENTS.charges_enabled?' (and can pay)':''}. Client-facing — enter your client prices.</div>
+    <label class="fld">Title</label>
+    <input id="coTitle" class="input" placeholder="e.g. Unforeseen rock / Owner-added outlet"/>
+    <label class="fld" style="margin-top:10px">What changed &amp; why</label>
+    <textarea id="coDesc" class="input" style="min-height:60px" placeholder="Explain the change so the client understands what they're approving."></textarea>
+    <label class="fld" style="margin-top:10px">Line items</label>
+    ${rows}
+    <button class="btn ghost sm" style="margin-top:2px" onclick="coAddItem()">+ Add line</button>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;font-weight:800"><span>Total</span><span id="coTotal" style="font-size:1.3rem;color:var(--blue,#1E4259)">$${t.toLocaleString('en-US')}</span></div>
+    <button class="btn full" style="margin-top:12px" onclick="sendCO('${j.id}')">Create change order</button>
+    <div id="coResult"></div>`;
+}
+function copyCOLink(link){ try{ navigator.clipboard.writeText(link); toast('Link copied — text it to your client.','ok'); }catch(e){ prompt('Copy this link:', link); } }
+async function sendCO(jobId){
+  const title=(document.getElementById('coTitle')||{}).value||'';
+  const description=(document.getElementById('coDesc')||{}).value||'';
+  const items=CO_ITEMS.map(l=>({desc:l.desc,amount:+l.amount||0})).filter(l=>l.desc||l.amount);
+  const total=items.reduce((s,l)=>s+l.amount,0);
+  if(!items.length || total===0){ toast('Add at least one line with an amount.','warn'); return; }
+  try{
+    const r=await api('/api/jobs/'+jobId+'/change-orders',{method:'POST',body:JSON.stringify({title,description,items})});
+    COS[jobId]=[r.change_order, ...(COS[jobId]||[])];
+    const link=r.url||(location.origin+'/co/'+r.change_order.id);
+    const rr=document.getElementById('coResult');
+    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ Change order #${r.change_order.number} created — send your client this link to e-sign:</div><div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><div class="act-t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn sm" onclick="copyCOLink('${escAttr(link)}')">📋 Copy</button></div>`;
+    render();
+    toast('Change order created.','ok');
+  }catch(e){ toast(e.message||'Could not create change order.','bad'); }
 }
 function viewCatalog(){
   const sk=CATALOG.skus||[], pv=CATALOG.preview;

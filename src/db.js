@@ -240,6 +240,30 @@ CREATE TABLE IF NOT EXISTS draw (
 );
 CREATE INDEX IF NOT EXISTS draw_job_idx ON draw(job_id);
 CREATE INDEX IF NOT EXISTS draw_user_idx ON draw(user_id);
+
+-- Change orders: the contractor documents extra/changed work mid-job; the client
+-- opens a public link, e-signs to approve it (and optionally pays). This is the
+-- money contractors lose when scope grows without a signed paper trail. Client-
+-- facing amount (no margin/notes); same unguessable-id grant model as /p/:id.
+CREATE TABLE IF NOT EXISTS change_order (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL REFERENCES job(id) ON DELETE CASCADE,
+  number INTEGER DEFAULT 1,         -- CO #1, #2, … per job
+  title TEXT DEFAULT '',
+  description TEXT DEFAULT '',       -- what changed / why (client-facing)
+  line_items TEXT DEFAULT '[]',     -- JSON [{desc, amount}] client-facing line items
+  amount_cents INTEGER NOT NULL,    -- total the client agrees to (+/-)
+  status TEXT DEFAULT 'sent',       -- sent | approved | declined | paid
+  checkout_url TEXT,                -- Stripe Connect pay link (optional)
+  signed_by TEXT DEFAULT '',        -- client's typed signature/name
+  signed_at INTEGER,
+  paid_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS co_job_idx ON change_order(job_id);
+CREATE INDEX IF NOT EXISTS co_user_idx ON change_order(user_id);
 `);
 
 // Migrate older databases that predate the billing columns.
