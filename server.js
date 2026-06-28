@@ -12,8 +12,8 @@ import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
-import { tradeList, sampleScope } from "./src/trades.js";
+import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
+import { tradeList, sampleScope, tradeLabel } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
 import * as Team from "./src/team.js";
@@ -139,6 +139,7 @@ function settingsOf(user) {
     services: (() => { try { return JSON.parse(user.services || "[]"); } catch { return []; } })(),
     site_tagline: user.site_tagline || "",
     site_color: user.site_color || "",
+    site_about: user.site_about || "",
     // Custom-site request: whether this contractor has asked us to build them one.
     site_requested: !!user.site_request_at,
     site_request_note: user.site_request_note || "",
@@ -295,7 +296,7 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
   if ("services" in b) b.services = JSON.stringify((Array.isArray(b.services) ? b.services : []).slice(0, 12).map((s) => String(s).slice(0, 40)));
   const map = { company: "company", name: "name", phone: "phone", license: "license", whatsapp: "whatsapp",
     from: "default_from_lang", to: "default_to_lang", logo: "logo", region: "region", terms: "terms",
-    services: "services", site_tagline: "site_tagline", site_color: "site_color" };
+    services: "services", site_tagline: "site_tagline", site_color: "site_color", site_about: "site_about" };
   const sets = [], vals = [];
   for (const [k, col] of Object.entries(map)) {
     if (k in b) { sets.push(`${col}=?`); vals.push(String(b[k] ?? "")); }
@@ -436,6 +437,23 @@ app.post("/api/me/site-request", requireAuth, wrap((req, res) => {
   track(req.user.id, "custom_site_requested", { hasNote: !!note });
   try { Notify.notify("site_request", { userId: req.user.id, company: req.user.company || "", email: req.user.email || "", phone: req.user.phone || "", note }); } catch {}
   res.json({ ok: true, site_requested: true, site_request_note: note });
+}));
+
+// Living website, step 1: AI writes the contractor's site copy (hero + About) from
+// the info already in their profile — they never have to write it. Saves it so the
+// /c/:id site picks it up immediately. Save Time + Make Money: a designer-quality
+// page in one tap.
+app.post("/api/me/site-copy", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  let services = [];
+  try { services = JSON.parse(req.user.services || "[]"); } catch { services = []; }
+  const labels = services.map((k) => tradeLabel(k)).filter(Boolean);
+  const copy = await generateSiteCopy(req.user, {
+    company: req.user.company, services: labels, region: req.user.region, licensed: !!req.user.license,
+  });
+  db.prepare("UPDATE user SET site_tagline=COALESCE(NULLIF(?,''), site_tagline), site_about=? WHERE id=?")
+    .run(copy.tagline, copy.about, req.user.id);
+  track(req.user.id, "site_copy_generated", {});
+  res.json({ ok: true, ...copy });
 }));
 
 // ---- Jobs ----

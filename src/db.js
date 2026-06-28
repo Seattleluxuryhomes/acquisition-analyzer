@@ -336,6 +336,9 @@ ensureColumns("user", [
   // hand-builds / upsells it. Timestamp = when they asked; note = what they want.
   ["site_request_at", "INTEGER"],
   ["site_request_note", "TEXT"],
+  // AI-written website copy (the first piece of the "living website" content the
+  // contractor never has to write). Rendered into the /c/:id About section.
+  ["site_about", "TEXT"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).

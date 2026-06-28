@@ -49,6 +49,7 @@ export function renderContractorSite(profile = {}, opts = {}) {
   const license = esc(profile.license || "");
   const area = esc(profile.region || profile.city || "");
   const tagline = esc(profile.site_tagline || "Quality work you can trust — done right, on time.");
+  const about = esc(String(profile.site_about || "").trim());   // AI-written About paragraph (optional)
   const lookup = Object.fromEntries(tradeList().map((t) => [t.key, t]));
   const services = (Array.isArray(profile.services) ? profile.services : [])
     .map((k) => lookup[k]).filter(Boolean)
@@ -98,6 +99,7 @@ export function renderContractorSite(profile = {}, opts = {}) {
   @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.hero h1{font-size:2.1rem}}
   section{padding:58px 0}.eyebrow{color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:.1em;font-size:.74rem}
   h2{font-size:2rem;margin:6px 0 8px;font-weight:800}.lead{color:var(--muted);max-width:52ch}
+  .about{background:var(--soft)}.about-p{font-size:1.12rem;line-height:1.7;color:var(--ink);max-width:60ch}
   .svc{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px}
   .card{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:22px}.card .ic{font-size:1.7rem}.card h3{margin:10px 0 6px;font-size:1.12rem}.card p{margin:0;color:var(--muted);font-size:.95rem}
   @media(max-width:760px){.svc{grid-template-columns:1fr}}
@@ -132,6 +134,8 @@ export function renderContractorSite(profile = {}, opts = {}) {
 <section class="wrap"><div class="eyebrow">What we do</div><h2>Services</h2>
   <p class="lead">Skilled, licensed work from ${company} — one team, one point of contact, one clean job.</p>
   <div class="svc">${svcCards}</div></section>
+
+${about ? `<section class="wrap about"><div class="eyebrow">About</div><h2>About ${company}</h2><p class="lead about-p">${about}</p></section>` : ""}
 
 <section class="wrap" id="estimate"><div class="estimate">
   <div class="eyebrow" style="color:#e7b35c">Free estimate</div>

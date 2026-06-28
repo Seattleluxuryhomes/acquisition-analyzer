@@ -819,7 +819,7 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   LEADS_NEW = r.leadsNew||0; if(state.view==='home') render();
   if(state.view==='capture') render();
   // Hydrate tax settings from the server unless the user has local unsaved edits.
-  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
+  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_about!==undefined) SETTINGS.site_about=r.settings.site_about; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
 }catch(e){} }
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
@@ -1112,7 +1112,7 @@ async function syncNow(force){
       const _sp={ company:SETTINGS.company, name:SETTINGS.name, phone:SETTINGS.phone,
         license:SETTINGS.license, whatsapp:SETTINGS.whatsapp||'', from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'',
         tax_rate:Number(SETTINGS.tax_rate)||0, region:SETTINGS.region||'',
-        site_tagline:SETTINGS.site_tagline||'', site_color:SETTINGS.site_color||'' };
+        site_tagline:SETTINGS.site_tagline||'', site_color:SETTINGS.site_color||'', site_about:SETTINGS.site_about||'' };
       if(SETTINGS.terms!==undefined) _sp.terms=SETTINGS.terms; // never blank out server terms before they've loaded
       if(Array.isArray(SETTINGS.services)) _sp.services=SETTINGS.services;
       try{ await api('/api/me',{method:'PATCH', body:JSON.stringify(_sp)}); settingsDirty=false; }catch(e){}
@@ -1344,6 +1344,23 @@ async function requestCustomSite(btn){
     toast('✓ Request sent — we’ll reach out to build it with you.','ok',5000);
     render();
   }catch(e){ if(btn){ btn.disabled=false; btn.textContent='✨ Want a custom-built website? Request one'; } toast(e.message||'Could not send your request.','bad'); }
+}
+async function writeSiteAI(btn){
+  if(!online||!TOKEN){ toast('Connect to the internet to use AI.','warn'); return; }
+  if(!(SETTINGS.company||'').trim()){ toast('Add your company name first (above) so AI knows who it’s writing for.','warn'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='✍️ Writing your website…'; }
+  try{
+    const r=await api('/api/me/site-copy',{method:'POST'});
+    if(r.tagline) SETTINGS.site_tagline=r.tagline;
+    if(r.about) SETTINGS.site_about=r.about;
+    persistSettings();
+    const t=document.getElementById('siteTagline'); if(t&&r.tagline) t.value=r.tagline;
+    const a=document.getElementById('siteAbout'); if(a&&r.about) a.value=r.about;
+    settingsDirty=true; syncNow();
+    toast('✓ Your website copy is written — tap “View your website”.','ok',5000);
+    render();
+  }catch(e){ toast(e.status===402?'Subscribe to use AI features.':(e.code==='AI_UNCONFIGURED'?'AI isn’t switched on yet (add ANTHROPIC_API_KEY).':(e.message||'Could not write it.')),'bad',5000); }
+  if(btn){ btn.disabled=false; btn.textContent='✨ Write my website with AI'; }
 }
 function toggleService(key){
   let arr=Array.isArray(SETTINGS.services)?SETTINGS.services.slice():[];
@@ -3491,8 +3508,12 @@ function viewSettings(){
     <div class="nb-sec" style="margin-top:16px">
       <h3>Your website 🌐</h3>
       <div class="hint" style="margin-bottom:8px">A free customer-facing website with your brand, your services, and a “request a free estimate” form that comes straight to you as a lead. Set it up here, then tap “View your website”.</div>
+      ${AI_BUILD?`<button class="btn full" style="margin-bottom:10px" onclick="writeSiteAI(this)">✨ Write my website with AI</button>
+        <div class="hint" style="margin:-4px 0 10px">Uses what's in your profile — your company &amp; services — to write your headline and About page. You never touch a word.</div>`:''}
       <label class="fld">Headline</label>
-      <input class="input" value="${escAttr(SETTINGS.site_tagline||'')}" oninput="setS('site_tagline',this.value)" placeholder="Quality work you can trust — done right, on time."/>
+      <input id="siteTagline" class="input" value="${escAttr(SETTINGS.site_tagline||'')}" oninput="setS('site_tagline',this.value)" placeholder="Quality work you can trust — done right, on time."/>
+      <label class="fld" style="margin-top:8px">About your business</label>
+      <textarea id="siteAbout" class="input" style="min-height:84px" oninput="setS('site_about',this.value)" placeholder="A couple sentences about your work — or tap ✨ above and let AI write it.">${esc(SETTINGS.site_about||'')}</textarea>
       <label class="fld" style="margin-top:8px">Brand color</label>
       <div style="display:flex;align-items:center;gap:8px"><input class="input" type="color" value="${escAttr(/^#[0-9a-fA-F]{6}$/.test(SETTINGS.site_color||'')?SETTINGS.site_color:'#CF7F18')}" oninput="setS('site_color',this.value)" style="max-width:64px;padding:4px;height:44px"/><span class="hint">Used across your site.</span></div>
       <label class="fld" style="margin-top:10px">Services you offer <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(tap to add)</span></label>

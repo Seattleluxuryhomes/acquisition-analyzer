@@ -374,6 +374,50 @@ export async function scanMaterials(user, { image }) {
   return sanitizeScan(parseModelJSON(txt));
 }
 
+// ---- Living website: AI writes the contractor's site copy from their profile ----
+// The first piece of content the contractor never has to write. Returns a hero
+// tagline + a professional "About" paragraph. Grounded in profile facts only — it
+// must NOT fabricate years in business, awards, review counts, or credentials.
+function siteCopySystemPrompt() {
+  return (
+    "You are a copywriter for a home-services contractor's website. Using ONLY the facts provided, " +
+    "write warm, professional, trustworthy marketing copy a homeowner would trust. Respond with ONLY " +
+    "valid minified JSON, no markdown: {\"tagline\":string,\"about\":string}. " +
+    "tagline = a punchy hero headline, <= 80 chars, benefit-led (e.g. \"Site prep & grading done right — on time, on budget\"). " +
+    "about = a 2-3 sentence About paragraph, <= 420 chars, first-person-plural (\"we\"), mentioning the trade(s) and service area naturally. " +
+    "STRICT: do NOT invent years in business, number of jobs, awards, certifications, review counts, or any claim not given. " +
+    "If licensed is indicated, you may say \"licensed and insured\". No emojis, no hashtags, no ALL CAPS."
+  );
+}
+export async function generateSiteCopy(user, { company, services, region, licensed } = {}) {
+  if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Too many requests in a short window — wait a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const facts = [
+    company ? `Company: ${company}` : "",
+    (Array.isArray(services) && services.length) ? `Services: ${services.join(", ")}` : "",
+    region ? `Service area: ${region}` : "",
+    licensed ? "Licensed and insured: yes" : "",
+  ].filter(Boolean).join("\n") || "A residential contractor.";
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 600, system: siteCopySystemPrompt(), messages: [{ role: "user", content: "FACTS:\n" + facts }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json();
+  const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  const data = parseModelJSON(txt) || {};
+  return {
+    tagline: String(data.tagline || "").trim().slice(0, 100),
+    about: String(data.about || "").trim().slice(0, 500),
+  };
+}
+
 // Compact price-book string for the prompt (cap so it never blows the token budget).
 function priceBookText(skus) {
   if (!Array.isArray(skus) || !skus.length) return "";
