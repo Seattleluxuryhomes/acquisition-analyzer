@@ -218,6 +218,28 @@ CREATE TABLE IF NOT EXISTS dispatch (
 );
 CREATE INDEX IF NOT EXISTS dispatch_job_idx ON dispatch(job_id);
 CREATE INDEX IF NOT EXISTS dispatch_user_idx ON dispatch(user_id);
+
+-- Draw requests: a contractor documents completed work (amount + description +
+-- photos) and sends a public link to the property owner OR their bank/lender, who
+-- reviews the proof and APPROVES (and pays, via Stripe Connect if set up). The
+-- progress-billing step between the deposit and the final payment.
+CREATE TABLE IF NOT EXISTS draw (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL REFERENCES job(id) ON DELETE CASCADE,
+  amount_cents INTEGER NOT NULL,
+  description TEXT DEFAULT '',
+  photo_ids TEXT DEFAULT '[]',     -- JSON array of job photo ids shown as proof
+  status TEXT DEFAULT 'requested', -- requested | approved | paid | declined
+  checkout_url TEXT,               -- Stripe Connect pay link (optional)
+  approved_by TEXT DEFAULT '',
+  approved_at INTEGER,
+  paid_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS draw_job_idx ON draw(job_id);
+CREATE INDEX IF NOT EXISTS draw_user_idx ON draw(user_id);
 `);
 
 // Migrate older databases that predate the billing columns.

@@ -18,8 +18,10 @@ import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
 import * as Team from "./src/team.js";
 import * as Dispatch from "./src/dispatch.js";
+import * as Draws from "./src/draws.js";
 import * as Referrals from "./src/referrals.js";
 import { renderScopeHTML } from "./src/scopeHtml.js";
+import { renderDrawHTML } from "./src/drawHtml.js";
 import { renderContractorSite } from "./src/contractorSite.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
@@ -735,6 +737,59 @@ app.post("/s/:id/bid", wrap((req, res) => {
   const out = Dispatch.submitBid(d.id, { amount: (req.body && req.body.amount) || 0, note: (req.body && req.body.note) || "" });
   track(d.user_id, "scope_bid", { jobId: d.job_id, sub: out.sub_name || "", amount: out.bid_amount || 0 });
   try { Notify.notify && Notify.notify({ type: "scope_bid", userId: d.user_id, jobId: d.job_id, sub: out.sub_name, amount: out.bid_amount }); } catch {}
+  res.json({ ok: true });
+}));
+
+// ---- Draw requests: progress billing with proof (photos) → owner/bank approval ----
+// The contractor documents completed work and sends a public link; the property
+// owner or their lender reviews the proof and approves (and pays, if Connect is on).
+app.post("/api/jobs/:id/draws", requireAuth, wrap(async (req, res) => {
+  const b = req.body || {};
+  let draw;
+  try {
+    draw = Draws.createDraw(req.user.id, { jobId: req.params.id, amount: b.amount, description: b.description, photoIds: b.photoIds });
+  } catch (e) { return res.status(e.status || 400).json({ error: e.message }); }
+  if (!draw) return res.status(404).json({ error: "Job not found." });
+  // If this contractor has Stripe Connect set up, attach a pay-now link so the
+  // owner/bank can approve AND pay in one step. Best-effort — the draw still works
+  // as approval-only if payments aren't configured.
+  if (Payments.paymentsConfigured() && req.user.connect_charges_enabled) {
+    try {
+      const reqObj = await Payments.createPaymentRequest(req.user, {
+        amount: draw.amount, description: `Draw — ${b.description || "progress payment"}`.slice(0, 200),
+        clientName: "", jobId: req.params.id,
+      }, baseUrl(req));
+      if (reqObj && reqObj.url) Draws.setCheckoutUrl(req.user.id, draw.id, reqObj.url);
+    } catch { /* approval-only draw */ }
+  }
+  track(req.user.id, "draw_requested", { jobId: req.params.id, amount: draw.amount });
+  const fresh = Draws.getPublic(draw.id);
+  res.json({ draw: fresh, url: baseUrl(req) + "/d/" + draw.id });
+}));
+app.get("/api/jobs/:id/draws", requireAuth, (req, res) => {
+  res.json({ draws: Draws.listForJob(req.user.id, req.params.id) });
+});
+
+// Public, login-free draw-review page the property owner or bank/lender opens. The
+// unguessable id is the access grant (same model as /p/:id). No private bid data.
+app.get("/d/:id", (req, res) => {
+  const draw = Draws.getPublic(req.params.id);
+  if (!draw) return res.status(404).send("This draw link is invalid.");
+  const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(draw.job_id);
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(draw.user_id);
+  // Only the photos the contractor attached to this draw (signed, expiring).
+  const photos = (draw.photo_ids || []).map((pid) => ({ url: signPhotoUrl(draw.job_id, pid) }));
+  res.type("html").send(renderDrawHTML(draw, {
+    id: draw.id, company: (owner && owner.company) || "Your contractor",
+    jobTitle: (jobRow && jobRow.title) || "Project", photos,
+  }));
+});
+app.post("/d/:id/approve", wrap((req, res) => {
+  const draw = Draws.getPublic(req.params.id);
+  if (!draw) return res.status(404).json({ error: "Invalid draw link." });
+  const out = Draws.approve(draw.id, (req.body && req.body.name) || "");
+  track(draw.user_id, "draw_approved", { jobId: draw.job_id, amount: draw.amount, by: out.approved_by || "" });
+  try { Notify.notify && Notify.notify({ type: "draw_approved", userId: draw.user_id, jobId: draw.job_id, amount: draw.amount, by: out.approved_by }); } catch {}
   res.json({ ok: true });
 }));
 

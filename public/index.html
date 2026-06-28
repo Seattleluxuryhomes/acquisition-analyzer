@@ -326,6 +326,11 @@
   .cklist{max-height:180px;overflow:auto;border:1px solid var(--line,#e2dac9);border-radius:9px;padding:6px}
   .ckrow{display:flex;align-items:center;gap:9px;padding:7px 6px;font-size:.92rem;cursor:pointer}
   .ckrow input{width:18px;height:18px;flex:none}
+  .drawpix{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-height:220px;overflow:auto}
+  .dpx{position:relative;cursor:pointer;display:block}
+  .dpx img{width:100%;height:74px;object-fit:cover;border-radius:8px;border:2px solid var(--line,#e2dac9);opacity:.5}
+  .dpx input{position:absolute;top:5px;left:5px;width:18px;height:18px}
+  .dpx input:checked ~ img{opacity:1;border-color:var(--amber,#CF7F18)}
   @media(min-width:720px){ .kpi{flex:1 1 0} }
   .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
   .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
@@ -673,6 +678,12 @@
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h">Send scope to a sub</div>
     <div id="dispatchBody"></div>
+  </div>
+</div>
+<div id="drawSheet" class="sheet-wrap" style="display:none" onclick="closeDraw()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h">Request a draw</div>
+    <div id="drawBody"></div>
   </div>
 </div>
 <div id="capPhotoSheet" class="sheet-wrap" style="display:none" onclick="closeCapPhotoSheet()">
@@ -2436,6 +2447,12 @@ function tabBuild(j){
       <div id="dispatchStatus">${dispatchStatusHTML(j.id)}</div>
     </div>
 
+    <div class="dispatchbox" style="margin-top:14px">
+      <button class="btn ghost full" onclick="openDraw('${j.id}')">📸 Request a draw (progress payment)</button>
+      <div class="hint" style="margin-top:6px">Document completed work with photos, then send the owner or their bank a link to approve${PAYMENTS&&PAYMENTS.charges_enabled?' &amp; pay':''}.</div>
+      <div id="drawStatus">${drawStatusHTML(j.id)}</div>
+    </div>
+
     <div class="private"><div class="pl">Private — not shown to client</div>
       <label class="fld" style="margin-top:8px">Profit margin %</label>
       <input class="input" type="number" min="0" max="99" value="${j.margin||0}" oninput="updJob('margin',this.value)" style="max-width:140px"/>
@@ -3025,6 +3042,64 @@ async function acceptBidUI(jobId, did){
   if(!confirm('Accept this bid? The other contractors will be declined.')) return;
   try{ const r=await api('/api/jobs/'+jobId+'/dispatch/'+did+'/accept',{method:'POST'}); DISPATCHES[jobId]=r.dispatches||DISPATCHES[jobId]; render(); toast('Bid accepted.','ok'); }
   catch(e){ toast(e.message||'Could not accept.','bad'); }
+}
+
+/* ---- Draw requests: progress billing with photo proof → owner/bank approval ---- */
+let DRAWS={}; // jobId -> [draw]
+async function loadDraws(jobId){
+  if(!TOKEN||!online){ DRAWS[jobId]=DRAWS[jobId]||[]; return; }
+  try{ const r=await api('/api/jobs/'+jobId+'/draws'); DRAWS[jobId]=r.draws||[]; if(state.view==='job') render(); }
+  catch(e){ DRAWS[jobId]=DRAWS[jobId]||[]; }
+}
+function drawStatusHTML(jobId){
+  const arr=DRAWS[jobId]; if(arr===undefined){ loadDraws(jobId); return ''; }
+  if(!arr.length) return '';
+  const money=n=>'$'+(Number(n)||0).toLocaleString('en-US');
+  const pill=s=>({requested:'sent — awaiting approval',approved:'✓ approved',paid:'✓ paid',declined:'declined'})[s]||s;
+  return '<div style="margin-top:10px">'+arr.map(d=>{
+    const link=location.origin+'/d/'+d.id;
+    const send=d.status==='requested'?`<button class="btn sm" onclick="copyDrawLink('${escAttr(link)}')">📋 Link</button>`:'';
+    return `<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">📸 ${money(d.amount)}${d.description?(' · '+esc(d.description)):''}</div><div class="act-s">${pill(d.status)}${d.approved_by&&(d.status==='approved'||d.status==='paid')?' · '+esc(d.approved_by):''}</div></div>${send}</div>`;
+  }).join('')+'</div>';
+}
+async function openDraw(jobId){
+  const j=JOBS.find(x=>x.id===jobId)||currentJob(); if(!j) return;
+  renderDrawBody(j);
+  const el=document.getElementById('drawSheet'); if(el) el.style.display='flex';
+}
+function renderDrawBody(j){
+  const body=document.getElementById('drawBody'); if(!body) return;
+  const photos=(j.photos||[]).filter(p=>p.id); // only synced (server) photos can be attached
+  const grid=photos.length
+    ? `<div class="drawpix">${photos.map(p=>`<label class="dpx"><input type="checkbox" class="drawPhoto" data-id="${escAttr(p.id)}" checked/><img src="${p.url}" alt="work"/></label>`).join('')}</div>`
+    : `<div class="hint" style="padding:6px">No synced photos yet — add photos on the job (online) to show the work.</div>`;
+  body.innerHTML=`
+    <div class="hint" style="margin-bottom:8px">Bill for work completed so far. The owner (or their bank) opens a link, sees the photos &amp; amount, and approves${PAYMENTS&&PAYMENTS.charges_enabled?' or pays':''}.</div>
+    <label class="fld">Draw amount</label>
+    <div style="display:flex;align-items:center;gap:8px"><span class="mono" style="color:var(--muted)">$</span><input id="drawAmt" class="input" type="number" min="1" step="1" placeholder="0" style="max-width:160px"/></div>
+    <label class="fld" style="margin-top:10px">What was completed</label>
+    <textarea id="drawDesc" class="input" style="min-height:54px" placeholder="e.g. Footings poured, foundation walls formed and stripped"></textarea>
+    <label class="fld" style="margin-top:10px">Proof photos <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(uncheck any to exclude)</span></label>
+    ${grid}
+    <button class="btn full" style="margin-top:12px" onclick="sendDraw('${j.id}')">Create draw request</button>
+    <div id="drawResult"></div>`;
+}
+function closeDraw(){ const el=document.getElementById('drawSheet'); if(el) el.style.display='none'; }
+function copyDrawLink(link){ try{ navigator.clipboard.writeText(link); toast('Link copied — text it to the owner or bank.','ok'); }catch(e){ prompt('Copy this link:', link); } }
+async function sendDraw(jobId){
+  const amt=parseFloat((document.getElementById('drawAmt')||{}).value||'0');
+  if(!(amt>=1)){ toast('Enter a draw amount of at least $1.','warn'); return; }
+  const description=(document.getElementById('drawDesc')||{}).value||'';
+  const photoIds=[...document.querySelectorAll('.drawPhoto:checked')].map(c=>c.dataset.id);
+  try{
+    const r=await api('/api/jobs/'+jobId+'/draws',{method:'POST',body:JSON.stringify({amount:amt, description, photoIds})});
+    DRAWS[jobId]=[r.draw, ...(DRAWS[jobId]||[])];
+    const link=r.url||(location.origin+'/d/'+r.draw.id);
+    const rr=document.getElementById('drawResult');
+    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ Draw created — send the owner or bank this link:</div><div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><div class="act-t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn sm" onclick="copyDrawLink('${escAttr(link)}')">📋 Copy</button></div>`;
+    render();
+    toast('Draw request created.','ok');
+  }catch(e){ toast(e.message||'Could not create draw.','bad'); }
 }
 function viewCatalog(){
   const sk=CATALOG.skus||[], pv=CATALOG.preview;
