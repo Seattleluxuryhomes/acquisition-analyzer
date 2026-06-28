@@ -299,6 +299,145 @@ export const TRADES = {
       "EXCLUSIONS when not stated: engineered lumber/beams design, structural engineering, foundation, sheathing if " +
       "separate, permits.",
   },
+
+  electrical: {
+    label: "Electrical", emoji: "⚡",
+    inputs: [
+      "Count of devices/fixtures (outlets, switches, lights, fans, dedicated circuits)",
+      "Any service/panel upgrade (e.g. 100A → 200A) and existing panel capacity",
+      "New construction vs. remodel (fishing wire in finished walls is slower)",
+    ],
+    prompt:
+      "ELECTRICAL ESTIMATING. Price by device/circuit/fixture COUNT plus service work. Make per-item lines: " +
+      "receptacles/switches (each — note GFCI/AFCI where required: kitchen, bath, exterior, garage), recessed cans & " +
+      "fixtures & fans (each), dedicated circuits + breakers (each, e.g. range, dryer, A/C, EV), rough-in wire by run, " +
+      "low-voltage/data. SERVICE: panel/service upgrade priced per amperage (100→200A), sub-panels, meter. Use SKU " +
+      "unit + unit_price when matched. LABOR per device or hourly; remodel/old-work fishing in finished walls costs " +
+      "more than new work. ALWAYS add permit & inspection. ASSUMPTIONS: existing panel has capacity, \"no aluminum " +
+      "branch wiring or knob-and-tube unless noted\". EXCLUSIONS when not stated: panel/service upgrade unless " +
+      "specified, trenching/utility coordination, drywall patch & paint, low-voltage/AV, permit if owner-pulled.",
+  },
+
+  plumbing: {
+    label: "Plumbing", emoji: "🔧",
+    inputs: [
+      "Fixture count by type (sink, toilet, tub, shower, water heater, hose bibb)",
+      "New rough-in or relocate vs. fixture swap; water heater tank vs. tankless",
+      "Repipe scope (linear feet or per-fixture) and access to walls/crawl",
+    ],
+    prompt:
+      "PLUMBING ESTIMATING. Price by FIXTURE plus rough-in plus service. Per-fixture lines (sink, toilet, tub, " +
+      "shower, water heater, hose bibb, disposal, dishwasher/ice line) each carry the fixture + supply + drain " +
+      "connection. ROUGH-IN per fixture when new/relocated: supply lines, drain & vent by LF, shutoffs/valves. WATER " +
+      "HEATER by type (tank vs. tankless, each — tankless adds gas/venting/electrical). REPIPE by LF or per fixture. " +
+      "Gas line work by LF + connections. Use SKU unit + unit_price when matched. LABOR per fixture or hourly. ALWAYS " +
+      "add permit & inspection for new/relocated work. ASSUMPTIONS: fixtures accessible, \"existing supply/drain " +
+      "sizing adequate\". EXCLUSIONS when not stated: under-slab/slab-leak repair, sewer/main line replacement, " +
+      "drywall patch, water treatment/softener, permit if owner-pulled.",
+  },
+
+  hvac: {
+    label: "HVAC", emoji: "❄️",
+    inputs: [
+      "Conditioned square footage (and stories) to size tonnage",
+      "System type (AC + furnace, heat pump, mini-split — and head count)",
+      "Reuse existing ductwork or new; gas vs. electric; thermostat needs",
+    ],
+    prompt:
+      "HVAC ESTIMATING. Price by SYSTEM plus ductwork plus controls. Size equipment by tonnage — rough rule ~1 ton " +
+      "per 400–600 sq ft (state it's a rule-of-thumb pending a Manual J load calc). Lines: condenser/heat pump + " +
+      "air handler/furnace (each, by tonnage/BTU), or mini-split by HEAD COUNT (condenser + each indoor head + line " +
+      "set), ductwork (by run/register count or sq ft), thermostat, refrigerant & line set, condensate, gas/electrical " +
+      "connections, registers/grilles. Use SKU unit + unit_price when matched. LABOR by system. ALWAYS add permit & " +
+      "inspection. ASSUMPTIONS: state the tonnage & sizing basis, \"existing ductwork reused unless noted\". " +
+      "EXCLUSIONS when not stated: Manual J/load calc if required by code, electrical panel upgrade, full duct " +
+      "replacement beyond an allowance, asbestos duct abatement, permit if owner-pulled.",
+  },
+
+  masonry: {
+    label: "Masonry & Stucco", emoji: "🧱",
+    inputs: [
+      "Area in sq ft (stucco walls, brick/block/stone veneer)",
+      "System (3-coat vs. 1-coat stucco; veneer type) and repair vs. new",
+      "Linear feet of corners/control joints; substrate condition",
+    ],
+    prompt:
+      "MASONRY & STUCCO ESTIMATING. Price by SQ FT of face area. STUCCO: 3-coat (lath + scratch + brown + finish) vs. " +
+      "1-coat — derive lath/wire (sq ft), each coat, control & expansion joints (LF), corner aid, color/finish coat. " +
+      "VENEER (brick/block/stone): units by sq ft (units per sq ft per material), mortar, wall ties, flashing, weep. " +
+      "+10–15% waste. Use SKU unit + unit_price when matched. LABOR by sq ft (higher for stone & repair/patch — " +
+      "price repairs by patch, not sq ft). ASSUMPTIONS: sq ft, system, \"substrate/sheathing sound; weather-resistant " +
+      "barrier intact\". EXCLUSIONS when not stated: structural/foundation repair, waterproofing beyond standard, " +
+      "exact color match on patches, scaffolding beyond standard reach, painting unless specified.",
+  },
+
+  "garage-doors": {
+    label: "Garage Doors", emoji: "🚗",
+    inputs: [
+      "Number of doors and sizes (single 8–9×7, double 16×7)",
+      "Door material/insulation (R-value) and window options",
+      "New opener? (HP, belt/chain/screw drive, smart/wifi)",
+    ],
+    prompt:
+      "GARAGE DOOR ESTIMATING. Price PER DOOR by size + type, opener separately. Make one 'unit' line per door " +
+      "(unit 'each', qty = count, rate = SKU unit_price; desc = size + material + insulation, e.g. \"16×7 insulated " +
+      "steel, R-12\"). ALWAYS add: springs/tracks/rollers/hardware, weatherseal & bottom seal, install labor, and " +
+      "haul-away of the old door. OPENER per door (by HP & drive type) with rail, remotes, keypad, safety sensors, " +
+      "smart/wifi if specified. Use SKU unit + unit_price when matched. ASSUMPTIONS: \"existing opening reused; sizes " +
+      "field-verified\". EXCLUSIONS when not stated: structural header/opening changes, electrical outlet for the " +
+      "opener, drywall/trim repair, painting.",
+  },
+
+  "excavation-demo": {
+    label: "Excavation & Demolition", emoji: "🚜",
+    inputs: [
+      "Excavation: area × depth (for cubic yards) and haul distance",
+      "Demolition: what's removed (sq ft / volume) and dumpster count",
+      "Soil/debris type, access for equipment, disposal site",
+    ],
+    prompt:
+      "EXCAVATION & DEMOLITION ESTIMATING. EXCAVATION: volume in CUBIC YARDS = (area sq ft × depth ft) ÷ 27; price " +
+      "machine time (hourly with operator), spoils haul (cu yd or truck loads), import fill/gravel (cu yd), " +
+      "compaction, erosion/silt control. DEMOLITION: price by area or volume removed + dumpsters (each, by size 10/20/" +
+      "30 yd) + disposal/tipping fees + protection of what stays. Use SKU unit + unit_price when matched. LABOR " +
+      "hourly + equipment rental/mobilization. ASSUMPTIONS: state cu yd / loads, \"normal soil, no rock or " +
+      "groundwater\", disposal at standard rate. EXCLUSIONS when not stated: rock/hardpan, hazmat (asbestos/lead) " +
+      "abatement, dewatering, shoring/engineering, utility location & relocation, permits.",
+  },
+
+  countertops: {
+    label: "Countertops", emoji: "🪨",
+    inputs: [
+      "Countertop area (sq ft) or slab count, and material (quartz, granite, etc.)",
+      "Edge profile, number of sink/cooktop cutouts, backsplash",
+      "Tear-out of existing top? Who supplies the sink/faucet",
+    ],
+    prompt:
+      "COUNTERTOP ESTIMATING. Price by SQ FT of counter (stone often priced by 'slab' per the SKU). Derive: material " +
+      "(sq ft or slab), fabrication + edge profile (LF of finished edge), sink/cooktop cutouts (each), seams, " +
+      "templating, backsplash (sq ft or LF), tear-out & haul of the old top, install/set. Use SKU unit + unit_price " +
+      "when matched (a quartz/granite slab is unit 'slab'). LABOR in fabrication & install. ASSUMPTIONS: sq ft & " +
+      "material, \"cabinets level & ready; sink/faucet supplied by others unless noted\". EXCLUSIONS when not stated: " +
+      "plumbing disconnect/reconnect, cabinet modification/leveling, electrical for cooktop, backsplash unless " +
+      "specified.",
+  },
+
+  tile: {
+    label: "Tile", emoji: "🔲",
+    inputs: [
+      "Area per surface (floor / wall / shower) in sq ft",
+      "Tile size & pattern (mosaic, herringbone, large-format add labor/waste)",
+      "Wet area (waterproofing) and substrate condition",
+    ],
+    prompt:
+      "TILE ESTIMATING. Price by SQ FT per surface (floor, wall, shower). Add waste by pattern — 10% straight, 15% " +
+      "diagonal, 20% mosaic/herringbone/large-format. Derive: tile (sq ft), thinset, grout, backer board/membrane " +
+      "(sq ft), WATERPROOFING for wet areas (pan, membrane), trim/bullnose/Schluter edge (LF), niche/bench (each), " +
+      "sealer. Use SKU unit + unit_price when matched. LABOR by sq ft — higher for small mosaic, herringbone, and " +
+      "large-format (needs leveling). ASSUMPTIONS: sq ft & waste %, waterproofing method, \"substrate flat & sound\". " +
+      "EXCLUSIONS when not stated: substrate/subfloor replacement, demolition of existing tile unless noted, " +
+      "plumbing/fixtures, structural repair.",
+  },
 };
 
 // Ordered keys, demo trades first.

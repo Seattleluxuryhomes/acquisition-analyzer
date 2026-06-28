@@ -1792,6 +1792,14 @@ const TRADE_PICK = [
   { key:'bathroom-remodel', emoji:'🛁', label:'Bathroom Remodel', bring:'tile area (walls + floor), fixtures, and any layout change' },
   { key:'landscaping', emoji:'🌳', label:'Landscaping & Hardscape', bring:'areas in sq ft (beds, sod, patio), plant counts, and hardscape dimensions' },
   { key:'framing', emoji:'🪚', label:'Framing', bring:'wall linear feet & height, stud spacing, and openings for headers' },
+  { key:'electrical', emoji:'⚡', label:'Electrical', bring:'device/fixture counts, any panel/service upgrade, and new vs. remodel' },
+  { key:'plumbing', emoji:'🔧', label:'Plumbing', bring:'fixture count by type, new rough-in vs. swap, and water heater type' },
+  { key:'hvac', emoji:'❄️', label:'HVAC', bring:'conditioned sq ft, system type (and mini-split head count), and duct reuse' },
+  { key:'masonry', emoji:'🧱', label:'Masonry & Stucco', bring:'face area in sq ft, system/veneer type, and repair vs. new' },
+  { key:'garage-doors', emoji:'🚗', label:'Garage Doors', bring:'door count & sizes, material/insulation, and whether a new opener' },
+  { key:'excavation-demo', emoji:'🚜', label:'Excavation & Demolition', bring:'area × depth (for cubic yards) or what’s removed, plus dumpster count' },
+  { key:'countertops', emoji:'🪨', label:'Countertops', bring:'counter sq ft or slab count, material, edge profile, and cutouts' },
+  { key:'tile', emoji:'🔲', label:'Tile', bring:'area per surface (floor/wall/shower), tile size & pattern, and wet areas' },
 ];
 function tradeBringHint(){
   const t=TRADE_PICK.find(x=>x.key===CAP_DRAFT.trade); if(!t||!t.bring) return '';
