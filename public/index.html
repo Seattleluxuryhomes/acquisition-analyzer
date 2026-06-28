@@ -508,6 +508,11 @@
   .menu-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;background:var(--amber);color:#1F252C;border-radius:9px;font-size:.7rem;font-weight:800;margin-left:7px;padding:0 5px}
   .funnelrow{display:flex;align-items:center;gap:8px;padding:10px 11px;border:1px solid var(--line);border-radius:11px;margin-bottom:8px;background:var(--surface)}
   .fn-t{font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fn-s{font-size:.8rem;color:var(--muted)}
+  .reachbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface2,#f3eee3);border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:12px}
+  .reachbar-l{font-size:.86rem;color:var(--muted);font-weight:600}
+  .reachbar-b{display:flex;gap:6px;flex:0 0 auto}
+  .reachbtn{background:var(--blue,#1E4259);color:#fff;border-radius:8px;padding:6px 12px;font-size:.84rem;font-weight:700;text-decoration:none}
+  .reachbtn.wa{background:#25D366;color:#08331c}
   .lead{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:11px;box-shadow:var(--shadow)}
   .lead-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .lead-who{font-weight:700;font-size:1.02rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -2087,6 +2092,14 @@ function reachBlock(j){
     +`<a class="maplink" href="sms:${escAttr(t)}">💬 Text</a>`
     +`<a class="maplink" href="https://wa.me/${escAttr(wa)}" target="_blank" rel="noopener">🟢 WhatsApp</a></div>`;
 }
+// A compact reach bar for inside the bid tabs — questions come up WHILE building,
+// so you can text/WhatsApp/call the customer without scrolling back to the top.
+function reachInline(j){
+  const p=(j.customer_phone||'').trim(); if(!p) return '';
+  const t=telDigits(p), wa=waDigits(p), who=(j.customer||'').trim().split(/\s+/)[0];
+  return `<div class="reachbar"><span class="reachbar-l">💬 Question on the bid? Reach ${who?esc(who):'the customer'}</span>
+    <span class="reachbar-b"><a class="reachbtn" href="sms:${escAttr(t)}">Text</a><a class="reachbtn wa" href="https://wa.me/${escAttr(wa)}" target="_blank" rel="noopener">WhatsApp</a><a class="reachbtn" href="tel:${escAttr(t)}">Call</a></span></div>`;
+}
 // One source of truth for a job's location: the explicit address field, or — so
 // you never type it twice — the project name itself when that looks like an
 // address (has a number). Drives every map, directions & calendar link.
@@ -2642,7 +2655,7 @@ function tabNotebook(j){
   <input id="photoInput" type="file" accept="image/*" multiple style="display:none" onchange="handlePhotos(this)"/>
   <input id="photoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="handlePhotos(this)"/></div>`;
   out+=`<div style="margin-top:14px"><button class="btn full" onclick="setTab('build')">Build the bid →</button></div>`;
-  return out;
+  return reachInline(j)+out;
 }
 
 function lineAmt(l){ return l.type==='unit' ? (+l.qty||0)*(+l.rate||0) : l.type==='hourly' ? (+l.hours||0)*(+l.rate||0) : (+l.price||0); }
@@ -2738,6 +2751,7 @@ function tabBuild(j){
 
   return `<div class="h-eyebrow" style="margin-bottom:8px">Step 2 · Private estimating</div>
     <div class="note">AI prices are rough placeholders — you set the real numbers here.</div>
+    ${reachInline(j)}
     ${(j.transcript||'').trim() ? `<button class="btn ghost full" style="margin-bottom:12px" onclick="rebuildWithAI('${j.id}',this)">🪄 Rebuild these lines from the conversation with AI</button>` : ''}
     ${lines||'<div class="hint">No line items yet.</div>'}
     ${AI_BUILD && (j.lines||[]).length ? `<button class="btn ghost full" style="margin-top:10px" onclick="reviewBidAI('${j.id}',this)">💡 Find missing money — check this bid</button>
