@@ -331,6 +331,15 @@
   .dpx img{width:100%;height:74px;object-fit:cover;border-radius:8px;border:2px solid var(--line,#e2dac9);opacity:.5}
   .dpx input{position:absolute;top:5px;left:5px;width:18px;height:18px}
   .dpx input:checked ~ img{opacity:1;border-color:var(--amber,#CF7F18)}
+  .permit-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .permit{border:1px solid var(--line,#e2dac9);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--surface2,#f3eee3)}
+  .permit-top,.permit-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+  .permit-row:last-child{margin-bottom:0}
+  .permit .input.sm{padding:9px 10px;font-size:.9rem;margin:0;flex:1;min-width:0}
+  .permit-st{flex:none!important;width:120px;font-weight:700}
+  .permit-st.approved{color:var(--green,#2f6d4a)}.permit-st.needed{color:var(--amber,#CF7F18)}
+  .permit-fee{display:flex;align-items:center;gap:6px;flex:none;width:110px}
+  .x-btn{flex:none;background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:6px}
   @media(min-width:720px){ .kpi{flex:1 1 0} }
   .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
   .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
@@ -2457,6 +2466,10 @@ function tabBuild(j){
       <div id="drawStatus">${drawStatusHTML(j.id)}</div>
     </div>
 
+    <div class="dispatchbox" style="margin-top:14px">
+      ${permitsHTML(j)}
+    </div>
+
     <div class="private"><div class="pl">Private — not shown to client</div>
       <label class="fld" style="margin-top:8px">Profit margin %</label>
       <input class="input" type="number" min="0" max="99" value="${j.margin||0}" oninput="updJob('margin',this.value)" style="max-width:140px"/>
@@ -3442,6 +3455,37 @@ function updLine(id,k,v){ const j=currentJob(); const l=j.lines.find(x=>x.id===i
 function addUp(){ const j=currentJob(); j.upgrades.push({id:uid(),desc:'',price:0}); touch(j); saveJobs(); render(); }
 function delUp(i){ const j=currentJob(); j.upgrades.splice(i,1); touch(j); saveJobs(); render(); }
 function updUp(i,k,v){ const j=currentJob(); if(k==='price') j.upgrades[i][k]=+v||0; else j.upgrades[i][k]=v; touch(j); saveJobs(); }
+function permitsHTML(j){
+  const ps=j.permits||[];
+  const opt=(cur)=>['needed','applied','approved','closed'].map(s=>`<option value="${s}"${s===cur?' selected':''}>${({needed:'Needed',applied:'Applied',approved:'Approved',closed:'Closed'})[s]}</option>`).join('');
+  const rows=ps.map(p=>`<div class="permit" data-id="${escAttr(p.id)}">
+      <div class="permit-top">
+        <input class="input sm" placeholder="Type (Building, Electrical, Grading…)" value="${escAttr(p.type||'')}" onchange="updPermit('${p.id}','type',this.value)"/>
+        <select class="input sm permit-st ${p.status}" onchange="updPermit('${p.id}','status',this.value)">${opt(p.status)}</select>
+      </div>
+      <div class="permit-row">
+        <input class="input sm" placeholder="Jurisdiction (city/county)" value="${escAttr(p.jurisdiction||'')}" onchange="updPermit('${p.id}','jurisdiction',this.value)"/>
+        <input class="input sm" placeholder="Permit #" value="${escAttr(p.number||'')}" onchange="updPermit('${p.id}','number',this.value)"/>
+      </div>
+      <div class="permit-row">
+        <div class="permit-fee"><span class="mono" style="color:var(--muted)">$</span><input class="input sm" type="number" min="0" placeholder="Fee" value="${p.fee||''}" onchange="updPermit('${p.id}','fee',this.value)"/></div>
+        <button class="btn ghost sm" onclick="permitToLine('${p.id}')" title="Add this fee to the bid as a line item">＋ Add fee to bid</button>
+        <button class="x-btn" onclick="delPermit('${p.id}')" title="Remove">✕</button>
+      </div>
+    </div>`).join('');
+  return `<div class="permit-h"><b>🧾 Permits</b><span class="hint" style="margin:0">Track what this job needs — and don't forget the fee.</span></div>
+    ${rows}
+    <button class="btn ghost full" style="margin-top:8px" onclick="addPermit()">+ Add a permit</button>`;
+}
+/* ---- Permits: contractor-only tracking (status + fee). Fee can flow into the bid. ---- */
+function addPermit(){ const j=currentJob(); j.permits=j.permits||[]; j.permits.push({id:uid(),type:'',jurisdiction:'',number:'',status:'needed',fee:0,notes:''}); touch(j); saveJobs(); render(); }
+function delPermit(id){ const j=currentJob(); j.permits=(j.permits||[]).filter(p=>p.id!==id); touch(j); saveJobs(); render(); }
+function updPermit(id,k,v){ const j=currentJob(); const p=(j.permits||[]).find(x=>x.id===id); if(!p)return; p[k]=(k==='fee')?(+v||0):v; touch(j); saveJobs(); if(k==='status') render(); }
+function permitToLine(id){ const j=currentJob(); const p=(j.permits||[]).find(x=>x.id===id); if(!p)return;
+  const label=((p.type||'Permit').trim()+(p.jurisdiction?(' — '+p.jurisdiction.trim()):'')+(p.number?(' (#'+p.number.trim()+')'):'')).slice(0,200);
+  j.lines=j.lines||[]; j.lines.push({id:uid(),section:'Permits & Fees',desc:label,type:'fixed',price:+p.fee||0,hours:0,rate:0,qty:0,furn:'you'});
+  touch(j); saveJobs(); render(); toast('Permit added to the bid as a line item.','ok');
+}
 function updJob(k,v){ const j=currentJob(); j[k]=(k==='margin'||k==='deposit_pct'||k==='tax_rate')?(+v||0):v; touch(j); saveJobs(); if(k==='margin'||k==='tax_rate') refreshTotals(j); }
 function updList(k,v){ const j=currentJob(); j[k]=String(v).split('\n').map(s=>s.trim()).filter(Boolean); touch(j); saveJobs(); }
 function deleteJob(id){

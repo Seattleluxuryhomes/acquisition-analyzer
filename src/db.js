@@ -323,6 +323,9 @@ ensureColumns("job", [
   ["deposit_pct", "INTEGER"],   // deposit to collect on acceptance, % of total (default 25)
   ["tax_rate", "REAL"],         // sales tax % for this job; defaults from the contractor, 0 = none
   ["brief", "TEXT"],            // AI structured job summary (contractor-only; never on the client proposal)
+  // Permits this job needs (JSON array). Tracked like assumptions/exclusions — part
+  // of the job object so it syncs offline. Each: {id,type,jurisdiction,number,status,fee,notes}.
+  ["permits", "TEXT"],
 ]);
 
 // Self-heal a price-book (sku) table created before any of these columns existed,

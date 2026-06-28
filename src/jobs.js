@@ -27,6 +27,7 @@ function rowToJob(row) {
     exclusions: J(row.exclusions, []),
     lines: J(row.lines, []),
     upgrades: J(row.upgrades, []),
+    permits: J(row.permits, []),  // permits this job needs (contractor-only tracking)
     notes: row.notes,        // owner-only; never sent to client surfaces
     margin: row.margin,      // owner-only; never sent to client surfaces
     status: row.status,
@@ -59,6 +60,20 @@ function cleanLine(l) {
 }
 function cleanUpgrade(u) {
   return { id: String(u.id || uid()), desc: String(u.desc || "").slice(0, 200), price: Number(u.price) || 0 };
+}
+// A permit the job needs. Pure contractor-side tracking (jurisdiction, status, fee)
+// — never rendered on the client proposal; the fee can be added to the bid as a line.
+const PERMIT_STATUSES = ["needed", "applied", "approved", "closed"];
+function cleanPermit(p) {
+  return {
+    id: String(p.id || uid()),
+    type: String(p.type || "").slice(0, 80),               // e.g. "Building", "Electrical", "Grading"
+    jurisdiction: String(p.jurisdiction || "").slice(0, 80), // city/county that issues it
+    number: String(p.number || "").slice(0, 60),            // permit # once issued
+    status: PERMIT_STATUSES.includes(p.status) ? p.status : "needed",
+    fee: Number(p.fee) || 0,                                // permit cost (a pass-through line on the bid)
+    notes: String(p.notes || "").slice(0, 300),
+  };
 }
 const cleanStrings = (a) => (Array.isArray(a) ? a.map((s) => String(s).slice(0, 300)) : []);
 
@@ -96,8 +111,8 @@ export function createJob(userId, data = {}) {
   const createdAt = Number(data.created_at) || now;
   db.prepare(`INSERT INTO job
     (id, user_id, title, from_lang, to_lang, transcript, translation, summary, brief,
-     assumptions, exclusions, lines, upgrades, notes, margin, status, scheduled_date, scheduled_time, address, customer, deposit_pct, tax_rate, sent_at, created_at, updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+     assumptions, exclusions, lines, upgrades, permits, notes, margin, status, scheduled_date, scheduled_time, address, customer, deposit_pct, tax_rate, sent_at, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
     id, userId,
     String(data.title || "Untitled job"),
     String(data.from || "es"), String(data.to || "en"),
@@ -107,6 +122,7 @@ export function createJob(userId, data = {}) {
     JSON.stringify(cleanStrings(data.exclusions)),
     JSON.stringify((Array.isArray(data.lines) ? data.lines : []).map(cleanLine)),
     JSON.stringify((Array.isArray(data.upgrades) ? data.upgrades : []).map(cleanUpgrade)),
+    JSON.stringify((Array.isArray(data.permits) ? data.permits : []).map(cleanPermit)),
     String(data.notes || ""), Number(data.margin) || 0,
     normStatus(data.status),
     String(data.scheduled_date || "") || null,
@@ -142,11 +158,12 @@ const FIELD_MAP = {
   exclusions: (v) => JSON.stringify(cleanStrings(v)),
   lines: (v) => JSON.stringify((Array.isArray(v) ? v : []).map(cleanLine)),
   upgrades: (v) => JSON.stringify((Array.isArray(v) ? v : []).map(cleanUpgrade)),
+  permits: (v) => JSON.stringify((Array.isArray(v) ? v : []).map(cleanPermit)),
 };
 const COLUMN = { title: "title", from: "from_lang", to: "to_lang", transcript: "transcript",
   translation: "translation", summary: "summary", brief: "brief", notes: "notes", margin: "margin", status: "status",
   scheduled_date: "scheduled_date", scheduled_time: "scheduled_time", address: "address", customer: "customer", deposit_pct: "deposit_pct", tax_rate: "tax_rate",
-  assumptions: "assumptions", exclusions: "exclusions", lines: "lines", upgrades: "upgrades" };
+  assumptions: "assumptions", exclusions: "exclusions", lines: "lines", upgrades: "upgrades", permits: "permits" };
 
 export function updateJob(userId, id, patch = {}) {
   const existing = db.prepare("SELECT id FROM job WHERE id=? AND user_id=?").get(id, userId);

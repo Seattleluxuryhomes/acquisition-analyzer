@@ -370,8 +370,11 @@ function reviewSystemPrompt(trade) {
     "SHORT note on profit/cost effect (e.g. \"~$300–600\" or \"protects your margin\"; " +
     "never a hard promise). Only suggest items genuinely standard for this trade or " +
     "clearly implied by the scope — do NOT invent client-specific facts or random " +
-    "padding. At most 6 recommendations, most important first. If the bid looks " +
-    "complete, return an empty array. " +
+    "padding. If the work plainly requires a PERMIT (structural, electrical, plumbing, " +
+    "mechanical, grading/earthwork, demolition, additions) and no permit or permit fee " +
+    "appears in the draft, flag it as a 'missing' item (\"Permit & fee\") — permits are " +
+    "one of the most commonly forgotten costs. At most 6 recommendations, most important " +
+    "first. If the bid looks complete, return an empty array. " +
     (brain ? "TRADE STANDARD — check the draft against this trade's normal scope:\n" + brain + "\n" : "")
   );
 }
