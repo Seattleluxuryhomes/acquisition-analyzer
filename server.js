@@ -159,7 +159,7 @@ app.post("/api/auth/signup", wrap((req, res) => {
     // earns a crew credit once this user becomes a paying subscriber).
     const ref = String((req.body && (req.body.ref || req.body.r)) || "").trim();
     if (ref && Referrals.setReferrer(out.user.id, ref)) track(out.user.id, "referred_signup", { by: ref });
-    track(out.user.id, "user_registered", { email: out.user.email });
+    track(out.user.id, "user_registered", { email: out.user.email, role: out.user.role || "contractor" });
   }
   res.json(out);
 }));

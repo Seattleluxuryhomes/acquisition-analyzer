@@ -5,7 +5,7 @@
 import crypto from "node:crypto";
 import db from "./db.js";
 import { track } from "./analytics.js";
-import { referralStatus, effectiveMonthly } from "./referrals.js";
+import { referralStatus, effectiveMonthly, agentStatus, agentFreeActive } from "./referrals.js";
 
 const KEY = () => process.env.STRIPE_SECRET_KEY || "";
 const PRICE = () => process.env.STRIPE_PRICE_ID || "";
@@ -37,6 +37,8 @@ export function billingConfigured() {
 // get charged when they actively choose to subscribe (no surprise auto-charge).
 export function isEntitled(user) {
   if (!billingConfigured()) return true;
+  // Real-estate agents are entitled for their whole free first year (no card).
+  if (agentFreeActive(user)) return true;
   const status = user.subscription_status;
   if (status === "active" || status === "trialing") {
     if (!user.current_period_end || user.current_period_end > Date.now() - 3 * 24 * 60 * 60 * 1000) return true;
@@ -79,6 +81,8 @@ export function billingStatus(user) {
     // Referral credit ladder: base $50, −$10 per paying sub, free at 5. Drives the
     // paywall/billing display and the price the contractor is actually charged.
     referral: referralStatus(user),
+    // Agent persona (null for contractors): free-first-year countdown + T-90 nudge.
+    agent: agentStatus(user),
   };
 }
 

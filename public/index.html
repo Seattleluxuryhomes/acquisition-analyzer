@@ -530,6 +530,7 @@
   .auth{max-width:380px;margin:6vh auto 0;padding:0 4px}
   .auth h1{font-family:"Archivo";font-weight:900;font-size:1.8rem;letter-spacing:-.02em;margin:10px 0 4px}
   .auth-card{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:22px;margin-top:18px}
+  .agentwelcome{background:rgba(30,66,89,.1);border:1px solid var(--blue,#1E4259);border-radius:10px;padding:12px 13px;margin-bottom:16px;font-size:.92rem;line-height:1.45}
   .auth-switch{text-align:center;margin-top:16px;font-size:.86rem;color:var(--muted)}
   .auth-switch a{color:var(--amber);cursor:pointer}
   .authlink{color:var(--amber);cursor:pointer;font-size:.85rem}
@@ -1036,7 +1037,7 @@ async function doAuth(){
   state.authError='';
   const path = state.authMode==='signup' ? '/api/auth/signup' : '/api/auth/signin';
   try{
-    const body = state.authMode==='signup' ? {email, password:pass, ref:REFCODE||''} : {email, password:pass};
+    const body = state.authMode==='signup' ? {email, password:pass, ref:REFCODE||'', role:SIGNUP_ROLE||''} : {email, password:pass};
     const r = await api(path, { method:'POST', body:JSON.stringify(body) });
     TOKEN=r.token; USER=r.user; persistAuth();
     if(r.user){ SETTINGS=Object.assign({}, SETTINGS, {
@@ -1390,8 +1391,10 @@ function viewAuth(){
   </div>`;
 }
 function authSigninCard(isUp){
+  const agent = isUp && SIGNUP_ROLE==='agent';
   return `<div class="auth-card">
-      <div class="h-eyebrow">${isUp?'Create your account':'Welcome back'}</div>
+      ${agent?`<div class="agentwelcome">🏡 <b>Real-estate agents</b> — walk any listing, get bids from your contractors in minutes. <b>Free your first year</b>, then $50/mo locked forever.</div>`:''}
+      <div class="h-eyebrow">${agent?'Agent signup — free year':(isUp?'Create your account':'Welcome back')}</div>
       <h1>${isUp?'Get started':'Sign in'}</h1>
       <label class="fld">Email</label>
       <input id="authEmail" class="input" type="email" autocomplete="email" placeholder="you@yourcompany.com" value="${escAttr(USER&&USER.email||'')}"/>
@@ -1445,6 +1448,7 @@ function authResetCard(){
 }
 let RESET=null;
 let REFCODE = (function(){ try{ return localStorage.getItem('bt_ref')||''; }catch(e){ return ''; } })(); // referral code they arrived on
+let SIGNUP_ROLE = (function(){ try{ return localStorage.getItem('bt_role')||''; }catch(e){ return ''; } })(); // persona they arrived as (?as=agent)
 async function doForgot(){
   const el=document.getElementById('forgotEmail'); const email=((el&&el.value)||'').trim();
   if(!email){ state.authError='Enter your email.'; render(); return; }
@@ -2680,6 +2684,15 @@ function printClient(){
 /* ---------- SETTINGS ---------- */
 function billingSection(){
   if(!BILLING || !BILLING.configured) return '';
+  // Real-estate agents: show the free-year status instead of the trial/subscribe flow.
+  const ag = BILLING.agent;
+  if(ag && ag.is_agent && ag.free_active){
+    const until = ag.free_until ? new Date(ag.free_until).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    return `<div class="billbox"><h3>Subscription</h3>
+      <div class="statline"><span class="badge active">Agent — free year</span></div>
+      <div class="hint" style="margin-top:8px">🏡 Free until <b style="color:var(--paper)">${esc(until)}</b> (${ag.days_left} day${ag.days_left===1?'':'s'} left), then <b style="color:var(--paper)">${priceStr(ag.after_monthly||50)}/mo locked</b> — never rises.</div>
+      ${ag.nudge?`<div class="freecallout" style="margin-top:10px">⏳ Your free year is ending soon. Keep it free: bring ${BILLING.referral?BILLING.referral.freeAt:5} contractors who subscribe and your bill stays <b>$0</b>.</div>`:''}</div>`;
+  }
   const s=BILLING.status;
   const label = s==='active'?'Active':(BILLING.in_trial?'Free trial':(s==='past_due'?'Past due':(s==='canceled'?'Canceled':'No subscription')));
   const cls = s==='active'?'active':(BILLING.in_trial?'trial':(s==='past_due'?'past_due':(s==='canceled'?'canceled':'none')));
@@ -3758,9 +3771,13 @@ function confettiBurst(gold){
   // Referral link (/?r=CODE): remember who invited them so the signup attributes
   // to that GC (they earn a crew credit when this user starts paying).
   const refParam=params.get('r'); if(refParam){ try{ REFCODE=refParam; localStorage.setItem('bt_ref', refParam); }catch(e){} }
+  // Persona link (/?as=agent): real-estate agents arrive on their own invite and
+  // sign up free for a year. Remembered so the signup sends the right role.
+  const roleParam=(params.get('as')||params.get('role')||'').toLowerCase();
+  if(['agent','homeowner','contractor'].includes(roleParam)){ SIGNUP_ROLE=roleParam; try{ localStorage.setItem('bt_role', roleParam); }catch(e){} if(roleParam==='agent') state.authMode='signup'; }
   const billingReturn=params.get('billing');
   const paymentsReturn=params.get('payments'); // 'connected' | 'refresh' after Stripe onboarding
-  if(billingReturn || paymentsReturn || refParam){ history.replaceState({}, '', location.pathname); }
+  if(billingReturn || paymentsReturn || refParam || roleParam){ history.replaceState({}, '', location.pathname); }
   // Password-reset link (/reset?token=…&e=…): show the set-new-password screen.
   if(location.pathname==='/reset' || params.get('token')){
     RESET={ token:params.get('token')||'', email:params.get('e')||'' };

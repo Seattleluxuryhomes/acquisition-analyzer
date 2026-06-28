@@ -301,6 +301,12 @@ ensureColumns("user", [
   // Follow Up Boss person id — the founder's CRM record for this contractor
   // (platform-level; set once when we first push them to FUB).
   ["fub_person_id", "TEXT"],
+  // Persona: 'contractor' (default), 'agent' (real-estate agent — free distribution
+  // channel: free for year 1, then $50 locked forever), or 'homeowner' (DIY GC).
+  ["role", "TEXT DEFAULT 'contractor'"],
+  // For agents: epoch ms their free first year ends. While now < this, the account
+  // is free + entitled; after it, their locked_monthly ($50) applies.
+  ["agent_free_until", "INTEGER"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).
