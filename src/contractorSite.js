@@ -65,14 +65,25 @@ export function renderContractorSite(profile = {}, opts = {}) {
 
   const ratingBadge = rating ? `<span class="stars">★★★★★</span> <span><b>${esc(rating)}</b>${reviews ? ` · ${esc(reviews)} Google reviews` : ""}</span>` : "";
 
+  // Clean line icons (no clip-art emoji) — same stroke style as the app, brand-colored.
+  const I = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const ICON = {
+    tools: I('<path d="M14.6 6.4a3.8 3.8 0 0 1-4.9 4.9L4 17v3h3l5.7-5.7a3.8 3.8 0 0 1 4.9-4.9l-2.5 2.5-2.1-.3-.3-2.1z"/>'),
+    shield: I('<path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>'),
+    clipboard: I('<rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2.6" width="6" height="3.2" rx="1"/><path d="M9 11.5h6M9 15.5h6"/>'),
+    pin: I('<path d="M12 21s7-5.6 7-11a7 7 0 0 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/>'),
+    star: I('<path d="M12 3.2l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5 6.8 19.2l1-5.8L3.6 9.3l5.8-.8z"/>'),
+    bolt: I('<path d="M13 2L4 14h6l-1 8 9-12h-6z"/>'),
+  };
+
   // The 4th stat square — only ever show something that MEANS something: the real
   // service area if set, else a real client rating, else a fast-response promise.
   // (No empty "Local" filler.)
   const stat4 = area
-    ? `<div class="s"><div class="ic">📍</div><div class="v">${esc(area)}</div><div class="l">Service area</div></div>`
+    ? `<div class="s"><div class="ic">${ICON.pin}</div><div class="v">${esc(area)}</div><div class="l">Service area</div></div>`
     : rating
-    ? `<div class="s"><div class="ic">⭐</div><div class="v">${esc(rating)}</div><div class="l">Client rating</div></div>`
-    : `<div class="s"><div class="ic">⚡</div><div class="v">Fast</div><div class="l">Response</div></div>`;
+    ? `<div class="s"><div class="ic">${ICON.star}</div><div class="v">${esc(rating)}</div><div class="l">Client rating</div></div>`
+    : `<div class="s"><div class="ic">${ICON.bolt}</div><div class="v">Fast</div><div class="l">Response</div></div>`;
 
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -104,9 +115,10 @@ export function renderContractorSite(profile = {}, opts = {}) {
   .hero p.sub{font-size:1.2rem;color:var(--muted);max-width:46ch;margin:0 0 24px}
   .hero .cta{display:flex;gap:12px;flex-wrap:wrap}
   .badges{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px;color:var(--muted);font-size:.92rem;font-weight:600}.badges b{color:var(--ink)}.stars{color:var(--accent)}
+  .badges span{display:inline-flex;align-items:center;gap:7px}.badges svg{width:17px;height:17px;color:var(--accent);flex:0 0 auto}
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:10px 0 6px}
   .stats .s{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:22px 16px;text-align:center;box-shadow:0 4px 16px rgba(27,34,40,.05)}
-  .stats .s .ic{font-size:1.45rem;line-height:1}
+  .stats .s .ic{height:28px;display:flex;align-items:center;justify-content:center}.stats .s .ic svg{width:27px;height:27px;color:var(--accent)}
   .stats .v{font-size:1.5rem;font-weight:800;color:var(--blue);margin-top:7px;line-height:1.12;word-break:break-word}
   .stats .l{color:var(--muted);font-size:.82rem;margin-top:4px;line-height:1.3}
   @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr);gap:11px}.hero h1{font-size:2.1rem}}
@@ -150,12 +162,12 @@ export function renderContractorSite(profile = {}, opts = {}) {
   ${offer
     ? `<div class="cta"><a class="btn lg" href="#estimate">${esc(offer.cta || "Get my free estimate")}</a></div>`
     : `<div class="cta"><a class="btn lg" href="#estimate">Get your free estimate</a>${phone ? `<a class="btn ghost lg" href="${telHref}">📞 Call us</a>` : ""}</div>`}
-  <div class="badges">${ratingBadge}${license ? `<span>🛡️ Licensed, bonded &amp; insured · <b>${license}</b></span>` : `<span>🛡️ <b>Licensed, bonded &amp; insured</b></span>`}<span>📋 <b>Free estimates</b></span></div>
+  <div class="badges">${ratingBadge}${license ? `<span>${ICON.shield} Licensed, bonded &amp; insured · <b>${license}</b></span>` : `<span>${ICON.shield} <b>Licensed, bonded &amp; insured</b></span>`}<span>${ICON.clipboard} <b>Free estimates</b></span></div>
 </div></section>
 
-<div class="stats wrap"><div class="s"><div class="ic">🛠️</div><div class="v">${services.length || "✓"}</div><div class="l">${services.length === 1 ? "Service offered" : "Services offered"}</div></div>
-  <div class="s"><div class="ic">🛡️</div><div class="v">✓</div><div class="l">Licensed, bonded &amp; insured</div></div>
-  <div class="s"><div class="ic">📋</div><div class="v">Free</div><div class="l">Estimates</div></div>
+<div class="stats wrap"><div class="s"><div class="ic">${ICON.tools}</div><div class="v">${services.length || "✓"}</div><div class="l">${services.length === 1 ? "Service offered" : "Services offered"}</div></div>
+  <div class="s"><div class="ic">${ICON.shield}</div><div class="v">✓</div><div class="l">Licensed, bonded &amp; insured</div></div>
+  <div class="s"><div class="ic">${ICON.clipboard}</div><div class="v">Free</div><div class="l">Estimates</div></div>
   ${stat4}</div>
 
 <section class="wrap"><div class="eyebrow">What we do</div><h2>Services</h2>
