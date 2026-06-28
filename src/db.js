@@ -218,6 +218,140 @@ CREATE TABLE IF NOT EXISTS dispatch (
 );
 CREATE INDEX IF NOT EXISTS dispatch_job_idx ON dispatch(job_id);
 CREATE INDEX IF NOT EXISTS dispatch_user_idx ON dispatch(user_id);
+
+-- Draw requests: a contractor documents completed work (amount + description +
+-- photos) and sends a public link to the property owner OR their bank/lender, who
+-- reviews the proof and APPROVES (and pays, via Stripe Connect if set up). The
+-- progress-billing step between the deposit and the final payment.
+CREATE TABLE IF NOT EXISTS draw (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL REFERENCES job(id) ON DELETE CASCADE,
+  amount_cents INTEGER NOT NULL,
+  description TEXT DEFAULT '',
+  photo_ids TEXT DEFAULT '[]',     -- JSON array of job photo ids shown as proof
+  status TEXT DEFAULT 'requested', -- requested | approved | paid | declined
+  checkout_url TEXT,               -- Stripe Connect pay link (optional)
+  approved_by TEXT DEFAULT '',
+  approved_at INTEGER,
+  paid_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS draw_job_idx ON draw(job_id);
+CREATE INDEX IF NOT EXISTS draw_user_idx ON draw(user_id);
+
+-- Change orders: the contractor documents extra/changed work mid-job; the client
+-- opens a public link, e-signs to approve it (and optionally pays). This is the
+-- money contractors lose when scope grows without a signed paper trail. Client-
+-- facing amount (no margin/notes); same unguessable-id grant model as /p/:id.
+CREATE TABLE IF NOT EXISTS change_order (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  job_id TEXT NOT NULL REFERENCES job(id) ON DELETE CASCADE,
+  number INTEGER DEFAULT 1,         -- CO #1, #2, … per job
+  title TEXT DEFAULT '',
+  description TEXT DEFAULT '',       -- what changed / why (client-facing)
+  line_items TEXT DEFAULT '[]',     -- JSON [{desc, amount}] client-facing line items
+  amount_cents INTEGER NOT NULL,    -- total the client agrees to (+/-)
+  status TEXT DEFAULT 'sent',       -- sent | approved | declined | paid
+  checkout_url TEXT,                -- Stripe Connect pay link (optional)
+  signed_by TEXT DEFAULT '',        -- client's typed signature/name
+  signed_at INTEGER,
+  paid_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS co_job_idx ON change_order(job_id);
+CREATE INDEX IF NOT EXISTS co_user_idx ON change_order(user_id);
+
+-- Living website (Sprint 12 — AI Website Engine): a completed job the contractor
+-- chose to publish to their website. The website is a living entity that writes
+-- content here; the /c/:id site renders a Before & After gallery + project pages
+-- from these rows. Photos referenced here are intentionally PUBLIC (the contractor
+-- opted in) and served via /pub/photo/:id, gated on membership in a published row.
+CREATE TABLE IF NOT EXISTS site_project (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  job_id TEXT REFERENCES job(id) ON DELETE SET NULL,
+  title TEXT DEFAULT '',
+  description TEXT DEFAULT '',       -- AI-written SEO project write-up
+  service TEXT DEFAULT '',           -- trade key/label for the project
+  area TEXT DEFAULT '',              -- neighborhood/city (no full address — privacy)
+  before_ids TEXT DEFAULT '[]',      -- JSON photo ids shown as "before"
+  after_ids TEXT DEFAULT '[]',       -- JSON photo ids shown as "after"
+  status TEXT DEFAULT 'published',   -- published | hidden
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS siteproj_user_idx ON site_project(user_id);
+
+-- Approval Inbox (Sprint 14): the AI-employee primitive. The system PROPOSES an
+-- action (a drafted review request, a follow-up, a project to publish); the
+-- contractor approves with one tap. Nothing is ever sent/posted automatically.
+-- Every future AI capability (marketing manager, social, blog) writes cards here.
+CREATE TABLE IF NOT EXISTS suggestion (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,                -- review_request | follow_up | ...
+  title TEXT DEFAULT '',
+  body TEXT DEFAULT '',              -- the AI-drafted content the contractor approves
+  status TEXT DEFAULT 'pending',     -- pending | approved | dismissed
+  context TEXT DEFAULT '{}',         -- JSON: {jobId, leadId, customer, to, channel, ...}
+  dedupe_key TEXT,                   -- prevents re-suggesting the same thing
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS suggestion_user_idx ON suggestion(user_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS suggestion_dedupe ON suggestion(user_id, dedupe_key);
+
+-- AI Funnel (Sprint 15): an offer-led landing page. The contractor picks a service
+-- + an offer ("Free Estimate"); AI writes the headline; the page renders the
+-- existing site in "offer mode" (single dominant CTA, offer hero). A submit runs
+-- the full native chain: lead -> follow-up draft (Approval Inbox) -> notify.
+CREATE TABLE IF NOT EXISTS funnel (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  name TEXT DEFAULT '',
+  service TEXT DEFAULT '',
+  offer TEXT DEFAULT '',          -- the offer ("Free Roof Inspection")
+  headline TEXT DEFAULT '',       -- AI-written hero headline
+  subhead TEXT DEFAULT '',
+  cta TEXT DEFAULT 'Get my free estimate',
+  views INTEGER DEFAULT 0,
+  leads INTEGER DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS funnel_user_idx ON funnel(user_id);
+
+-- Outbound prospecting CRM (Gojiberry integration). A prospect is a home-service
+-- business we're recruiting TO Bidtranslator (separate from inbound homeowner
+-- leads). Sourced from a provider (gojiberry/…) or added by hand, then worked
+-- through the pipeline. Provider-agnostic: 'source' records where it came from.
+CREATE TABLE IF NOT EXISTS prospect (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  name TEXT DEFAULT '',            -- business name
+  contact_name TEXT DEFAULT '',
+  trade TEXT DEFAULT '',
+  business_type TEXT DEFAULT '',
+  phone TEXT DEFAULT '',
+  email TEXT DEFAULT '',
+  website TEXT DEFAULT '',
+  address TEXT DEFAULT '',
+  city TEXT DEFAULT '',
+  state TEXT DEFAULT '',
+  status TEXT DEFAULT 'new',       -- new|contacted|interested|demo_booked|converted|not_interested
+  source TEXT DEFAULT 'manual',    -- gojiberry|manual|…
+  notes TEXT DEFAULT '',
+  raw TEXT DEFAULT '{}',           -- the original provider record (for future enrichment)
+  dedupe_key TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS prospect_user_idx ON prospect(user_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS prospect_dedupe ON prospect(user_id, dedupe_key);
 `);
 
 // Migrate older databases that predate the billing columns.
@@ -279,6 +413,24 @@ ensureColumns("user", [
   // Follow Up Boss person id — the founder's CRM record for this contractor
   // (platform-level; set once when we first push them to FUB).
   ["fub_person_id", "TEXT"],
+  // Persona: 'contractor' (default), 'agent' (real-estate agent — free distribution
+  // channel: free for year 1, then $50 locked forever), or 'homeowner' (DIY GC).
+  ["role", "TEXT DEFAULT 'contractor'"],
+  // For agents: epoch ms their free first year ends. While now < this, the account
+  // is free + entitled; after it, their locked_monthly ($50) applies.
+  ["agent_free_until", "INTEGER"],
+  // Custom-website request: the contractor asked us to build them a custom site.
+  // The founder sees who asked (the "we won't know unless they ask" signal) and
+  // hand-builds / upsells it. Timestamp = when they asked; note = what they want.
+  ["site_request_at", "INTEGER"],
+  ["site_request_note", "TEXT"],
+  // AI-written website copy (the first piece of the "living website" content the
+  // contractor never has to write). Rendered into the /c/:id About section.
+  ["site_about", "TEXT"],
+  // Living website (Sprint 12): a URL-friendly slug for the branded address
+  // (<slug>.<BT_SITE_DOMAIN>, name-agnostic) and whether they've hit "Publish".
+  ["site_slug", "TEXT"],
+  ["site_published", "INTEGER DEFAULT 0"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).
@@ -292,9 +444,13 @@ ensureColumns("job", [
   // Maps: the job's street address (drives Maps/Directions/Street View links).
   ["address", "TEXT"],
   ["customer", "TEXT"],         // who the proposal is FOR (shown on the bid + PDF)
+  ["customer_phone", "TEXT"],   // the customer's phone — tap to call/text from the job
   ["deposit_pct", "INTEGER"],   // deposit to collect on acceptance, % of total (default 25)
   ["tax_rate", "REAL"],         // sales tax % for this job; defaults from the contractor, 0 = none
   ["brief", "TEXT"],            // AI structured job summary (contractor-only; never on the client proposal)
+  // Permits this job needs (JSON array). Tracked like assumptions/exclusions — part
+  // of the job object so it syncs offline. Each: {id,type,jurisdiction,number,status,fee,notes}.
+  ["permits", "TEXT"],
 ]);
 
 // Self-heal a price-book (sku) table created before any of these columns existed,

@@ -18,14 +18,40 @@ function baseFor(user) {
   return user && user.locked_monthly != null ? Number(user.locked_monthly) : BASE_PRICE();
 }
 
+// Real-estate agents get their first year free, then a locked $50 forever. While the
+// free year is active, the account pays $0 regardless of base/credit. This is the
+// distribution channel: agents walk houses and RFQ their contractors into the app.
+export function agentFreeActive(user) {
+  return !!(user && user.agent_free_until && Date.now() < Number(user.agent_free_until));
+}
+const DAY = 24 * 60 * 60 * 1000;
+// Status block for an agent account (null for non-agents) — drives the in-app
+// "free year" banner and the T-90 retention nudge.
+export function agentStatus(user) {
+  if (!user || user.role !== "agent") return null;
+  const until = user.agent_free_until ? Number(user.agent_free_until) : null;
+  const active = agentFreeActive(user);
+  const daysLeft = until ? Math.max(0, Math.ceil((until - Date.now()) / DAY)) : 0;
+  return {
+    is_agent: true,
+    free_until: until,
+    free_active: active,
+    days_left: daysLeft,
+    nudge: active && daysLeft <= 90,   // surface "your free year is ending" inside 90 days
+    after_monthly: baseFor(user),      // what they pay once the free year ends ($50 locked)
+  };
+}
+
 // Paying subs this GC brought on. "Paying" = an active Stripe subscription (a sub
 // still in their free trial doesn't count yet — the credit is for real revenue).
 export function payingReferrals(userId) {
   return db.prepare("SELECT COUNT(*) c FROM user WHERE referred_by=? AND subscription_status='active'").get(userId).c;
 }
 
-// What this GC actually pays per month, after credit, floored at $0.
+// What this GC actually pays per month, after credit, floored at $0. Agents inside
+// their free first year pay $0 (the credit ladder still applies after it ends).
 export function effectiveMonthly(user) {
+  if (agentFreeActive(user)) return 0;
   const base = baseFor(user);
   return Math.max(0, base - CREDIT_PER_REF() * payingReferrals(user.id));
 }

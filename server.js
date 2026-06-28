@@ -12,14 +12,24 @@ import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
-import { tradeList, sampleScope } from "./src/trades.js";
+import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, generateReviewRequest, generateLeadFollowup, generateFunnelHeadline, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
+import * as SiteProjects from "./src/siteProjects.js";
+import { growthScore } from "./src/growth.js";
+import * as Inbox from "./src/inbox.js";
+import * as Funnels from "./src/funnels.js";
+import * as Prospecting from "./src/prospecting.js";
+import * as Prospects from "./src/prospects.js";
+import { tradeList, sampleScope, tradeLabel } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
 import * as Team from "./src/team.js";
 import * as Dispatch from "./src/dispatch.js";
+import * as Draws from "./src/draws.js";
+import * as ChangeOrders from "./src/changeOrders.js";
 import * as Referrals from "./src/referrals.js";
 import { renderScopeHTML } from "./src/scopeHtml.js";
+import { renderDrawHTML } from "./src/drawHtml.js";
+import { renderChangeOrderHTML } from "./src/changeOrderHtml.js";
 import { renderContractorSite } from "./src/contractorSite.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
@@ -88,7 +98,7 @@ const bigJson = express.json({ limit: "12mb" }); // price-sheet photo for SKU pa
 const isPhotoUpload = (req) => req.method === "POST" &&
   (/^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path) || /^\/api\/skus\/[^/]+\/image\/?$/.test(req.path) ||
    /^\/api\/jobs\/[^/]+\/visualize\/?$/.test(req.path));
-const isBigJson = (req) => req.method === "POST" && (req.path === "/api/skus/parse" || req.path === "/api/assist/transcribe");
+const isBigJson = (req) => req.method === "POST" && (req.path === "/api/skus/parse" || req.path === "/api/assist/transcribe" || req.path === "/api/assist/scan");
 app.use((req, res, next) => (isPhotoUpload(req) ? next() : (isBigJson(req) ? bigJson(req, res, next) : smallJson(req, res, next))));
 app.use(express.static(path.join(__dirname, "public"), {
   // Cache static images/icons hard (they're versioned by deploy); keep the app
@@ -103,6 +113,26 @@ const baseUrl = (req) =>
   (process.env.BT_PUBLIC_URL ||
     `${(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim()}://${req.get("host")}`
   ).replace(/\/+$/, "");
+
+// ---- Living website (Sprint 12) helpers ----
+// Name-agnostic branded address: the base domain is a single knob, so the day the
+// brand is locked (BidVoice/Bidtranslator/…) the whole engine flips with one env var.
+const SITE_DOMAIN = () => (process.env.BT_SITE_DOMAIN || "bidvoice.ai").trim().toLowerCase();
+const brandedSiteUrl = (slug) => (slug ? `https://${slug}.${SITE_DOMAIN()}` : "");
+// Public, signature-free URL for a photo PUBLISHED to a project (the /pub route
+// only serves photos attached to a published project — see isPhotoPublic).
+const pubPhotoUrl = (req, pid) => `${baseUrl(req)}/pub/photo/${pid}`;
+function slugify(s) {
+  return String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+}
+function ensureSlug(user) {
+  if (user.site_slug) return user.site_slug;
+  const base = slugify(user.company) || slugify(user.name) || ("site-" + String(user.id).slice(0, 6).toLowerCase());
+  let slug = base, n = 1;
+  while (db.prepare("SELECT id FROM user WHERE site_slug=? AND id<>?").get(slug, user.id)) slug = base + "-" + (++n);
+  db.prepare("UPDATE user SET site_slug=? WHERE id=?").run(slug, user.id);
+  return slug;
+}
 
 // Deferring fn into .then() means synchronous throws become rejections too.
 const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((err) => {
@@ -135,6 +165,14 @@ function settingsOf(user) {
     services: (() => { try { return JSON.parse(user.services || "[]"); } catch { return []; } })(),
     site_tagline: user.site_tagline || "",
     site_color: user.site_color || "",
+    site_about: user.site_about || "",
+    // Living website (Sprint 12): publish state + branded/working URLs.
+    site_slug: user.site_slug || "",
+    site_published: !!user.site_published,
+    site_branded_url: brandedSiteUrl(user.site_slug || ""),
+    // Custom-site request: whether this contractor has asked us to build them one.
+    site_requested: !!user.site_request_at,
+    site_request_note: user.site_request_note || "",
   };
 }
 
@@ -157,7 +195,7 @@ app.post("/api/auth/signup", wrap((req, res) => {
     // earns a crew credit once this user becomes a paying subscriber).
     const ref = String((req.body && (req.body.ref || req.body.r)) || "").trim();
     if (ref && Referrals.setReferrer(out.user.id, ref)) track(out.user.id, "referred_signup", { by: ref });
-    track(out.user.id, "user_registered", { email: out.user.email });
+    track(out.user.id, "user_registered", { email: out.user.email, role: out.user.role || "contractor" });
   }
   res.json(out);
 }));
@@ -200,6 +238,22 @@ function resetEmailHtml(link) {
     <p style="margin:22px 0"><a href="${link}" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Set a new password</a></p>
     <p style="color:#8a7f68;font-size:.85rem">If you didn't request this, you can safely ignore this email — your password won't change.</p>
   </div>`;
+}
+// The "you have a new lead" email — the one notification a contractor gets when a
+// homeowner requests an estimate on their website, so the lead never goes unseen.
+function leadEmailHtml(lead, appUrl) {
+  const row = (k, v) => v ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68">${k}</td><td style="padding:4px 0;font-weight:600">${esc(v)}</td></tr>` : "";
+  return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
+    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
+    <h2 style="margin:18px 0 6px">📥 New estimate request</h2>
+    <p style="color:#5a5240">Someone just asked you for an estimate. Reach out while it's hot.</p>
+    <table style="margin:14px 0;font-size:.96rem">${row("Name", lead.name)}${row("Phone", lead.phone)}${row("Email", lead.email)}${row("Project", lead.job_type)}${row("Area", lead.city)}${lead.message ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68;vertical-align:top">Details</td><td style="padding:4px 0">${esc(lead.message)}</td></tr>` : ""}</table>
+    <p style="margin:20px 0"><a href="${appUrl}/" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Open Bidtranslator &amp; bid it</a></p>
+  </div>`;
+}
+function leadEmailText(lead, appUrl) {
+  const f = (k, v) => v ? `${k}: ${v}\n` : "";
+  return `New estimate request\n\n${f("Name", lead.name)}${f("Phone", lead.phone)}${f("Email", lead.email)}${f("Project", lead.job_type)}${f("Area", lead.city)}${lead.message ? `Details: ${lead.message}\n` : ""}\nOpen Bidtranslator to bid it: ${appUrl}/`;
 }
 
 // ---- Billing ----
@@ -261,8 +315,48 @@ app.post("/api/quickbooks/disconnect", requireAuth, wrap((req, res) => {
 // ---- Me / settings ----
 app.get("/api/me", requireAuth, (req, res) =>
   res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user),
-    admin: Analytics.isAdmin(req.user), leadsNew: Leads.countNew(req.user.id),
+    admin: Analytics.isAdmin(req.user), leadsNew: Leads.countNew(req.user.id), inboxNew: Inbox.countPending(req.user.id),
     ai: { build: aiConfigured(), transcribe: transcribeConfigured(), visualize: visualizeConfigured() } }));
+// AI Growth Score (Sprint 13) — the coaching screen; pure data, no AI.
+app.get("/api/me/growth", requireAuth, (req, res) => res.json(growthScore(req.user)));
+
+// ---- Approval Inbox (Sprint 14): AI proposes, the contractor approves ----
+app.get("/api/inbox", requireAuth, (req, res) =>
+  res.json({ items: Inbox.listPending(req.user.id) }));
+// Generate fresh suggestions (idempotent via dedupe). v1 source: review requests
+// for won jobs, AI-drafted (template fallback when AI is off).
+app.post("/api/inbox/generate", requireAuth, wrap(async (req, res) => {
+  const cands = Inbox.reviewCandidates(req.user.id, 10);
+  let created = 0;
+  for (const job of cands) {
+    let body;
+    try {
+      body = await generateReviewRequest(req.user, { customer: job.customer, jobTitle: job.title, company: req.user.company });
+    } catch {
+      body = `Hi ${job.customer || "there"}, thank you for trusting ${req.user.company || "us"} with ${job.title || "your project"}! ` +
+        `If you were happy with the work, would you mind leaving us a quick review? It really helps. Thank you!`;
+    }
+    const s = Inbox.create(req.user.id, {
+      type: "review_request", title: `Ask ${job.customer || "your client"} for a review`,
+      body, context: { jobId: job.id, customer: job.customer }, dedupeKey: "review:" + job.id,
+    });
+    if (s) created++;
+  }
+  res.json({ created, items: Inbox.listPending(req.user.id) });
+}));
+app.post("/api/inbox/:id/approve", requireAuth, wrap((req, res) => {
+  const b = req.body || {};
+  if (typeof b.body === "string" && b.body.trim()) Inbox.setBody(req.user.id, req.params.id, b.body); // contractor may edit before approving
+  const s = Inbox.approve(req.user.id, req.params.id);
+  if (!s) return res.status(404).json({ error: "Not found." });
+  track(req.user.id, "suggestion_approved", { type: s.type });
+  res.json({ suggestion: s });
+}));
+app.post("/api/inbox/:id/dismiss", requireAuth, wrap((req, res) => {
+  const s = Inbox.dismiss(req.user.id, req.params.id);
+  if (!s) return res.status(404).json({ error: "Not found." });
+  res.json({ suggestion: s });
+}));
 app.patch("/api/me", requireAuth, wrap((req, res) => {
   const b = req.body || {};
   if (typeof b.logo === "string" && b.logo.length > 250000) {
@@ -272,7 +366,7 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
   if ("services" in b) b.services = JSON.stringify((Array.isArray(b.services) ? b.services : []).slice(0, 12).map((s) => String(s).slice(0, 40)));
   const map = { company: "company", name: "name", phone: "phone", license: "license", whatsapp: "whatsapp",
     from: "default_from_lang", to: "default_to_lang", logo: "logo", region: "region", terms: "terms",
-    services: "services", site_tagline: "site_tagline", site_color: "site_color" };
+    services: "services", site_tagline: "site_tagline", site_color: "site_color", site_about: "site_about" };
   const sets = [], vals = [];
   for (const [k, col] of Object.entries(map)) {
     if (k in b) { sets.push(`${col}=?`); vals.push(String(b[k] ?? "")); }
@@ -320,6 +414,55 @@ app.get("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
 });
 app.get("/api/admin/events", requireAuth, requireAdmin, (req, res) =>
   res.json({ events: Analytics.recentEvents(req.query.limit) }));
+
+// ---- Outbound prospecting (Gojiberry) — founder-only recruiting engine ----
+// The provider key stays server-side; the client only ever gets a boolean.
+app.get("/api/prospecting/config", requireAuth, requireAdmin, (req, res) =>
+  res.json({ ...Prospecting.prospectingStatus(), statuses: Prospects.STATUSES }));
+app.post("/api/prospecting/search", requireAuth, requireAdmin, wrap(async (req, res) => {
+  const b = req.body || {};
+  try {
+    const results = await Prospecting.search({
+      trade: b.trade, city: b.city, state: b.state, keyword: b.keyword, businessType: b.businessType, limit: b.limit,
+    });
+    track(req.user.id, "prospect_search", { count: results.length });
+    res.json({ results });
+  } catch (e) { res.status(e.status || 500).json({ error: e.message, code: e.code }); }
+}));
+app.get("/api/prospects", requireAuth, requireAdmin, (req, res) =>
+  res.json({ prospects: Prospects.list(req.user.id, req.query.status), counts: Prospects.counts(req.user.id) }));
+app.post("/api/prospects", requireAuth, requireAdmin, wrap((req, res) => {
+  const saved = Prospects.save(req.user.id, (req.body && req.body.prospects) || []);
+  track(req.user.id, "prospect_saved", { count: saved.length });
+  res.json({ saved, counts: Prospects.counts(req.user.id) });
+}));
+app.patch("/api/prospects/:id", requireAuth, requireAdmin, wrap((req, res) => {
+  const p = Prospects.update(req.user.id, req.params.id, req.body || {});
+  if (!p) return res.status(404).json({ error: "Prospect not found." });
+  res.json({ prospect: p, counts: Prospects.counts(req.user.id) });
+}));
+app.delete("/api/prospects/:id", requireAuth, requireAdmin, wrap((req, res) => {
+  if (!Prospects.remove(req.user.id, req.params.id)) return res.status(404).json({ error: "Not found." });
+  res.json({ ok: true, counts: Prospects.counts(req.user.id) });
+}));
+// Export the prospect CRM as CSV — the handoff into Instantly (email) / LinkedHelper.
+app.get("/api/prospects/export", requireAuth, requireAdmin, (req, res) => {
+  const rows = Prospects.list(req.user.id);
+  const cols = ["name", "contact_name", "trade", "business_type", "phone", "email", "website", "address", "city", "state", "status", "source", "notes"];
+  const cell = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+  const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\r\n");
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", 'attachment; filename="bidtranslator-prospects.csv"');
+  res.send(csv);
+});
+// Contractors who asked us to build them a custom website (the "we won't know
+// unless they ask" list). Founder-only — who + their note + when, newest first.
+app.get("/api/admin/site-requests", requireAuth, requireAdmin, (req, res) => {
+  const rows = db.prepare(
+    "SELECT id, company, name, email, phone, site_request_at, site_request_note FROM user WHERE site_request_at IS NOT NULL ORDER BY site_request_at DESC"
+  ).all();
+  res.json({ requests: rows.map((r) => ({ id: r.id, company: r.company || "", name: r.name || "", email: r.email || "", phone: r.phone || "", note: r.site_request_note || "", at: r.site_request_at, site_url: baseUrl(req) + "/c/" + r.id })) });
+});
 
 // Concierge onboarding (founder-only): set a contractor up with a fully-configured
 // account on the full trial, optionally import their price book, and send (or hand
@@ -390,6 +533,38 @@ app.post("/api/interest", requireAuth, wrap((req, res) => {
     .run(req.user.id, feature, Date.now());
   const { c } = db.prepare("SELECT COUNT(*) c FROM interest WHERE feature=?").get(feature);
   res.json({ ok: true, count: c });
+}));
+
+// "Build me a custom website" — the contractor asks; the founder gets the signal
+// (who + an optional note) and hand-builds / upsells it. Idempotent: re-asking
+// updates the note. Also recorded as a demand signal so it shows in the founder
+// dashboard, and pushed to the notify sink so the founder hears about it live.
+app.post("/api/me/site-request", requireAuth, wrap((req, res) => {
+  const note = String((req.body || {}).note || "").trim().slice(0, 500);
+  db.prepare("UPDATE user SET site_request_at=?, site_request_note=? WHERE id=?")
+    .run(Date.now(), note, req.user.id);
+  db.prepare("INSERT OR IGNORE INTO interest (user_id, feature, created_at) VALUES (?,?,?)")
+    .run(req.user.id, "custom_website", Date.now());
+  track(req.user.id, "custom_site_requested", { hasNote: !!note });
+  try { Notify.notify("site_request", { userId: req.user.id, company: req.user.company || "", email: req.user.email || "", phone: req.user.phone || "", note }); } catch {}
+  res.json({ ok: true, site_requested: true, site_request_note: note });
+}));
+
+// Living website, step 1: AI writes the contractor's site copy (hero + About) from
+// the info already in their profile — they never have to write it. Saves it so the
+// /c/:id site picks it up immediately. Save Time + Make Money: a designer-quality
+// page in one tap.
+app.post("/api/me/site-copy", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  let services = [];
+  try { services = JSON.parse(req.user.services || "[]"); } catch { services = []; }
+  const labels = services.map((k) => tradeLabel(k)).filter(Boolean);
+  const copy = await generateSiteCopy(req.user, {
+    company: req.user.company, services: labels, region: req.user.region, licensed: !!req.user.license,
+  });
+  db.prepare("UPDATE user SET site_tagline=COALESCE(NULLIF(?,''), site_tagline), site_about=? WHERE id=?")
+    .run(copy.tagline, copy.about, req.user.id);
+  track(req.user.id, "site_copy_generated", {});
+  res.json({ ok: true, ...copy });
 }));
 
 // ---- Jobs ----
@@ -554,6 +729,13 @@ app.post("/api/assist/transcribe", requireAuth, Billing.requireEntitled, wrap(as
   const { audio, lang } = req.body || {};
   res.json(await transcribeAudio(req.user, { audio, lang }));
 }));
+// AI Material Scanner: a photo → materials/finishes across every category, to save
+// the contractor from typing the bid scope. Identifications drop into the bid.
+app.post("/api/assist/scan", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const out = await scanMaterials(req.user, { image: (req.body || {}).image });
+  track(req.user.id, "material_scan", { found: (out.materials || []).length });
+  res.json(out);
+}));
 
 // ---- Price book (contractor's reusable SKU catalog) ----
 app.get("/api/skus", requireAuth, (req, res) => res.json({ skus: Skus.listSkus(req.user.id, req.query.q) }));
@@ -666,10 +848,43 @@ app.post("/api/inbound/leads", wrap((req, res) => {
   const userId = Leads.userIdForToken(token);
   if (!userId) return res.status(401).json({ error: "Invalid or missing lead token." });
   const lead = Leads.createLead(userId, Leads.normalizeInbound(req.body || {}));
-  // Fan out to the contractor's notification sink (email/SMS via their webhook) if set.
-  try { Notify.notify && Notify.notify({ type: "lead", lead, userId }); } catch {}
+  // ONE notification to the contractor, three reliable channels:
+  // 1) in-app "good news" inbox (an event the bell + dashboard banner surface),
+  track(userId, "lead_received", { leadId: lead.id, name: lead.name || "", jobType: lead.job_type || "", source: lead.source || "website" });
+  // 2) external fan-out webhook (correct signature now — was passing a bad arg),
+  try { Notify.notify("lead", { contractorId: userId, lead }); } catch {}
+  // 3) email the contractor so they hear about it with the app closed.
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
+  if (owner && owner.email && Mail.mailConfigured()) {
+    Mail.sendMail({ to: owner.email, subject: `New estimate request${lead.name ? " from " + lead.name : ""}`,
+      html: leadEmailHtml(lead, baseUrl(req)), text: leadEmailText(lead, baseUrl(req)) }).catch(() => {});
+  }
+  // Funnel attribution: count the conversion if this came from a funnel page.
+  const funnelId = String(req.query.f || (req.body && req.body.funnel) || "");
+  if (funnelId) Funnels.bumpLead(funnelId);
+  // Sprint 15 automation: draft an AI follow-up (with appointment times) into the
+  // Approval Inbox — fire-and-forget so the homeowner's submit returns instantly.
   res.json({ ok: true, id: lead.id });
+  if (owner) draftLeadFollowup(owner, lead).catch(() => {});
 }));
+
+// Draft a first-reply follow-up for a new lead and drop it in the Approval Inbox.
+// AI-written when configured, otherwise a solid template — either way one tap to send.
+async function draftLeadFollowup(owner, lead) {
+  const times = Funnels.suggestTimes(Date.now(), 3);
+  let body;
+  try {
+    body = await generateLeadFollowup(owner, { lead, times, company: owner.company });
+  } catch {
+    body = `Hi ${lead.name || "there"}, thanks for reaching out to ${owner.company || "us"} about ${lead.job_type || "your project"}! ` +
+      `I'd love to come take a look and get you an estimate. Would any of these work for you?\n` +
+      times.map((t) => `• ${t}`).join("\n") + `\nJust reply with what's best and I'll lock it in.`;
+  }
+  Inbox.create(owner.id, {
+    type: "follow_up", title: `Follow up with ${lead.name || "your new lead"}`,
+    body, context: { leadId: lead.id, name: lead.name || "", phone: lead.phone || "" }, dedupeKey: "followup:" + lead.id,
+  });
+}
 
 // ---- Scope dispatch: send a job's scope of work to a sub (free for the sub) ----
 app.post("/api/jobs/:id/dispatch", requireAuth, wrap((req, res) => {
@@ -738,15 +953,226 @@ app.post("/s/:id/bid", wrap((req, res) => {
   res.json({ ok: true });
 }));
 
-// Public, login-free contractor website (each contractor's own customer-facing
-// site, built from their profile). The estimate form posts to their inbound-leads
-// endpoint, so a homeowner becomes a lead and the contractor bids it in the app.
+// ---- Draw requests: progress billing with proof (photos) → owner/bank approval ----
+// The contractor documents completed work and sends a public link; the property
+// owner or their lender reviews the proof and approves (and pays, if Connect is on).
+app.post("/api/jobs/:id/draws", requireAuth, wrap(async (req, res) => {
+  const b = req.body || {};
+  let draw;
+  try {
+    draw = Draws.createDraw(req.user.id, { jobId: req.params.id, amount: b.amount, description: b.description, photoIds: b.photoIds });
+  } catch (e) { return res.status(e.status || 400).json({ error: e.message }); }
+  if (!draw) return res.status(404).json({ error: "Job not found." });
+  // If this contractor has Stripe Connect set up, attach a pay-now link so the
+  // owner/bank can approve AND pay in one step. Best-effort — the draw still works
+  // as approval-only if payments aren't configured.
+  if (Payments.paymentsConfigured() && req.user.connect_charges_enabled) {
+    try {
+      const reqObj = await Payments.createPaymentRequest(req.user, {
+        amount: draw.amount, description: `Draw — ${b.description || "progress payment"}`.slice(0, 200),
+        clientName: "", jobId: req.params.id,
+      }, baseUrl(req));
+      if (reqObj && reqObj.url) Draws.setCheckoutUrl(req.user.id, draw.id, reqObj.url);
+    } catch { /* approval-only draw */ }
+  }
+  track(req.user.id, "draw_requested", { jobId: req.params.id, amount: draw.amount });
+  const fresh = Draws.getPublic(draw.id);
+  res.json({ draw: fresh, url: baseUrl(req) + "/d/" + draw.id });
+}));
+app.get("/api/jobs/:id/draws", requireAuth, (req, res) => {
+  res.json({ draws: Draws.listForJob(req.user.id, req.params.id) });
+});
+
+// Public, login-free draw-review page the property owner or bank/lender opens. The
+// unguessable id is the access grant (same model as /p/:id). No private bid data.
+app.get("/d/:id", (req, res) => {
+  const draw = Draws.getPublic(req.params.id);
+  if (!draw) return res.status(404).send("This draw link is invalid.");
+  const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(draw.job_id);
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(draw.user_id);
+  // Only the photos the contractor attached to this draw (signed, expiring).
+  const photos = (draw.photo_ids || []).map((pid) => ({ url: signPhotoUrl(draw.job_id, pid) }));
+  res.type("html").send(renderDrawHTML(draw, {
+    id: draw.id, company: (owner && owner.company) || "Your contractor",
+    jobTitle: (jobRow && jobRow.title) || "Project", photos,
+  }));
+});
+app.post("/d/:id/approve", wrap((req, res) => {
+  const draw = Draws.getPublic(req.params.id);
+  if (!draw) return res.status(404).json({ error: "Invalid draw link." });
+  const out = Draws.approve(draw.id, (req.body && req.body.name) || "");
+  track(draw.user_id, "draw_approved", { jobId: draw.job_id, amount: draw.amount, by: out.approved_by || "" });
+  try { Notify.notify && Notify.notify({ type: "draw_approved", userId: draw.user_id, jobId: draw.job_id, amount: draw.amount, by: out.approved_by }); } catch {}
+  res.json({ ok: true });
+}));
+
+// ---- Change orders: document extra/changed work → client e-signs → optional pay ----
+app.post("/api/jobs/:id/change-orders", requireAuth, wrap(async (req, res) => {
+  const b = req.body || {};
+  let co;
+  try {
+    co = ChangeOrders.createChangeOrder(req.user.id, { jobId: req.params.id, title: b.title, description: b.description, amount: b.amount, items: b.items });
+  } catch (e) { return res.status(e.status || 400).json({ error: e.message }); }
+  if (!co) return res.status(404).json({ error: "Job not found." });
+  // Attach a pay-now link when Connect is set up and the CO is a charge (not a credit).
+  if (Payments.paymentsConfigured() && req.user.connect_charges_enabled && co.amount >= 1) {
+    try {
+      const reqObj = await Payments.createPaymentRequest(req.user, {
+        amount: co.amount, description: `Change order #${co.number}${b.title ? " — " + b.title : ""}`.slice(0, 200),
+        clientName: "", jobId: req.params.id,
+      }, baseUrl(req));
+      if (reqObj && reqObj.url) ChangeOrders.setCheckoutUrl(req.user.id, co.id, reqObj.url);
+    } catch { /* approval-only CO */ }
+  }
+  track(req.user.id, "change_order_sent", { jobId: req.params.id, number: co.number, amount: co.amount });
+  res.json({ change_order: ChangeOrders.getPublic(co.id), url: baseUrl(req) + "/co/" + co.id });
+}));
+app.get("/api/jobs/:id/change-orders", requireAuth, (req, res) => {
+  res.json({ change_orders: ChangeOrders.listForJob(req.user.id, req.params.id) });
+});
+
+// Public, login-free change-order page (the client opens the shared link).
+app.get("/co/:id", (req, res) => {
+  const co = ChangeOrders.getPublic(req.params.id);
+  if (!co) return res.status(404).send("This change-order link is invalid.");
+  const jobRow = db.prepare("SELECT * FROM job WHERE id=?").get(co.job_id);
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(co.user_id);
+  if (co.status === "sent") { try { db.prepare("UPDATE change_order SET updated_at=? WHERE id=?").run(Date.now(), co.id); } catch {} }
+  res.type("html").send(renderChangeOrderHTML(co, {
+    id: co.id, company: (owner && owner.company) || "Your contractor",
+    jobTitle: (jobRow && jobRow.title) || "Project",
+  }));
+});
+app.post("/co/:id/approve", wrap((req, res) => {
+  const co = ChangeOrders.getPublic(req.params.id);
+  if (!co) return res.status(404).json({ error: "Invalid change-order link." });
+  const out = ChangeOrders.approve(co.id, (req.body && req.body.name) || "");
+  track(co.user_id, "change_order_approved", { jobId: co.job_id, number: co.number, amount: co.amount, by: out.signed_by || "" });
+  try { Notify.notify && Notify.notify({ type: "change_order_approved", userId: co.user_id, jobId: co.job_id, amount: co.amount, by: out.signed_by }); } catch {}
+  res.json({ ok: true });
+}));
+app.post("/co/:id/decline", wrap((req, res) => {
+  const co = ChangeOrders.getPublic(req.params.id);
+  if (!co) return res.status(404).json({ error: "Invalid change-order link." });
+  ChangeOrders.decline(co.id);
+  track(co.user_id, "change_order_declined", { jobId: co.job_id, number: co.number });
+  try { Notify.notify && Notify.notify({ type: "change_order_declined", userId: co.user_id, jobId: co.job_id }); } catch {}
+  res.json({ ok: true });
+}));
+
+// Public, signature-free photo — ONLY for photos the contractor published to a
+// project (isPhotoPublic gates it). Private job photos still require the HMAC route,
+// so opting a project public never exposes anything else.
+app.get("/pub/photo/:pid", (req, res) => {
+  const pid = req.params.pid;
+  if (!SiteProjects.isPhotoPublic(pid)) return res.status(404).send("Not found.");
+  const row = db.prepare("SELECT filename, mime FROM photo WHERE id=?").get(pid);
+  if (!row) return res.status(404).send("Not found.");
+  res.set("Cache-Control", "public, max-age=86400");
+  if (row.mime) res.type(row.mime);
+  fs.createReadStream(path.join(PHOTO_DIR, row.filename)).pipe(res);
+});
+
+// Living website (Sprint 12) — publish a finished job to the website. AI writes the
+// project description; chosen photos become a Before & After gallery. One tap, no
+// website builder. Save Time + Make Money: a growing portfolio that ranks + converts.
+app.post("/api/jobs/:id/publish-project", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const job = Jobs.getJob(req.user.id, req.params.id);
+  if (!job) return res.status(404).json({ error: "Job not found." });
+  const b = req.body || {};
+  // Neighborhood only (never the full street address) for privacy on a public page.
+  const area = String(b.area || (job.address ? String(job.address).split(",").slice(-2, -1)[0] : "") || req.user.region || "").trim().slice(0, 80);
+  let writeup = { title: b.title || job.title || "Recent project", description: b.description || "" };
+  if (!b.description) {
+    try {
+      writeup = await generateProjectWriteup(req.user, {
+        trade: tradeLabel(job.trade) || job.trade || "", jobTitle: job.title, area,
+        scope: (job.lines || []).map((l) => l.desc).filter(Boolean),
+      });
+    } catch (e) { if (e.code === "AI_UNCONFIGURED" || e.status === 429) { /* fall back to plain title */ } else throw e; }
+  }
+  const proj = SiteProjects.createFromJob(req.user.id, {
+    jobId: job.id, title: writeup.title, description: writeup.description,
+    service: tradeLabel(job.trade) || job.trade || "", area,
+    beforeIds: Array.isArray(b.beforeIds) ? b.beforeIds : [],
+    afterIds: Array.isArray(b.afterIds) ? b.afterIds : (Array.isArray(b.photoIds) ? b.photoIds : []),
+  });
+  if (!proj) return res.status(400).json({ error: "Could not publish this project." });
+  ensureSlug(req.user);
+  db.prepare("UPDATE user SET site_published=1 WHERE id=?").run(req.user.id);
+  track(req.user.id, "project_published", { jobId: job.id });
+  res.json({ project: proj, siteUrl: baseUrl(req) + "/c/" + req.user.id });
+}));
+app.get("/api/jobs/:id/site-projects", requireAuth, (req, res) =>
+  res.json({ projects: SiteProjects.listForJob(req.user.id, req.params.id) }));
+app.delete("/api/site/projects/:id", requireAuth, wrap((req, res) => {
+  if (!SiteProjects.remove(req.user.id, req.params.id)) return res.status(404).json({ error: "Not found." });
+  res.json({ ok: true });
+}));
+
+// Publish Website button: mark the site live + mint the branded slug. The deploy
+// "backend" (real subdomain routing) is architecture-only for now — the site is
+// already served at /c/:id and /c/:slug; the branded URL is the displayed address.
+app.post("/api/me/publish-site", requireAuth, wrap((req, res) => {
+  const slug = ensureSlug(req.user);
+  db.prepare("UPDATE user SET site_published=1 WHERE id=?").run(req.user.id);
+  track(req.user.id, "website_published", {});
+  res.json({ ok: true, slug, branded_url: brandedSiteUrl(slug), live_url: baseUrl(req) + "/c/" + slug });
+}));
+
+// ---- AI Funnel (Sprint 15): offer-led landing pages ----
+app.get("/api/funnels", requireAuth, (req, res) => res.json({ funnels: Funnels.list(req.user.id) }));
+app.post("/api/funnels", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const b = req.body || {};
+  const service = String(b.service || "").slice(0, 80);
+  const offer = String(b.offer || "Free Estimate").slice(0, 80);
+  let head = { headline: b.headline || "", subhead: b.subhead || "" };
+  if (!b.headline) {
+    try { head = await generateFunnelHeadline(req.user, { service: tradeLabel(service) || service, offer, company: req.user.company }); }
+    catch { head = { headline: `${offer}${service ? " — " + (tradeLabel(service) || service) : ""}`, subhead: "Fast, free, no pressure. Get yours in 60 seconds." }; }
+  }
+  ensureSlug(req.user);
+  const f = Funnels.create(req.user.id, { name: b.name || offer, service, offer, headline: head.headline, subhead: head.subhead, cta: b.cta });
+  track(req.user.id, "funnel_created", { service });
+  res.json({ funnel: f, url: baseUrl(req) + "/f/" + f.id });
+}));
+app.delete("/api/funnels/:id", requireAuth, wrap((req, res) => {
+  if (!Funnels.remove(req.user.id, req.params.id)) return res.status(404).json({ error: "Not found." });
+  res.json({ ok: true });
+}));
+
+// Public funnel page — the existing site rendered in offer mode (single dominant
+// CTA, offer hero). A submit runs the same inbound-leads chain (with funnel attr).
+app.get("/f/:id", (req, res) => {
+  const f = Funnels.getPublic(req.params.id);
+  if (!f) return res.status(404).send("Page not found.");
+  const u = db.prepare("SELECT * FROM user WHERE id=?").get(f.user_id);
+  if (!u) return res.status(404).send("Page not found.");
+  Funnels.bumpView(f.id);
+  const token = Leads.getOrCreateToken(u.id);
+  const leadAction = `${baseUrl(req)}/api/inbound/leads?token=${encodeURIComponent(token)}&f=${encodeURIComponent(f.id)}`;
+  const projects = SiteProjects.listPublished(u.id).slice(0, 6).map((p) => ({
+    title: p.title, description: p.description, service: p.service, area: p.area,
+    before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)), after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
+  }));
+  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects, offer: { headline: f.headline, subhead: f.subhead, cta: f.cta } }));
+});
+
+// Public, login-free contractor website (built from their profile + published
+// projects). Resolves by user id OR slug. The estimate form posts to inbound-leads.
 app.get("/c/:id", (req, res) => {
-  const u = db.prepare("SELECT * FROM user WHERE id=?").get(req.params.id);
+  const key = req.params.id;
+  const u = db.prepare("SELECT * FROM user WHERE id=? OR site_slug=?").get(key, key);
   if (!u) return res.status(404).send("Site not found.");
   const token = Leads.getOrCreateToken(u.id);
   const leadAction = `${baseUrl(req)}/api/inbound/leads?token=${encodeURIComponent(token)}`;
-  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction }));
+  // Published projects → a Before & After gallery, photos via the public route.
+  const projects = SiteProjects.listPublished(u.id).slice(0, 12).map((p) => ({
+    title: p.title, description: p.description, service: p.service, area: p.area,
+    before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)),
+    after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
+  }));
+  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects }));
 });
 
 // ---- Share a bid: a clean public link the contractor texts/emails ----

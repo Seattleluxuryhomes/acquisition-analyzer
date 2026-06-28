@@ -38,6 +38,8 @@ function publicUser(row) {
     default_from_lang: row.default_from_lang,
     default_to_lang: row.default_to_lang,
     logo: row.logo || "",
+    role: row.role || "contractor",
+    agent_free_until: row.agent_free_until || null,
   };
 }
 
@@ -52,7 +54,13 @@ function issueSession(userId) {
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-export function signup({ email, password }) {
+// Persona at signup. Agents are the free distribution channel: their first year is
+// free, then a locked $50 forever (set once, never rises). Homeowners are DIY GCs —
+// same pricing as contractors, just labeled for segmentation.
+const ROLES = new Set(["contractor", "agent", "homeowner"]);
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function signup({ email, password, role }) {
   email = String(email || "").trim().toLowerCase();
   password = String(password || "");
   if (!EMAIL_RE.test(email)) throw httpError(400, "Enter a valid email address.");
@@ -62,11 +70,24 @@ export function signup({ email, password }) {
 
   const id = uid();
   const now = Date.now();
+  const persona = ROLES.has(role) ? role : "contractor";
   const TRIAL_DAYS = Number(process.env.BT_TRIAL_DAYS || 14);
-  const trialEnds = now + TRIAL_DAYS * 24 * 60 * 60 * 1000;
-  db.prepare(
-    "INSERT INTO user (id, email, password_hash, trial_ends_at, created_at) VALUES (?,?,?,?,?)"
-  ).run(id, email, hashPassword(password), trialEnds, now);
+  const trialEnds = now + TRIAL_DAYS * DAY_MS;
+  if (persona === "agent") {
+    // Free for a year, then $50 locked forever — pin the rate so the public price
+    // never catches them. trial_ends_at is set past the free year for back-compat
+    // with any check that only looks at the trial.
+    const AGENT_FREE_DAYS = Number(process.env.BT_AGENT_FREE_DAYS || 365);
+    const freeUntil = now + AGENT_FREE_DAYS * DAY_MS;
+    const agentLock = Number(process.env.BT_AGENT_PRICE || 50);
+    db.prepare(
+      "INSERT INTO user (id, email, password_hash, role, agent_free_until, locked_monthly, trial_ends_at, created_at) VALUES (?,?,?,?,?,?,?,?)"
+    ).run(id, email, hashPassword(password), "agent", freeUntil, agentLock, freeUntil, now);
+  } else {
+    db.prepare(
+      "INSERT INTO user (id, email, password_hash, role, trial_ends_at, created_at) VALUES (?,?,?,?,?,?)"
+    ).run(id, email, hashPassword(password), persona, trialEnds, now);
+  }
   const row = db.prepare("SELECT * FROM user WHERE id=?").get(id);
   return { token: issueSession(id), user: publicUser(row) };
 }
@@ -81,11 +102,16 @@ export function adminCreateUser(profile = {}) {
   if (db.prepare("SELECT id FROM user WHERE email=?").get(email)) throw httpError(409, "An account with that email already exists.");
   const id = uid(), now = Date.now();
   const TRIAL_DAYS = Number(process.env.BT_TRIAL_DAYS || 14);
+  const persona = ROLES.has(profile.role) ? profile.role : "contractor";
   // A random password they never use — replaced when they set their own via the link.
   const pw = hashPassword(crypto.randomBytes(24).toString("hex"));
+  // Agents come in free for a year, then $50 locked (same as self-serve agent signup).
+  const isAgent = persona === "agent";
+  const freeUntil = isAgent ? now + Number(process.env.BT_AGENT_FREE_DAYS || 365) * DAY : null;
+  const agentLock = isAgent ? Number(process.env.BT_AGENT_PRICE || 50) : null;
   db.prepare(`INSERT INTO user
-    (id,email,password_hash,company,name,phone,default_from_lang,default_to_lang,tax_rate,region,whatsapp,trial_ends_at,created_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    (id,email,password_hash,company,name,phone,default_from_lang,default_to_lang,tax_rate,region,whatsapp,role,agent_free_until,locked_monthly,trial_ends_at,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
     id, email, pw,
     String(profile.company || "").slice(0, 120) || "Your Company",
     String(profile.name || "").slice(0, 120),
@@ -95,7 +121,8 @@ export function adminCreateUser(profile = {}) {
     Math.max(0, Number(profile.tax_rate) || 0),
     String(profile.region || "").slice(0, 8),
     String(profile.whatsapp || profile.phone || "").slice(0, 40),
-    now + TRIAL_DAYS * DAY, now);
+    persona, freeUntil, agentLock,
+    isAgent ? freeUntil : now + TRIAL_DAYS * DAY, now);
   return { id, user: publicUser(db.prepare("SELECT * FROM user WHERE id=?").get(id)) };
 }
 

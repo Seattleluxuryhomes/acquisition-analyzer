@@ -28,7 +28,7 @@ const LANGS = {
 const MONTHLY_CAP = Number(process.env.BT_AI_MONTHLY_CAP || 200);
 const recentCalls = new Map(); // userId -> [timestamps]
 const RATE_WINDOW = 60 * 1000;
-const RATE_MAX = Number(process.env.BT_AI_RATE_MAX || 20); // voice-first does more, smaller calls
+const RATE_MAX = Number(process.env.BT_AI_RATE_MAX || 40); // voice-first does many small calls (record + live intake); keep headroom so a demo doesn't trip the per-minute limit
 
 function checkRate(userId) {
   const now = Date.now();
@@ -303,6 +303,238 @@ export async function parseSkus(user, { text, image }) {
   return sanitizeSkus(parseModelJSON(txt));
 }
 
+// ---- AI Material Scanner ----------------------------------------------------
+// Snap a photo of a room/exterior; identify the materials & finishes a contractor
+// would need to spec or match for a bid. Doesn't need to be perfect — it saves the
+// pro from typing. EVERY category below is always considered so nothing is missed.
+const SCAN_CATEGORIES = [
+  "Paint", "Flooring", "Tile", "Fixtures", "Light fixtures",
+  "Windows", "Molding & trim", "Doors", "Roofing", "Landscaping", "Other",
+];
+function scanSystemPrompt() {
+  return (
+    "You are a construction material identifier helping a contractor build a bid from a photo. " +
+    "Look at the image and identify the visible MATERIALS and FINISHES across these categories — " +
+    "consider EVERY one, and only include a category if something for it is actually visible:\n" +
+    "🎨 Paint · 🪵 Flooring · 🧱 Tile · 🚰 Fixtures (plumbing: faucets, sinks, toilets, tubs) · " +
+    "💡 Light fixtures · 🪟 Windows · 〰️ Molding & trim · 🚪 Doors · 🏠 Roofing · 🌿 Landscaping.\n" +
+    "Respond with ONLY valid minified JSON, no markdown: " +
+    '{"materials":[{"category":string,"item":string,"spec":string,"confidence":"low"|"med"|"high","note":string}],"summary":string}. ' +
+    "category = EXACTLY one of: " + SCAN_CATEGORIES.join(", ") + " (use \"Other\" for anything not covered, e.g. cabinets/countertops/siding/insulation). " +
+    "item = a short material name a contractor would write on a bid (e.g. \"Luxury vinyl plank flooring\", \"3-tab asphalt shingles\", \"Satin interior wall paint\"). " +
+    "spec = the useful detail to spec or match: color family, finish, material, profile, or style (e.g. \"Wood-look LVP, ~7in planks, warm gray\"; \"Matte white subway tile 3x6\"). " +
+    "confidence = how sure you are from the photo alone. note = a SHORT bid tip when helpful (e.g. \"measure floor SF\", \"looks like brushed nickel\") or empty. " +
+    "Identify what you can SEE — it's fine to be approximate (this saves the pro time, it isn't a lab result), but never invent items that aren't visible. " +
+    "List the most prominent materials first; at most 20 items. summary = one short line on the space (e.g. \"Updated kitchen — LVP, quartz, shaker cabinets\")."
+  );
+}
+function sanitizeScan(data) {
+  const catSet = new Set(SCAN_CATEGORIES);
+  const conf = new Set(["low", "med", "high"]);
+  const materials = (Array.isArray(data.materials) ? data.materials : []).slice(0, 20).map((mm) => {
+    let category = String(mm.category || "Other").trim();
+    if (!catSet.has(category)) category = "Other";
+    let c = String(mm.confidence || "med").toLowerCase().trim();
+    if (!conf.has(c)) c = "med";
+    return {
+      category,
+      item: String(mm.item || "").trim().slice(0, 120),
+      spec: String(mm.spec || "").trim().slice(0, 160),
+      confidence: c,
+      note: String(mm.note || "").trim().slice(0, 120),
+    };
+  }).filter((mm) => mm.item);
+  return { materials, summary: String(data.summary || "").trim().slice(0, 200), categories: SCAN_CATEGORIES };
+}
+
+// Identify materials in a photo. Accepts { image } as a data: URL (jpeg/png/webp).
+export async function scanMaterials(user, { image }) {
+  if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
+  const m = /^data:(image\/(?:png|jpe?g|webp|gif));base64,([A-Za-z0-9+/=\s]+)$/.exec(String(image || ""));
+  if (!m) { const e = new Error("Add a clear photo to scan."); e.status = 400; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Too many scans in a short window — wait a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached. You can still add materials by hand."); e.status = 429; throw e; }
+
+  const content = [
+    { type: "image", source: { type: "base64", media_type: m[1], data: m[2].replace(/\s+/g, "") } },
+    { type: "text", text: "Identify the materials and finishes in this photo for a contractor's bid." },
+  ];
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 1500, system: scanSystemPrompt(), messages: [{ role: "user", content }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json();
+  const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  return sanitizeScan(parseModelJSON(txt));
+}
+
+// ---- Living website: AI writes the contractor's site copy from their profile ----
+// The first piece of content the contractor never has to write. Returns a hero
+// tagline + a professional "About" paragraph. Grounded in profile facts only — it
+// must NOT fabricate years in business, awards, review counts, or credentials.
+function siteCopySystemPrompt() {
+  return (
+    "You are a copywriter for a home-services contractor's website. Using ONLY the facts provided, " +
+    "write warm, professional, trustworthy marketing copy a homeowner would trust. Respond with ONLY " +
+    "valid minified JSON, no markdown: {\"tagline\":string,\"about\":string}. " +
+    "tagline = a punchy hero headline, <= 80 chars, benefit-led (e.g. \"Site prep & grading done right — on time, on budget\"). " +
+    "about = a 2-3 sentence About paragraph, <= 420 chars, first-person-plural (\"we\"), mentioning the trade(s) and service area naturally. " +
+    "STRICT: do NOT invent years in business, number of jobs, awards, certifications, review counts, or any claim not given. " +
+    "If licensed is indicated, you may say \"licensed and insured\". No emojis, no hashtags, no ALL CAPS."
+  );
+}
+export async function generateSiteCopy(user, { company, services, region, licensed } = {}) {
+  if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Too many requests in a short window — wait a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const facts = [
+    company ? `Company: ${company}` : "",
+    (Array.isArray(services) && services.length) ? `Services: ${services.join(", ")}` : "",
+    region ? `Service area: ${region}` : "",
+    licensed ? "Licensed and insured: yes" : "",
+  ].filter(Boolean).join("\n") || "A residential contractor.";
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 600, system: siteCopySystemPrompt(), messages: [{ role: "user", content: "FACTS:\n" + facts }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json();
+  const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  const data = parseModelJSON(txt) || {};
+  return {
+    tagline: String(data.tagline || "").trim().slice(0, 100),
+    about: String(data.about || "").trim().slice(0, 500),
+  };
+}
+
+// Living website: AI writes an SEO-friendly project write-up when a contractor
+// publishes a finished job to their website. Grounded in the job facts; must not
+// invent details, prices, or the customer's name/address.
+function projectWriteupSystemPrompt() {
+  return (
+    "You write short SEO-friendly project descriptions for a contractor's website portfolio. " +
+    "Given a completed job's facts, write a title and a 2-3 sentence description a prospective " +
+    "customer would find reassuring and that helps the page rank for the trade + area. Respond with " +
+    "ONLY valid minified JSON, no markdown: {\"title\":string,\"description\":string}. " +
+    "title = a concise project title with the trade and area if given (<= 90 chars, e.g. \"Cedar Fence Installation in Ballard\"). " +
+    "description = <= 360 chars, third person, factual, benefit-led. " +
+    "STRICT: do NOT include the customer's name, street address, or price. Do NOT invent materials, " +
+    "measurements, durations, or claims not provided. No emojis, no hashtags."
+  );
+}
+export async function generateProjectWriteup(user, { trade, jobTitle, area, scope } = {}) {
+  if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Too many requests in a short window — wait a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const facts = [
+    trade ? `Trade: ${trade}` : "",
+    jobTitle ? `Job: ${jobTitle}` : "",
+    area ? `Area: ${area}` : "",
+    (Array.isArray(scope) && scope.length) ? `Work done:\n- ${scope.slice(0, 12).join("\n- ")}` : "",
+  ].filter(Boolean).join("\n") || "A completed residential project.";
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 500, system: projectWriteupSystemPrompt(), messages: [{ role: "user", content: "FACTS:\n" + facts }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json();
+  const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  const data = parseModelJSON(txt) || {};
+  return { title: String(data.title || "").trim().slice(0, 140), description: String(data.description || "").trim().slice(0, 400) };
+}
+
+// Approval Inbox: AI drafts a short, friendly review-request message the contractor
+// approves and sends. Grounded — no fabricated details, no fake urgency.
+export async function generateReviewRequest(user, { customer, jobTitle, company } = {}) {
+  if (!aiConfigured()) { const e = new Error("AI not configured."); e.code = "AI_UNCONFIGURED"; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Slow down a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const sys = "You write a short, warm review-request text message for a contractor to send a happy customer. " +
+    "ONE message, 2-3 sentences, first person, friendly, no emojis, no links (the contractor adds the link). " +
+    "Thank them, ask if they'd leave a quick review, keep it low-pressure. Return ONLY the message text, no quotes, no preamble.";
+  const facts = `Contractor: ${company || "the contractor"}\nCustomer: ${customer || "the customer"}\nJob: ${jobTitle || "their project"}`;
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 300, system: sys, messages: [{ role: "user", content: facts }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error."); e.status = 502; throw e; }
+  const out = await res.json();
+  return (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim().slice(0, 500);
+}
+
+// AI Funnel: draft a fast, friendly first reply to a new lead, weaving in 2-3
+// suggested appointment windows. Grounded; no fabricated claims or pricing.
+export async function generateLeadFollowup(user, { lead, times, company } = {}) {
+  if (!aiConfigured()) { const e = new Error("AI not configured."); e.code = "AI_UNCONFIGURED"; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Slow down a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const sys = "You write the FIRST reply a contractor sends a new lead who just requested an estimate. " +
+    "Warm, prompt, professional; 2-4 sentences. Thank them, reference their project if given, and propose the " +
+    "appointment windows provided so they can pick one. No emojis, no pricing, no fabricated claims. " +
+    "Return ONLY the message text — no quotes, no preamble.";
+  const facts = `Contractor: ${company || "the contractor"}\nLead name: ${lead?.name || "there"}\n` +
+    `Project: ${lead?.job_type || lead?.message || "their project"}\nSuggested windows:\n- ${(times || []).join("\n- ")}`;
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 360, system: sys, messages: [{ role: "user", content: facts }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error."); e.status = 502; throw e; }
+  const out = await res.json();
+  return (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim().slice(0, 700);
+}
+
+// AI Funnel: an offer-led hero headline + subhead from a service + offer. Research
+// says lead with the OFFER ("Free Roof Inspection"), not the business.
+export async function generateFunnelHeadline(user, { service, offer, company } = {}) {
+  if (!aiConfigured()) { const e = new Error("AI not configured."); e.code = "AI_UNCONFIGURED"; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Slow down a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const sys = "You write a high-converting landing-page hero for a contractor. Lead with the OFFER and the " +
+    "benefit, not the business name. Respond with ONLY valid minified JSON: {\"headline\":string,\"subhead\":string}. " +
+    "headline <= 70 chars, offer-led (e.g. \"Free Roof Inspection — Booked in 60 Seconds\"). subhead <= 120 chars, " +
+    "reinforces speed/trust. No fabricated claims, no fake urgency, no emojis.";
+  const facts = `Company: ${company || "the contractor"}\nService: ${service || "home services"}\nOffer: ${offer || "Free estimate"}`;
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 300, system: sys, messages: [{ role: "user", content: facts }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error."); e.status = 502; throw e; }
+  const out = await res.json();
+  const data = parseModelJSON((out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n")) || {};
+  return { headline: String(data.headline || "").trim().slice(0, 140), subhead: String(data.subhead || "").trim().slice(0, 200) };
+}
+
 // Compact price-book string for the prompt (cap so it never blows the token budget).
 function priceBookText(skus) {
   if (!Array.isArray(skus) || !skus.length) return "";
@@ -370,8 +602,11 @@ function reviewSystemPrompt(trade) {
     "SHORT note on profit/cost effect (e.g. \"~$300–600\" or \"protects your margin\"; " +
     "never a hard promise). Only suggest items genuinely standard for this trade or " +
     "clearly implied by the scope — do NOT invent client-specific facts or random " +
-    "padding. At most 6 recommendations, most important first. If the bid looks " +
-    "complete, return an empty array. " +
+    "padding. If the work plainly requires a PERMIT (structural, electrical, plumbing, " +
+    "mechanical, grading/earthwork, demolition, additions) and no permit or permit fee " +
+    "appears in the draft, flag it as a 'missing' item (\"Permit & fee\") — permits are " +
+    "one of the most commonly forgotten costs. At most 6 recommendations, most important " +
+    "first. If the bid looks complete, return an empty array. " +
     (brain ? "TRADE STANDARD — check the draft against this trade's normal scope:\n" + brain + "\n" : "")
   );
 }

@@ -169,7 +169,7 @@ export function notifications(userId, seenAt = 0, limit = 25) {
   if (!userId) return { items: [], unread: 0 };
   const rows = db.prepare(
     `SELECT id, name, props, created_at FROM event
-     WHERE user_id=? AND name IN ('deposit_paid','bid_accepted')
+     WHERE user_id=? AND name IN ('deposit_paid','bid_accepted','lead_received')
      ORDER BY id DESC LIMIT ?`
   ).all(userId, Math.min(Number(limit) || 25, 50));
 
@@ -177,6 +177,13 @@ export function notifications(userId, seenAt = 0, limit = 25) {
   for (const r of rows) {
     let props = {};
     try { props = JSON.parse(r.props || "{}"); } catch { /* ignore */ }
+    // A new estimate request from the contractor's website — surface it so it never
+    // goes unseen (no job attached yet; tapping it opens the leads list).
+    if (r.name === "lead_received") {
+      items.push({ id: r.id, type: "lead", leadName: props.name || "", jobType: props.jobType || "",
+        at: r.created_at, unread: r.created_at > (Number(seenAt) || 0) });
+      continue;
+    }
     // A proposal acceptance only counts when the CUSTOMER did it.
     if (r.name === "bid_accepted" && props.by !== "customer") continue;
     let jobTitle = "", customer = "";

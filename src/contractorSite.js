@@ -49,6 +49,8 @@ export function renderContractorSite(profile = {}, opts = {}) {
   const license = esc(profile.license || "");
   const area = esc(profile.region || profile.city || "");
   const tagline = esc(profile.site_tagline || "Quality work you can trust — done right, on time.");
+  const about = esc(String(profile.site_about || "").trim());   // AI-written About paragraph (optional)
+  const offer = opts.offer && opts.offer.headline ? opts.offer : null;   // funnel offer mode (Sprint 15)
   const lookup = Object.fromEntries(tradeList().map((t) => [t.key, t]));
   const services = (Array.isArray(profile.services) ? profile.services : [])
     .map((k) => lookup[k]).filter(Boolean)
@@ -63,10 +65,30 @@ export function renderContractorSite(profile = {}, opts = {}) {
 
   const ratingBadge = rating ? `<span class="stars">★★★★★</span> <span><b>${esc(rating)}</b>${reviews ? ` · ${esc(reviews)} Google reviews` : ""}</span>` : "";
 
+  // Clean line icons (no clip-art emoji) — same stroke style as the app, brand-colored.
+  const I = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const ICON = {
+    tools: I('<path d="M14.6 6.4a3.8 3.8 0 0 1-4.9 4.9L4 17v3h3l5.7-5.7a3.8 3.8 0 0 1 4.9-4.9l-2.5 2.5-2.1-.3-.3-2.1z"/>'),
+    shield: I('<path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>'),
+    clipboard: I('<rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2.6" width="6" height="3.2" rx="1"/><path d="M9 11.5h6M9 15.5h6"/>'),
+    pin: I('<path d="M12 21s7-5.6 7-11a7 7 0 0 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/>'),
+    star: I('<path d="M12 3.2l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5 6.8 19.2l1-5.8L3.6 9.3l5.8-.8z"/>'),
+    bolt: I('<path d="M13 2L4 14h6l-1 8 9-12h-6z"/>'),
+  };
+
+  // The 4th stat square — only ever show something that MEANS something: the real
+  // service area if set, else a real client rating, else a fast-response promise.
+  // (No empty "Local" filler.)
+  const stat4 = area
+    ? `<div class="s"><div class="ic">${ICON.pin}</div><div class="v">${esc(area)}</div><div class="l">Service area</div></div>`
+    : rating
+    ? `<div class="s"><div class="ic">${ICON.star}</div><div class="v">${esc(rating)}</div><div class="l">Client rating</div></div>`
+    : `<div class="s"><div class="ic">${ICON.bolt}</div><div class="v">Fast</div><div class="l">Response</div></div>`;
+
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${company}${area ? ` — ${area}` : ""} | Free Estimates</title>
-<meta name="description" content="${company} — ${tagline} ${license ? "Licensed &amp; insured." : ""} Free estimates." />
+<meta name="description" content="${company} — ${tagline} ${license ? "Licensed, bonded &amp; insured." : ""} Free estimates." />
 <meta name="theme-color" content="${accent}" />
 <meta property="og:type" content="website" /><meta property="og:title" content="${company}" />
 <meta property="og:description" content="${tagline} Free estimates." />
@@ -93,14 +115,31 @@ export function renderContractorSite(profile = {}, opts = {}) {
   .hero p.sub{font-size:1.2rem;color:var(--muted);max-width:46ch;margin:0 0 24px}
   .hero .cta{display:flex;gap:12px;flex-wrap:wrap}
   .badges{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px;color:var(--muted);font-size:.92rem;font-weight:600}.badges b{color:var(--ink)}.stars{color:var(--accent)}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
-  .stats .s{background:#fff;padding:22px 14px;text-align:center}.stats .v{font-size:1.5rem;font-weight:800;color:var(--blue)}.stats .l{color:var(--muted);font-size:.84rem}
-  @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.hero h1{font-size:2.1rem}}
+  .badges span{display:inline-flex;align-items:center;gap:7px}.badges svg{width:17px;height:17px;color:var(--accent);flex:0 0 auto}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:10px 0 6px}
+  .stats .s{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:22px 16px;text-align:center;box-shadow:0 4px 16px rgba(27,34,40,.05)}
+  .stats .s .ic{height:28px;display:flex;align-items:center;justify-content:center}.stats .s .ic svg{width:27px;height:27px;color:var(--accent)}
+  .stats .v{font-size:1.5rem;font-weight:800;color:var(--blue);margin-top:7px;line-height:1.12;word-break:break-word}
+  .stats .l{color:var(--muted);font-size:.82rem;margin-top:4px;line-height:1.3}
+  @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr);gap:11px}.hero h1{font-size:2.1rem}}
   section{padding:58px 0}.eyebrow{color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:.1em;font-size:.74rem}
   h2{font-size:2rem;margin:6px 0 8px;font-weight:800}.lead{color:var(--muted);max-width:52ch}
-  .svc{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px}
-  .card{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:22px}.card .ic{font-size:1.7rem}.card h3{margin:10px 0 6px;font-size:1.12rem}.card p{margin:0;color:var(--muted);font-size:.95rem}
-  @media(max-width:760px){.svc{grid-template-columns:1fr}}
+  .about{background:var(--soft)}.about-p{font-size:1.12rem;line-height:1.7;color:var(--ink);max-width:60ch}
+  .projects{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;margin-top:26px}
+  @media(max-width:760px){.projects{grid-template-columns:1fr}}
+  .proj{border:1px solid var(--rule);border-radius:14px;overflow:hidden;background:#fff}
+  .proj h3{margin:0;padding:16px 18px 2px;font-size:1.12rem}.proj-meta{padding:0 18px;color:var(--accent);font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
+  .proj-d{margin:0;padding:10px 18px 18px;color:var(--muted);font-size:.95rem}
+  .ba{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:12px}
+  .ba figure{margin:0;position:relative}.ba img{width:100%;height:170px;object-fit:cover;display:block}
+  .ba figcaption{position:absolute;left:8px;bottom:8px;background:rgba(27,34,40,.82);color:#fff;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:6px}
+  .gal{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;margin-top:12px}.gal img{width:100%;height:150px;object-fit:cover;display:block}
+  .svc{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:32px}
+  .card{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:26px 22px;transition:transform .16s ease,box-shadow .16s ease}
+  .card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(27,34,40,.09)}
+  .card .ic{width:54px;height:54px;border-radius:14px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:1.6rem}
+  .card h3{margin:15px 0 7px;font-size:1.14rem}.card p{margin:0;color:var(--muted);font-size:.96rem;line-height:1.55}
+  @media(max-width:760px){.svc{grid-template-columns:1fr;gap:14px}}
   .estimate{background:var(--blue);color:#fff;border-radius:22px;padding:46px 32px;text-align:center}
   .estimate h2{color:#fff}.estimate p{color:#cdd8e0;max-width:44ch;margin:0 auto 22px}
   .form{max-width:520px;margin:0 auto;display:grid;gap:10px;text-align:left}.form .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -117,21 +156,33 @@ export function renderContractorSite(profile = {}, opts = {}) {
 </div></header>
 
 <section class="hero"><div class="wrap">
-  <div class="eyebrow">${area ? esc(area) + " · " : ""}${license ? "Licensed &amp; insured" : "Free estimates"}</div>
-  <h1>${tagline}</h1>
-  <p class="sub">Get a free, no-pressure estimate from ${company} — fast.</p>
-  <div class="cta"><a class="btn lg" href="#estimate">Get your free estimate</a>${phone ? `<a class="btn ghost lg" href="${telHref}">📞 Call us</a>` : ""}</div>
-  <div class="badges">${ratingBadge}${license ? `<span>🛡️ Licensed &amp; insured · <b>${license}</b></span>` : `<span>🛡️ <b>Licensed &amp; insured</b></span>`}<span>📋 <b>Free estimates</b></span></div>
+  <div class="eyebrow">${area ? esc(area) + " · " : ""}${license ? "Licensed, bonded &amp; insured" : "Free estimates"}</div>
+  <h1>${offer && offer.headline ? esc(offer.headline) : tagline}</h1>
+  <p class="sub">${offer && offer.subhead ? esc(offer.subhead) : `Get a free, no-pressure estimate from ${company} — fast.`}</p>
+  ${offer
+    ? `<div class="cta"><a class="btn lg" href="#estimate">${esc(offer.cta || "Get my free estimate")}</a></div>`
+    : `<div class="cta"><a class="btn lg" href="#estimate">Get your free estimate</a>${phone ? `<a class="btn ghost lg" href="${telHref}">📞 Call us</a>` : ""}</div>`}
+  <div class="badges">${ratingBadge}${license ? `<span>${ICON.shield} Licensed, bonded &amp; insured · <b>${license}</b></span>` : `<span>${ICON.shield} <b>Licensed, bonded &amp; insured</b></span>`}<span>${ICON.clipboard} <b>Free estimates</b></span></div>
 </div></section>
 
-<div class="stats wrap"><div class="s"><div class="v">${services.length || "✓"}</div><div class="l">Services offered</div></div>
-  <div class="s"><div class="v">✓</div><div class="l">Licensed &amp; insured</div></div>
-  <div class="s"><div class="v">Free</div><div class="l">Estimates</div></div>
-  <div class="s"><div class="v">${area ? esc(area) : "Local"}</div><div class="l">Service area</div></div></div>
+<div class="stats wrap"><div class="s"><div class="ic">${ICON.tools}</div><div class="v">${services.length || "✓"}</div><div class="l">${services.length === 1 ? "Service offered" : "Services offered"}</div></div>
+  <div class="s"><div class="ic">${ICON.shield}</div><div class="v">✓</div><div class="l">Licensed, bonded &amp; insured</div></div>
+  <div class="s"><div class="ic">${ICON.clipboard}</div><div class="v">Free</div><div class="l">Estimates</div></div>
+  ${stat4}</div>
 
 <section class="wrap"><div class="eyebrow">What we do</div><h2>Services</h2>
   <p class="lead">Skilled, licensed work from ${company} — one team, one point of contact, one clean job.</p>
   <div class="svc">${svcCards}</div></section>
+
+${about ? `<section class="wrap about"><div class="eyebrow">About</div><h2>About ${company}</h2><p class="lead about-p">${about}</p></section>` : ""}
+
+${(Array.isArray(opts.projects) && opts.projects.length) ? `<section class="wrap work"><div class="eyebrow">Recent work</div><h2>Before &amp; After</h2>
+  <div class="projects">${opts.projects.map((p) => {
+    const ba = (p.before && p.before.length && p.after && p.after.length)
+      ? `<div class="ba"><figure><img src="${esc(p.before[0])}" alt="Before"/><figcaption>Before</figcaption></figure><figure><img src="${esc(p.after[0])}" alt="After"/><figcaption>After</figcaption></figure></div>`
+      : `<div class="gal">${[...(p.after || []), ...(p.before || [])].slice(0, 4).map((u) => `<img src="${esc(u)}" alt="${esc(p.title)}"/>`).join("")}</div>`;
+    return `<article class="proj"><h3>${esc(p.title)}</h3>${(p.service || p.area) ? `<div class="proj-meta">${esc([p.service, p.area].filter(Boolean).join(" · "))}</div>` : ""}${ba}${p.description ? `<p class="proj-d">${esc(p.description)}</p>` : ""}</article>`;
+  }).join("")}</div></section>` : ""}
 
 <section class="wrap" id="estimate"><div class="estimate">
   <div class="eyebrow" style="color:#e7b35c">Free estimate</div>
@@ -149,7 +200,7 @@ export function renderContractorSite(profile = {}, opts = {}) {
 <footer><div class="wrap"><div class="grid">
   <div><b>${company}</b>${area ? `<br>${esc(area)}` : ""}${phone ? `<br>📞 ${esc(phone)}` : ""}${email ? ` · ${email}` : ""}</div>
   <div><b>Get started</b><br><a href="#estimate" style="color:var(--accent);font-weight:700">Request a free estimate</a></div>
-  ${license ? `<div><b>Licensed &amp; insured</b><br>${license}<br>Free estimates</div>` : ""}
+  ${license ? `<div><b>Licensed, bonded &amp; insured</b><br>${license}<br>Free estimates</div>` : ""}
 </div><div class="powered">Website &amp; booking powered by <a href="https://bidtranslator.com">Bidtranslator</a></div></div></footer>
 <script>
   var f=document.getElementById('estForm'), action=${JSON.stringify(leadAction)};
