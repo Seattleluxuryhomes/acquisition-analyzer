@@ -50,15 +50,24 @@ things shipped in the latest sessions: the **Spanish landing page** and the
 - PWA (installable).
 - Marketing: `landing.html` (live) + `landing-es.html` (built + deployed).
 - WhatsApp share + per-contractor number + landing CTA.
-- **24 per-trade estimator brains** (`src/trades.js`) + capture trade picker — *deployed, but live AI output still un-smoke-tested.*
+- **27 per-trade estimator brains** (`src/trades.js`, incl. general-contractor, researched dirt-work/excavation, home-staging, interior-design) + capture trade picker — *deployed, but live AI output still un-smoke-tested.*
 - **Team/Subs + scope-of-work dispatch** (the network engine, task #11) — add crew, invite, "Build your team" nudge, dispatch a job's scope to a sub (public bilingual page, work-only, accept loop). *Deployed; verified end-to-end incl. privacy.*
+- **Selective scope dispatch + RFQ competitive bidding** — pick which line items to send; send to several contractors who bid in-system; GC accepts the best (others auto-declined). *Deployed.*
+- **Concierge onboarding** ("Onboard a contractor" → account + services + seeded sample bid + secure invite link). `adminCreateUser` + `/api/admin/onboard`. *Built.*
+- **Referral pricing engine** ($50 base, −$10/paying sub, free at 5, founder rate-lock) + setup-fee waiver for founders/crew. `src/referrals.js` + `src/billing.js`. *Built; Stripe coupon sync needs live verification.*
+- **AI "find missing money" bid review** (`/api/assist/review`) — catches missing line items / upsells per trade. *Built.*
+- **Live per-contractor website** at `/c/:id` (from profile: services/tagline/color, LocalBusiness JSON-LD) + homeowner "request estimate" form → inbound lead. *Built.*
+- **Draw requests** (task #13) — progress billing with photo proof → public `/d/:id` review page → property owner/bank approves (and pays via Connect). `src/draws.js` + `src/drawHtml.js`. *Deployed; verified end-to-end over HTTP incl. privacy + ownership.*
+- **Real-estate agent persona** (task #12) — free first year, then $50 locked forever; `role` on user + `agent_free_until`; entitled through the free year; T-90 keep-it-free nudge. Arrival via `/?as=agent`. *Deployed; pricing/entitlement verified.*
+- **Homeowner-GC persona** — `role='homeowner'` (contractor pricing) + the general-contractor trade brain. *Built ("one button").*
+- English language names in the picker (was native scripts).
 
 ### DESIGNED (agreed, NOT built) — build-ready specs in §3
-- Concierge onboarding ("Onboard a contractor" → account + sample bid + secure link).
 - Founder sales pipeline + 5-part behavior-triggered follow-up (copy written, §4).
-- Pricing model: $0 setup + $49/mo + referral credit → $0 + founder rate-lock.
-- Referral program ("Invite — get a month free," reward on referee *paying*) — task #10, lives under More menu.
 - Photo/plan ingestion into the AI build (so trade brains can see images).
+- **T-90/30/7 agent retention emails** — the in-app nudge + `billingStatus.agent.days_left` data is BUILT; the actual scheduled email send is not (needs `RESEND_API_KEY` + a scheduler). Validate the channel first.
+- **Vendor/manufacturer pricing hub** (task #14) — post-traction platform play.
+- **Contractor intelligence layer** (task #15) — Google reviews + address heat map (the data moat). Post-traction; the agent channel is what populates it.
 
 ### CONSIDERED & REJECTED (don't re-litigate without new info)
 - **"Free for life" for founders** → rejected. Permanent liability, no upside once they stop referring, and it caps revenue from your most engaged users. Replaced by **earnable credit to $0** (self-funding, churn-correcting) + **rate-lock** (price protection, costs nothing).
@@ -187,16 +196,20 @@ random — signed URLs break on restart without it) · `LITESTREAM_*` (R2) · `B
 - [x] Email service (reset + signed-PDF email)
 - [x] Voice-first login/landing
 - [x] Terms & Protections on bids
-- [ ] **Verify whole app live** (#8)
+- [ ] **Verify whole app live** (#8) — new features verified in-process/HTTP; full live pass (share links, persistence, voice) still pending on prod.
 - [x] PWA installable
-- [ ] **Referral program** (#10) — DESIGNED
-- [ ] **Team/Subs + scope dispatch** (#11) — DESIGNED
-- [ ] *(implied)* Concierge onboarding · Founder sales pipeline + follow-up · Pricing/credit impl · Photo/plan → build · Smoke-test trade brains live · Deploy dev branch to main
+- [x] **Referral program** (#10) — BUILT
+- [x] **Team/Subs + scope dispatch** (#11) — BUILT (+ selective scope + RFQ)
+- [x] **Draw requests** (#13) — BUILT & deployed
+- [x] **Real-estate agent + homeowner-GC personas** (#12) — BUILT & deployed
+- [x] Concierge onboarding · Contractor websites · AI bid review · Staging/Design trades
+- [ ] Founder sales pipeline + 5-part follow-up · Photo/plan → build · Smoke-test trade brains live
+- [ ] **Vendor pricing hub** (#14) · **Contractor intelligence / reviews + heat map** (#15) — post-traction
 
 ---
 
 ## 8. Next session — start here
-1. Smoke-test the **trade brains** on the live server (needs `ANTHROPIC_API_KEY`) — run a window + a roofing bid, eyeball the draft.
-2. If good, **deploy** the dev branch (Spanish landing + trades + WhatsApp batch) on Ben's go.
-3. Build **concierge onboarding** (highest leverage for the window-contractor pitch).
-4. Then the **founder sales pipeline + follow-up**, then **subs/referral/pricing** per the go signal.
+1. **Smoke-test the trade brains live** (needs `ANTHROPIC_API_KEY`) — run a window + a dirt-work bid, eyeball the draft. The one BUILT-but-unverified-against-live-AI piece.
+2. **Founder env for Monday:** delete the duplicate Hyperlift (#4); for live $50 billing, create the $50 Stripe Price + set `STRIPE_PRICE_ID`/`BT_BASE_PRICE=50`; set `RESEND_API_KEY`+`BT_MAIL_FROM` for invite/signed-PDF email.
+3. **Agent channel:** share `bidtranslator.com/?as=agent` with a few agents to validate the free-year channel before building the T-90 retention emails (#12 follow-up).
+4. Then the **founder sales pipeline + follow-up**; hold #14/#15 until traction.
