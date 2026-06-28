@@ -416,6 +416,7 @@ ensureColumns("job", [
   // Maps: the job's street address (drives Maps/Directions/Street View links).
   ["address", "TEXT"],
   ["customer", "TEXT"],         // who the proposal is FOR (shown on the bid + PDF)
+  ["customer_phone", "TEXT"],   // the customer's phone — tap to call/text from the job
   ["deposit_pct", "INTEGER"],   // deposit to collect on acceptance, % of total (default 25)
   ["tax_rate", "REAL"],         // sales tax % for this job; defaults from the contractor, 0 = none
   ["brief", "TEXT"],            // AI structured job summary (contractor-only; never on the client proposal)

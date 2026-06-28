@@ -1340,13 +1340,13 @@ async function syncNow(force){
 function jobPayload(j){
   return { id:j.id, title:j.title, from:j.from, to:j.to, transcript:j.transcript, translation:j.translation,
     summary:j.summary, brief:j.brief||null, assumptions:j.assumptions, exclusions:j.exclusions, lines:j.lines, upgrades:j.upgrades,
-    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', scheduled_time:j.scheduled_time||'', address:j.address||'', customer:j.customer||'', deposit_pct:(j.deposit_pct==null?25:j.deposit_pct), tax_rate:(j.tax_rate==null?null:j.tax_rate), updated_at:j.updated_at, created_at:j.created };
+    notes:j.notes, margin:j.margin, status:j.status, scheduled_date:j.scheduled_date||'', scheduled_time:j.scheduled_time||'', address:j.address||'', customer:j.customer||'', customer_phone:j.customer_phone||'', deposit_pct:(j.deposit_pct==null?25:j.deposit_pct), tax_rate:(j.tax_rate==null?null:j.tax_rate), updated_at:j.updated_at, created_at:j.created };
 }
 function hydrate(s){
   return { id:s.id, title:s.title, created:s.created_at, updated_at:s.updated_at, from:s.from, to:s.to,
     transcript:s.transcript||'', translation:s.translation||'', summary:s.summary||'', brief:s.brief||null,
     assumptions:s.assumptions||[], exclusions:s.exclusions||[], lines:s.lines||[], upgrades:s.upgrades||[],
-    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', scheduled_time:s.scheduled_time||'', address:s.address||'', customer:s.customer||'', deposit_pct:(s.deposit_pct==null?25:s.deposit_pct), tax_rate:(s.tax_rate==null?null:s.tax_rate),
+    notes:s.notes||'', margin:s.margin||0, status:s.status||'draft', scheduled_date:s.scheduled_date||'', scheduled_time:s.scheduled_time||'', address:s.address||'', customer:s.customer||'', customer_phone:s.customer_phone||'', deposit_pct:(s.deposit_pct==null?25:s.deposit_pct), tax_rate:(s.tax_rate==null?null:s.tax_rate),
     photos:(s.photos||[]).map(p=>({id:p.id, url:p.url, showOnBid:!!p.showOnBid})), _dirty:false };
 }
 function replaceJob(id, fresh){
@@ -2074,6 +2074,19 @@ function setAddress(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.add
 // page doesn't jump or steal focus while you're typing the name/address.
 function refreshAddrBlock(){ const j=currentJob(); const el=document.getElementById('addrWrap'); if(j&&el) el.innerHTML=addrBlock(j); }
 function setCustomer(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.customer=v||''; touch(j); saveJobs(); }
+function setCustomerPhone(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.customer_phone=v||''; touch(j); saveJobs(); refreshReach(); }
+function refreshReach(){ const j=currentJob(); const el=document.getElementById('custReach'); if(j&&el) el.innerHTML=reachBlock(j); }
+function telDigits(p){ return String(p||'').replace(/[^\d+]/g,''); }            // for tel:/sms:
+function waDigits(p){ const d=String(p||'').replace(/\D/g,''); return d.length===10?'1'+d:d; } // wa.me wants a country code
+// Call / text / WhatsApp the customer right from the job — same dark-button row as the map links.
+function reachBlock(j){
+  const p=(j.customer_phone||'').trim(); if(!p) return '';
+  const t=telDigits(p), wa=waDigits(p);
+  return `<div class="addrlinks">`
+    +`<a class="maplink" href="tel:${escAttr(t)}">📞 Call</a>`
+    +`<a class="maplink" href="sms:${escAttr(t)}">💬 Text</a>`
+    +`<a class="maplink" href="https://wa.me/${escAttr(wa)}" target="_blank" rel="noopener">🟢 WhatsApp</a></div>`;
+}
 // One source of truth for a job's location: the explicit address field, or — so
 // you never type it twice — the project name itself when that looks like an
 // address (has a number). Drives every map, directions & calendar link.
@@ -2563,6 +2576,8 @@ function viewJob(){
     ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/><input type="time" class="schedinput" value="${escAttr(j.scheduled_time||'')}" onchange="setScheduleTime('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">📲 Add to Calendar</a>`:''}</div>${conflictNote(j)}`:''}
     <label class="fld">Customer</label>
     <div class="addrrow"><input id="custInput" class="addrinput" value="${escAttr(j.customer||'')}" onchange="setCustomer('${j.id}',this.value)" placeholder="👤 Customer name — shown on the proposal"/></div>
+    <div class="addrrow"><input id="custPhoneInput" class="addrinput" type="tel" inputmode="tel" value="${escAttr(j.customer_phone||'')}" onchange="setCustomerPhone('${j.id}',this.value)" placeholder="📞 Customer phone — tap to call or text"/></div>
+    <div id="custReach">${reachBlock(j)}</div>
     <div id="addrWrap">${addrBlock(j)}</div>
     ${tabs}`;
   let body='';

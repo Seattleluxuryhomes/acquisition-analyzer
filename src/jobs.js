@@ -35,6 +35,7 @@ function rowToJob(row) {
     scheduled_time: row.scheduled_time || "",
     address: row.address || "",
     customer: row.customer || "",
+    customer_phone: row.customer_phone || "",
     deposit_pct: row.deposit_pct == null ? 25 : row.deposit_pct,
     tax_rate: row.tax_rate == null ? null : row.tax_rate,  // null = no tax set
     sent_at: row.sent_at,
@@ -111,8 +112,8 @@ export function createJob(userId, data = {}) {
   const createdAt = Number(data.created_at) || now;
   db.prepare(`INSERT INTO job
     (id, user_id, title, from_lang, to_lang, transcript, translation, summary, brief,
-     assumptions, exclusions, lines, upgrades, permits, notes, margin, status, scheduled_date, scheduled_time, address, customer, deposit_pct, tax_rate, sent_at, created_at, updated_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+     assumptions, exclusions, lines, upgrades, permits, notes, margin, status, scheduled_date, scheduled_time, address, customer, customer_phone, deposit_pct, tax_rate, sent_at, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
     id, userId,
     String(data.title || "Untitled job"),
     String(data.from || "es"), String(data.to || "en"),
@@ -129,6 +130,7 @@ export function createJob(userId, data = {}) {
     String(data.scheduled_time || "") || null,
     String(data.address || "") || null,
     String(data.customer || "") || null,
+    String(data.customer_phone || "").slice(0, 40) || null,
     data.deposit_pct == null ? null : Math.max(0, Math.min(100, Math.round(Number(data.deposit_pct)) || 0)),
     data.tax_rate == null ? null : Math.max(0, Number(data.tax_rate) || 0),
     data.sent_at ? Number(data.sent_at) : null,
@@ -152,6 +154,7 @@ const FIELD_MAP = {
   scheduled_time: (v) => String(v || "").slice(0, 5),
   address: (v) => String(v || "").slice(0, 300),
   customer: (v) => String(v || "").slice(0, 120),
+  customer_phone: (v) => String(v || "").slice(0, 40),
   deposit_pct: (v) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0)),
   tax_rate: (v) => (v == null ? 0 : Math.max(0, Number(v) || 0)),
   assumptions: (v) => JSON.stringify(cleanStrings(v)),
@@ -162,7 +165,7 @@ const FIELD_MAP = {
 };
 const COLUMN = { title: "title", from: "from_lang", to: "to_lang", transcript: "transcript",
   translation: "translation", summary: "summary", brief: "brief", notes: "notes", margin: "margin", status: "status",
-  scheduled_date: "scheduled_date", scheduled_time: "scheduled_time", address: "address", customer: "customer", deposit_pct: "deposit_pct", tax_rate: "tax_rate",
+  scheduled_date: "scheduled_date", scheduled_time: "scheduled_time", address: "address", customer: "customer", customer_phone: "customer_phone", deposit_pct: "deposit_pct", tax_rate: "tax_rate",
   assumptions: "assumptions", exclusions: "exclusions", lines: "lines", upgrades: "upgrades", permits: "permits" };
 
 export function updateJob(userId, id, patch = {}) {
