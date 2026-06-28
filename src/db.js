@@ -255,6 +255,11 @@ ensureColumns("user", [
   ["reset_token_exp", "INTEGER"],
   // Optional WhatsApp number; blank falls back to the phone number.
   ["whatsapp", "TEXT DEFAULT ''"],
+  // Referral credit: this user's own share code, who referred them, and an optional
+  // founder rate-lock (pinned base monthly $; NULL = the live base price).
+  ["referral_code", "TEXT"],
+  ["referred_by", "TEXT"],
+  ["locked_monthly", "REAL"],
   // QuickBooks Online (per-contractor OAuth). Each contractor connects their own
   // company; paid payments sync to their books. Tokens are server-only.
   ["qbo_realm_id", "TEXT"],

@@ -5,6 +5,7 @@
 import crypto from "node:crypto";
 import db from "./db.js";
 import { track } from "./analytics.js";
+import { referralStatus, effectiveMonthly } from "./referrals.js";
 
 const KEY = () => process.env.STRIPE_SECRET_KEY || "";
 const PRICE = () => process.env.STRIPE_PRICE_ID || "";
@@ -61,6 +62,9 @@ export function billingStatus(user) {
     // setup_fee > 0, so the page never promises a fee that isn't charged.
     monthly: priceCache.monthly,
     setup_fee: priceCache.setup,
+    // Referral credit ladder: base $50, −$10 per paying sub, free at 5. Drives the
+    // paywall/billing display and the price the contractor is actually charged.
+    referral: referralStatus(user),
   };
 }
 
@@ -108,6 +112,12 @@ async function stripe(path, body) {
   return json;
 }
 
+async function stripeDelete(path) {
+  const res = await fetch("https://api.stripe.com/v1/" + path, { method: "DELETE", headers: { Authorization: "Bearer " + KEY() } });
+  if (!res.ok) throw Object.assign(new Error("Payment provider error."), { status: 502 });
+  return res.json().catch(() => ({}));
+}
+
 async function stripeGet(path) {
   let res;
   try {
@@ -144,8 +154,13 @@ export async function createCheckout(user, baseUrl) {
     line_items,
     success_url: `${baseUrl}/?billing=success`,
     cancel_url: `${baseUrl}/?billing=cancel`,
-    allow_promotion_codes: true,
   };
+  // Apply the referral credit (−$10 per paying sub) as a recurring amount-off
+  // coupon. Stripe rejects discounts + promo codes together, so only offer the
+  // promo-code field when there's no earned credit to apply.
+  const creditCoupon = await earnedCreditCoupon(user).catch(() => null);
+  if (creditCoupon) params.discounts = [{ coupon: creditCoupon }];
+  else params.allow_promotion_codes = true;
   if (TAX_ENABLED()) {
     params.automatic_tax = { enabled: true };
     params.customer_update = { address: "auto" };
@@ -163,6 +178,36 @@ export async function createPortal(user, baseUrl) {
     return_url: `${baseUrl}/?billing=portal`,
   });
   return session.url;
+}
+
+// ---- Referral credit ↔ Stripe (apply the −$10/paying-sub credit to the bill) ----
+// A reusable, deterministic amount-off coupon ("btref<cents>"), created once and
+// reused. The id is deterministic so re-creating is a harmless no-op.
+async function ensureCoupon(cents) {
+  const id = "btref" + cents;
+  try { await stripe("coupons", { id, amount_off: cents, currency: "usd", duration: "forever", name: `Crew credit $${Math.round(cents / 100)} off` }); }
+  catch { /* already exists (or transient) — the deterministic id is reusable */ }
+  return id;
+}
+// The coupon representing a GC's currently-earned credit, or null if none.
+async function earnedCreditCoupon(user) {
+  const base = user.locked_monthly != null ? Number(user.locked_monthly) : Number(process.env.BT_BASE_PRICE || 50);
+  const creditDollars = base - effectiveMonthly(user);
+  if (creditDollars <= 0) return null;
+  return ensureCoupon(Math.round(creditDollars * 100));
+}
+// Re-apply a GC's referral discount to their live subscription so the bill tracks
+// their crew (a sub starts paying → price drops; a sub churns → price rises). Wired
+// into the webhook below; best-effort and a no-op without billing configured.
+export async function syncReferralDiscount(userId) {
+  if (!billingConfigured() || !userId) return;
+  const u = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
+  if (!u || !u.stripe_subscription_id) return;
+  const coupon = await earnedCreditCoupon(u).catch(() => null);
+  try {
+    if (coupon) await stripe("subscriptions/" + u.stripe_subscription_id, { coupon });
+    else await stripeDelete("subscriptions/" + u.stripe_subscription_id + "/discount"); // clear when no credit
+  } catch { /* best-effort */ }
 }
 
 // ---- Webhook ----
@@ -192,6 +237,10 @@ function applySubscription(customerId, sub) {
   // Fire once, on the transition into a paying state (drives the CRM milestone).
   const live = (s) => s === "active" || s === "trialing";
   if (live(next) && !live(row.subscription_status || "none")) track(row.id, "subscription_active", { status: next });
+  // This user's paid status changed → if they were referred, their GC's crew credit
+  // may have moved. Re-sync the referrer's discount (a sub paid → −$10; churned → +$10).
+  const me = db.prepare("SELECT referred_by FROM user WHERE id=?").get(row.id);
+  if (me && me.referred_by) syncReferralDiscount(me.referred_by).catch(() => {});
 }
 
 export function handleEvent(event) {

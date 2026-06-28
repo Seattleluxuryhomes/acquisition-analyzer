@@ -18,6 +18,7 @@ import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
 import * as Team from "./src/team.js";
 import * as Dispatch from "./src/dispatch.js";
+import * as Referrals from "./src/referrals.js";
 import { renderScopeHTML } from "./src/scopeHtml.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
@@ -147,6 +148,10 @@ app.post("/api/auth/signup", wrap((req, res) => {
   const out = signup(req.body || {});
   if (out && out.user) {
     db.prepare("UPDATE user SET last_login=? WHERE id=?").run(Date.now(), out.user.id);
+    // Attribute the signup to whoever's referral code they came in on (the GC
+    // earns a crew credit once this user becomes a paying subscriber).
+    const ref = String((req.body && (req.body.ref || req.body.r)) || "").trim();
+    if (ref && Referrals.setReferrer(out.user.id, ref)) track(out.user.id, "referred_signup", { by: ref });
     track(out.user.id, "user_registered", { email: out.user.email });
   }
   res.json(out);
