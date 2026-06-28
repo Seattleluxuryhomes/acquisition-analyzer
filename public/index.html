@@ -742,8 +742,10 @@ function moneyShort(n){ n=Math.round(+n||0); const a=Math.abs(n), s=n<0?'-':'';
 // Price formatter that keeps cents (for $29.99 / $299.99 plan prices).
 const priceStr = n => (n==null) ? null : ((Math.round(n*100)%100===0) ? '$'+Math.round(n).toLocaleString('en-US') : '$'+(+n).toFixed(2));
 // Live plan prices from Stripe (fall back to defaults until billing status loads).
-const planMonthly = () => (BILLING && BILLING.monthly!=null) ? BILLING.monthly : 29.99;
+const planMonthly = () => (BILLING && BILLING.monthly!=null) ? BILLING.monthly : ((BILLING&&BILLING.referral&&BILLING.referral.base)||50);
 const planSetup = () => (BILLING && BILLING.setup_fee!=null) ? BILLING.setup_fee : null;
+// True when a setup fee exists but is waived for this user (founder / crew signup).
+const setupWaivedView = () => !!(BILLING && BILLING.setup_waived && BILLING.setup_fee_base>0);
 
 const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:'signin', authError:'', authSent:false, booted:false };
 let TOKEN = localStorage.getItem('bt_token') || null;
@@ -1292,7 +1294,9 @@ function viewPaywall(){
       <div class="amt" id="priceAmt">${priceStr(planMonthly())}<span>/month</span></div>
       <div class="hint" style="margin:-4px 0 10px">14-day free trial — no card needed to start. When you subscribe, ${planSetup()>0
         ? `a one-time ${priceStr(planSetup())} setup fee + your first ${priceStr(planMonthly())} are charged`
-        : `your first ${priceStr(planMonthly())} is charged`}, then ${priceStr(planMonthly())}/month. Cancel anytime.</div>
+        : (setupWaivedView()
+          ? `your ${priceStr(BILLING.setup_fee_base)} setup fee is <b style="color:var(--paper)">waived</b> (founding member) — just your first ${priceStr(planMonthly())}`
+          : `your first ${priceStr(planMonthly())} is charged`)}, then ${priceStr(planMonthly())}/month. Cancel anytime.</div>
       <ul class="feat">
         <li>Unlimited job notebooks</li>
         <li>Voice capture &amp; English ⇄ Spanish translation</li>
@@ -1880,7 +1884,7 @@ const TRADE_PICK = [
   { key:'hvac', emoji:'❄️', label:'HVAC', bring:'conditioned sq ft, system type (and mini-split head count), and duct reuse' },
   { key:'masonry', emoji:'🧱', label:'Masonry & Stucco', bring:'face area in sq ft, system/veneer type, and repair vs. new' },
   { key:'garage-doors', emoji:'🚗', label:'Garage Doors', bring:'door count & sizes, material/insulation, and whether a new opener' },
-  { key:'excavation-demo', emoji:'🚜', label:'Excavation & Demolition', bring:'area × depth (for cubic yards) or what’s removed, plus dumpster count' },
+  { key:'excavation-demo', emoji:'🚜', label:'Dirt Work / Excavation & Grading', bring:'cut & fill volumes (or area + depths), soil type, haul distance, and whether the site balances' },
   { key:'countertops', emoji:'🪨', label:'Countertops', bring:'counter sq ft or slab count, material, edge profile, and cutouts' },
   { key:'tile', emoji:'🔲', label:'Tile', bring:'area per surface (floor/wall/shower), tile size & pattern, and wet areas' },
 ];

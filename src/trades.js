@@ -389,20 +389,49 @@ export const TRADES = {
   },
 
   "excavation-demo": {
-    label: "Excavation & Demolition", emoji: "🚜",
+    label: "Dirt Work / Excavation & Grading", emoji: "🚜",
     inputs: [
-      "Excavation: area × depth (for cubic yards) and haul distance",
-      "Demolition: what's removed (sq ft / volume) and dumpster count",
-      "Soil/debris type, access for equipment, disposal site",
+      "Cut & fill volumes (or footprint/area + depths) — and whether the site balances",
+      "Soil type (topsoil/sand/clay/rock) and the haul distance to dump or fill source",
+      "Equipment access, groundwater, and which testing/permits are the owner's",
     ],
     prompt:
-      "EXCAVATION & DEMOLITION ESTIMATING. EXCAVATION: volume in CUBIC YARDS = (area sq ft × depth ft) ÷ 27; price " +
-      "machine time (hourly with operator), spoils haul (cu yd or truck loads), import fill/gravel (cu yd), " +
-      "compaction, erosion/silt control. DEMOLITION: price by area or volume removed + dumpsters (each, by size 10/20/" +
-      "30 yd) + disposal/tipping fees + protection of what stays. Use SKU unit + unit_price when matched. LABOR " +
-      "hourly + equipment rental/mobilization. ASSUMPTIONS: state cu yd / loads, \"normal soil, no rock or " +
-      "groundwater\", disposal at standard rate. EXCLUSIONS when not stated: rock/hardpan, hazmat (asbestos/lead) " +
-      "abatement, dewatering, shoring/engineering, utility location & relocation, permits.",
+      "DIRT-WORK / EARTHWORK ESTIMATING. Price by the CUBIC YARD, and ALWAYS distinguish soil volume states — this is " +
+      "the #1 thing estimators get wrong: BANK CY (BCY, in-place, what plans show and what you get paid for) vs LOOSE " +
+      "CY (LCY, after digging, swelled — what fills the trucks) vs COMPACTED CY (CCY, placed fill). SWELL (bank→loose, " +
+      "sizes the trucking): sand/gravel +10–18%, common earth ≈ +25% (20–30%), clay +30–40%, blasted rock +40–70% " +
+      "(rock does not shrink). SHRINK (bank→compacted, sizes the fill/import): common earth ≈ −10%, clay −15–25%. " +
+      "Formulas: LCY = BCY×(1+swell); CCY = BCY×(1−shrink); to build X CCY of fill you must dig X/(1−shrink) BCY and " +
+      "haul that ×(1+swell) LCY. State the soil, swell% and shrink% used in assumptions. Volume = (area sq ft × depth " +
+      "ft)÷27, or from the plan's cut/fill takeoff; add an over-dig allowance (slope laybacks, over-ex below footings) " +
+      "beyond neat-line. CUT-TO-FILL means balance on site (no import/export); if unbalanced, price IMPORT (select/" +
+      "structural fill or aggregate base by CY/ton) or EXPORT (haul-off + tipping). " +
+      "PRICING: build a per-CY rate from machine production — Unit$/CY = (machine wet rate $/hr ÷ production CY/hr) + " +
+      "haul $/CY + import-or-disposal $/CY, then mark up 10–20% O&P. Production ≈ (bucket × fill-factor × ~0.83 " +
+      "efficiency × 3600)/cycle-sec; a 1-CY excavator ≈ 350–700 CY/day. Price HOURLY (machine + operator, 4-hr min + " +
+      "move-in) when soil/access/quantities are uncertain; price PER-CY or lump sum only when the volume is known. " +
+      "LINE ITEMS to build (each its own line): mobilization/move-in; clear & grub (per acre); strip & stockpile " +
+      "topsoil (CY — call it out, it's often a missed change order); mass excavation / cut-to-fill (BCY); over-" +
+      "excavation/undercut of unsuitable soil (UNIT-PRICE it — quantity unknown); import fill/aggregate base (CY/ton); " +
+      "rough grading then fine/finish grading (SY or SF); compaction in lifts (in the fill rate); hauling/export " +
+      "(CY or per truck-load — tandem ~10–14 CY, tri-axle ~14–16 CY) + tipping/dump fees; erosion control/SWPPP (silt " +
+      "fence per LF, inlet protection, stabilized entrance); dewatering (day/LS) if water; utility trenching & backfill " +
+      "(LF). Match trucks to the loader: trucks needed ≈ truck cycle-time ÷ load-time (3–5 bucket passes/truck). Use " +
+      "the SKU unit + unit_price as the rate whenever a line matches the price book. " +
+      "RISK — the bid lives or dies here: ROCK costs 5–10× soil ($50–$200/CY vs $2.50–$15/CY; blasting $40–$150/CY), " +
+      "so NEVER bury it — exclude it and add a ROCK CLAUSE: 'excavation priced as common/unclassified material; rock, " +
+      "ledge, hardpan, high water table or other unforeseen subsurface conditions are billed at the stated unit prices " +
+      "as a change order.' Add 10–15% contingency for unknown soil/weather, or transfer it via unit prices instead of " +
+      "a fat lump sum. ASSUMPTIONS: 'based on quantities/geotech provided; site balances (no import/export priced); " +
+      "on-site soils suitable as engineered fill, free of organics/debris/rock >8\"; no rock or groundwater; one " +
+      "mobilization; normal working hours & dry weather; compaction to 90–95% modified Proctor (ASTM D1557) achievable " +
+      "with on-site soil.' EXCLUSIONS when not stated: rock/blasting, dewatering, import/export & tipping, undercut/" +
+      "unsuitable-soil replacement, compaction/density TESTING (owner pays the geotech; contractor provides access " +
+      "only), permits (grading/SWPPP/dewatering), shoring/sheeting, surveying & staking, utility relocation, " +
+      "hazardous/contaminated soil, traffic control, winter/adverse-weather standby, landscape/paving restoration. " +
+      "DEMOLITION (when part of the job): price by area/volume removed + dumpsters (each, 10/20/30 yd) + disposal/" +
+      "tipping + protection of what stays; haul C&D separately from clean dirt. Photo-derived volumes are a draft to " +
+      "confirm by survey/takeoff before the number is final.",
   },
 
   countertops: {

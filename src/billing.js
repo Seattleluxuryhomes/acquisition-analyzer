@@ -12,6 +12,16 @@ const PRICE = () => process.env.STRIPE_PRICE_ID || "";
 // Optional one-time signup fee (a one-time Price). Charged on the first
 // subscription checkout only — see createCheckout + handleEvent.
 const SETUP_PRICE = () => process.env.STRIPE_SETUP_PRICE_ID || "";
+// Display amount for the setup fee (dollars). Off (0) until we turn it on — the
+// plan is to switch this on when we start running ads, so cold/ad signups cover
+// the ad spend. Set BT_SETUP_FEE=299 (and configure STRIPE_SETUP_PRICE_ID to a
+// matching $299 one-time Price) to enable it.
+const SETUP_FEE_DISPLAY = () => Number(process.env.BT_SETUP_FEE || 0);
+// The setup fee is WAIVED for founders (rate-locked) and for anyone who came in
+// through a GC's crew/referral link — only cold signups (ads) pay it.
+function setupWaived(user) {
+  return !!(user && (user.locked_monthly != null || user.referred_by));
+}
 const WEBHOOK_SECRET = () => process.env.STRIPE_WEBHOOK_SECRET || "";
 // Optional: collect sales tax automatically via Stripe Tax. Off unless set, so
 // checkout never breaks before Stripe Tax is enabled + registered in the account.
@@ -60,8 +70,12 @@ export function billingStatus(user) {
     has_subscription: !!user.stripe_subscription_id,
     // Real prices from Stripe (dollars). The UI shows the setup fee only when
     // setup_fee > 0, so the page never promises a fee that isn't charged.
-    monthly: priceCache.monthly,
-    setup_fee: priceCache.setup,
+    monthly: priceCache.monthly != null ? priceCache.monthly : referralStatus(user).base,
+    // Setup fee: the configured amount, ZEROED when waived (founders + crew/referral
+    // signups). setup_fee_base is the un-waived amount so the UI can say "waived".
+    setup_fee: setupWaived(user) ? 0 : (SETUP_FEE_DISPLAY() || priceCache.setup || 0),
+    setup_fee_base: SETUP_FEE_DISPLAY() || priceCache.setup || 0,
+    setup_waived: setupWaived(user),
     // Referral credit ladder: base $50, −$10 per paying sub, free at 5. Drives the
     // paywall/billing display and the price the contractor is actually charged.
     referral: referralStatus(user),
@@ -147,7 +161,9 @@ export async function createCheckout(user, baseUrl) {
   // now: the recurring plan plus the one-time setup fee (first checkout only). A
   // one-time price in a subscription-mode session lands on the first invoice.
   const line_items = [{ price: PRICE(), quantity: 1 }];
-  if (SETUP_PRICE() && !user.setup_fee_paid) line_items.push({ price: SETUP_PRICE(), quantity: 1 });
+  // The one-time setup fee — only for cold signups (not founders or crew/referral),
+  // and only once. Waived signups never see the line item.
+  if (SETUP_PRICE() && !user.setup_fee_paid && !setupWaived(user)) line_items.push({ price: SETUP_PRICE(), quantity: 1 });
   const params = {
     mode: "subscription",
     customer,
