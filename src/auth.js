@@ -71,6 +71,34 @@ export function signup({ email, password }) {
   return { token: issueSession(id), user: publicUser(row) };
 }
 
+// Concierge onboarding (founder-only): create a fully-configured account WITHOUT
+// a password — the contractor sets it via the invite link. Same trial as a normal
+// signup, so they get the full package and can later subscribe or fall to the free
+// manual version. Profile fields are pre-loaded so they log in ready to work.
+export function adminCreateUser(profile = {}) {
+  const email = String(profile.email || "").trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) throw httpError(400, "Enter a valid email address.");
+  if (db.prepare("SELECT id FROM user WHERE email=?").get(email)) throw httpError(409, "An account with that email already exists.");
+  const id = uid(), now = Date.now();
+  const TRIAL_DAYS = Number(process.env.BT_TRIAL_DAYS || 14);
+  // A random password they never use — replaced when they set their own via the link.
+  const pw = hashPassword(crypto.randomBytes(24).toString("hex"));
+  db.prepare(`INSERT INTO user
+    (id,email,password_hash,company,name,phone,default_from_lang,default_to_lang,tax_rate,region,whatsapp,trial_ends_at,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+    id, email, pw,
+    String(profile.company || "").slice(0, 120) || "Your Company",
+    String(profile.name || "").slice(0, 120),
+    String(profile.phone || "").slice(0, 40),
+    String(profile.from_lang || "es").slice(0, 8),
+    String(profile.to_lang || "en").slice(0, 8),
+    Math.max(0, Number(profile.tax_rate) || 0),
+    String(profile.region || "").slice(0, 8),
+    String(profile.whatsapp || profile.phone || "").slice(0, 40),
+    now + TRIAL_DAYS * DAY, now);
+  return { id, user: publicUser(db.prepare("SELECT * FROM user WHERE id=?").get(id)) };
+}
+
 export function signin({ email, password }) {
   email = String(email || "").trim().toLowerCase();
   const row = db.prepare("SELECT * FROM user WHERE email=?").get(email);
@@ -113,13 +141,13 @@ function safeEq(a, b) { try { return crypto.timingSafeEqual(Buffer.from(String(a
 // Start a reset: store a single-use token hash + expiry on the user and return
 // the raw token so the caller can email the link. Returns null when no account
 // matches — the caller should still respond ok (no email-enumeration).
-export function createResetToken(email) {
+export function createResetToken(email, ttlMs = RESET_TTL) {
   email = String(email || "").trim().toLowerCase();
   const row = db.prepare("SELECT * FROM user WHERE email=?").get(email);
   if (!row) return null;
   const token = crypto.randomBytes(32).toString("base64url");
   db.prepare("UPDATE user SET reset_token_hash=?, reset_token_exp=? WHERE id=?")
-    .run(sha256(token), Date.now() + RESET_TTL, row.id);
+    .run(sha256(token), Date.now() + ttlMs, row.id);
   return { user: publicUser(row), token };
 }
 

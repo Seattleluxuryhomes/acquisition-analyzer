@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { PassThrough } from "node:stream";
 
 import db, { PHOTO_DIR } from "./src/db.js";
-import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset } from "./src/auth.js";
+import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
@@ -308,6 +308,52 @@ app.get("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
 });
 app.get("/api/admin/events", requireAuth, requireAdmin, (req, res) =>
   res.json({ events: Analytics.recentEvents(req.query.limit) }));
+
+// Concierge onboarding (founder-only): set a contractor up with a fully-configured
+// account on the full trial, optionally import their price book, and send (or hand
+// back) a secure "set your password & get started" link. The done-for-you setup
+// that wires the app into their world before they ever log in.
+app.post("/api/admin/onboard", requireAuth, requireAdmin, wrap(async (req, res) => {
+  const b = req.body || {};
+  const { id, user } = adminCreateUser(b);
+  // Import their price book if pasted (best-effort — needs AI; never blocks onboarding).
+  let skusImported = 0;
+  if (String(b.priceList || "").trim()) {
+    try {
+      const newRow = db.prepare("SELECT * FROM user WHERE id=?").get(id);
+      const parsed = await parseSkus(newRow, { text: b.priceList });
+      skusImported = (Skus.bulkCreate(id, parsed.items || []) || {}).added || 0;
+    } catch { /* leave 0 — onboarding still succeeds */ }
+  }
+  // A 7-day set-password link (an invite, not a 1-hour forgot-password reset).
+  const tok = createResetToken(user.email, 7 * 24 * 60 * 60 * 1000);
+  const link = `${baseUrl(req)}/reset?token=${encodeURIComponent(tok.token)}&e=${encodeURIComponent(user.email)}`;
+  let emailed = false;
+  if (Mail.mailConfigured()) {
+    try {
+      await Mail.sendMail({
+        to: user.email,
+        subject: `${req.user.company && req.user.company !== "Your Company" ? req.user.company : "Bidtranslator"} — your account is ready`,
+        html: onboardEmailHtml(link, req.user, b.note),
+        text: `You're set up on Bidtranslator. Set your password and get started:\n${link}\n\nThis link works for 7 days.`,
+        replyTo: req.user.email || undefined,
+      });
+      emailed = true;
+    } catch { emailed = false; }
+  }
+  track(req.user.id, "contractor_onboarded", { onboardedId: id, skus: skusImported, emailed });
+  res.json({ ok: true, id, email: user.email, link, emailed, skusImported, mailConfigured: Mail.mailConfigured() });
+}));
+function onboardEmailHtml(link, from, note) {
+  const who = from && from.name ? escHtml(from.name) : (from && from.company && from.company !== "Your Company" ? escHtml(from.company) : "We");
+  return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
+    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
+    <h2 style="margin:18px 0 8px">Your account is ready</h2>
+    <p style="color:#5a5240">${who} set you up on Bidtranslator — talk a job out loud and it writes a clean, priced bid in your client's language. ${note ? escHtml(String(note)) : "Tap below to set your password and take a look."}</p>
+    <p style="margin:22px 0"><a href="${link}" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Set your password &amp; get started</a></p>
+    <p style="color:#8a7f68;font-size:.85rem">This link works for 7 days.</p>
+  </div>`;
+}
 
 // ---- Demand signals ("Notify me" on coming-soon features) ----
 app.post("/api/interest", requireAuth, wrap((req, res) => {

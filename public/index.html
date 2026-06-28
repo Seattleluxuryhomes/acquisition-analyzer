@@ -1787,7 +1787,43 @@ function adminHTML(d, users){
     + (users.length?users.map(u=>`<div class="act-item"><div class="act-t">${esc(u.company)||esc(u.email)}${u.subscription_status&&u.subscription_status!=='none'?`<span class="subpill">${esc(u.subscription_status)}</span>`:''}</div><div class="act-s">${esc(u.email)} · leads ${u.leads} · bids ${u.bids} · accepted ${u.accepted} · collected ${money(u.revenueCollected)} · won ${money(u.pipelineWonValue)}${u.last_login?' · seen '+timeAgo(u.last_login):' · never logged in'}</div></div>`).join(''):'<div class="hint" style="padding:8px">No contractors yet.</div>')
     + `</div>`;
   const featHTML = feats.length?`<div class="panel"><div class="panel-h static"><span>⚙️ Feature adoption</span></div>`+feats.slice(0,14).map(ff=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center"><span class="act-t">${esc(ff.name)}</span><span class="act-s">${ff.c}× · ${ff.users} users</span></div>`).join('')+`</div>`:'';
-  return kpis + funnelHTML + usersHTML + featHTML;
+  return onboardPanel() + kpis + funnelHTML + usersHTML + featHTML;
+}
+// Concierge onboarding — set a contractor up with a fully-configured account on the
+// full trial, optionally import their price list, and send/hand back a login link.
+function onboardPanel(){
+  return `<div class="panel" style="margin-bottom:14px"><div class="panel-h static"><span>🤝 Onboard a contractor</span></div>
+    <div style="padding:12px">
+      <div class="hint" style="margin:0 0 10px">Set a contractor up for them — full trial, their info pre-loaded, price list imported. They get a link to set a password and go.</div>
+      <input id="obEmail" class="input" type="email" placeholder="Their email (required)"/>
+      <div class="row2" style="margin-top:8px"><input id="obCompany" class="input" placeholder="Company"/><input id="obName" class="input" placeholder="Contact name"/></div>
+      <div class="row2" style="margin-top:8px"><input id="obPhone" class="input" type="tel" placeholder="Phone / WhatsApp"/><input id="obRegion" class="input" placeholder="State (e.g. WA)"/></div>
+      <div class="row2" style="margin-top:8px"><input id="obTax" class="input" type="number" step="0.1" min="0" placeholder="Sales tax %"/>
+        <select id="obToLang" class="input" title="Their client's language">${langOpts('en')}</select></div>
+      <textarea id="obPrice" class="input" style="margin-top:8px;min-height:60px" placeholder="Paste their price list (optional) — we'll import it into their price book"></textarea>
+      <textarea id="obNote" class="input" style="margin-top:8px;min-height:46px" placeholder="Personal note for the welcome email (optional)"></textarea>
+      <button class="btn full" style="margin-top:10px" onclick="onboardContractor(this)">Create account &amp; send invite</button>
+      <div id="obResult" class="hint" style="margin-top:10px"></div>
+    </div></div>`;
+}
+async function onboardContractor(btn){
+  const g=id=>((document.getElementById(id)||{}).value||'').trim();
+  const email=g('obEmail');
+  if(!email){ toast('Enter their email.','warn'); return; }
+  const body={ email, company:g('obCompany'), name:g('obName'), phone:g('obPhone'), whatsapp:g('obPhone'),
+    region:g('obRegion'), tax_rate:g('obTax'), from_lang:(SETTINGS.from||'es'), to_lang:g('obToLang')||'en',
+    priceList:g('obPrice'), note:g('obNote') };
+  const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Creating…'; }
+  try{
+    const r=await api('/api/admin/onboard',{method:'POST',body:JSON.stringify(body)});
+    const res=document.getElementById('obResult');
+    const sent = r.emailed ? `✓ Invite emailed to <b>${esc(email)}</b>.` : (r.mailConfigured?`Account created — email didn't send.`:`Account created (email not configured — copy the link below).`);
+    const skus = r.skusImported?` Imported <b>${r.skusImported}</b> price-book items.`:'';
+    res.innerHTML = `${sent}${skus}<div style="margin-top:8px;display:flex;gap:6px;align-items:center"><input class="input" style="font-size:.8rem" readonly value="${esc(r.link)}" onclick="this.select()"/><button class="btn sm" onclick="copyText('${esc(r.link)}').then(()=>toast('Link copied','ok'))">Copy</button></div>`;
+    ['obEmail','obCompany','obName','obPhone','obRegion','obTax','obPrice','obNote'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+    toast('Contractor onboarded.','ok');
+  }catch(e){ toast(e.message||'Could not onboard.','bad'); }
+  if(btn){ btn.disabled=false; btn.textContent=orig; }
 }
 
 // Trade picker (presentation only) — labels for the dropdown + a "what to capture"
