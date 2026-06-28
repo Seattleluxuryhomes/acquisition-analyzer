@@ -11,14 +11,34 @@ the engagement engine: the reason the app feels more valuable every month.
 
 ## Build this
 
-**Compute a score (0–100)** from signals already in BidVoice — no new data sources:
+**Two-tier score (0–100)** — the key design decision: **setup alone caps at 80.**
+A score you can max by filling in a form dies; gating the top on real outcomes
+keeps it alive and coaching forever.
+
+**Tier 1 — Foundation (0 → 80):** a one-time climb, fully in the contractor's
+control. From signals already in BidVoice:
 - Profile complete (company, phone, logo, services, area)
 - Website published
-- Projects published (count + recency: updated in last 30 / 60 / 90 days)
-- Has an AI About page
+- AI About page written
+- Projects published (count)
 - Photos on file
-- Estimates sent / accepted (activity)
-- Reviews connected → ⚠ (0 today)
+- First estimate sent
+
+**Tier 2 — Momentum (80 → 100):** earned by staying active, and it **decays if you
+go stale** (so the score keeps moving). NOT raw luck — gated on action the
+contractor controls:
+- Leads **responded to** (not just received — responsiveness)
+- Reviews requested / collected
+- A project published **recently** (freshness: last 30 / 60 / 90 days)
+- Recent estimate activity
+
+> Decay example: no new project in 60 days → momentum dips → app nudges
+> "Publish a recent job to stay at the top." The treadmill that keeps the score
+> meaningful.
+
+**Framing (critical):** 80 reads as *"you're fully set up"* — an achievement, not a
+failure. The last 20 reads as *"earned by winning work — and it keeps you sharp."*
+Never "you're missing 20%."
 
 **A Growth screen** (under "More"):
 - The score (ring + number) and a one-line coach: *"You're at 62 — three quick wins
