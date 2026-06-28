@@ -35,8 +35,11 @@ export function buildScope(job) {
     address: job.address || "",
     items: work.map((w) => ({ desc: w.desc, qty: w.qty, unit: w.unit })), // flat fallback
     sections: groups,
-    assumptions: job.assumptions || [],
-    // NOTE: price, rate, amount, margin, notes are intentionally absent. Do not add them.
+    // NOTE: price, rate, amount, margin, notes are intentionally absent (hard rule
+    // #2). ASSUMPTIONS are deliberately NOT passed through either — AI-generated bid
+    // assumptions routinely reference dollar figures ("hardwood at $5/sq ft…"), which
+    // would leak the contractor's pricing to the sub. If a sub needs site notes, the
+    // GC writes them in the dispatch `note` (which IS shown), not the bid assumptions.
   };
 }
 

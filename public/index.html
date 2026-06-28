@@ -1852,11 +1852,21 @@ function onboardPanel(){
       <div class="row2" style="margin-top:8px"><input id="obPhone" class="input" type="tel" placeholder="Phone / WhatsApp"/><input id="obRegion" class="input" placeholder="State (e.g. WA)"/></div>
       <div class="row2" style="margin-top:8px"><input id="obTax" class="input" type="number" step="0.1" min="0" placeholder="Sales tax %"/>
         <select id="obToLang" class="input" title="Their client's language">${langOpts('en')}</select></div>
+      <label class="fld" style="margin-top:10px">Their trades <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(tap — sets up their website + a sample bid)</span></label>
+      <div class="svcpick">${TRADE_PICK.map(t=>`<button type="button" class="svcchip ${OB_SERVICES.includes(t.key)?'on':''}" onclick="obToggleService('${t.key}',this)">${t.emoji} ${esc(t.label)}</button>`).join('')}</div>
       <textarea id="obPrice" class="input" style="margin-top:8px;min-height:60px" placeholder="Paste their price list (optional) — we'll import it into their price book"></textarea>
       <textarea id="obNote" class="input" style="margin-top:8px;min-height:46px" placeholder="Personal note for the welcome email (optional)"></textarea>
       <button class="btn full" style="margin-top:10px" onclick="onboardContractor(this)">Create account &amp; send invite</button>
       <div id="obResult" class="hint" style="margin-top:10px"></div>
     </div></div>`;
+}
+let OB_SERVICES=[];
+// Toggle a service chip on the onboard form WITHOUT a re-render, so the email/
+// company fields the founder already typed aren't wiped.
+function obToggleService(key, el){
+  const i=OB_SERVICES.indexOf(key);
+  if(i>=0){ OB_SERVICES.splice(i,1); el.classList.remove('on'); }
+  else { OB_SERVICES.push(key); el.classList.add('on'); }
 }
 async function onboardContractor(btn){
   const g=id=>((document.getElementById(id)||{}).value||'').trim();
@@ -1864,7 +1874,7 @@ async function onboardContractor(btn){
   if(!email){ toast('Enter their email.','warn'); return; }
   const body={ email, company:g('obCompany'), name:g('obName'), phone:g('obPhone'), whatsapp:g('obPhone'),
     region:g('obRegion'), tax_rate:g('obTax'), from_lang:(SETTINGS.from||'es'), to_lang:g('obToLang')||'en',
-    priceList:g('obPrice'), note:g('obNote') };
+    priceList:g('obPrice'), note:g('obNote'), services:OB_SERVICES.slice() };
   const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Creating…'; }
   try{
     const r=await api('/api/admin/onboard',{method:'POST',body:JSON.stringify(body)});
@@ -1873,7 +1883,8 @@ async function onboardContractor(btn){
     const skus = r.skusImported?` Imported <b>${r.skusImported}</b> price-book items.`:'';
     res.innerHTML = `${sent}${skus}<div style="margin-top:8px;display:flex;gap:6px;align-items:center"><input class="input" style="font-size:.8rem" readonly value="${esc(r.link)}" onclick="this.select()"/><button class="btn sm" onclick="copyText('${esc(r.link)}').then(()=>toast('Link copied','ok'))">Copy</button></div>`;
     ['obEmail','obCompany','obName','obPhone','obRegion','obTax','obPrice','obNote'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
-    toast('Contractor onboarded.','ok');
+    OB_SERVICES=[]; document.querySelectorAll('#obResult');  document.querySelectorAll('.svcpick .svcchip.on').forEach(c=>c.classList.remove('on'));
+    toast('Contractor onboarded — account set up with their site &amp; a sample bid.','ok');
   }catch(e){ toast(e.message||'Could not onboard.','bad'); }
   if(btn){ btn.disabled=false; btn.textContent=orig; }
 }

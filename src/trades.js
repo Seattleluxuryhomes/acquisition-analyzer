@@ -496,6 +496,25 @@ export const TRADES = {
   },
 };
 
+// A short, realistic STARTER SCOPE per trade — used to seed a sample bid when a
+// contractor is onboarded, so their first login shows a structured bid for their
+// trade (they set the prices). Descriptions only; no numbers.
+const SAMPLE = {
+  "excavation-demo": [["Mobilization", "Move-in / mobilization"], ["Site prep", "Clear & grub, strip & stockpile topsoil"], ["Earthwork", "Cut to fill / mass grading (bank CY)"], ["Earthwork", "Haul-off & disposal of surplus"], ["Grading", "Rough grade then fine grade to subgrade"], ["Compaction", "Compact fill in lifts to spec"], ["Site control", "Erosion control / silt fence"]],
+  roofing: [["Tear-off", "Tear-off & disposal of existing roof"], ["Materials", "Underlayment, drip edge & flashing"], ["Materials", "Architectural shingles"], ["Install", "Install underlayment, flashing & shingles"], ["Vents", "Ridge / box vents & pipe boots"], ["Finish", "Magnetic nail sweep & cleanup"]],
+  windows: [["Windows", "Supply windows (per opening, field-verified)"], ["Install", "Remove old units & install new"], ["Trim", "Exterior wrap/flashing & interior casing"], ["Finish", "Caulk, seal & haul-away of old units"]],
+  "kitchen-remodel": [["Demo", "Demolition & debris haul"], ["Cabinets", "Cabinets — base, wall & install"], ["Counters", "Countertops, fabrication & install"], ["Plumbing", "Sink, faucet & disposal hookup"], ["Electrical", "Outlets/GFCI & under-cabinet lighting"], ["Finish", "Backsplash, paint & final clean"]],
+  "bathroom-remodel": [["Demo", "Demolition & containment"], ["Plumbing", "Tub/shower valve, toilet & vanity"], ["Shower", "Waterproofing & wall/floor tile"], ["Fixtures", "Vanity, toilet & accessories"], ["Electrical", "GFCI, exhaust fan & vanity light"], ["Finish", "Paint & final clean"]],
+  concrete: [["Prep", "Excavation, grade & set forms"], ["Base", "Gravel base & compaction"], ["Reinforce", "Rebar / wire mesh"], ["Pour", "Concrete, pour & finish"], ["Finish", "Strip forms, seal & cleanup"]],
+  painting: [["Prep", "Scrape, sand, patch & caulk"], ["Protect", "Mask & protect floors / fixtures"], ["Prime", "Spot-prime bare/patched areas"], ["Paint", "Walls & ceilings (2 coats)"], ["Paint", "Trim, doors & accents"], ["Finish", "Cleanup & touch-up"]],
+  "general-contractor": [["Site/Demo", "Demolition & debris removal"], ["Framing", "Framing & blocking"], ["Mechanical", "Plumbing, electrical & HVAC rough-in"], ["Finishes", "Drywall, paint & flooring"], ["Finishes", "Trim, doors & hardware"], ["General", "Permits, supervision & final clean"]],
+};
+const SAMPLE_GENERIC = [["Prep", "Site prep & protection"], ["Materials", "Materials & supply"], ["Labor", "Installation labor"], ["Finish", "Cleanup & haul-away"]];
+export function sampleScope(key) {
+  const rows = SAMPLE[key] || SAMPLE_GENERIC;
+  return rows.map(([section, desc]) => ({ section, desc, type: "fixed", price: 0, hours: 0, rate: 0, qty: 0, unit: "" }));
+}
+
 // Ordered keys, demo trades first.
 export function tradeKeys() { return Object.keys(TRADES); }
 

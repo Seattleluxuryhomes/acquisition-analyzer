@@ -13,7 +13,7 @@ import { signup, signin, signout, changePassword, requireAuth, publicUser, creat
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
-import { tradeList } from "./src/trades.js";
+import { tradeList, sampleScope } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
 import * as Team from "./src/team.js";
@@ -328,6 +328,21 @@ app.get("/api/admin/events", requireAuth, requireAdmin, (req, res) =>
 app.post("/api/admin/onboard", requireAuth, requireAdmin, wrap(async (req, res) => {
   const b = req.body || {};
   const { id, user } = adminCreateUser(b);
+  // Set up their website services + seed a sample bid for their trade, so their
+  // first login shows a custom site AND a structured bid already waiting.
+  const services = (Array.isArray(b.services) ? b.services : []).map((s) => String(s).slice(0, 40)).slice(0, 12);
+  if (services.length) db.prepare("UPDATE user SET services=? WHERE id=?").run(JSON.stringify(services), id);
+  const sampleTrade = services[0] || b.sample_trade || "";
+  if (sampleTrade) {
+    const label = (tradeList().find((t) => t.key === sampleTrade) || {}).label || "your trade";
+    try {
+      Jobs.createJob(id, {
+        title: `Sample bid — ${label}`, customer: "Sample Client",
+        from: b.from_lang || "es", to: b.to_lang || "en",
+        lines: sampleScope(sampleTrade),
+      });
+    } catch { /* sample is a nicety — never block onboarding */ }
+  }
   // Import their price book if pasted (best-effort — needs AI; never blocks onboarding).
   let skusImported = 0;
   if (String(b.priceList || "").trim()) {
