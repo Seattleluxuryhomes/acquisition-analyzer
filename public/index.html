@@ -3444,10 +3444,14 @@ function viewTeam(){
       : `<button class="btn sm" onclick="inviteSub('${s.id}')">📲 Send invite</button><button class="tlink" onclick="inviteSub('${s.id}','sms')">text</button>`;
     return `<div class="act-item" style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${esc(s.name)||esc(s.phone)||'Sub'}</div><div class="act-s">${esc(meta)||'—'}</div></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">${action}<button class="tlink danger" onclick="deleteSubRow('${s.id}')" title="Remove">✕</button></div></div>`;
   }).join('');
+  const setupFirst = !companyReady()
+    ? `<button class="setupnudge" onclick="go('settings')">First, name your company so your crew knows who's inviting them — then send the invites. <span class="nudge-go">Add company name ${icon('chevron',12)}</span></button>`
+    : '';
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
    <div class="h-eyebrow">Your crew</div>
    <h1 class="page">Build your team</h1>
    <div class="sub">Add your subs and send them the app. They get it free to receive your job scope — in their language. Get five of your crew on and the bids start flowing both ways.</div>
+   ${setupFirst}
    <div class="teamprog"><div class="teamprog-bar"><div class="teamprog-fill" style="width:${pct}%"></div></div>
      <div class="teamprog-lbl">${c.invited} of ${target} subs invited${c.invited>=target?' 🎉 — nice, your crew is on it':''}</div></div>
    <div class="panel" style="margin-top:14px"><div class="panel-h static"><span>➕ Add a sub</span></div>
@@ -3473,9 +3477,12 @@ async function saveSub(){
 // "X of 5" progress moves. App link is the live site; the sub taps it and signs up.
 function refLink(){ const code=(BILLING&&BILLING.referral&&BILLING.referral.code)||''; return location.origin+'/'+(code?('?r='+encodeURIComponent(code)):''); }
 async function inviteSub(id, mode){
+  // Company name first — so the invite says who it's from, not "your contractor".
+  if(!companyReady()){ toast('Add your company name first (Settings), then invite your crew.','warn',4500); go('settings'); return; }
   const s=(TEAM.items||[]).find(x=>x.id===id); if(!s) return;
   const appUrl=refLink();
-  const me=SETTINGS.name||SETTINGS.company||'your contractor';
+  const company=(SETTINGS.company||'').trim(), name=(SETTINGS.name||'').trim();
+  const me = name ? (company ? `${name} at ${company}` : name) : company;
   const first=((s.name||'').trim().split(/\s+/)[0]||'');
   const msg=`Hey${first?' '+first:''}, it's ${me}. I'm using Bidtranslator to send job scope and bids — it's free, take a look: ${appUrl}`;
   const digits=(s.phone||'').replace(/\D/g,'');
@@ -3488,9 +3495,14 @@ async function deleteSubRow(id){
   if(!confirm('Remove this sub from your crew?')) return;
   try{ const r=await api('/api/team/'+id,{method:'DELETE'}); TEAM.items=(TEAM.items||[]).filter(x=>x.id!==id); TEAM.counts=r.counts; render(); }catch(e){}
 }
+// True once the contractor has actually named their company (not the default).
+function companyReady(){ const c=(SETTINGS.company||'').trim(); return !!c && c!=='Your Company'; }
 // Dashboard nudge — until the GC has invited 5 subs, push the viral step front & center.
 function teamNudge(){
   if(!TEAM.loaded) return '';
+  // Company name comes first: don't push the crew invite until the GC has named their
+  // company, so the invite says who it's from instead of "your contractor".
+  if(!companyReady()) return '';
   const c=TEAM.counts||{invited:0,target:5}, target=c.target||5;
   if(c.invited>=target) return '';
   const left=target-c.invited;
