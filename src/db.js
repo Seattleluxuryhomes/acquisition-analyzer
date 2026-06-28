@@ -260,6 +260,11 @@ ensureColumns("user", [
   ["referral_code", "TEXT"],
   ["referred_by", "TEXT"],
   ["locked_monthly", "REAL"],
+  // Customer-facing website: services offered (JSON array of trade keys), a hero
+  // tagline, and a brand accent color. Drive the per-contractor site at /c/:id.
+  ["services", "TEXT"],
+  ["site_tagline", "TEXT"],
+  ["site_color", "TEXT"],
   // QuickBooks Online (per-contractor OAuth). Each contractor connects their own
   // company; paid payments sync to their books. Tokens are server-only.
   ["qbo_realm_id", "TEXT"],

@@ -20,6 +20,7 @@ import * as Team from "./src/team.js";
 import * as Dispatch from "./src/dispatch.js";
 import * as Referrals from "./src/referrals.js";
 import { renderScopeHTML } from "./src/scopeHtml.js";
+import { renderContractorSite } from "./src/contractorSite.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig, signProposalPdfUrl, verifyProposalPdfSig } from "./src/files.js";
@@ -130,6 +131,10 @@ function settingsOf(user) {
     // null → contractor hasn't customized; surface the default so the Settings
     // editor is pre-filled and proposals show terms out of the box.
     terms: user.terms == null ? DEFAULT_TERMS : user.terms,
+    // Customer-facing website settings.
+    services: (() => { try { return JSON.parse(user.services || "[]"); } catch { return []; } })(),
+    site_tagline: user.site_tagline || "",
+    site_color: user.site_color || "",
   };
 }
 
@@ -264,8 +269,10 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
     return res.status(413).json({ error: "Logo image is too large — please use a smaller file." });
   }
   if (typeof b.terms === "string" && b.terms.length > 6000) b.terms = b.terms.slice(0, 6000);
+  if ("services" in b) b.services = JSON.stringify((Array.isArray(b.services) ? b.services : []).slice(0, 12).map((s) => String(s).slice(0, 40)));
   const map = { company: "company", name: "name", phone: "phone", license: "license", whatsapp: "whatsapp",
-    from: "default_from_lang", to: "default_to_lang", logo: "logo", region: "region", terms: "terms" };
+    from: "default_from_lang", to: "default_to_lang", logo: "logo", region: "region", terms: "terms",
+    services: "services", site_tagline: "site_tagline", site_color: "site_color" };
   const sets = [], vals = [];
   for (const [k, col] of Object.entries(map)) {
     if (k in b) { sets.push(`${col}=?`); vals.push(String(b[k] ?? "")); }
@@ -688,6 +695,17 @@ app.post("/s/:id/accept", wrap((req, res) => {
   try { Notify.notify && Notify.notify({ type: "scope_accepted", userId: d.user_id, jobId: d.job_id, sub: out.accepted_by }); } catch {}
   res.json({ ok: true });
 }));
+
+// Public, login-free contractor website (each contractor's own customer-facing
+// site, built from their profile). The estimate form posts to their inbound-leads
+// endpoint, so a homeowner becomes a lead and the contractor bids it in the app.
+app.get("/c/:id", (req, res) => {
+  const u = db.prepare("SELECT * FROM user WHERE id=?").get(req.params.id);
+  if (!u) return res.status(404).send("Site not found.");
+  const token = Leads.getOrCreateToken(u.id);
+  const leadAction = `${baseUrl(req)}/api/inbound/leads?token=${encodeURIComponent(token)}`;
+  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction }));
+});
 
 // ---- Share a bid: a clean public link the contractor texts/emails ----
 app.get("/api/jobs/:id/share", requireAuth, wrap((req, res) => {
