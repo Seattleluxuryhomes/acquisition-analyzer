@@ -15,6 +15,7 @@ import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
 import * as SiteProjects from "./src/siteProjects.js";
 import { growthScore } from "./src/growth.js";
+import * as Inbox from "./src/inbox.js";
 import { tradeList, sampleScope, tradeLabel } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
@@ -311,10 +312,48 @@ app.post("/api/quickbooks/disconnect", requireAuth, wrap((req, res) => {
 // ---- Me / settings ----
 app.get("/api/me", requireAuth, (req, res) =>
   res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user),
-    admin: Analytics.isAdmin(req.user), leadsNew: Leads.countNew(req.user.id),
+    admin: Analytics.isAdmin(req.user), leadsNew: Leads.countNew(req.user.id), inboxNew: Inbox.countPending(req.user.id),
     ai: { build: aiConfigured(), transcribe: transcribeConfigured(), visualize: visualizeConfigured() } }));
 // AI Growth Score (Sprint 13) — the coaching screen; pure data, no AI.
 app.get("/api/me/growth", requireAuth, (req, res) => res.json(growthScore(req.user)));
+
+// ---- Approval Inbox (Sprint 14): AI proposes, the contractor approves ----
+app.get("/api/inbox", requireAuth, (req, res) =>
+  res.json({ items: Inbox.listPending(req.user.id) }));
+// Generate fresh suggestions (idempotent via dedupe). v1 source: review requests
+// for won jobs, AI-drafted (template fallback when AI is off).
+app.post("/api/inbox/generate", requireAuth, wrap(async (req, res) => {
+  const cands = Inbox.reviewCandidates(req.user.id, 10);
+  let created = 0;
+  for (const job of cands) {
+    let body;
+    try {
+      body = await generateReviewRequest(req.user, { customer: job.customer, jobTitle: job.title, company: req.user.company });
+    } catch {
+      body = `Hi ${job.customer || "there"}, thank you for trusting ${req.user.company || "us"} with ${job.title || "your project"}! ` +
+        `If you were happy with the work, would you mind leaving us a quick review? It really helps. Thank you!`;
+    }
+    const s = Inbox.create(req.user.id, {
+      type: "review_request", title: `Ask ${job.customer || "your client"} for a review`,
+      body, context: { jobId: job.id, customer: job.customer }, dedupeKey: "review:" + job.id,
+    });
+    if (s) created++;
+  }
+  res.json({ created, items: Inbox.listPending(req.user.id) });
+}));
+app.post("/api/inbox/:id/approve", requireAuth, wrap((req, res) => {
+  const b = req.body || {};
+  if (typeof b.body === "string" && b.body.trim()) Inbox.setBody(req.user.id, req.params.id, b.body); // contractor may edit before approving
+  const s = Inbox.approve(req.user.id, req.params.id);
+  if (!s) return res.status(404).json({ error: "Not found." });
+  track(req.user.id, "suggestion_approved", { type: s.type });
+  res.json({ suggestion: s });
+}));
+app.post("/api/inbox/:id/dismiss", requireAuth, wrap((req, res) => {
+  const s = Inbox.dismiss(req.user.id, req.params.id);
+  if (!s) return res.status(404).json({ error: "Not found." });
+  res.json({ suggestion: s });
+}));
 app.patch("/api/me", requireAuth, wrap((req, res) => {
   const b = req.body || {};
   if (typeof b.logo === "string" && b.logo.length > 250000) {

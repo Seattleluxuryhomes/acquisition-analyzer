@@ -285,6 +285,25 @@ CREATE TABLE IF NOT EXISTS site_project (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS siteproj_user_idx ON site_project(user_id);
+
+-- Approval Inbox (Sprint 14): the AI-employee primitive. The system PROPOSES an
+-- action (a drafted review request, a follow-up, a project to publish); the
+-- contractor approves with one tap. Nothing is ever sent/posted automatically.
+-- Every future AI capability (marketing manager, social, blog) writes cards here.
+CREATE TABLE IF NOT EXISTS suggestion (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,                -- review_request | follow_up | ...
+  title TEXT DEFAULT '',
+  body TEXT DEFAULT '',              -- the AI-drafted content the contractor approves
+  status TEXT DEFAULT 'pending',     -- pending | approved | dismissed
+  context TEXT DEFAULT '{}',         -- JSON: {jobId, leadId, customer, to, channel, ...}
+  dedupe_key TEXT,                   -- prevents re-suggesting the same thing
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS suggestion_user_idx ON suggestion(user_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS suggestion_dedupe ON suggestion(user_id, dedupe_key);
 `);
 
 // Migrate older databases that predate the billing columns.

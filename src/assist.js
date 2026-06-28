@@ -459,6 +459,30 @@ export async function generateProjectWriteup(user, { trade, jobTitle, area, scop
   return { title: String(data.title || "").trim().slice(0, 140), description: String(data.description || "").trim().slice(0, 400) };
 }
 
+// Approval Inbox: AI drafts a short, friendly review-request message the contractor
+// approves and sends. Grounded — no fabricated details, no fake urgency.
+export async function generateReviewRequest(user, { customer, jobTitle, company } = {}) {
+  if (!aiConfigured()) { const e = new Error("AI not configured."); e.code = "AI_UNCONFIGURED"; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Slow down a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const sys = "You write a short, warm review-request text message for a contractor to send a happy customer. " +
+    "ONE message, 2-3 sentences, first person, friendly, no emojis, no links (the contractor adds the link). " +
+    "Thank them, ask if they'd leave a quick review, keep it low-pressure. Return ONLY the message text, no quotes, no preamble.";
+  const facts = `Contractor: ${company || "the contractor"}\nCustomer: ${customer || "the customer"}\nJob: ${jobTitle || "their project"}`;
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 300, system: sys, messages: [{ role: "user", content: facts }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error."); e.status = 502; throw e; }
+  const out = await res.json();
+  return (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim().slice(0, 500);
+}
+
 // Compact price-book string for the prompt (cap so it never blows the token budget).
 function priceBookText(skus) {
   if (!Array.isArray(skus) || !skus.length) return "";

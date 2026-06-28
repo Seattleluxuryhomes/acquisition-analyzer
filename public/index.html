@@ -494,6 +494,12 @@
   .grow-row.done{opacity:.6}.grow-ic{flex:none;font-size:1.05rem}
   .grow-t{font-weight:600;font-size:.95rem}.grow-m{font-size:.8rem;color:var(--muted)}
   .grow-soon{font-size:.72rem;color:var(--muted);flex:none}
+  .inboxcard{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:14px;margin-bottom:12px}
+  .ic-type{font-family:"IBM Plex Mono";font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:3px}
+  .ic-t{font-weight:700;font-size:.98rem;margin-bottom:8px}
+  .ic-body{min-height:88px;font-size:.92rem;line-height:1.5}
+  .ic-actions{display:flex;gap:8px;margin-top:8px}.ic-actions .btn{flex:1}
+  .menu-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;background:var(--amber);color:#1F252C;border-radius:9px;font-size:.7rem;font-weight:800;margin-left:7px;padding:0 5px}
   .lead{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:11px;box-shadow:var(--shadow)}
   .lead-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .lead-who{font-weight:700;font-size:1.02rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -674,6 +680,7 @@
 <div id="sheet" class="sheet-wrap" style="display:none" onclick="closeMore()">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h">More</div>
+    <button class="sheet-i" onclick="go('inbox');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Approval Inbox<span id="inboxBadge" class="menu-badge" style="display:none"></span></button>
     <button class="sheet-i" onclick="go('growth');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Growth Score</button>
     <button class="sheet-i" onclick="go('leads');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Leads</button>
     <button class="sheet-i" onclick="go('team');closeMore()"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-.2em;margin-right:9px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Team &amp; subs</button>
@@ -902,6 +909,53 @@ function viewGrowth(){
     ${done.length?`<h3 class="grow-h" style="margin-top:22px">Done</h3>${done.map(rowOf).join('')}`:''}`;
 }
 function jsAttr(o){ return JSON.stringify(o).replace(/"/g,'&quot;'); }
+
+/* ============ Approval Inbox (Sprint 14): AI proposes, you approve ============ */
+let INBOX = JSON.parse(localStorage.getItem('bt_inbox')||'null') || {items:[]};
+async function loadInbox(){
+  if(!TOKEN||!online) return;
+  try{ const r=await api('/api/inbox'); INBOX={items:r.items||[]}; localStorage.setItem('bt_inbox', JSON.stringify(INBOX)); if(state.view==='inbox'||state.view==='home') render(); }catch(e){}
+}
+function inboxCount(){ return (INBOX&&INBOX.items&&INBOX.items.length)||0; }
+async function inboxGenerate(btn){
+  if(!online||!TOKEN){ toast('Connect to the internet.','warn'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Looking for suggestions…'; }
+  try{ const r=await api('/api/inbox/generate',{method:'POST'}); INBOX={items:r.items||[]}; localStorage.setItem('bt_inbox', JSON.stringify(INBOX));
+    toast(r.created?('✨ '+r.created+' new suggestion'+(r.created>1?'s':'')):'No new suggestions right now — finish a few jobs and check back.','ok',4500); render();
+  }catch(e){ toast(e.message||'Could not generate.','bad'); }
+  if(btn){ btn.disabled=false; btn.textContent='✨ Find suggestions'; }
+}
+function viewInbox(){
+  const items=(INBOX&&INBOX.items)||[];
+  const head=`<div class="h-eyebrow">Your AI assistant</div><h1 class="page">Approval Inbox</h1>
+    <div class="sub">Your AI assistant drafts the work — you approve with one tap. Nothing is ever sent without you.</div>
+    <button class="btn ghost full" style="margin:10px 0" onclick="inboxGenerate(this)">✨ Find suggestions</button>`;
+  if(!items.length) return head+`<div class="empty"><div class="big">You're all caught up</div><div class="sub">As you win jobs, your assistant will draft review requests &amp; follow-ups here.</div></div>`;
+  const card=(s)=>`<div class="inboxcard" id="ic_${s.id}">
+    <div class="ic-type">${s.type==='review_request'?'⭐ Review request':(s.type==='follow_up'?'💬 Lead follow-up':'✨ Suggestion')}</div>
+    <div class="ic-t">${esc(s.title)}</div>
+    <textarea class="input ic-body" id="icb_${s.id}">${esc(s.body)}</textarea>
+    <div class="ic-actions">
+      <button class="btn sm" onclick="inboxApprove('${s.id}','${esc(s.type)}')">✓ Approve</button>
+      <button class="btn ghost sm" onclick="inboxDismiss('${s.id}')">Dismiss</button>
+    </div></div>`;
+  return head+items.map(card).join('');
+}
+async function inboxApprove(id,type){
+  const ta=document.getElementById('icb_'+id); const body=(ta&&ta.value)||'';
+  try{
+    await api('/api/inbox/'+id+'/approve',{method:'POST',body:JSON.stringify({body})});
+    INBOX.items=(INBOX.items||[]).filter(x=>x.id!==id); localStorage.setItem('bt_inbox', JSON.stringify(INBOX));
+    // Approving = it's ready to send; hand the contractor the message to send themselves.
+    try{ await navigator.clipboard.writeText(body); }catch(e){}
+    toast('✓ Approved &amp; copied — paste it into a text to your customer.','ok',5000);
+    render();
+  }catch(e){ toast(e.message||'Could not approve.','bad'); }
+}
+async function inboxDismiss(id){
+  try{ await api('/api/inbox/'+id+'/dismiss',{method:'POST'}); INBOX.items=(INBOX.items||[]).filter(x=>x.id!==id); localStorage.setItem('bt_inbox', JSON.stringify(INBOX)); render(); }
+  catch(e){ toast(e.message||'Could not dismiss.','bad'); }
+}
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
 let NOTIFS = JSON.parse(localStorage.getItem('bt_notifs')||'null') || {items:[], unread:0};
@@ -1158,7 +1212,7 @@ async function doAuth(){
     }); persistSettings(); }
     state.view='home';
     render();
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth(), loadInbox()]);
     render();
   }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
 }
@@ -1378,6 +1432,7 @@ function render(){
   else if(state.view==='leads') { v.innerHTML = viewLeads(); if(!LEADS.loaded) loadLeads(); }
   else if(state.view==='team') { v.innerHTML = viewTeam(); if(!TEAM.loaded) loadTeam(); }
   else if(state.view==='growth') { v.innerHTML = viewGrowth(); if(!GROWTH) loadGrowth(); }
+  else if(state.view==='inbox') { v.innerHTML = viewInbox(); loadInbox(); }
   else if(state.view==='why') v.innerHTML = viewWhy();
   else if(state.view==='admin') { v.innerHTML = viewAdmin(); loadAdmin(); }
   else if(state.view==='paywall') v.innerHTML = viewPaywall();
@@ -4169,7 +4224,7 @@ function confettiBurst(gold){
   }
   render();
   if(TOKEN){
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth()]);
+    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth(), loadInbox()]);
     // Coming back from Stripe Connect onboarding — pull the fresh account status
     // and land the contractor on Setup so they see "Ready".
     if(paymentsReturn){ await refreshPayments(); state.view='settings'; }
