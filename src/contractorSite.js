@@ -65,10 +65,19 @@ export function renderContractorSite(profile = {}, opts = {}) {
 
   const ratingBadge = rating ? `<span class="stars">★★★★★</span> <span><b>${esc(rating)}</b>${reviews ? ` · ${esc(reviews)} Google reviews` : ""}</span>` : "";
 
+  // The 4th stat square — only ever show something that MEANS something: the real
+  // service area if set, else a real client rating, else a fast-response promise.
+  // (No empty "Local" filler.)
+  const stat4 = area
+    ? `<div class="s"><div class="ic">📍</div><div class="v">${esc(area)}</div><div class="l">Service area</div></div>`
+    : rating
+    ? `<div class="s"><div class="ic">⭐</div><div class="v">${esc(rating)}</div><div class="l">Client rating</div></div>`
+    : `<div class="s"><div class="ic">⚡</div><div class="v">Fast</div><div class="l">Response</div></div>`;
+
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${company}${area ? ` — ${area}` : ""} | Free Estimates</title>
-<meta name="description" content="${company} — ${tagline} ${license ? "Licensed &amp; insured." : ""} Free estimates." />
+<meta name="description" content="${company} — ${tagline} ${license ? "Licensed, bonded &amp; insured." : ""} Free estimates." />
 <meta name="theme-color" content="${accent}" />
 <meta property="og:type" content="website" /><meta property="og:title" content="${company}" />
 <meta property="og:description" content="${tagline} Free estimates." />
@@ -95,9 +104,12 @@ export function renderContractorSite(profile = {}, opts = {}) {
   .hero p.sub{font-size:1.2rem;color:var(--muted);max-width:46ch;margin:0 0 24px}
   .hero .cta{display:flex;gap:12px;flex-wrap:wrap}
   .badges{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px;color:var(--muted);font-size:.92rem;font-weight:600}.badges b{color:var(--ink)}.stars{color:var(--accent)}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
-  .stats .s{background:#fff;padding:22px 14px;text-align:center}.stats .v{font-size:1.5rem;font-weight:800;color:var(--blue)}.stats .l{color:var(--muted);font-size:.84rem}
-  @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.hero h1{font-size:2.1rem}}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:10px 0 6px}
+  .stats .s{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:22px 16px;text-align:center;box-shadow:0 4px 16px rgba(27,34,40,.05)}
+  .stats .s .ic{font-size:1.45rem;line-height:1}
+  .stats .v{font-size:1.5rem;font-weight:800;color:var(--blue);margin-top:7px;line-height:1.12;word-break:break-word}
+  .stats .l{color:var(--muted);font-size:.82rem;margin-top:4px;line-height:1.3}
+  @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr);gap:11px}.hero h1{font-size:2.1rem}}
   section{padding:58px 0}.eyebrow{color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:.1em;font-size:.74rem}
   h2{font-size:2rem;margin:6px 0 8px;font-weight:800}.lead{color:var(--muted);max-width:52ch}
   .about{background:var(--soft)}.about-p{font-size:1.12rem;line-height:1.7;color:var(--ink);max-width:60ch}
@@ -110,9 +122,12 @@ export function renderContractorSite(profile = {}, opts = {}) {
   .ba figure{margin:0;position:relative}.ba img{width:100%;height:170px;object-fit:cover;display:block}
   .ba figcaption{position:absolute;left:8px;bottom:8px;background:rgba(27,34,40,.82);color:#fff;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:6px}
   .gal{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;margin-top:12px}.gal img{width:100%;height:150px;object-fit:cover;display:block}
-  .svc{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px}
-  .card{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:22px}.card .ic{font-size:1.7rem}.card h3{margin:10px 0 6px;font-size:1.12rem}.card p{margin:0;color:var(--muted);font-size:.95rem}
-  @media(max-width:760px){.svc{grid-template-columns:1fr}}
+  .svc{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:32px}
+  .card{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:26px 22px;transition:transform .16s ease,box-shadow .16s ease}
+  .card:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(27,34,40,.09)}
+  .card .ic{width:54px;height:54px;border-radius:14px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:1.6rem}
+  .card h3{margin:15px 0 7px;font-size:1.14rem}.card p{margin:0;color:var(--muted);font-size:.96rem;line-height:1.55}
+  @media(max-width:760px){.svc{grid-template-columns:1fr;gap:14px}}
   .estimate{background:var(--blue);color:#fff;border-radius:22px;padding:46px 32px;text-align:center}
   .estimate h2{color:#fff}.estimate p{color:#cdd8e0;max-width:44ch;margin:0 auto 22px}
   .form{max-width:520px;margin:0 auto;display:grid;gap:10px;text-align:left}.form .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -129,19 +144,19 @@ export function renderContractorSite(profile = {}, opts = {}) {
 </div></header>
 
 <section class="hero"><div class="wrap">
-  <div class="eyebrow">${area ? esc(area) + " · " : ""}${license ? "Licensed &amp; insured" : "Free estimates"}</div>
+  <div class="eyebrow">${area ? esc(area) + " · " : ""}${license ? "Licensed, bonded &amp; insured" : "Free estimates"}</div>
   <h1>${offer && offer.headline ? esc(offer.headline) : tagline}</h1>
   <p class="sub">${offer && offer.subhead ? esc(offer.subhead) : `Get a free, no-pressure estimate from ${company} — fast.`}</p>
   ${offer
     ? `<div class="cta"><a class="btn lg" href="#estimate">${esc(offer.cta || "Get my free estimate")}</a></div>`
     : `<div class="cta"><a class="btn lg" href="#estimate">Get your free estimate</a>${phone ? `<a class="btn ghost lg" href="${telHref}">📞 Call us</a>` : ""}</div>`}
-  <div class="badges">${ratingBadge}${license ? `<span>🛡️ Licensed &amp; insured · <b>${license}</b></span>` : `<span>🛡️ <b>Licensed &amp; insured</b></span>`}<span>📋 <b>Free estimates</b></span></div>
+  <div class="badges">${ratingBadge}${license ? `<span>🛡️ Licensed, bonded &amp; insured · <b>${license}</b></span>` : `<span>🛡️ <b>Licensed, bonded &amp; insured</b></span>`}<span>📋 <b>Free estimates</b></span></div>
 </div></section>
 
-<div class="stats wrap"><div class="s"><div class="v">${services.length || "✓"}</div><div class="l">Services offered</div></div>
-  <div class="s"><div class="v">✓</div><div class="l">Licensed &amp; insured</div></div>
-  <div class="s"><div class="v">Free</div><div class="l">Estimates</div></div>
-  <div class="s"><div class="v">${area ? esc(area) : "Local"}</div><div class="l">Service area</div></div></div>
+<div class="stats wrap"><div class="s"><div class="ic">🛠️</div><div class="v">${services.length || "✓"}</div><div class="l">${services.length === 1 ? "Service offered" : "Services offered"}</div></div>
+  <div class="s"><div class="ic">🛡️</div><div class="v">✓</div><div class="l">Licensed, bonded &amp; insured</div></div>
+  <div class="s"><div class="ic">📋</div><div class="v">Free</div><div class="l">Estimates</div></div>
+  ${stat4}</div>
 
 <section class="wrap"><div class="eyebrow">What we do</div><h2>Services</h2>
   <p class="lead">Skilled, licensed work from ${company} — one team, one point of contact, one clean job.</p>
@@ -173,7 +188,7 @@ ${(Array.isArray(opts.projects) && opts.projects.length) ? `<section class="wrap
 <footer><div class="wrap"><div class="grid">
   <div><b>${company}</b>${area ? `<br>${esc(area)}` : ""}${phone ? `<br>📞 ${esc(phone)}` : ""}${email ? ` · ${email}` : ""}</div>
   <div><b>Get started</b><br><a href="#estimate" style="color:var(--accent);font-weight:700">Request a free estimate</a></div>
-  ${license ? `<div><b>Licensed &amp; insured</b><br>${license}<br>Free estimates</div>` : ""}
+  ${license ? `<div><b>Licensed, bonded &amp; insured</b><br>${license}<br>Free estimates</div>` : ""}
 </div><div class="powered">Website &amp; booking powered by <a href="https://bidtranslator.com">Bidtranslator</a></div></div></footer>
 <script>
   var f=document.getElementById('estForm'), action=${JSON.stringify(leadAction)};
