@@ -500,6 +500,8 @@
   .ic-body{min-height:88px;font-size:.92rem;line-height:1.5}
   .ic-actions{display:flex;gap:8px;margin-top:8px}.ic-actions .btn{flex:1}
   .menu-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;text-align:center;background:var(--amber);color:#1F252C;border-radius:9px;font-size:.7rem;font-weight:800;margin-left:7px;padding:0 5px}
+  .funnelrow{display:flex;align-items:center;gap:8px;padding:10px 11px;border:1px solid var(--line);border-radius:11px;margin-bottom:8px;background:var(--surface)}
+  .fn-t{font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fn-s{font-size:.8rem;color:var(--muted)}
   .lead{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:11px;box-shadow:var(--shadow)}
   .lead-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .lead-who{font-weight:700;font-size:1.02rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -956,6 +958,42 @@ async function inboxDismiss(id){
   try{ await api('/api/inbox/'+id+'/dismiss',{method:'POST'}); INBOX.items=(INBOX.items||[]).filter(x=>x.id!==id); localStorage.setItem('bt_inbox', JSON.stringify(INBOX)); render(); }
   catch(e){ toast(e.message||'Could not dismiss.','bad'); }
 }
+
+/* ============ AI Funnels (Sprint 15): offer pages ============ */
+let FUNNELS = JSON.parse(localStorage.getItem('bt_funnels')||'null') || {items:[],loaded:false};
+async function loadFunnels(){
+  if(!TOKEN||!online) return;
+  try{ const r=await api('/api/funnels'); FUNNELS={items:r.funnels||[],loaded:true}; localStorage.setItem('bt_funnels', JSON.stringify(FUNNELS)); if(state.view==='settings') render(); }catch(e){}
+}
+function funnelsBlock(){
+  if(!FUNNELS.loaded){ loadFunnels(); }
+  const items=(FUNNELS&&FUNNELS.items)||[];
+  if(!items.length) return '';
+  return items.map(f=>`<div class="funnelrow">
+    <div style="flex:1;min-width:0"><div class="fn-t">🎯 ${esc(f.headline||f.offer||f.name)}</div>
+      <div class="fn-s">${f.views} views · ${f.leads} leads · <b style="color:#2f6d4a">${f.conversion}%</b></div></div>
+    <button class="btn sm" onclick="copyFunnel('${f.id}')">📋 Link</button>
+    <button class="x-btn" onclick="delFunnel('${f.id}')">✕</button>
+  </div>`).join('');
+}
+async function createFunnel(btn){
+  if(!online||!TOKEN){ toast('Connect to the internet.','warn'); return; }
+  const svcKeys=(SETTINGS.services||[]);
+  const service = svcKeys.length===1 ? svcKeys[0] : (prompt('Which service is this offer for? (e.g. roofing, fencing, excavation)')||'').trim();
+  const offer = (prompt('What\'s the offer? (e.g. Free Estimate, Free Roof Inspection)','Free Estimate')||'').trim();
+  if(!offer){ return; }
+  if(btn){ btn.disabled=true; btn.textContent='Building your page…'; }
+  try{
+    const r=await api('/api/funnels',{method:'POST',body:JSON.stringify({service,offer})});
+    FUNNELS.items=[r.funnel,...(FUNNELS.items||[])]; localStorage.setItem('bt_funnels', JSON.stringify(FUNNELS));
+    try{ await navigator.clipboard.writeText(r.url); }catch(e){}
+    toast('✓ Offer page live — link copied. Run ads to it or text it to leads.','ok',5500);
+    render();
+  }catch(e){ toast(e.status===402?'Subscribe to use AI features.':(e.message||'Could not create.'),'bad',5000); }
+  if(btn){ btn.disabled=false; btn.textContent='✨ Create an offer page'; }
+}
+function copyFunnel(id){ const link=location.origin+'/f/'+id; try{ navigator.clipboard.writeText(link); toast('Link copied.','ok'); }catch(e){ prompt('Copy:',link); } }
+async function delFunnel(id){ if(!confirm('Delete this offer page?'))return; try{ await api('/api/funnels/'+id,{method:'DELETE'}); FUNNELS.items=(FUNNELS.items||[]).filter(f=>f.id!==id); render(); }catch(e){} }
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
 let NOTIFS = JSON.parse(localStorage.getItem('bt_notifs')||'null') || {items:[], unread:0};
@@ -3734,6 +3772,12 @@ function viewSettings(){
         ? `<div class="freecallout" style="margin-top:12px">✓ Custom website requested — we'll reach out to build it with you.</div>`
         : `<button class="btn ghost full" style="margin-top:8px" onclick="requestCustomSite(this)">✨ Want a custom-built website? Request one</button>
            <div class="hint" style="margin-top:4px">Like your free site, but built for you — your photos, your pages, your domain. Tap and we'll reach out.</div>`}
+    </div>
+    <div class="nb-sec" style="margin-top:16px">
+      <h3>AI Funnels 🎯</h3>
+      <div class="hint" style="margin-bottom:8px">High-converting offer pages, built by AI. Pick a service &amp; an offer — get a link to run ads or text to leads. Every submit drafts an AI follow-up in your Approval Inbox.</div>
+      <div id="funnelList">${funnelsBlock()}</div>
+      <button class="btn full" style="margin-top:8px" onclick="createFunnel(this)">✨ Create an offer page</button>
     </div>
     <div class="nb-sec" style="margin-top:16px">
       <h3>Languages</h3>

@@ -483,6 +483,58 @@ export async function generateReviewRequest(user, { customer, jobTitle, company 
   return (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim().slice(0, 500);
 }
 
+// AI Funnel: draft a fast, friendly first reply to a new lead, weaving in 2-3
+// suggested appointment windows. Grounded; no fabricated claims or pricing.
+export async function generateLeadFollowup(user, { lead, times, company } = {}) {
+  if (!aiConfigured()) { const e = new Error("AI not configured."); e.code = "AI_UNCONFIGURED"; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Slow down a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const sys = "You write the FIRST reply a contractor sends a new lead who just requested an estimate. " +
+    "Warm, prompt, professional; 2-4 sentences. Thank them, reference their project if given, and propose the " +
+    "appointment windows provided so they can pick one. No emojis, no pricing, no fabricated claims. " +
+    "Return ONLY the message text — no quotes, no preamble.";
+  const facts = `Contractor: ${company || "the contractor"}\nLead name: ${lead?.name || "there"}\n` +
+    `Project: ${lead?.job_type || lead?.message || "their project"}\nSuggested windows:\n- ${(times || []).join("\n- ")}`;
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 360, system: sys, messages: [{ role: "user", content: facts }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error."); e.status = 502; throw e; }
+  const out = await res.json();
+  return (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim().slice(0, 700);
+}
+
+// AI Funnel: an offer-led hero headline + subhead from a service + offer. Research
+// says lead with the OFFER ("Free Roof Inspection"), not the business.
+export async function generateFunnelHeadline(user, { service, offer, company } = {}) {
+  if (!aiConfigured()) { const e = new Error("AI not configured."); e.code = "AI_UNCONFIGURED"; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Slow down a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const sys = "You write a high-converting landing-page hero for a contractor. Lead with the OFFER and the " +
+    "benefit, not the business name. Respond with ONLY valid minified JSON: {\"headline\":string,\"subhead\":string}. " +
+    "headline <= 70 chars, offer-led (e.g. \"Free Roof Inspection — Booked in 60 Seconds\"). subhead <= 120 chars, " +
+    "reinforces speed/trust. No fabricated claims, no fake urgency, no emojis.";
+  const facts = `Company: ${company || "the contractor"}\nService: ${service || "home services"}\nOffer: ${offer || "Free estimate"}`;
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 300, system: sys, messages: [{ role: "user", content: facts }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error."); e.status = 502; throw e; }
+  const out = await res.json();
+  const data = parseModelJSON((out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n")) || {};
+  return { headline: String(data.headline || "").trim().slice(0, 140), subhead: String(data.subhead || "").trim().slice(0, 200) };
+}
+
 // Compact price-book string for the prompt (cap so it never blows the token budget).
 function priceBookText(skus) {
   if (!Array.isArray(skus) || !skus.length) return "";

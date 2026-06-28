@@ -50,6 +50,7 @@ export function renderContractorSite(profile = {}, opts = {}) {
   const area = esc(profile.region || profile.city || "");
   const tagline = esc(profile.site_tagline || "Quality work you can trust — done right, on time.");
   const about = esc(String(profile.site_about || "").trim());   // AI-written About paragraph (optional)
+  const offer = opts.offer && opts.offer.headline ? opts.offer : null;   // funnel offer mode (Sprint 15)
   const lookup = Object.fromEntries(tradeList().map((t) => [t.key, t]));
   const services = (Array.isArray(profile.services) ? profile.services : [])
     .map((k) => lookup[k]).filter(Boolean)
@@ -129,9 +130,11 @@ export function renderContractorSite(profile = {}, opts = {}) {
 
 <section class="hero"><div class="wrap">
   <div class="eyebrow">${area ? esc(area) + " · " : ""}${license ? "Licensed &amp; insured" : "Free estimates"}</div>
-  <h1>${tagline}</h1>
-  <p class="sub">Get a free, no-pressure estimate from ${company} — fast.</p>
-  <div class="cta"><a class="btn lg" href="#estimate">Get your free estimate</a>${phone ? `<a class="btn ghost lg" href="${telHref}">📞 Call us</a>` : ""}</div>
+  <h1>${offer && offer.headline ? esc(offer.headline) : tagline}</h1>
+  <p class="sub">${offer && offer.subhead ? esc(offer.subhead) : `Get a free, no-pressure estimate from ${company} — fast.`}</p>
+  ${offer
+    ? `<div class="cta"><a class="btn lg" href="#estimate">${esc(offer.cta || "Get my free estimate")}</a></div>`
+    : `<div class="cta"><a class="btn lg" href="#estimate">Get your free estimate</a>${phone ? `<a class="btn ghost lg" href="${telHref}">📞 Call us</a>` : ""}</div>`}
   <div class="badges">${ratingBadge}${license ? `<span>🛡️ Licensed &amp; insured · <b>${license}</b></span>` : `<span>🛡️ <b>Licensed &amp; insured</b></span>`}<span>📋 <b>Free estimates</b></span></div>
 </div></section>
 

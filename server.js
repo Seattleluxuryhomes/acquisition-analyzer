@@ -12,10 +12,11 @@ import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
+import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, generateReviewRequest, generateLeadFollowup, generateFunnelHeadline, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
 import * as SiteProjects from "./src/siteProjects.js";
 import { growthScore } from "./src/growth.js";
 import * as Inbox from "./src/inbox.js";
+import * as Funnels from "./src/funnels.js";
 import { tradeList, sampleScope, tradeLabel } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
@@ -810,13 +811,37 @@ app.post("/api/inbound/leads", wrap((req, res) => {
   // 2) external fan-out webhook (correct signature now — was passing a bad arg),
   try { Notify.notify("lead", { contractorId: userId, lead }); } catch {}
   // 3) email the contractor so they hear about it with the app closed.
-  const owner = db.prepare("SELECT email FROM user WHERE id=?").get(userId);
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
   if (owner && owner.email && Mail.mailConfigured()) {
     Mail.sendMail({ to: owner.email, subject: `New estimate request${lead.name ? " from " + lead.name : ""}`,
       html: leadEmailHtml(lead, baseUrl(req)), text: leadEmailText(lead, baseUrl(req)) }).catch(() => {});
   }
+  // Funnel attribution: count the conversion if this came from a funnel page.
+  const funnelId = String(req.query.f || (req.body && req.body.funnel) || "");
+  if (funnelId) Funnels.bumpLead(funnelId);
+  // Sprint 15 automation: draft an AI follow-up (with appointment times) into the
+  // Approval Inbox — fire-and-forget so the homeowner's submit returns instantly.
   res.json({ ok: true, id: lead.id });
+  if (owner) draftLeadFollowup(owner, lead).catch(() => {});
 }));
+
+// Draft a first-reply follow-up for a new lead and drop it in the Approval Inbox.
+// AI-written when configured, otherwise a solid template — either way one tap to send.
+async function draftLeadFollowup(owner, lead) {
+  const times = Funnels.suggestTimes(Date.now(), 3);
+  let body;
+  try {
+    body = await generateLeadFollowup(owner, { lead, times, company: owner.company });
+  } catch {
+    body = `Hi ${lead.name || "there"}, thanks for reaching out to ${owner.company || "us"} about ${lead.job_type || "your project"}! ` +
+      `I'd love to come take a look and get you an estimate. Would any of these work for you?\n` +
+      times.map((t) => `• ${t}`).join("\n") + `\nJust reply with what's best and I'll lock it in.`;
+  }
+  Inbox.create(owner.id, {
+    type: "follow_up", title: `Follow up with ${lead.name || "your new lead"}`,
+    body, context: { leadId: lead.id, name: lead.name || "", phone: lead.phone || "" }, dedupeKey: "followup:" + lead.id,
+  });
+}
 
 // ---- Scope dispatch: send a job's scope of work to a sub (free for the sub) ----
 app.post("/api/jobs/:id/dispatch", requireAuth, wrap((req, res) => {
@@ -1051,6 +1076,44 @@ app.post("/api/me/publish-site", requireAuth, wrap((req, res) => {
   track(req.user.id, "website_published", {});
   res.json({ ok: true, slug, branded_url: brandedSiteUrl(slug), live_url: baseUrl(req) + "/c/" + slug });
 }));
+
+// ---- AI Funnel (Sprint 15): offer-led landing pages ----
+app.get("/api/funnels", requireAuth, (req, res) => res.json({ funnels: Funnels.list(req.user.id) }));
+app.post("/api/funnels", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const b = req.body || {};
+  const service = String(b.service || "").slice(0, 80);
+  const offer = String(b.offer || "Free Estimate").slice(0, 80);
+  let head = { headline: b.headline || "", subhead: b.subhead || "" };
+  if (!b.headline) {
+    try { head = await generateFunnelHeadline(req.user, { service: tradeLabel(service) || service, offer, company: req.user.company }); }
+    catch { head = { headline: `${offer}${service ? " — " + (tradeLabel(service) || service) : ""}`, subhead: "Fast, free, no pressure. Get yours in 60 seconds." }; }
+  }
+  ensureSlug(req.user);
+  const f = Funnels.create(req.user.id, { name: b.name || offer, service, offer, headline: head.headline, subhead: head.subhead, cta: b.cta });
+  track(req.user.id, "funnel_created", { service });
+  res.json({ funnel: f, url: baseUrl(req) + "/f/" + f.id });
+}));
+app.delete("/api/funnels/:id", requireAuth, wrap((req, res) => {
+  if (!Funnels.remove(req.user.id, req.params.id)) return res.status(404).json({ error: "Not found." });
+  res.json({ ok: true });
+}));
+
+// Public funnel page — the existing site rendered in offer mode (single dominant
+// CTA, offer hero). A submit runs the same inbound-leads chain (with funnel attr).
+app.get("/f/:id", (req, res) => {
+  const f = Funnels.getPublic(req.params.id);
+  if (!f) return res.status(404).send("Page not found.");
+  const u = db.prepare("SELECT * FROM user WHERE id=?").get(f.user_id);
+  if (!u) return res.status(404).send("Page not found.");
+  Funnels.bumpView(f.id);
+  const token = Leads.getOrCreateToken(u.id);
+  const leadAction = `${baseUrl(req)}/api/inbound/leads?token=${encodeURIComponent(token)}&f=${encodeURIComponent(f.id)}`;
+  const projects = SiteProjects.listPublished(u.id).slice(0, 6).map((p) => ({
+    title: p.title, description: p.description, service: p.service, area: p.area,
+    before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)), after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
+  }));
+  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects, offer: { headline: f.headline, subhead: f.subhead, cta: f.cta } }));
+});
 
 // Public, login-free contractor website (built from their profile + published
 // projects). Resolves by user id OR slug. The estimate form posts to inbound-leads.

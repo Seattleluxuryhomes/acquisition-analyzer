@@ -304,6 +304,26 @@ CREATE TABLE IF NOT EXISTS suggestion (
 );
 CREATE INDEX IF NOT EXISTS suggestion_user_idx ON suggestion(user_id, status);
 CREATE UNIQUE INDEX IF NOT EXISTS suggestion_dedupe ON suggestion(user_id, dedupe_key);
+
+-- AI Funnel (Sprint 15): an offer-led landing page. The contractor picks a service
+-- + an offer ("Free Estimate"); AI writes the headline; the page renders the
+-- existing site in "offer mode" (single dominant CTA, offer hero). A submit runs
+-- the full native chain: lead -> follow-up draft (Approval Inbox) -> notify.
+CREATE TABLE IF NOT EXISTS funnel (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  name TEXT DEFAULT '',
+  service TEXT DEFAULT '',
+  offer TEXT DEFAULT '',          -- the offer ("Free Roof Inspection")
+  headline TEXT DEFAULT '',       -- AI-written hero headline
+  subhead TEXT DEFAULT '',
+  cta TEXT DEFAULT 'Get my free estimate',
+  views INTEGER DEFAULT 0,
+  leads INTEGER DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS funnel_user_idx ON funnel(user_id);
 `);
 
 // Migrate older databases that predate the billing columns.
