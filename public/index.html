@@ -1893,6 +1893,7 @@ function tradeBringHint(){
   return `<div class="hint" style="margin-top:6px">📐 For an accurate ${esc(t.label)} bid, also capture: ${esc(t.bring)}.</div>`;
 }
 function renderTradeHint(){ const el=document.getElementById('tradeHint'); if(el) el.innerHTML=tradeBringHint(); }
+function tradeLbl(key){ const t=TRADE_PICK.find(x=>x.key===key); return t?t.label:''; }
 
 // The capture screen is a persistent "AI notepad": its draft survives re-renders
 // and navigation so a dictated conversation can never be wiped. Cleared on build.
@@ -2089,6 +2090,37 @@ function buildManual(){
 }
 
 // Run the AI on an existing job's captured text and fill in lines/rooms/totals.
+// "Find missing money": AI reviews the draft against the trade's standard scope and
+// flags missing line items (caught profit) + upsells the contractor can add in a tap.
+let REVIEW = {}; // jobId -> [recommendations]
+async function reviewBidAI(id, btn){
+  const j=JOBS.find(x=>x.id===id)||currentJob(); if(!j) return;
+  if(!entitled()){ go('paywall'); return; }
+  if(!online){ toast('The bid check needs an internet connection.','warn'); return; }
+  const orig=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Checking your bid…'; }
+  try{
+    const r=await api('/api/assist/review',{method:'POST',body:JSON.stringify({ trade:j.trade||'', lines:(j.lines||[]).map(l=>({desc:l.desc,section:l.section})), text:j.transcript||'' })});
+    REVIEW[id]=r.recommendations||[]; renderReview(id);
+    if(!REVIEW[id].length) toast('Looks complete — no obvious gaps. 👍','ok');
+  }catch(e){ if(e.status===402){ gate402(e); } else toast(e.message||'Could not check the bid.','bad'); }
+  if(btn){ btn.disabled=false; btn.textContent=orig; }
+}
+function renderReview(id){
+  const box=document.getElementById('reviewBox'); if(!box) return;
+  const recs=REVIEW[id]||[];
+  if(!recs.length){ box.innerHTML=''; return; }
+  box.innerHTML=`<div class="panel" style="margin:10px 0;border-color:var(--amber)"><div class="panel-h static"><span>💡 ${recs.length} thing${recs.length===1?'':'s'} worth checking</span></div>`
+    + recs.map((r,i)=>`<div class="act-item" style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${r.type==='upsell'?'⬆️ ':'⚠️ '}${esc(r.item)}</div><div class="act-s">${esc(r.reason)}${r.impact?(' · <b style="color:#8fd0a8">'+esc(r.impact)+'</b>'):''}</div></div><button class="btn sm" onclick="addRecLine('${id}',${i})">+ Add</button></div>`).join('')
+    + `</div>`;
+}
+function addRecLine(id,i){
+  const j=JOBS.find(x=>x.id===id)||currentJob(); if(!j) return;
+  const r=(REVIEW[id]||[])[i]; if(!r) return;
+  j.lines.push({ id:uid(), section:'', desc:r.item, type:'fixed', price:0, hours:0, rate:0, qty:0, unit:'', furn:'you' });
+  REVIEW[id]=REVIEW[id].filter((_,k)=>k!==i);
+  touch(j); saveJobs(); render();
+  toast('Added — now set your price.','ok');
+}
 async function rebuildWithAI(id, btn){
   const j=JOBS.find(x=>x.id===id); if(!j) return;
   if(!entitled()){ go('paywall'); return; }
@@ -2326,6 +2358,9 @@ function tabBuild(j){
     <div class="note">AI prices are rough placeholders — you set the real numbers here.</div>
     ${(j.transcript||'').trim() ? `<button class="btn ghost full" style="margin-bottom:12px" onclick="rebuildWithAI('${j.id}',this)">🪄 Rebuild these lines from the conversation with AI</button>` : ''}
     ${lines||'<div class="hint">No line items yet.</div>'}
+    ${AI_BUILD && (j.lines||[]).length ? `<button class="btn ghost full" style="margin-top:10px" onclick="reviewBidAI('${j.id}',this)">💡 Find missing money — check this bid</button>
+      <div class="hint" style="margin-top:4px">AI checks your bid against what ${tradeLbl(j.trade)||'this trade'}'s bids usually include — so you don't eat costs you forgot to charge for.</div>` : ''}
+    <div id="reviewBox"></div>
     <select class="tplsel" onchange="applyTemplate(this.value);this.value=''" title="Add a typical starter checklist for your trade">
       <option value="">📋 Start from a trade template…</option>
       ${Object.entries(TRADE_TEMPLATES).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}

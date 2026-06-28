@@ -351,6 +351,61 @@ export async function assistBuild(user, { text, from_lang, to_lang, skus, trade 
   return sanitize(parseModelJSON(txt));
 }
 
+// "You're missing money" — review a DRAFT bid against the trade's standard scope
+// and flag (a) line items this trade's bids usually include but this one is missing
+// (caught profit) and (b) upsell/add-on opportunities. Uses the same trade brain as
+// the build, so the standards it checks against are the trade's real ones.
+function reviewSystemPrompt(trade) {
+  const brain = tradeBrain(trade);
+  return (
+    "You review a contractor's DRAFT bid for COMPLETENESS and PROFIT — like a sharp " +
+    "estimator looking over their shoulder. You are given the trade and the current " +
+    "line items. Find what's MISSING (line items this trade's bids almost always " +
+    "include but this draft doesn't — caught money the contractor would otherwise eat) " +
+    "and worthwhile UPSELLS (add-ons or better options to offer the client). Respond " +
+    "with ONLY valid minified JSON, no markdown: {\"recommendations\":[{\"type\":" +
+    "\"missing\"|\"upsell\",\"item\":string,\"reason\":string,\"impact\":string}]}. " +
+    "item = a short line-item name to add. reason = one short clause why it matters " +
+    "(e.g. \"most roofing bids include this; left off, you eat the cost\"). impact = a " +
+    "SHORT note on profit/cost effect (e.g. \"~$300–600\" or \"protects your margin\"; " +
+    "never a hard promise). Only suggest items genuinely standard for this trade or " +
+    "clearly implied by the scope — do NOT invent client-specific facts or random " +
+    "padding. At most 6 recommendations, most important first. If the bid looks " +
+    "complete, return an empty array. " +
+    (brain ? "TRADE STANDARD — check the draft against this trade's normal scope:\n" + brain + "\n" : "")
+  );
+}
+function sanitizeReview(data) {
+  const recs = (Array.isArray(data.recommendations) ? data.recommendations : []).slice(0, 6).map((r) => ({
+    type: r.type === "upsell" ? "upsell" : "missing",
+    item: String(r.item || "").slice(0, 120),
+    reason: String(r.reason || "").slice(0, 200),
+    impact: String(r.impact || "").slice(0, 60),
+  })).filter((r) => r.item);
+  return { recommendations: recs };
+}
+export async function reviewBid(user, { trade, lines, text }) {
+  if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
+  const list = (Array.isArray(lines) ? lines : []).map((l) => "- " + String(l.desc || "").slice(0, 120) + (l.section ? " [" + l.section + "]" : "")).join("\n");
+  if (!list.trim() && !String(text || "").trim()) { const e = new Error("Add some line items first, then check the bid."); e.status = 400; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("One moment — too many checks at once."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  const content = "CURRENT BID LINE ITEMS:\n" + (list || "(none yet)") + (text ? "\n\nJOB NOTES:\n" + String(text).slice(0, 4000) : "");
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 1100, system: reviewSystemPrompt(trade), messages: [{ role: "user", content }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json();
+  const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  return sanitizeReview(parseModelJSON(txt));
+}
+
 // Voice-first intake: read the contractor's spoken job description and pull out the
 // structured fields that auto-fill the New Job screen — client, address, scope,
 // materials, labor, timeline, notes, an auto project name, and follow-up questions.

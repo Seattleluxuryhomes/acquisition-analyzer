@@ -12,7 +12,7 @@ import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, assistIntake, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
+import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
 import { tradeList } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
@@ -522,6 +522,11 @@ app.post("/api/assist/intake", requireAuth, Billing.requireEntitled, wrap(async 
 }));
 // Trade estimator library: the list of trades (with what to bring) for the picker.
 app.get("/api/trades", requireAuth, (req, res) => res.json({ trades: tradeList() }));
+// "You're missing money": review a draft bid against the trade's standard scope.
+app.post("/api/assist/review", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const { trade, lines, text } = req.body || {};
+  res.json(await reviewBid(req.user, { trade, lines, text }));
+}));
 // Universal voice fallback: transcribe a browser recording (iOS Safari has no Web Speech).
 app.post("/api/assist/transcribe", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
   const { audio, lang } = req.body || {};
