@@ -85,6 +85,37 @@ piece of *stored structured content*. The spine has begun.
 
 ---
 
+## Sprint 12 — AI Website Engine (status)
+
+**Built & shipped (real, tested):**
+- `site_project` entity — a finished job published to the website (AI write-up +
+  before/after photo refs). The spine now *accumulates content*.
+- **"Publish this project to your website"** on a job → AI writes an SEO project
+  description → chosen photos become a Before & After gallery on `/c/:id`.
+- **Safe public photos** — `/pub/photo/:id` serves a photo ONLY if it's attached to
+  a published project (`isPhotoPublic` gate). Private job photos still require the
+  HMAC route. *Verified: an unpublished photo is 404 via /pub.*
+- **Publish Website** button + branded slug (`<slug>.<BT_SITE_DOMAIN>`), site resolves
+  by id **or** slug. **Connect Custom Domain** = UI stub (coming soon).
+- **Name-agnostic:** base domain is one env knob (`BT_SITE_DOMAIN`) so locking the
+  brand (BidVoice / Bidtranslator / …) is a one-line change — no rebuild.
+
+**Architecture only — NOT built (per the ticket):**
+- *Subdomain deploy* (`johnsfencing.bidvoice.ai`): wildcard DNS `*.<domain>` → our
+  reverse proxy → resolve subdomain to `site_slug` → already-rendered `/c/:slug`.
+  No new "deploy" step needed — the site is live the moment a project is published;
+  the subdomain is just a vanity route over the same entity.
+- *Custom domains + SSL*: contractor adds a CNAME → on-demand cert (Cloudflare/host
+  ACME) → map hostname → `site_slug`. The recurring-revenue tier.
+- *Portability / hosting providers* (Spaceship/Cloudflare/Netlify/static export):
+  because content is **clean structured data**, a static-export adapter can render
+  the same entity to flat HTML for any host later. Seam exists; not implemented.
+
+**Decision blocking the deploy layer:** the **name** (`*.bidvoice.ai` vs
+`*.bidtranslator.com`). The engine is built to flip on one env var once decided.
+
+---
+
 ## The principle that keeps it alive
 Every month, the contractor should feel their subscription got **meaningfully more
 valuable** — a new draft, a better score, a published project, a fresh page — with

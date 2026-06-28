@@ -418,6 +418,47 @@ export async function generateSiteCopy(user, { company, services, region, licens
   };
 }
 
+// Living website: AI writes an SEO-friendly project write-up when a contractor
+// publishes a finished job to their website. Grounded in the job facts; must not
+// invent details, prices, or the customer's name/address.
+function projectWriteupSystemPrompt() {
+  return (
+    "You write short SEO-friendly project descriptions for a contractor's website portfolio. " +
+    "Given a completed job's facts, write a title and a 2-3 sentence description a prospective " +
+    "customer would find reassuring and that helps the page rank for the trade + area. Respond with " +
+    "ONLY valid minified JSON, no markdown: {\"title\":string,\"description\":string}. " +
+    "title = a concise project title with the trade and area if given (<= 90 chars, e.g. \"Cedar Fence Installation in Ballard\"). " +
+    "description = <= 360 chars, third person, factual, benefit-led. " +
+    "STRICT: do NOT include the customer's name, street address, or price. Do NOT invent materials, " +
+    "measurements, durations, or claims not provided. No emojis, no hashtags."
+  );
+}
+export async function generateProjectWriteup(user, { trade, jobTitle, area, scope } = {}) {
+  if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("Too many requests in a short window — wait a moment."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; throw e; }
+  const facts = [
+    trade ? `Trade: ${trade}` : "",
+    jobTitle ? `Job: ${jobTitle}` : "",
+    area ? `Area: ${area}` : "",
+    (Array.isArray(scope) && scope.length) ? `Work done:\n- ${scope.slice(0, 12).join("\n- ")}` : "",
+  ].filter(Boolean).join("\n") || "A completed residential project.";
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 500, system: projectWriteupSystemPrompt(), messages: [{ role: "user", content: "FACTS:\n" + facts }] }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json();
+  const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  const data = parseModelJSON(txt) || {};
+  return { title: String(data.title || "").trim().slice(0, 140), description: String(data.description || "").trim().slice(0, 400) };
+}
+
 // Compact price-book string for the prompt (cap so it never blows the token budget).
 function priceBookText(skus) {
   if (!Array.isArray(skus) || !skus.length) return "";

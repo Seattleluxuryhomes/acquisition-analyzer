@@ -331,6 +331,12 @@
   .dpx img{width:100%;height:74px;object-fit:cover;border-radius:8px;border:2px solid var(--line,#e2dac9);opacity:.5}
   .dpx input{position:absolute;top:5px;left:5px;width:18px;height:18px}
   .dpx input:checked ~ img{opacity:1;border-color:var(--amber,#CF7F18)}
+  .ppgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-height:300px;overflow:auto}
+  .ppx{position:relative;padding:0;border:none;background:none;cursor:pointer;border-radius:8px;overflow:hidden}
+  .ppx img{width:100%;height:80px;object-fit:cover;display:block;border:2px solid var(--line,#e2dac9);border-radius:8px;opacity:.45}
+  .ppx.after img{opacity:1;border-color:#2f6d4a}.ppx.before img{opacity:1;border-color:var(--blue,#1E4259)}
+  .ppx-b{position:absolute;top:5px;left:5px;background:rgba(31,37,44,.85);color:#fff;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:5px}
+  .ppx-off{position:absolute;bottom:6px;left:0;right:0;text-align:center;color:#fff;font-size:.62rem;text-shadow:0 1px 3px rgba(0,0,0,.7)}
   .permit-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
   .permit{border:1px solid var(--line,#e2dac9);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--surface2,#f3eee3)}
   .permit-top,.permit-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
@@ -708,6 +714,12 @@
     <div id="scanBody"></div>
   </div>
 </div>
+<div id="pubProjSheet" class="sheet-wrap" style="display:none" onclick="closePubProj()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-h">🌐 Publish to your website</div>
+    <div id="pubProjBody"></div>
+  </div>
+</div>
 <input id="scanCam" type="file" accept="image/*" capture="environment" style="display:none" onchange="scanPick(this)"/>
 <input id="scanLib" type="file" accept="image/*" style="display:none" onchange="scanPick(this)"/>
 <div id="capPhotoSheet" class="sheet-wrap" style="display:none" onclick="closeCapPhotoSheet()">
@@ -822,7 +834,7 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   LEADS_NEW = r.leadsNew||0; if(state.view==='home') render();
   if(state.view==='capture') render();
   // Hydrate tax settings from the server unless the user has local unsaved edits.
-  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_about!==undefined) SETTINGS.site_about=r.settings.site_about; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
+  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_about!==undefined) SETTINGS.site_about=r.settings.site_about; if(r.settings.site_published!==undefined) SETTINGS.site_published=r.settings.site_published; if(r.settings.site_branded_url!==undefined) SETTINGS.site_branded_url=r.settings.site_branded_url; if(r.settings.site_slug!==undefined) SETTINGS.site_slug=r.settings.site_slug; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
 }catch(e){} }
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
@@ -1365,6 +1377,16 @@ async function writeSiteAI(btn){
     render();
   }catch(e){ toast(e.status===402?'Subscribe to use AI features.':(e.code==='AI_UNCONFIGURED'?'AI isn’t switched on yet (add ANTHROPIC_API_KEY).':(e.message||'Could not write it.')),'bad',5000); }
   if(btn){ btn.disabled=false; btn.textContent='✨ Write my website with AI'; }
+}
+async function publishWebsite(btn){
+  if(!online||!TOKEN){ toast('Connect to the internet to publish.','warn'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Publishing…'; }
+  try{
+    const r=await api('/api/me/publish-site',{method:'POST'});
+    SETTINGS.site_published=true; SETTINGS.site_slug=r.slug||''; SETTINGS.site_branded_url=r.branded_url||''; persistSettings();
+    toast('🌐 Your website is live!','ok',5000);
+    render();
+  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='🌐 Publish Website'; } toast(e.message||'Could not publish.','bad'); }
 }
 function toggleService(key){
   let arr=Array.isArray(SETTINGS.services)?SETTINGS.services.slice():[];
@@ -2530,6 +2552,12 @@ function tabBuild(j){
       <div id="coStatus">${coStatusHTML(j.id)}</div>
     </div>
 
+    <div class="dispatchbox" style="margin-top:14px">
+      <button class="btn ghost full" onclick="openPubProj('${j.id}')">🌐 Publish this project to your website</button>
+      <div class="hint" style="margin-top:6px">Finished? One tap adds it to your website's Before &amp; After gallery — AI writes the description. Your site grows itself.</div>
+      <div id="pubProjStatus">${pubProjStatusHTML(j.id)}</div>
+    </div>
+
     <div class="private"><div class="pl">Private — not shown to client</div>
       <label class="fld" style="margin-top:8px">Profit margin %</label>
       <input class="input" type="number" min="0" max="99" value="${j.margin||0}" oninput="updJob('margin',this.value)" style="max-width:140px"/>
@@ -3306,6 +3334,57 @@ function scanAddAll(){
   ms.forEach((_,i)=>{ if(!SCAN.added[i]) scanAdd(i); });
   toast('Materials added to the bid.','ok');
 }
+
+/* ---- Living website: publish a finished project → Before & After gallery ---- */
+let PUBPROJS={}; // jobId -> [project]
+let PUBPROJ={jobId:null, roles:{}}; // photoId -> 'after'|'before'|'off'
+async function loadPubProjs(jobId){
+  if(!TOKEN||!online){ PUBPROJS[jobId]=PUBPROJS[jobId]||[]; return; }
+  try{ const r=await api('/api/jobs/'+jobId+'/site-projects'); PUBPROJS[jobId]=r.projects||[]; if(state.view==='job') render(); }
+  catch(e){ PUBPROJS[jobId]=PUBPROJS[jobId]||[]; }
+}
+function pubProjStatusHTML(jobId){
+  const arr=PUBPROJS[jobId]; if(arr===undefined){ loadPubProjs(jobId); return ''; }
+  if(!arr.length) return '';
+  return '<div style="margin-top:10px">'+arr.map(p=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">🌐 ${esc(p.title||'Published project')}</div><div class="act-s">Live on your website${p.area?(' · '+esc(p.area)):''}</div></div><a class="btn sm" href="/c/'+(USER&&USER.id||'')+'" target="_blank">View</a></div>`).join('')+'</div>';
+}
+function openPubProj(jobId){
+  const j=JOBS.find(x=>x.id===jobId)||currentJob(); if(!j) return;
+  PUBPROJ={jobId, roles:{}};
+  (j.photos||[]).filter(p=>p.id).forEach((p,i)=>{ PUBPROJ.roles[p.id]= i===0?'before':'after'; }); // first = before by default
+  renderPubProjBody(j); const el=document.getElementById('pubProjSheet'); if(el) el.style.display='flex';
+}
+function closePubProj(){ const el=document.getElementById('pubProjSheet'); if(el) el.style.display='none'; }
+function cyclePubPhoto(id){ const r=PUBPROJ.roles[id]||'off'; PUBPROJ.roles[id]= r==='after'?'before':(r==='before'?'off':'after'); const j=currentJob(); if(j) renderPubProjBody(j); }
+function renderPubProjBody(j){
+  const body=document.getElementById('pubProjBody'); if(!body) return;
+  const photos=(j.photos||[]).filter(p=>p.id);
+  if(!photos.length){ body.innerHTML=`<div class="hint">Add photos to this job first (online), then publish it to your website.</div>`; return; }
+  const badge={after:'After',before:'Before',off:''};
+  const grid=photos.map(p=>{const role=PUBPROJ.roles[p.id]||'off';return `<button class="ppx ${role}" onclick="cyclePubPhoto('${escAttr(p.id)}')"><img src="${p.url}" alt="project"/>${role!=='off'?`<span class="ppx-b">${badge[role]}</span>`:'<span class="ppx-off">tap to add</span>'}</button>`;}).join('');
+  body.innerHTML=`
+    <div class="hint" style="margin-bottom:8px">Tap photos to feature them. Tap again to mark <b>Before</b>, again to remove. AI writes the description — you don't type a thing.</div>
+    <div class="ppgrid">${grid}</div>
+    <button class="btn full" style="margin-top:12px" onclick="publishProj('${j.id}',this)">🌐 Publish to my website</button>
+    <div class="hint" style="margin-top:6px;text-align:center">Only the photos you pick go public. Everything else stays private.</div>
+    <div id="pubProjResult"></div>`;
+}
+async function publishProj(jobId,btn){
+  const after=Object.keys(PUBPROJ.roles).filter(id=>PUBPROJ.roles[id]==='after');
+  const before=Object.keys(PUBPROJ.roles).filter(id=>PUBPROJ.roles[id]==='before');
+  if(!after.length && !before.length){ toast('Tap at least one photo to feature.','warn'); return; }
+  if(!online||!TOKEN){ toast('Connect to the internet to publish.','warn'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Publishing…'; }
+  try{
+    const r=await api('/api/jobs/'+jobId+'/publish-project',{method:'POST',body:JSON.stringify({beforeIds:before,afterIds:after})});
+    PUBPROJS[jobId]=[r.project, ...(PUBPROJS[jobId]||[])];
+    if(SETTINGS){ SETTINGS.site_published=true; persistSettings(); }
+    const rr=document.getElementById('pubProjResult');
+    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ <b>${esc(r.project.title||'Project')}</b> is live on your website.</div><a class="btn sm" style="margin-top:6px;display:inline-block" href="${esc(r.siteUrl||('/c/'+(USER&&USER.id||'')))}" target="_blank">View your website →</a>`;
+    render();
+    toast('✓ Published to your website.','ok',5000);
+  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='🌐 Publish to my website'; } toast(e.status===402?'Subscribe to use AI features.':(e.message||'Could not publish.'),'bad',5000); }
+}
 function viewCatalog(){
   const sk=CATALOG.skus||[], pv=CATALOG.preview;
   return `<div class="h-eyebrow">Price book</div><h1 class="page">Your SKUs</h1>
@@ -3523,6 +3602,11 @@ function viewSettings(){
       <label class="fld" style="margin-top:10px">Services you offer <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(tap to add)</span></label>
       <div class="svcpick">${TRADE_PICK.map(t=>{const on=(SETTINGS.services||[]).includes(t.key);return `<button class="svcchip ${on?'on':''}" onclick="toggleService('${t.key}')">${t.emoji} ${esc(t.label)}</button>`;}).join('')}</div>
       <button class="btn full" style="margin-top:12px" onclick="openMySite()">🌐 View your website</button>
+      ${SETTINGS.site_published
+        ? `<div class="freecallout" style="margin-top:12px">🌐 <b>Your website is live.</b><div style="margin-top:4px;font-size:.9rem">${esc(SETTINGS.site_branded_url||'')} <span style="color:var(--muted)">(coming soon)</span></div></div>`
+        : `<button class="btn blue full" style="margin-top:8px" onclick="publishWebsite(this)">🌐 Publish Website</button>
+           <div class="hint" style="margin-top:4px">Make it live and get your address. Free, hosted for you — no setup.</div>`}
+      <button class="btn ghost full" style="margin-top:8px" onclick="toast('Custom domains are coming soon — you’ll be able to connect yourcompany.com. Want it now? Tap “Request a custom website”.','ok',5000)">🔗 Connect a custom domain <span style="color:var(--muted);font-weight:400">(coming soon)</span></button>
       ${SETTINGS.site_requested
         ? `<div class="freecallout" style="margin-top:12px">✓ Custom website requested — we'll reach out to build it with you.</div>`
         : `<button class="btn ghost full" style="margin-top:8px" onclick="requestCustomSite(this)">✨ Want a custom-built website? Request one</button>

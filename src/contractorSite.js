@@ -100,6 +100,15 @@ export function renderContractorSite(profile = {}, opts = {}) {
   section{padding:58px 0}.eyebrow{color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:.1em;font-size:.74rem}
   h2{font-size:2rem;margin:6px 0 8px;font-weight:800}.lead{color:var(--muted);max-width:52ch}
   .about{background:var(--soft)}.about-p{font-size:1.12rem;line-height:1.7;color:var(--ink);max-width:60ch}
+  .projects{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;margin-top:26px}
+  @media(max-width:760px){.projects{grid-template-columns:1fr}}
+  .proj{border:1px solid var(--rule);border-radius:14px;overflow:hidden;background:#fff}
+  .proj h3{margin:0;padding:16px 18px 2px;font-size:1.12rem}.proj-meta{padding:0 18px;color:var(--accent);font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
+  .proj-d{margin:0;padding:10px 18px 18px;color:var(--muted);font-size:.95rem}
+  .ba{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:12px}
+  .ba figure{margin:0;position:relative}.ba img{width:100%;height:170px;object-fit:cover;display:block}
+  .ba figcaption{position:absolute;left:8px;bottom:8px;background:rgba(27,34,40,.82);color:#fff;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:6px}
+  .gal{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;margin-top:12px}.gal img{width:100%;height:150px;object-fit:cover;display:block}
   .svc{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px}
   .card{background:#fff;border:1px solid var(--rule);border-radius:14px;padding:22px}.card .ic{font-size:1.7rem}.card h3{margin:10px 0 6px;font-size:1.12rem}.card p{margin:0;color:var(--muted);font-size:.95rem}
   @media(max-width:760px){.svc{grid-template-columns:1fr}}
@@ -136,6 +145,14 @@ export function renderContractorSite(profile = {}, opts = {}) {
   <div class="svc">${svcCards}</div></section>
 
 ${about ? `<section class="wrap about"><div class="eyebrow">About</div><h2>About ${company}</h2><p class="lead about-p">${about}</p></section>` : ""}
+
+${(Array.isArray(opts.projects) && opts.projects.length) ? `<section class="wrap work"><div class="eyebrow">Recent work</div><h2>Before &amp; After</h2>
+  <div class="projects">${opts.projects.map((p) => {
+    const ba = (p.before && p.before.length && p.after && p.after.length)
+      ? `<div class="ba"><figure><img src="${esc(p.before[0])}" alt="Before"/><figcaption>Before</figcaption></figure><figure><img src="${esc(p.after[0])}" alt="After"/><figcaption>After</figcaption></figure></div>`
+      : `<div class="gal">${[...(p.after || []), ...(p.before || [])].slice(0, 4).map((u) => `<img src="${esc(u)}" alt="${esc(p.title)}"/>`).join("")}</div>`;
+    return `<article class="proj"><h3>${esc(p.title)}</h3>${(p.service || p.area) ? `<div class="proj-meta">${esc([p.service, p.area].filter(Boolean).join(" · "))}</div>` : ""}${ba}${p.description ? `<p class="proj-d">${esc(p.description)}</p>` : ""}</article>`;
+  }).join("")}</div></section>` : ""}
 
 <section class="wrap" id="estimate"><div class="estimate">
   <div class="eyebrow" style="color:#e7b35c">Free estimate</div>

@@ -264,6 +264,27 @@ CREATE TABLE IF NOT EXISTS change_order (
 );
 CREATE INDEX IF NOT EXISTS co_job_idx ON change_order(job_id);
 CREATE INDEX IF NOT EXISTS co_user_idx ON change_order(user_id);
+
+-- Living website (Sprint 12 — AI Website Engine): a completed job the contractor
+-- chose to publish to their website. The website is a living entity that writes
+-- content here; the /c/:id site renders a Before & After gallery + project pages
+-- from these rows. Photos referenced here are intentionally PUBLIC (the contractor
+-- opted in) and served via /pub/photo/:id, gated on membership in a published row.
+CREATE TABLE IF NOT EXISTS site_project (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  job_id TEXT REFERENCES job(id) ON DELETE SET NULL,
+  title TEXT DEFAULT '',
+  description TEXT DEFAULT '',       -- AI-written SEO project write-up
+  service TEXT DEFAULT '',           -- trade key/label for the project
+  area TEXT DEFAULT '',              -- neighborhood/city (no full address — privacy)
+  before_ids TEXT DEFAULT '[]',      -- JSON photo ids shown as "before"
+  after_ids TEXT DEFAULT '[]',       -- JSON photo ids shown as "after"
+  status TEXT DEFAULT 'published',   -- published | hidden
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS siteproj_user_idx ON site_project(user_id);
 `);
 
 // Migrate older databases that predate the billing columns.
@@ -339,6 +360,10 @@ ensureColumns("user", [
   // AI-written website copy (the first piece of the "living website" content the
   // contractor never has to write). Rendered into the /c/:id About section.
   ["site_about", "TEXT"],
+  // Living website (Sprint 12): a URL-friendly slug for the branded address
+  // (<slug>.<BT_SITE_DOMAIN>, name-agnostic) and whether they've hit "Publish".
+  ["site_slug", "TEXT"],
+  ["site_published", "INTEGER DEFAULT 0"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).

@@ -12,7 +12,8 @@ import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
+import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
+import * as SiteProjects from "./src/siteProjects.js";
 import { tradeList, sampleScope, tradeLabel } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
@@ -108,6 +109,26 @@ const baseUrl = (req) =>
     `${(req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0].trim()}://${req.get("host")}`
   ).replace(/\/+$/, "");
 
+// ---- Living website (Sprint 12) helpers ----
+// Name-agnostic branded address: the base domain is a single knob, so the day the
+// brand is locked (BidVoice/Bidtranslator/…) the whole engine flips with one env var.
+const SITE_DOMAIN = () => (process.env.BT_SITE_DOMAIN || "bidvoice.ai").trim().toLowerCase();
+const brandedSiteUrl = (slug) => (slug ? `https://${slug}.${SITE_DOMAIN()}` : "");
+// Public, signature-free URL for a photo PUBLISHED to a project (the /pub route
+// only serves photos attached to a published project — see isPhotoPublic).
+const pubPhotoUrl = (req, pid) => `${baseUrl(req)}/pub/photo/${pid}`;
+function slugify(s) {
+  return String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+}
+function ensureSlug(user) {
+  if (user.site_slug) return user.site_slug;
+  const base = slugify(user.company) || slugify(user.name) || ("site-" + String(user.id).slice(0, 6).toLowerCase());
+  let slug = base, n = 1;
+  while (db.prepare("SELECT id FROM user WHERE site_slug=? AND id<>?").get(slug, user.id)) slug = base + "-" + (++n);
+  db.prepare("UPDATE user SET site_slug=? WHERE id=?").run(slug, user.id);
+  return slug;
+}
+
 // Deferring fn into .then() means synchronous throws become rejections too.
 const wrap = (fn) => (req, res) => Promise.resolve().then(() => fn(req, res)).catch((err) => {
   // Surface unexpected (500-class) failures in the server log so issues like a
@@ -140,6 +161,10 @@ function settingsOf(user) {
     site_tagline: user.site_tagline || "",
     site_color: user.site_color || "",
     site_about: user.site_about || "",
+    // Living website (Sprint 12): publish state + branded/working URLs.
+    site_slug: user.site_slug || "",
+    site_published: !!user.site_published,
+    site_branded_url: brandedSiteUrl(user.site_slug || ""),
     // Custom-site request: whether this contractor has asked us to build them one.
     site_requested: !!user.site_request_at,
     site_request_note: user.site_request_note || "",
@@ -925,15 +950,81 @@ app.post("/co/:id/decline", wrap((req, res) => {
   res.json({ ok: true });
 }));
 
-// Public, login-free contractor website (each contractor's own customer-facing
-// site, built from their profile). The estimate form posts to their inbound-leads
-// endpoint, so a homeowner becomes a lead and the contractor bids it in the app.
+// Public, signature-free photo — ONLY for photos the contractor published to a
+// project (isPhotoPublic gates it). Private job photos still require the HMAC route,
+// so opting a project public never exposes anything else.
+app.get("/pub/photo/:pid", (req, res) => {
+  const pid = req.params.pid;
+  if (!SiteProjects.isPhotoPublic(pid)) return res.status(404).send("Not found.");
+  const row = db.prepare("SELECT filename, mime FROM photo WHERE id=?").get(pid);
+  if (!row) return res.status(404).send("Not found.");
+  res.set("Cache-Control", "public, max-age=86400");
+  if (row.mime) res.type(row.mime);
+  fs.createReadStream(path.join(PHOTO_DIR, row.filename)).pipe(res);
+});
+
+// Living website (Sprint 12) — publish a finished job to the website. AI writes the
+// project description; chosen photos become a Before & After gallery. One tap, no
+// website builder. Save Time + Make Money: a growing portfolio that ranks + converts.
+app.post("/api/jobs/:id/publish-project", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
+  const job = Jobs.getJob(req.user.id, req.params.id);
+  if (!job) return res.status(404).json({ error: "Job not found." });
+  const b = req.body || {};
+  // Neighborhood only (never the full street address) for privacy on a public page.
+  const area = String(b.area || (job.address ? String(job.address).split(",").slice(-2, -1)[0] : "") || req.user.region || "").trim().slice(0, 80);
+  let writeup = { title: b.title || job.title || "Recent project", description: b.description || "" };
+  if (!b.description) {
+    try {
+      writeup = await generateProjectWriteup(req.user, {
+        trade: tradeLabel(job.trade) || job.trade || "", jobTitle: job.title, area,
+        scope: (job.lines || []).map((l) => l.desc).filter(Boolean),
+      });
+    } catch (e) { if (e.code === "AI_UNCONFIGURED" || e.status === 429) { /* fall back to plain title */ } else throw e; }
+  }
+  const proj = SiteProjects.createFromJob(req.user.id, {
+    jobId: job.id, title: writeup.title, description: writeup.description,
+    service: tradeLabel(job.trade) || job.trade || "", area,
+    beforeIds: Array.isArray(b.beforeIds) ? b.beforeIds : [],
+    afterIds: Array.isArray(b.afterIds) ? b.afterIds : (Array.isArray(b.photoIds) ? b.photoIds : []),
+  });
+  if (!proj) return res.status(400).json({ error: "Could not publish this project." });
+  ensureSlug(req.user);
+  db.prepare("UPDATE user SET site_published=1 WHERE id=?").run(req.user.id);
+  track(req.user.id, "project_published", { jobId: job.id });
+  res.json({ project: proj, siteUrl: baseUrl(req) + "/c/" + req.user.id });
+}));
+app.get("/api/jobs/:id/site-projects", requireAuth, (req, res) =>
+  res.json({ projects: SiteProjects.listForJob(req.user.id, req.params.id) }));
+app.delete("/api/site/projects/:id", requireAuth, wrap((req, res) => {
+  if (!SiteProjects.remove(req.user.id, req.params.id)) return res.status(404).json({ error: "Not found." });
+  res.json({ ok: true });
+}));
+
+// Publish Website button: mark the site live + mint the branded slug. The deploy
+// "backend" (real subdomain routing) is architecture-only for now — the site is
+// already served at /c/:id and /c/:slug; the branded URL is the displayed address.
+app.post("/api/me/publish-site", requireAuth, wrap((req, res) => {
+  const slug = ensureSlug(req.user);
+  db.prepare("UPDATE user SET site_published=1 WHERE id=?").run(req.user.id);
+  track(req.user.id, "website_published", {});
+  res.json({ ok: true, slug, branded_url: brandedSiteUrl(slug), live_url: baseUrl(req) + "/c/" + slug });
+}));
+
+// Public, login-free contractor website (built from their profile + published
+// projects). Resolves by user id OR slug. The estimate form posts to inbound-leads.
 app.get("/c/:id", (req, res) => {
-  const u = db.prepare("SELECT * FROM user WHERE id=?").get(req.params.id);
+  const key = req.params.id;
+  const u = db.prepare("SELECT * FROM user WHERE id=? OR site_slug=?").get(key, key);
   if (!u) return res.status(404).send("Site not found.");
   const token = Leads.getOrCreateToken(u.id);
   const leadAction = `${baseUrl(req)}/api/inbound/leads?token=${encodeURIComponent(token)}`;
-  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction }));
+  // Published projects → a Before & After gallery, photos via the public route.
+  const projects = SiteProjects.listPublished(u.id).slice(0, 12).map((p) => ({
+    title: p.title, description: p.description, service: p.service, area: p.area,
+    before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)),
+    after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
+  }));
+  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects }));
 });
 
 // ---- Share a bid: a clean public link the contractor texts/emails ----
