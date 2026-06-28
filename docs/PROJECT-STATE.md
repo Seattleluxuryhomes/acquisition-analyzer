@@ -80,7 +80,7 @@ things shipped in the latest sessions: the **Spanish landing page** and the
 5. **`buildProposal()` whitelist** — one client-data boundary; margin/notes can't leak.
 6. **Stripe Connect, platform holds no funds** — regulatory simplicity.
 7. **Freemium: manual bids free; AI/payments/QBO gated** — "it's a free app"; trial→paywall on premium.
-8. **Pricing (decided in principle, NOT yet coded): $0 setup, $49/mo, −$10/paying sub → $0, founder rate-lock.** See §1 rejected for what lost.
+8. **Pricing — DECIDED & BUILT: $0 setup, $50/mo base, −$10 per paying sub → free at 5, founder rate-lock.** (Base moved $49→$50 so the ladder is clean: $50/40/30/20/10/Free, exactly $10/step, exactly 5 to free.) `src/referrals.js` + paywall ladder + Stripe amount-off coupon. Config: `BT_BASE_PRICE=50`, `BT_REFERRAL_CREDIT=10`; the **Stripe Price must = $50** for the coupon to land right. Stripe coupon apply/sync needs live verification; the app-layer model is fully tested.
 9. **Voice-first UI everywhere** — the mic is the hero on login + New Job.
 10. **Keep the 16-var Hyperlift instance**; delete the duplicate 5-var one. Lesson: the difference was *config*, not code.
 11. **Hold deploys while Ben works live** — pushing `main` = ~brief 503; stage on dev branch, deploy on explicit "deploy."
