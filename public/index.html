@@ -1772,13 +1772,40 @@ function adminHTML(d, users){
   return kpis + funnelHTML + usersHTML + featHTML;
 }
 
+// Trade picker (presentation only) — labels for the dropdown + a "what to capture"
+// hint. The real per-trade estimating brains live server-side in src/trades.js and
+// run inside /api/assist/build; this list just drives the UI and the trade we send.
+const TRADE_PICK = [
+  { key:'windows', emoji:'🪟', label:'Windows & Doors', bring:'a photo of each side of the house, one reference size (a door ≈ 80″), and your window SKU list — or the plans' },
+  { key:'roofing', emoji:'🏠', label:'Roofing', bring:'the footprint (length × width), the pitch (e.g. 6/12), and layers to tear off' },
+  { key:'siding', emoji:'🧱', label:'Siding', bring:'wall measurements or footprint + height + stories, and corner/trim linear feet' },
+  { key:'gutters', emoji:'🌧️', label:'Gutters', bring:'linear feet of eave run, number of downspouts, and gutter size' },
+  { key:'painting', emoji:'🎨', label:'Painting', bring:'room sizes or wall sq ft, number of coats, and trim/door counts' },
+  { key:'flooring', emoji:'🪵', label:'Flooring', bring:'floor sq ft per room, the material, and whether the old floor is removed' },
+  { key:'concrete', emoji:'🧊', label:'Concrete (flatwork)', bring:'slab length × width, thickness, and finish type' },
+  { key:'fencing', emoji:'🚧', label:'Fencing', bring:'total linear feet, height, material, and number of gates' },
+  { key:'decking', emoji:'🪜', label:'Decking', bring:'deck size, height above grade, material, and railing linear feet' },
+  { key:'drywall', emoji:'🧱', label:'Drywall', bring:'wall & ceiling sq ft, new vs. patch, and texture type' },
+  { key:'doors', emoji:'🚪', label:'Interior/Exterior Doors', bring:'door count by type & size, and hardware needs' },
+  { key:'insulation', emoji:'🧯', label:'Insulation', bring:'area by location (attic/walls/crawl), type, and target R-value' },
+  { key:'kitchen-remodel', emoji:'🍳', label:'Kitchen Remodel', bring:'cabinet linear feet, countertop sq ft, and what stays vs. changes' },
+  { key:'bathroom-remodel', emoji:'🛁', label:'Bathroom Remodel', bring:'tile area (walls + floor), fixtures, and any layout change' },
+  { key:'landscaping', emoji:'🌳', label:'Landscaping & Hardscape', bring:'areas in sq ft (beds, sod, patio), plant counts, and hardscape dimensions' },
+  { key:'framing', emoji:'🪚', label:'Framing', bring:'wall linear feet & height, stud spacing, and openings for headers' },
+];
+function tradeBringHint(){
+  const t=TRADE_PICK.find(x=>x.key===CAP_DRAFT.trade); if(!t||!t.bring) return '';
+  return `<div class="hint" style="margin-top:6px">📐 For an accurate ${esc(t.label)} bid, also capture: ${esc(t.bring)}.</div>`;
+}
+function renderTradeHint(){ const el=document.getElementById('tradeHint'); if(el) el.innerHTML=tradeBringHint(); }
+
 // The capture screen is a persistent "AI notepad": its draft survives re-renders
 // and navigation so a dictated conversation can never be wiped. Cleared on build.
-let CAP_DRAFT = JSON.parse(localStorage.getItem('bt_capdraft')||'null') || {title:'',from:'',to:'',text:''};
+let CAP_DRAFT = JSON.parse(localStorage.getItem('bt_capdraft')||'null') || {title:'',from:'',to:'',text:'',trade:''};
 let CAP_INTAKE = JSON.parse(localStorage.getItem('bt_capintake')||'null'); // AI-extracted job fields
 function capDraft(k,v){ CAP_DRAFT[k]=v; localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT)); }
 function persistIntake(){ try{ if(CAP_INTAKE) localStorage.setItem('bt_capintake', JSON.stringify(CAP_INTAKE)); else localStorage.removeItem('bt_capintake'); }catch(e){} }
-function clearCapDraft(){ CAP_DRAFT={title:'',from:'',to:'',text:''}; CAP_INTAKE=null; localStorage.removeItem('bt_capdraft'); localStorage.removeItem('bt_capintake'); }
+function clearCapDraft(){ CAP_DRAFT={title:'',from:'',to:'',text:'',trade:''}; CAP_INTAKE=null; localStorage.removeItem('bt_capdraft'); localStorage.removeItem('bt_capintake'); }
 
 // Voice-first New Job. The microphone is the hero: open, tap, talk. Languages,
 // company, tax all live in Settings now and are used silently. The AI extracts the
@@ -1817,6 +1844,13 @@ function viewCapture(){
       </button>
       <div class="photogrid" id="capPhotoGrid">${capPhotoThumbs()}</div>
     </div>
+
+    <label class="fld" style="margin-top:14px">Trade <span class="hint" style="font-weight:400">— pick one and the AI estimates like that trade</span></label>
+    <select id="capTrade" class="input" onchange="capDraft('trade',this.value); renderTradeHint()">
+      <option value="">General — let the AI figure it out</option>
+      ${TRADE_PICK.map(t=>`<option value="${t.key}" ${CAP_DRAFT.trade===t.key?'selected':''}>${t.emoji} ${t.label}</option>`).join('')}
+    </select>
+    <div id="tradeHint">${tradeBringHint()}</div>
 
     <div id="intakeRegion">${intakeCard()}${questionsCard()}</div>
 
@@ -1924,7 +1958,7 @@ function newJobFromForm(){
   const from=SETTINGS.from||'es';
   // Languages come from Settings now. Auto-translate off ⇒ bid stays in your language.
   const to=(SETTINGS.autoTranslate===false)?from:(SETTINGS.bidLang||SETTINGS.to||'en');
-  return {title:autoProjectName(), from, to, text, intake:CAP_INTAKE};
+  return {title:autoProjectName(), from, to, text, trade:CAP_DRAFT.trade||'', intake:CAP_INTAKE};
 }
 
 // A friendly default name beats "Untitled job" leaking onto a client proposal.
@@ -1934,6 +1968,7 @@ function makeLocalJob(f, data){
   const ix=f.intake||CAP_INTAKE||{};
   return {
     id:uid(), title:(f.title||'').trim()||defaultJobTitle(), created:now, updated_at:now, from:f.from, to:f.to,
+    trade:f.trade||'',
     transcript:f.text,
     customer:(ix.client||'').slice(0,120), address:(ix.address||'').slice(0,200),
     translation:data?data.translation||'':'',
@@ -1970,7 +2005,7 @@ async function rebuildWithAI(id, btn){
   const orig = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Building…'; }
   try{
-    const data = await api('/api/assist/build',{ method:'POST', body:JSON.stringify({ text, from_lang:j.from, to_lang:j.to }) });
+    const data = await api('/api/assist/build',{ method:'POST', body:JSON.stringify({ text, from_lang:j.from, to_lang:j.to, trade:j.trade||'' }) });
     j.translation = data.translation || j.translation || '';
     j.summary = data.summary || '';
     j.brief = data.brief || null;
@@ -2001,7 +2036,7 @@ async function buildFromConversation(){
   state.loading=true; state.error=''; render();
   let data=null;
   try{
-    data = await api('/api/assist/build',{ method:'POST', body:JSON.stringify({ text:f.text, from_lang:f.from, to_lang:f.to }) });
+    data = await api('/api/assist/build',{ method:'POST', body:JSON.stringify({ text:f.text, from_lang:f.from, to_lang:f.to, trade:f.trade||'' }) });
   }catch(e){
     if(e.status===402){ state.loading=false; gate402(e); return; }
     data=null;

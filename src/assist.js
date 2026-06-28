@@ -2,6 +2,7 @@
 // rule #1). Output is validated/sanitized before returning. If the key is unset
 // or the call fails, this throws — the client falls back to manual entry (rule #4).
 import db from "./db.js";
+import { tradeBrain, tradeLabel } from "./trades.js";
 
 // Display names (native) used to tell the AI which languages to translate
 // between. The AI can translate any language; this just drives the picker and
@@ -50,7 +51,8 @@ function checkMonthlyCap(user) {
 
 const UNIT_LIST = ["each", "sq ft", "ln ft", "sq yd", "cu yd", "ton", "gal", "hr", "box", "roll", "pallet", "board ft", "slab"];
 
-function buildSystemPrompt(from, to, priceBook) {
+function buildSystemPrompt(from, to, priceBook, trade) {
+  const brain = tradeBrain(trade);
   return (
     "You are an estimating assistant for construction contractors. Translate the " +
     "field conversation and turn it into a structured bid draft. Respond with ONLY " +
@@ -80,6 +82,11 @@ function buildSystemPrompt(from, to, priceBook) {
     "price with a guess. Only invent a rough USD placeholder when no price is given. If a price is " +
     "noted as plus tax, add that as an assumption. If the client supplies a material, add it as an " +
     "exclusion. " +
+    (brain
+      ? "TRADE FOCUS — this is a " + (tradeLabel(trade) || trade) + " job. Apply this trade's takeoff " +
+        "method, derive quantities, and include the right line items, assumptions and exclusions:\n" + brain + "\n" +
+        "Still use any prices stated in the conversation; trade math fills the gaps the contractor didn't say.\n"
+      : "") +
     (priceBook
       ? "PRICE BOOK — the contractor's real items (name | unit | unit_price). When a line clearly " +
         "matches one, use that item's exact unit and unit_price as the rate (type 'unit'):\n" + priceBook + "\n"
@@ -302,7 +309,7 @@ function priceBookText(skus) {
   return skus.slice(0, 150).map((s) => `${s.name} | ${s.unit || "each"} | $${s.unit_price || 0}`).join("\n");
 }
 
-export async function assistBuild(user, { text, from_lang, to_lang, skus }) {
+export async function assistBuild(user, { text, from_lang, to_lang, skus, trade }) {
   if (!aiConfigured()) {
     const e = new Error("AI build is not configured on the server.");
     e.status = 503; e.code = "AI_UNCONFIGURED"; throw e;
@@ -318,7 +325,7 @@ export async function assistBuild(user, { text, from_lang, to_lang, skus }) {
   }
 
   const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
-  const system = buildSystemPrompt(from_lang, to_lang, priceBookText(skus));
+  const system = buildSystemPrompt(from_lang, to_lang, priceBookText(skus), trade);
   let res;
   try {
     res = await fetch("https://api.anthropic.com/v1/messages", {

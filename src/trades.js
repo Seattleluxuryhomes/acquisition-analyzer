@@ -1,0 +1,321 @@
+// Trade estimator "brains". Each trade injects domain expertise + a takeoff
+// method into the AI build prompt so the draft comes back with REAL, derived
+// quantities and the right line items for that trade — instead of a generic bid.
+// Selected per job at capture and passed through to assistBuild().
+//
+// This is pure data + small helpers (no provider calls). Keep each `prompt`
+// focused on: (1) how that trade does a takeoff, (2) the line items to always
+// include, (3) the assumptions/exclusions a pro would add. The output schema is
+// unchanged — the model still returns the same {lines, assumptions, exclusions,
+// upgrades} JSON; the brain just makes those fields trade-accurate.
+//
+// Pricing rule everywhere: AI numbers are placeholders the contractor confirms
+// (hard rule #7). When the contractor's price book matches a line, the model
+// uses that exact unit + unit_price as the rate.
+
+export const TRADES = {
+  windows: {
+    label: "Windows & Doors", emoji: "🪟",
+    inputs: [
+      "A photo of each elevation (front, back, left, right)",
+      "One reference dimension per photo (a door is ~80\" tall, or a wall width)",
+      "Your window/door SKU list with standard sizes — or the plans / window schedule",
+    ],
+    prompt:
+      "WINDOW & DOOR ESTIMATING. Windows and doors sell in STANDARD sizes — identify each opening and match it " +
+      "to the SKU list; do not invent custom sizes. For each opening determine TYPE (single-hung, double-hung, " +
+      "casement, slider, picture, awning, bay/bow; or door type), approximate SIZE (W×H), and COUNT. If photos " +
+      "with a reference dimension are given, scale each opening against the reference and classify it to the " +
+      "NEAREST standard size in the price book. If plans or a window schedule are given, read them as ground " +
+      "truth. Make ONE 'unit' line per distinct type+size: unit 'each', qty = count, rate = the matching SKU " +
+      "unit_price; put type+size+color in desc (e.g. \"Double-hung vinyl 36×60 — white\"). ALWAYS add separate " +
+      "lines for: install labor (per opening), exterior trim/wrap & flashing, interior trim/casing, and haul-away " +
+      "of old units; a small materials line for caulk/sealant & fasteners. ASSUMPTIONS to include: \"Final sizes " +
+      "field-verified before ordering — sizes shown are from photos/plans\"; \"Standard replacement in existing " +
+      "openings; no structural resizing unless noted\". EXCLUSIONS when not stated: rotted framing/sill repair, " +
+      "egress enlargement, interior paint, window treatments. NEVER treat a photo-derived size as order-ready — " +
+      "it is a draft to confirm with a tape.",
+  },
+
+  roofing: {
+    label: "Roofing", emoji: "🏠",
+    inputs: [
+      "Building footprint (length × width) or roof plan area",
+      "Roof pitch (e.g. 6/12) and number of stories/layers to tear off",
+      "Linear feet of ridges, hips, valleys, eaves & rakes (if known)",
+    ],
+    prompt:
+      "ROOFING ESTIMATING. Price by SQUARES (1 square = 100 sq ft of roof surface). Compute roof area = footprint " +
+      "× PITCH MULTIPLIER (4/12≈1.054, 6/12≈1.118, 8/12≈1.202, 10/12≈1.302, 12/12≈1.414); ÷100 = squares; add 10% " +
+      "waste (15% for cut-up/complex roofs). Derive materials from squares + linear measurements: field shingles " +
+      "(qty in squares or bundles per the SKU), underlayment (per square), starter strip (eave+rake LF), ridge cap " +
+      "(ridge+hip LF), drip edge (eave+rake LF), valley/step flashing (valley LF), pipe-boot & penetration " +
+      "flashings, ridge/box vents (count), nails/fasteners. Use the SKU's exact unit + unit_price as the rate when " +
+      "it prices by square or bundle. LABOR: a separate install line ($/square); a TEAR-OFF line ($/square × " +
+      "layers) when removing the old roof; a steep/multi-story surcharge line at 8/12+ or 2+ stories. ALWAYS " +
+      "include dumpster/haul-away and a magnetic nail sweep. ASSUMPTIONS: state the pitch, squares, waste % and " +
+      "layers used, and \"decking assumed sound — damaged sheathing replaced at a per-sheet rate if found\". " +
+      "EXCLUSIONS when not stated: decking replacement beyond an allowance, rafter/structural repair, gutters, " +
+      "skylight replacement, owner-pulled permits. With footprint + pitch you can get within a few percent — show " +
+      "the math in assumptions so the contractor can sanity-check.",
+  },
+
+  siding: {
+    label: "Siding", emoji: "🧱",
+    inputs: [
+      "Wall measurements (or footprint + wall height + number of stories)",
+      "Siding type/profile and your SKU list (per square or per piece)",
+      "Linear feet of corners, trim, soffit & fascia; window/door count for J-channel",
+    ],
+    prompt:
+      "SIDING ESTIMATING. Price wall area by SQUARES (1 square = 100 sq ft). Wall area ≈ perimeter × wall height, " +
+      "minus large openings; add 10% waste (15% for lap/complex). Derive: siding field material (squares), starter " +
+      "strip (bottom LF), inside/outside corner posts (corner LF), J-channel (window+door perimeter LF), " +
+      "soffit & fascia (eave/rake LF), house wrap/weather barrier (squares), trim, fasteners. Use SKU unit + " +
+      "unit_price as the rate when matched. LABOR: install ($/square) + tear-off of old siding ($/square) when " +
+      "applicable; flashing & detail labor. ASSUMPTIONS: squares & waste used, \"sheathing assumed sound\". " +
+      "EXCLUSIONS when not stated: rot/sheathing repair, insulation, painting (unless pre-finished), gutters.",
+  },
+
+  gutters: {
+    label: "Gutters", emoji: "🌧️",
+    inputs: [
+      "Linear feet of gutter run (eaves) and number of downspouts",
+      "Gutter size (5\"/6\" K-style, half-round) and material",
+      "Number of inside/outside corners; stories for height",
+    ],
+    prompt:
+      "GUTTER ESTIMATING. Price gutter by LINEAR FOOT of eave run and downspouts by piece. Derive: gutter (LF), " +
+      "downspouts (each, estimate length by stories × ~10 ft), hangers (~1 per 2 ft), end caps, inside/outside " +
+      "corners/miters (count), outlets, splash blocks or extensions, sealant. Add gutter guards as an upgrade. Use " +
+      "SKU unit + unit_price when matched. LABOR: install ($/LF) + removal/haul of old gutters when applicable; a " +
+      "two-story surcharge when relevant. ASSUMPTIONS: total LF and downspout count used, \"fascia assumed sound\". " +
+      "EXCLUSIONS when not stated: fascia/soffit repair, roof work, drainage/underground tie-in.",
+  },
+
+  painting: {
+    label: "Painting", emoji: "🎨",
+    inputs: [
+      "Interior: room sizes or wall sq ft; ceilings/trim/doors count",
+      "Exterior: wall sq ft (perimeter × height) and stories",
+      "Number of coats, surface condition, and your paint/labor rates",
+    ],
+    prompt:
+      "PAINTING ESTIMATING. Measure paintable area in SQ FT (walls = perimeter × height; ceilings = floor area). " +
+      "One gallon covers ~350 sq ft per coat — derive paint from area × coats ÷ 350, plus primer where bare/" +
+      "patched. Separate lines by surface: walls, ceilings, trim/baseboard (LF), doors (each), windows (each). " +
+      "LABOR: prep (scrape/sand/patch/caulk), masking & protection, prime, then paint — price by sq ft or as " +
+      "fixed per room/surface. Use SKU unit + unit_price when matched. ASSUMPTIONS: number of coats, \"two coats " +
+      "on color change\", surfaces in normal condition. EXCLUSIONS when not stated: lead-safe remediation (pre-" +
+      "1978), major drywall repair, wallpaper removal, staining of unfinished wood unless specified.",
+  },
+
+  flooring: {
+    label: "Flooring", emoji: "🪵",
+    inputs: [
+      "Floor area per room (sq ft) and material (tile, LVP, hardwood, carpet, laminate)",
+      "Your flooring SKU list (per sq ft) plus underlayment/trim",
+      "Demo of existing floor? Pattern (diagonal/herringbone adds waste)",
+    ],
+    prompt:
+      "FLOORING ESTIMATING. Price by SQ FT of floor area per room; add waste by material — 10% straight lay, " +
+      "15% diagonal, 20% herringbone/tile patterns. Derive: field material (sq ft), underlayment/moisture barrier " +
+      "(sq ft), thinset/grout for tile, transition strips & trim/quarter-round (LF), baseboard if replaced (LF). " +
+      "Use SKU unit + unit_price as the rate when matched. LABOR: demo & haul of existing floor (sq ft), subfloor " +
+      "prep/leveling, install ($/sq ft, higher for tile/herringbone). ASSUMPTIONS: waste %, \"subfloor flat & " +
+      "sound\". EXCLUSIONS when not stated: subfloor replacement, floor leveling beyond an allowance, furniture " +
+      "moving, appliance disconnect.",
+  },
+
+  concrete: {
+    label: "Concrete (flatwork)", emoji: "🧊",
+    inputs: [
+      "Slab dimensions (length × width) and thickness (4\" typical)",
+      "Linear feet of edge forms; finish type (broom, stamped, exposed)",
+      "Access for the truck and any tear-out of existing slab",
+    ],
+    prompt:
+      "CONCRETE FLATWORK ESTIMATING. Compute volume in CUBIC YARDS: (length ft × width ft × thickness ft) ÷ 27, " +
+      "+5–10% waste; thickness 4\"=0.33ft, 6\"=0.5ft. Derive: concrete (cu yd), gravel base (cu yd at ~4\"), rebar/" +
+      "wire mesh (sq ft), forms (edge LF), vapor barrier, control joints, sealant/cure. Use SKU unit + unit_price " +
+      "when matched. LABOR: excavation & grading, set forms, pour & finish ($/sq ft — higher for stamped/exposed/" +
+      "colored), strip forms. ALWAYS include tear-out & haul of existing slab when present, and pump truck when " +
+      "access is poor. ASSUMPTIONS: thickness, cu yd, finish, \"soil suitable for standard base\". EXCLUSIONS when " +
+      "not stated: engineered/structural slabs, drainage, retaining walls, soil import beyond an allowance.",
+  },
+
+  fencing: {
+    label: "Fencing", emoji: "🚧",
+    inputs: [
+      "Total fence length (linear feet) and height",
+      "Material (wood, vinyl, chain-link, aluminum) and number of gates",
+      "Terrain/slope, post spacing, and tear-out of existing fence",
+    ],
+    prompt:
+      "FENCING ESTIMATING. Price by LINEAR FOOT plus per-gate. Posts ≈ (LF ÷ post spacing 6–8 ft) + 1, plus one " +
+      "per corner/end and per gate; concrete ≈ 1–2 bags per post. Derive: posts (each), pickets/panels/rails or " +
+      "chain-link fabric (LF or by section), concrete (bags), gates (each) with hinges/latches, fasteners. Use SKU " +
+      "unit + unit_price when matched. LABOR: layout & utility locate, dig & set posts, install panels/rails, hang " +
+      "gates; tear-out & haul of existing fence when present. ASSUMPTIONS: LF, height, post spacing, gate count, " +
+      "\"normal soil, no rock\". EXCLUSIONS when not stated: rock/hardpan digging, grading, staining/sealing unless " +
+      "specified, survey/property-line verification, permits/HOA.",
+  },
+
+  decking: {
+    label: "Decking", emoji: "🪜",
+    inputs: [
+      "Deck size (length × width) and height above grade",
+      "Decking material (PT, cedar, composite) and railing linear feet",
+      "Stairs (count of steps), footings, and ledger attachment",
+    ],
+    prompt:
+      "DECKING ESTIMATING. Price deck surface by SQ FT; railing & stairs separately. Derive: decking boards (sq ft " +
+      "+10–15% waste, more for diagonal/picture-frame), framing — joists/beams/ledger (sq ft of structure), posts " +
+      "& footings (count by span), joist hangers & hardware, fasteners/hidden clips (per sq ft). Railing by LF " +
+      "(posts, rails, balusters). Stairs by step count (stringers, treads, risers). Use SKU unit + unit_price when " +
+      "matched. LABOR: layout, footings/concrete, framing, decking, railing, stairs; tear-out of old deck when " +
+      "present. ASSUMPTIONS: sq ft, footing count, \"soil bearing adequate for standard footings\". EXCLUSIONS when " +
+      "not stated: engineered/elevated structures, permits, electrical/lighting, ground prep, skirting unless noted.",
+  },
+
+  drywall: {
+    label: "Drywall", emoji: "🧱",
+    inputs: [
+      "Wall & ceiling area (sq ft) or room dimensions",
+      "New hang vs. patch/repair; texture type and finish level",
+      "Ceiling height and number of corners (for corner bead)",
+    ],
+    prompt:
+      "DRYWALL ESTIMATING. Price by SQ FT of board (walls + ceilings). Sheets = area ÷ 32 (4×8) +10% waste. " +
+      "Derive: drywall sheets (sq ft or count), joint compound, tape, corner bead (outside-corner LF), screws, " +
+      "primer. Use SKU unit + unit_price when matched. LABOR by sq ft, separate lines for: hang, tape & finish " +
+      "(to the stated finish level, Level 4 typical / Level 5 for critical light), texture (knockdown/orange-peel/" +
+      "smooth), prime. For repairs, price by patch (each) not sq ft. ASSUMPTIONS: sq ft, finish level, texture " +
+      "match \"as close as practical\". EXCLUSIONS when not stated: paint, insulation, framing repair, asbestos/" +
+      "lead testing on older homes, full-room repaint to blend texture.",
+  },
+
+  doors: {
+    label: "Interior/Exterior Doors", emoji: "🚪",
+    inputs: [
+      "Door count by type (interior pre-hung, exterior entry, slab, barn, garage)",
+      "Sizes and handing; your door SKU list",
+      "Hardware (knobs/levers, hinges, locksets) and casing needs",
+    ],
+    prompt:
+      "DOOR ESTIMATING. Price per door by type+size; match to the SKU list. Make ONE 'unit' line per door type/" +
+      "size (unit 'each', qty = count, rate = SKU unit_price); desc names type+size+finish. ALWAYS add: hardware " +
+      "(knob/lever/lockset per door), hinges, install labor (per door — pre-hung faster than slab requiring mortise/" +
+      "bore), interior casing/trim (per opening), exterior weatherstrip & threshold for entry doors, haul-away of " +
+      "old doors. Use SKU unit + unit_price when matched. ASSUMPTIONS: \"existing rough openings reused; sizes " +
+      "field-verified\". EXCLUSIONS when not stated: framing/rough-opening changes, painting/staining, glass/" +
+      "sidelite work, smart-lock wiring.",
+  },
+
+  insulation: {
+    label: "Insulation", emoji: "🧯",
+    inputs: [
+      "Area to insulate (sq ft) by location — attic, walls, crawlspace, rim joist",
+      "Type (batt, blown-in, spray foam) and target R-value",
+      "Existing insulation removal? Air-sealing scope",
+    ],
+    prompt:
+      "INSULATION ESTIMATING. Price by SQ FT of area per location, to the target R-value. Batts: bundles = area ÷ " +
+      "coverage. Blown-in: bags = area × depth-for-R ÷ bag coverage. Spray foam: priced by board-foot (sq ft × " +
+      "inches). Derive material per location (attic/walls/crawl/rim) + air-sealing (caulk/foam at penetrations) + " +
+      "baffles/vents for attics. Use SKU unit + unit_price when matched. LABOR by sq ft per type (spray foam " +
+      "highest). ASSUMPTIONS: target R-value, sq ft per area, \"attic accessible\". EXCLUSIONS when not stated: " +
+      "removal of old/contaminated insulation, ventilation upgrades, drywall removal/replacement, vapor barrier " +
+      "unless specified, mold/pest remediation.",
+  },
+
+  "kitchen-remodel": {
+    label: "Kitchen Remodel", emoji: "🍳",
+    inputs: [
+      "Kitchen size and scope (cabinets, counters, appliances, floor, paint)",
+      "Cabinet linear feet; countertop sq ft and material",
+      "Layout change? Plumbing/electrical moves? Who supplies appliances",
+    ],
+    prompt:
+      "KITCHEN REMODEL ESTIMATING. Organize by phase/area; this is a multi-trade job — include each phase as its " +
+      "own line(s). DEMO & haul. CABINETS by linear foot (base + wall + tall) or per the SKU list; include install " +
+      "labor. COUNTERTOPS by sq ft (slab material is 'slab' unit per SKU) + fabrication/edge + sink cutout + " +
+      "install. Appliances (note customer-supplied as exclusions/customer_supplied). PLUMBING (sink, faucet, " +
+      "disposal, dishwasher hookup; rough-in if moved). ELECTRICAL (outlets/GFCI, under-cabinet & can lighting, " +
+      "appliance circuits). BACKSPLASH by sq ft. FLOORING by sq ft. PAINT. Use SKU unit + unit_price when matched. " +
+      "ASSUMPTIONS: \"layout unchanged unless noted\", who supplies appliances, permit responsibility. EXCLUSIONS " +
+      "when not stated: structural/load-bearing changes, moving gas lines, asbestos/lead, appliances if customer-" +
+      "supplied, window/door changes.",
+  },
+
+  "bathroom-remodel": {
+    label: "Bathroom Remodel", emoji: "🛁",
+    inputs: [
+      "Bathroom size and scope (tub/shower, vanity, toilet, tile, floor)",
+      "Tile area (walls + floor sq ft) and fixture selections",
+      "Layout change? Plumbing moves? Waterproofing method",
+    ],
+    prompt:
+      "BATHROOM REMODEL ESTIMATING. Organize by phase; multi-trade. DEMO & haul (protect & contain). PLUMBING " +
+      "(tub/shower valve, toilet, vanity faucet & drains; rough-in if relocated). SHOWER/TUB: pan & waterproofing " +
+      "(membrane), wall tile (sq ft) + floor tile (sq ft) with thinset/grout +15% waste, niche, glass door/" +
+      "enclosure (often customer-selected). VANITY & TOP, TOILET, MIRROR, ACCESSORIES (each). ELECTRICAL (GFCI, " +
+      "exhaust fan, vanity lighting). FLOORING & PAINT. Use SKU unit + unit_price when matched. ASSUMPTIONS: " +
+      "waterproofing method, \"layout unchanged unless noted\", tile sq ft & waste. EXCLUSIONS when not stated: " +
+      "moving wet walls, subfloor/joist repair, asbestos/lead, mold remediation, frameless glass if customer-" +
+      "supplied, permits if owner-pulled.",
+  },
+
+  landscaping: {
+    label: "Landscaping & Hardscape", emoji: "🌳",
+    inputs: [
+      "Areas in sq ft (planting beds, sod/lawn, patio/paver, mulch)",
+      "Plant/material list and counts; hardscape dimensions",
+      "Irrigation zones, grading/drainage needs, access",
+    ],
+    prompt:
+      "LANDSCAPING & HARDSCAPE ESTIMATING. Price each area by its measure. SOFTSCAPE: soil/amendments & mulch by " +
+      "CU YD (area sq ft × depth ft ÷ 27), sod by sq ft, plants/trees/shrubs by count, edging by LF. HARDSCAPE: " +
+      "pavers/patio by sq ft (+ base gravel cu yd + sand + edge restraint + polymeric sand), retaining wall by " +
+      "face sq ft, gravel by cu yd or ton. IRRIGATION by zone (heads, valves, pipe LF, controller). Use SKU unit + " +
+      "unit_price when matched. LABOR: site prep/grading, excavation & base, install per area, cleanup & haul. " +
+      "ASSUMPTIONS: areas & depths used, \"normal soil, positive drainage\". EXCLUSIONS when not stated: drainage/" +
+      "grading beyond an allowance, tree removal, lighting, permits, soil import beyond an allowance.",
+  },
+
+  framing: {
+    label: "Framing", emoji: "🪚",
+    inputs: [
+      "Wall linear feet & height; floor/roof area if applicable",
+      "Stud spacing (16\"/24\" OC), lumber size and species",
+      "Openings (doors/windows) for headers; sheathing area",
+    ],
+    prompt:
+      "FRAMING ESTIMATING. Walls: studs ≈ (wall LF × 12 ÷ spacing) + corners/openings, plus top & bottom plates " +
+      "(2–3 × wall LF), headers per opening. Floors/roofs: joists/rafters ≈ (span LF × 12 ÷ spacing) + 1; sheathing " +
+      "by sq ft (÷32 per sheet, +10% waste). Derive lumber by piece/board-foot, sheathing (sq ft), hangers/straps/" +
+      "hardware, nails. Use SKU unit + unit_price when matched. LABOR by sq ft of framed area or by wall LF. " +
+      "ASSUMPTIONS: stud spacing, lumber size/species, \"loads conventional — engineering by others if required\". " +
+      "EXCLUSIONS when not stated: engineered lumber/beams design, structural engineering, foundation, sheathing if " +
+      "separate, permits.",
+  },
+};
+
+// Ordered keys, demo trades first.
+export function tradeKeys() { return Object.keys(TRADES); }
+
+// The estimating brain injected into the build system prompt for a trade.
+export function tradeBrain(key) {
+  const t = TRADES[key];
+  return t ? t.prompt : "";
+}
+
+export function tradeLabel(key) {
+  const t = TRADES[key];
+  return t ? t.label : "";
+}
+
+// Compact list for the client picker (key, label, emoji, what to bring).
+export function tradeList() {
+  return Object.entries(TRADES).map(([key, t]) => ({ key, label: t.label, emoji: t.emoji, inputs: t.inputs || [] }));
+}

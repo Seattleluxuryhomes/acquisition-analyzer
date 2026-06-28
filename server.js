@@ -13,6 +13,7 @@ import { signup, signin, signout, changePassword, requireAuth, publicUser, creat
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, aiConfigured, parseSkus, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
+import { tradeList } from "./src/trades.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
@@ -454,9 +455,10 @@ app.delete("/api/jobs/:id/photos/:pid", requireAuth, wrap((req, res) => {
 
 // ---- AI build (server-side proxy) ----
 app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
-  const { text, from_lang, to_lang } = req.body || {};
-  // Feed the contractor's own price book in so the AI uses their real items + prices.
-  const data = await assistBuild(req.user, { text, from_lang, to_lang, skus: Skus.listSkus(req.user.id) });
+  const { text, from_lang, to_lang, trade } = req.body || {};
+  // Feed the contractor's own price book in so the AI uses their real items + prices,
+  // and the selected trade's estimating brain so quantities come back trade-accurate.
+  const data = await assistBuild(req.user, { text, from_lang, to_lang, trade, skus: Skus.listSkus(req.user.id) });
   res.json(data);
 }));
 // Voice-first intake: extract structured job fields from the spoken transcript as
@@ -464,6 +466,8 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
 app.post("/api/assist/intake", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
   res.json({ intake: await assistIntake(req.user, { text: (req.body && req.body.text) || "" }) });
 }));
+// Trade estimator library: the list of trades (with what to bring) for the picker.
+app.get("/api/trades", requireAuth, (req, res) => res.json({ trades: tradeList() }));
 // Universal voice fallback: transcribe a browser recording (iOS Safari has no Web Speech).
 app.post("/api/assist/transcribe", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
   const { audio, lang } = req.body || {};
