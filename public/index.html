@@ -1371,7 +1371,17 @@ async function api(path, opts={}){
   if(res.status===401){ // session gone — drop to auth, keep local data
     TOKEN=null; USER=null; persistAuth(); throw Object.assign(new Error((body&&body.error)||'Session expired'),{status:401});
   }
-  if(!res.ok) throw Object.assign(new Error((body&&body.error)||('Error '+res.status)),{status:res.status, code:body&&body.code});
+  if(!res.ok){
+    // Plain-language fallback when the response has no JSON message (e.g. a host/proxy
+    // rate-limit page yields a bare 429). Never surface a raw "Error <code>" to a user.
+    let msg=(body&&body.error);
+    if(!msg){ msg = res.status===429 ? 'Going a little fast — give it a few seconds and try again.'
+      : res.status===503 ? 'That feature isn’t switched on yet.'
+      : res.status>=500 ? 'Server hiccup — try that again in a moment.'
+      : res.status===413 ? 'That file is too large.'
+      : 'Something didn’t go through — try again.'; }
+    throw Object.assign(new Error(msg),{status:res.status, code:body&&body.code});
+  }
   return body;
 }
 
@@ -1393,7 +1403,7 @@ async function doAuth(){
     }); persistSettings(); }
     state.view='home';
     render();
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth(), loadInbox()]);
+    await loadDashboardData();
     render();
   }catch(e){ state.authError = e.message || 'Could not sign in.'; render(); }
 }
@@ -1420,6 +1430,14 @@ function paintSync(){
   const banner=document.getElementById('offlineBanner'); if(banner) banner.style.display = online?'none':'block';
 }
 
+// Boot/login data load, staggered into two small waves so we don't hit the host with
+// a dozen requests at once — a burst like that can trip a proxy/host rate limit and
+// bounce back a stray 429. Wave 1 is what the dashboard needs to paint; the rest follow.
+async function loadDashboardData(){
+  await Promise.all([syncNow(true), loadMe(), loadBilling()]);
+  await new Promise(r=>setTimeout(r,350));
+  await Promise.all([loadPayments(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth(), loadInbox()]);
+}
 async function syncNow(force){
   if(!TOKEN || !online || syncing) { paintSync(); return; }
   setSync(true);
@@ -4594,7 +4612,7 @@ function confettiBurst(gold){
   }
   render();
   if(TOKEN){
-    await Promise.all([syncNow(true), loadBilling(), loadPayments(), loadMe(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth(), loadInbox()]);
+    await loadDashboardData();
     // Coming back from Stripe Connect onboarding — pull the fresh account status
     // and land the contractor on Setup so they see "Ready".
     if(paymentsReturn){ await refreshPayments(); state.view='settings'; }

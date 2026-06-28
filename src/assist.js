@@ -28,7 +28,7 @@ const LANGS = {
 const MONTHLY_CAP = Number(process.env.BT_AI_MONTHLY_CAP || 200);
 const recentCalls = new Map(); // userId -> [timestamps]
 const RATE_WINDOW = 60 * 1000;
-const RATE_MAX = Number(process.env.BT_AI_RATE_MAX || 20); // voice-first does more, smaller calls
+const RATE_MAX = Number(process.env.BT_AI_RATE_MAX || 40); // voice-first does many small calls (record + live intake); keep headroom so a demo doesn't trip the per-minute limit
 
 function checkRate(userId) {
   const now = Date.now();
