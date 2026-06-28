@@ -8,20 +8,20 @@ import { tradeBrain, tradeLabel } from "./trades.js";
 // between. The AI can translate any language; this just drives the picker and
 // the prompt. Keep keys in sync with public/index.html LANGS + SPEECH_LANG.
 const LANGS = {
-  en: "English", es: "Español", zh: "中文", hi: "हिन्दी", ar: "العربية", bn: "বাংলা",
-  pt: "Português", ru: "Русский", ja: "日本語", pa: "ਪੰਜਾਬੀ", de: "Deutsch", ko: "한국어",
-  fr: "Français", te: "తెలుగు", mr: "मराठी", ta: "தமிழ்", tr: "Türkçe", vi: "Tiếng Việt",
-  ur: "اردو", it: "Italiano", gu: "ગુજરાતી", pl: "Polski", uk: "Українська", fa: "فارسی",
-  kn: "ಕನ್ನಡ", ml: "മലയാളം", th: "ไทย", nl: "Nederlands", id: "Bahasa Indonesia",
-  ms: "Bahasa Melayu", tl: "Filipino", sw: "Kiswahili", ro: "Română", el: "Ελληνικά",
-  cs: "Čeština", hu: "Magyar", sv: "Svenska", he: "עברית", da: "Dansk", fi: "Suomi",
-  no: "Norsk", sk: "Slovenčina", hr: "Hrvatski", sr: "Српски", bg: "Български",
-  lt: "Lietuvių", sl: "Slovenščina", lv: "Latviešu", et: "Eesti", af: "Afrikaans",
-  sq: "Shqip", am: "አማርኛ", hy: "Հայերեն", az: "Azərbaycanca", ka: "ქართული",
-  kk: "Қазақша", ne: "नेपाली", si: "සිංහල", km: "ខ្មែរ", lo: "ລາວ", my: "မြန်မာ",
-  mn: "Монгол", is: "Íslenska", ga: "Gaeilge", cy: "Cymraeg", eu: "Euskara",
-  gl: "Galego", ca: "Català", ps: "پښتو", so: "Soomaali", ha: "Hausa", yo: "Yorùbá",
-  ig: "Igbo", zu: "isiZulu", xh: "isiXhosa"
+  en: "English", es: "Spanish", zh: "Chinese", hi: "Hindi", ar: "Arabic", bn: "Bengali",
+  pt: "Portuguese", ru: "Russian", ja: "Japanese", pa: "Punjabi", de: "German", ko: "Korean",
+  fr: "French", te: "Telugu", mr: "Marathi", ta: "Tamil", tr: "Turkish", vi: "Vietnamese",
+  ur: "Urdu", it: "Italian", gu: "Gujarati", pl: "Polish", uk: "Ukrainian", fa: "Persian",
+  kn: "Kannada", ml: "Malayalam", th: "Thai", nl: "Dutch", id: "Indonesian",
+  ms: "Malay", tl: "Filipino", sw: "Swahili", ro: "Romanian", el: "Greek",
+  cs: "Czech", hu: "Hungarian", sv: "Swedish", he: "Hebrew", da: "Danish", fi: "Finnish",
+  no: "Norwegian", sk: "Slovak", hr: "Croatian", sr: "Serbian", bg: "Bulgarian",
+  lt: "Lithuanian", sl: "Slovenian", lv: "Latvian", et: "Estonian", af: "Afrikaans",
+  sq: "Albanian", am: "Amharic", hy: "Armenian", az: "Azerbaijani", ka: "Georgian",
+  kk: "Kazakh", ne: "Nepali", si: "Sinhala", km: "Khmer", lo: "Lao", my: "Burmese",
+  mn: "Mongolian", is: "Icelandic", ga: "Irish", cy: "Welsh", eu: "Basque",
+  gl: "Galician", ca: "Catalan", ps: "Pashto", so: "Somali", ha: "Hausa", yo: "Yoruba",
+  ig: "Igbo", zu: "Zulu", xh: "Xhosa"
 };
 
 // Cost guardrails (hard rule / spec §7, §13): per-user monthly cap + light rate limit.
