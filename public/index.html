@@ -819,7 +819,7 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   LEADS_NEW = r.leadsNew||0; if(state.view==='home') render();
   if(state.view==='capture') render();
   // Hydrate tax settings from the server unless the user has local unsaved edits.
-  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; persistSettings(); }
+  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
 }catch(e){} }
 
 /* ============ notifications ("good news": a client accepted or paid) ============ */
@@ -1328,6 +1328,17 @@ function referralLadderHTML(){
   </div>`;
 }
 function openMySite(){ closeMore(); if(!USER||!USER.id){ toast('Sign in first.','warn'); return; } window.open('/c/'+USER.id, '_blank'); }
+async function requestCustomSite(btn){
+  if(!online||!TOKEN){ toast('Connect to the internet to send your request.','warn'); return; }
+  const note=(prompt('Anything you want on it? (optional — pages, your domain, the look you want)')||'').trim();
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  try{
+    const r=await api('/api/me/site-request',{method:'POST',body:JSON.stringify({note})});
+    SETTINGS.site_requested=true; SETTINGS.site_request_note=r.site_request_note||note; persistSettings();
+    toast('✓ Request sent — we’ll reach out to build it with you.','ok',5000);
+    render();
+  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='✨ Want a custom-built website? Request one'; } toast(e.message||'Could not send your request.','bad'); }
+}
 function toggleService(key){
   let arr=Array.isArray(SETTINGS.services)?SETTINGS.services.slice():[];
   arr=arr.includes(key)?arr.filter(k=>k!==key):arr.concat(key);
@@ -3481,6 +3492,10 @@ function viewSettings(){
       <label class="fld" style="margin-top:10px">Services you offer <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(tap to add)</span></label>
       <div class="svcpick">${TRADE_PICK.map(t=>{const on=(SETTINGS.services||[]).includes(t.key);return `<button class="svcchip ${on?'on':''}" onclick="toggleService('${t.key}')">${t.emoji} ${esc(t.label)}</button>`;}).join('')}</div>
       <button class="btn full" style="margin-top:12px" onclick="openMySite()">🌐 View your website</button>
+      ${SETTINGS.site_requested
+        ? `<div class="freecallout" style="margin-top:12px">✓ Custom website requested — we'll reach out to build it with you.</div>`
+        : `<button class="btn ghost full" style="margin-top:8px" onclick="requestCustomSite(this)">✨ Want a custom-built website? Request one</button>
+           <div class="hint" style="margin-top:4px">Like your free site, but built for you — your photos, your pages, your domain. Tap and we'll reach out.</div>`}
     </div>
     <div class="nb-sec" style="margin-top:16px">
       <h3>Languages</h3>

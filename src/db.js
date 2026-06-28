@@ -331,6 +331,11 @@ ensureColumns("user", [
   // For agents: epoch ms their free first year ends. While now < this, the account
   // is free + entitled; after it, their locked_monthly ($50) applies.
   ["agent_free_until", "INTEGER"],
+  // Custom-website request: the contractor asked us to build them a custom site.
+  // The founder sees who asked (the "we won't know unless they ask" signal) and
+  // hand-builds / upsells it. Timestamp = when they asked; note = what they want.
+  ["site_request_at", "INTEGER"],
+  ["site_request_note", "TEXT"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).

@@ -139,6 +139,9 @@ function settingsOf(user) {
     services: (() => { try { return JSON.parse(user.services || "[]"); } catch { return []; } })(),
     site_tagline: user.site_tagline || "",
     site_color: user.site_color || "",
+    // Custom-site request: whether this contractor has asked us to build them one.
+    site_requested: !!user.site_request_at,
+    site_request_note: user.site_request_note || "",
   };
 }
 
@@ -324,6 +327,14 @@ app.get("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
 });
 app.get("/api/admin/events", requireAuth, requireAdmin, (req, res) =>
   res.json({ events: Analytics.recentEvents(req.query.limit) }));
+// Contractors who asked us to build them a custom website (the "we won't know
+// unless they ask" list). Founder-only — who + their note + when, newest first.
+app.get("/api/admin/site-requests", requireAuth, requireAdmin, (req, res) => {
+  const rows = db.prepare(
+    "SELECT id, company, name, email, phone, site_request_at, site_request_note FROM user WHERE site_request_at IS NOT NULL ORDER BY site_request_at DESC"
+  ).all();
+  res.json({ requests: rows.map((r) => ({ id: r.id, company: r.company || "", name: r.name || "", email: r.email || "", phone: r.phone || "", note: r.site_request_note || "", at: r.site_request_at, site_url: baseUrl(req) + "/c/" + r.id })) });
+});
 
 // Concierge onboarding (founder-only): set a contractor up with a fully-configured
 // account on the full trial, optionally import their price book, and send (or hand
@@ -394,6 +405,21 @@ app.post("/api/interest", requireAuth, wrap((req, res) => {
     .run(req.user.id, feature, Date.now());
   const { c } = db.prepare("SELECT COUNT(*) c FROM interest WHERE feature=?").get(feature);
   res.json({ ok: true, count: c });
+}));
+
+// "Build me a custom website" — the contractor asks; the founder gets the signal
+// (who + an optional note) and hand-builds / upsells it. Idempotent: re-asking
+// updates the note. Also recorded as a demand signal so it shows in the founder
+// dashboard, and pushed to the notify sink so the founder hears about it live.
+app.post("/api/me/site-request", requireAuth, wrap((req, res) => {
+  const note = String((req.body || {}).note || "").trim().slice(0, 500);
+  db.prepare("UPDATE user SET site_request_at=?, site_request_note=? WHERE id=?")
+    .run(Date.now(), note, req.user.id);
+  db.prepare("INSERT OR IGNORE INTO interest (user_id, feature, created_at) VALUES (?,?,?)")
+    .run(req.user.id, "custom_website", Date.now());
+  track(req.user.id, "custom_site_requested", { hasNote: !!note });
+  try { Notify.notify("site_request", { userId: req.user.id, company: req.user.company || "", email: req.user.email || "", phone: req.user.phone || "", note }); } catch {}
+  res.json({ ok: true, site_requested: true, site_request_note: note });
 }));
 
 // ---- Jobs ----
