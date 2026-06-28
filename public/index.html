@@ -875,9 +875,15 @@ function notifBanner(){
     const who=(i.customer||'').trim()||'Your client';
     const msg=i.type==='paid'
       ? `<span class="news-ic pay">${icon('revenue',15)}</span><b>${esc(who)}</b> paid a ${money(i.amount||0)} deposit`
-      : `<span class="news-ic">${icon('check',15)}</span><b>${esc(who)}</b> accepted your proposal`;
-    const sub=`${i.jobTitle?esc(i.jobTitle)+' · ':''}${timeAgo(i.at)}`;
-    const nav=i.jobId?`if(this.closest('.news-row')._sw)return; go('job','${i.jobId}')`:'';
+      : i.type==='lead'
+        ? `<span class="news-ic">📥</span><b>${esc((i.leadName||'').trim()||'New lead')}</b> requested an estimate`
+        : `<span class="news-ic">${icon('check',15)}</span><b>${esc(who)}</b> accepted your proposal`;
+    const sub=i.type==='lead'
+      ? `${i.jobType?esc(i.jobType)+' · ':''}${timeAgo(i.at)} · tap to follow up`
+      : `${i.jobTitle?esc(i.jobTitle)+' · ':''}${timeAgo(i.at)}`;
+    const nav=i.type==='lead'
+      ? `if(this.closest('.news-row')._sw)return; go('leads')`
+      : (i.jobId?`if(this.closest('.news-row')._sw)return; go('job','${i.jobId}')`:'');
     return `<div class="news-row" ontouchstart="nTouch(event,this)" ontouchmove="nTouch(event,this)" ontouchend="nTouch(event,this,${i.id})" ontouchcancel="nTouch(event,this,${i.id})">
       <button class="news-item ${i.unread?'unread':''}" onclick="${nav}"><div class="news-t">${msg}</div><div class="news-s">${sub}</div></button>
       <button class="news-x" onclick="event.stopPropagation();dismissNotif(${i.id})" title="Dismiss" aria-label="Dismiss">✕</button>

@@ -208,6 +208,22 @@ function resetEmailHtml(link) {
     <p style="color:#8a7f68;font-size:.85rem">If you didn't request this, you can safely ignore this email — your password won't change.</p>
   </div>`;
 }
+// The "you have a new lead" email — the one notification a contractor gets when a
+// homeowner requests an estimate on their website, so the lead never goes unseen.
+function leadEmailHtml(lead, appUrl) {
+  const row = (k, v) => v ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68">${k}</td><td style="padding:4px 0;font-weight:600">${esc(v)}</td></tr>` : "";
+  return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
+    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
+    <h2 style="margin:18px 0 6px">📥 New estimate request</h2>
+    <p style="color:#5a5240">Someone just asked you for an estimate. Reach out while it's hot.</p>
+    <table style="margin:14px 0;font-size:.96rem">${row("Name", lead.name)}${row("Phone", lead.phone)}${row("Email", lead.email)}${row("Project", lead.job_type)}${row("Area", lead.city)}${lead.message ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68;vertical-align:top">Details</td><td style="padding:4px 0">${esc(lead.message)}</td></tr>` : ""}</table>
+    <p style="margin:20px 0"><a href="${appUrl}/" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Open Bidtranslator &amp; bid it</a></p>
+  </div>`;
+}
+function leadEmailText(lead, appUrl) {
+  const f = (k, v) => v ? `${k}: ${v}\n` : "";
+  return `New estimate request\n\n${f("Name", lead.name)}${f("Phone", lead.phone)}${f("Email", lead.email)}${f("Project", lead.job_type)}${f("Area", lead.city)}${lead.message ? `Details: ${lead.message}\n` : ""}\nOpen Bidtranslator to bid it: ${appUrl}/`;
+}
 
 // ---- Billing ----
 app.get("/api/billing/status", requireAuth, (req, res) => res.json(Billing.billingStatus(req.user)));
@@ -703,8 +719,17 @@ app.post("/api/inbound/leads", wrap((req, res) => {
   const userId = Leads.userIdForToken(token);
   if (!userId) return res.status(401).json({ error: "Invalid or missing lead token." });
   const lead = Leads.createLead(userId, Leads.normalizeInbound(req.body || {}));
-  // Fan out to the contractor's notification sink (email/SMS via their webhook) if set.
-  try { Notify.notify && Notify.notify({ type: "lead", lead, userId }); } catch {}
+  // ONE notification to the contractor, three reliable channels:
+  // 1) in-app "good news" inbox (an event the bell + dashboard banner surface),
+  track(userId, "lead_received", { leadId: lead.id, name: lead.name || "", jobType: lead.job_type || "", source: lead.source || "website" });
+  // 2) external fan-out webhook (correct signature now — was passing a bad arg),
+  try { Notify.notify("lead", { contractorId: userId, lead }); } catch {}
+  // 3) email the contractor so they hear about it with the app closed.
+  const owner = db.prepare("SELECT email FROM user WHERE id=?").get(userId);
+  if (owner && owner.email && Mail.mailConfigured()) {
+    Mail.sendMail({ to: owner.email, subject: `New estimate request${lead.name ? " from " + lead.name : ""}`,
+      html: leadEmailHtml(lead, baseUrl(req)), text: leadEmailText(lead, baseUrl(req)) }).catch(() => {});
+  }
   res.json({ ok: true, id: lead.id });
 }));
 
