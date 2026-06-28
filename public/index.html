@@ -316,6 +316,7 @@
   .ladder .rung b{font-size:.92rem}
   .ladder .rung.on{background:var(--amber,#CF7F18);border-color:var(--amber,#CF7F18);color:#1F252C}
   .ladder .rung.on span{color:#1F252C}
+  .freecallout{background:rgba(207,127,24,.12);border:1px solid var(--amber,#CF7F18);border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:.92rem;line-height:1.4}
   @media(min-width:720px){ .kpi{flex:1 1 0} }
   .empty{text-align:center;padding:54px 20px;border:1px dashed var(--line);border-radius:10px}
   .empty .big{font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:6px}
@@ -1266,12 +1267,17 @@ function referralLadderHTML(){
   const r = BILLING && BILLING.referral; if(!r) return '';
   const rungs=[];
   for(let i=0;i<=r.freeAt;i++){ rungs.push({ i, price:Math.max(0, r.base - r.creditPerRef*i), on:i===r.payingReferrals }); }
+  const free = r.effective===0;
+  // Lead with the destination — FREE at 5 — then the math. Once they're free, keep
+  // it open-ended: they stay free and adding more crew grows their network.
   return `<div class="pricecard" style="border-color:var(--amber)">
-    <div class="h-eyebrow">Bring your crew, drop your bill</div>
-    <div class="amt">${r.effective===0?'Free':priceStr(r.effective)}<span>${r.effective===0?" while your crew's active":'/month'}</span></div>
-    <div class="hint" style="margin:-4px 0 10px">$${r.base}/mo base. Every contractor you bring on who subscribes knocks $${r.creditPerRef} off${r.locked?' (your founder rate is locked in)':''} — <b style="color:var(--paper)">${r.payingReferrals}</b> paying ${r.payingReferrals===1?'sub':'subs'} so far. ${r.remainingToFree>0?`Bring <b style="color:var(--paper)">${r.remainingToFree}</b> more and you ride free.`:"Your crew's got you — $0/month. 🎉"}</div>
+    <div class="h-eyebrow">${free?"You're in — it's free":`Get it FREE — bring ${r.freeAt} of your crew`}</div>
+    <div class="amt">${free?'$0':priceStr(r.effective)}<span>${free?" — free while your crew's active":'/month'}</span></div>
+    <div class="hint" style="margin:-4px 0 10px">${free
+      ? `Your crew's got you — <b style="color:var(--paper)">$0/month</b> for as long as they stay subscribed${r.locked?', and your founder rate is locked in':''}. Keep adding crew — you stay free, and every contractor you bring grows your network.`
+      : `$${r.base}/mo, and every contractor you bring on who subscribes takes <b style="color:var(--paper)">$${r.creditPerRef} off</b> — <b style="color:var(--paper)">${r.freeAt} paying subs and it's $0.</b> You're at ${r.payingReferrals} so far; bring <b style="color:var(--paper)">${r.remainingToFree}</b> more and it's free${r.locked?' (founder rate locked in)':''}.`}</div>
     <div class="ladder">${rungs.map(x=>`<div class="rung ${x.on?'on':''}"><span>${x.i}</span><b>${x.price===0?'Free':'$'+x.price}</b></div>`).join('')}</div>
-    <button class="btn ghost full" style="margin-top:12px" onclick="shareReferral()">📲 Invite your crew</button>
+    <button class="btn ghost full" style="margin-top:12px" onclick="shareReferral()">📲 ${free?'Add more of your crew':'Invite your crew — get to free'}</button>
   </div>`;
 }
 function shareReferral(){
@@ -1297,6 +1303,7 @@ function viewPaywall(){
         : (setupWaivedView()
           ? `your ${priceStr(BILLING.setup_fee_base)} setup fee is <b style="color:var(--paper)">waived</b> (founding member) — just your first ${priceStr(planMonthly())}`
           : `your first ${priceStr(planMonthly())} is charged`)}, then ${priceStr(planMonthly())}/month. Cancel anytime.</div>
+      ${(BILLING&&BILLING.referral)?`<div class="freecallout">🎉 Or get it <b>FREE</b> — bring ${BILLING.referral.freeAt} contractors who subscribe and your ${priceStr(BILLING.referral.base)}/mo drops to <b>$0</b>.</div>`:''}
       <ul class="feat">
         <li>Unlimited job notebooks</li>
         <li>Voice capture &amp; English ⇄ Spanish translation</li>
