@@ -494,6 +494,47 @@ export const TRADES = {
       "EXCLUSIONS when not stated: substrate/subfloor replacement, demolition of existing tile unless noted, " +
       "plumbing/fixtures, structural repair.",
   },
+
+  staging: {
+    label: "Home Staging", emoji: "🛋️",
+    inputs: [
+      "Vacant or occupied? Number of rooms/spaces to stage",
+      "Square footage and price tier (drives the furniture level)",
+      "Staging period in months (the listing window)",
+    ],
+    prompt:
+      "HOME STAGING ESTIMATING. Staging is normally priced as an UPFRONT staging fee PLUS a MONTHLY furniture " +
+      "rental for the listing period — quote both. First determine VACANT (full furniture & decor) vs OCCUPIED " +
+      "(use the owner's furniture + add accents — much cheaper). Price by ROOM or as a whole-home package; the key " +
+      "rooms carry the value (living, primary bedroom, kitchen, dining, entry). LINE ITEMS: consultation / " +
+      "walkthrough; design plan; furniture & decor RENTAL (per room or package, billed MONTHLY — state the monthly " +
+      "rate × expected months); delivery, install & styling; de-stage / pickup at the end; accessories & soft goods. " +
+      "Occupied staging is mostly a consult + accent rental + styling labor. Use the SKU/price book when matched. " +
+      "ASSUMPTIONS: vacant vs occupied, number of rooms, staging period (typically 1–3 months), \"rental billed " +
+      "monthly until the home sells or the term ends\". EXCLUSIONS when not stated: repairs/cleaning/painting, " +
+      "professional photography, extended rental beyond the term, moving the owner's belongings, high-value art/rugs " +
+      "beyond the package. (Staging ROI is the pitch — never a guarantee.)",
+  },
+
+  "interior-design": {
+    label: "Interior Design", emoji: "🪑",
+    inputs: [
+      "Rooms in scope and depth (refresh vs. full design)",
+      "Your pricing model — hourly, flat per room, % of budget, or cost-plus",
+      "Furnishings budget and who buys (designer-procured vs. client-supplied)",
+    ],
+    prompt:
+      "INTERIOR DESIGN ESTIMATING. State the PRICING MODEL and price to it: (1) HOURLY design fee ($/hr × estimated " +
+      "hours), (2) FLAT per-room design fee, (3) PERCENTAGE of the project/furnishings budget, or (4) COST-PLUS " +
+      "(markup on furnishings procured). PHASES as line items: consultation; concept & mood board; space planning / " +
+      "floor plans; 3D renderings (optional); material & finish selections (FF&E specs); sourcing & procurement; " +
+      "project management & trade coordination; install & styling day. FURNISHINGS (furniture, lighting, rugs, decor, " +
+      "window treatments) are a SEPARATE budget/allowance — note whether designer-procured (usually cost-plus markup) " +
+      "or client-supplied. Use the SKU/price book when matched. ASSUMPTIONS: the pricing model used, rooms in scope, " +
+      "furnishings budget as an allowance, \"selections subject to availability\". EXCLUSIONS when not stated: the " +
+      "furnishings themselves (allowance), construction/contractor work, structural/architectural changes, permits, " +
+      "freight & receiving beyond an allowance, and design revisions beyond a stated number of rounds.",
+  },
 };
 
 // A short, realistic STARTER SCOPE per trade — used to seed a sample bid when a
@@ -508,6 +549,8 @@ const SAMPLE = {
   concrete: [["Prep", "Excavation, grade & set forms"], ["Base", "Gravel base & compaction"], ["Reinforce", "Rebar / wire mesh"], ["Pour", "Concrete, pour & finish"], ["Finish", "Strip forms, seal & cleanup"]],
   painting: [["Prep", "Scrape, sand, patch & caulk"], ["Protect", "Mask & protect floors / fixtures"], ["Prime", "Spot-prime bare/patched areas"], ["Paint", "Walls & ceilings (2 coats)"], ["Paint", "Trim, doors & accents"], ["Finish", "Cleanup & touch-up"]],
   "general-contractor": [["Site/Demo", "Demolition & debris removal"], ["Framing", "Framing & blocking"], ["Mechanical", "Plumbing, electrical & HVAC rough-in"], ["Finishes", "Drywall, paint & flooring"], ["Finishes", "Trim, doors & hardware"], ["General", "Permits, supervision & final clean"]],
+  staging: [["Consult", "Staging consultation & plan"], ["Staging", "Stage key rooms — furniture & decor"], ["Rental", "Monthly furniture rental"], ["Install", "Delivery, install & styling"], ["Finish", "De-stage & pickup"]],
+  "interior-design": [["Concept", "Design consultation & concept"], ["Planning", "Space planning & floor plan"], ["Selections", "Material & finish selections"], ["Sourcing", "Furniture & decor sourcing"], ["Install", "Install & styling day"]],
 };
 const SAMPLE_GENERIC = [["Prep", "Site prep & protection"], ["Materials", "Materials & supply"], ["Labor", "Installation labor"], ["Finish", "Cleanup & haul-away"]];
 export function sampleScope(key) {

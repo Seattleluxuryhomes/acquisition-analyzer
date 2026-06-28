@@ -1924,6 +1924,8 @@ const TRADE_PICK = [
   { key:'excavation-demo', emoji:'🚜', label:'Dirt Work / Excavation & Grading', bring:'cut & fill volumes (or area + depths), soil type, haul distance, and whether the site balances' },
   { key:'countertops', emoji:'🪨', label:'Countertops', bring:'counter sq ft or slab count, material, edge profile, and cutouts' },
   { key:'tile', emoji:'🔲', label:'Tile', bring:'area per surface (floor/wall/shower), tile size & pattern, and wet areas' },
+  { key:'staging', emoji:'🛋️', label:'Home Staging', bring:'vacant or occupied, number of rooms, price tier, and the staging period in months' },
+  { key:'interior-design', emoji:'🪑', label:'Interior Design', bring:'rooms in scope, your pricing model (hourly/flat/%/cost-plus), and the furnishings budget' },
 ];
 function tradeBringHint(){
   const t=TRADE_PICK.find(x=>x.key===CAP_DRAFT.trade); if(!t||!t.bring) return '';

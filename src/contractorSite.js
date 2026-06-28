@@ -35,6 +35,8 @@ const BLURB = {
   "excavation-demo": "Dirt work, grading, hauling, and demolition done right.",
   countertops: "Countertops templated, fabricated, and installed clean.",
   tile: "Tile set true — floors, walls, showers, and backsplashes.",
+  staging: "Home staging that helps your listing sell faster, for more.",
+  "interior-design": "Interior design that brings your space to life.",
 };
 
 export function renderContractorSite(profile = {}, opts = {}) {
