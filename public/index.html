@@ -458,8 +458,27 @@
   @keyframes micpulse{0%,100%{box-shadow:0 8px 26px rgba(169,78,56,.5)}50%{box-shadow:0 8px 40px rgba(169,78,56,.85)}}
   @media(prefers-reduced-motion:reduce){.vf-mic.rec{animation:none}}
   .vf-mic.off{background:var(--surface2);border:1px dashed var(--line);font-size:2.2rem}
-  .vf-mic-lbl{font-family:"IBM Plex Mono";font-size:.82rem;color:var(--text)}
+  .vf-mic-lbl{font-family:"IBM Plex Mono";font-size:.82rem;color:var(--text);transition:color .2s}
   .vf-mic-lbl.warn{color:var(--rust);max-width:300px;text-align:center;font-size:.74rem}
+  /* Mic "stage": the hero mic with expanding rings while listening + a shared-element
+     grow from the floating bottom-nav mic, so it feels like one object (Apple/ChatGPT). */
+  .vf-mic-stage{position:relative;display:flex;align-items:center;justify-content:center;width:148px;height:148px}
+  .vf-mic-stage .vf-ring{position:absolute;width:104px;height:104px;border-radius:50%;border:2px solid var(--amber);opacity:0;pointer-events:none}
+  .vf-mic-stage.recording .vf-ring{animation:vfring 1.9s ease-out infinite}
+  .vf-mic-stage.recording .vf-ring.r2{animation-delay:.63s}
+  .vf-mic-stage.recording .vf-ring.r3{animation-delay:1.26s}
+  @keyframes vfring{0%{opacity:.55;transform:scale(1)}100%{opacity:0;transform:scale(1.85)}}
+  .vf-timer{font-family:"IBM Plex Mono";font-size:.82rem;color:var(--rust);letter-spacing:.04em;height:0;opacity:0;overflow:hidden;transition:opacity .25s}
+  .vf-timer.on{height:auto;opacity:1}
+  .vf-timer::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--rust);margin-right:7px;vertical-align:middle;animation:vfblink 1.1s steps(1) infinite}
+  @keyframes vfblink{50%{opacity:.25}}
+  .vf-wave{display:flex;align-items:flex-end;justify-content:center;gap:3px;height:0;opacity:0;overflow:hidden;transition:opacity .25s;width:100%;max-width:264px;margin:0 auto}
+  .vf-wave.on{height:40px;opacity:1}
+  .vf-bar{width:4px;height:40px;border-radius:3px;background:var(--amber);transform:scaleY(.12);transform-origin:bottom;will-change:transform}
+  .vf-caption{min-height:0;height:0;opacity:0;overflow:hidden;color:var(--muted);font-size:.88rem;line-height:1.45;max-width:330px;margin:0 auto;text-align:center;transition:opacity .25s}
+  .vf-caption.on{height:auto;min-height:21px;opacity:1}
+  .vf-mic-grow{position:fixed;z-index:9999;background:var(--amber);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 26px rgba(207,127,24,.45),inset 0 2px 0 rgba(255,255,255,.35);pointer-events:none}
+  @media(prefers-reduced-motion:reduce){.vf-mic-stage.recording .vf-ring{animation:none}.vf-timer::before{animation:none}}
   .vf-text{min-height:96px}
   .reread{float:right;background:none;border:1px solid var(--line);color:var(--amber);border-radius:6px;font-family:"IBM Plex Mono";font-size:.64rem;padding:2px 7px;cursor:pointer;margin-top:-2px}
   .intake{margin-top:12px}
@@ -1484,7 +1503,7 @@ function go(v, jobId){ state.view=v; if(jobId!==undefined) state.jobId=jobId; st
 // is what stops a previous conversation from bleeding into, or being appended to, a
 // new one when dictating.
 function freshCapture(){ const ta=document.getElementById('capText'); if(ta) ta.value=''; clearCapDraft(); CAP_PHOTOS=[]; }
-function newJob(){ if(!entitled()){ go('paywall'); return; } freshCapture(); go('capture','new'); }
+function newJob(){ if(!entitled()){ go('paywall'); return; } freshCapture(); go('capture','new'); requestAnimationFrame(animateMicGrow); }
 // "Jobs" bottom-nav tab: the dashboard is the job list — land there and bring the
 // list into view.
 function goJobs(){ go('home'); requestAnimationFrame(()=>{ const el=document.querySelector('.fchips')||document.querySelector('.newbar'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }); }
@@ -1517,7 +1536,7 @@ function fabTap(){ if(!entitled()){ go('paywall'); return; }
   const ta=document.getElementById('capText');
   const hasDraft = !!((ta && ta.value.trim()) || (CAP_DRAFT.text||'').trim());
   if(state.view==='capture' && hasDraft && !confirm('Start a new bid? Your current voice notes will be cleared.')) return;
-  freshCapture(); go('capture','new'); }
+  freshCapture(); go('capture','new'); requestAnimationFrame(animateMicGrow); }
 function openCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='flex'; }
 function closeCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='none'; }
 function newBidVoice(){ closeCreate(); fabTap(); }
@@ -2412,9 +2431,16 @@ function viewCapture(){
   const micBlock = !window.isSecureContext
     ? `<div class="vf-mic off">🎤</div><div class="vf-mic-lbl warn">Voice needs a secure (https) connection — your SSL isn't active yet. Type below for now.</div>`
     : speechSupported()
-      ? `<button type="button" class="vf-mic" id="micBtn" onclick="micTap()" aria-label="Tap to talk">
-           <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#1F252C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21.5"/></svg>
-         </button><div class="vf-mic-lbl" id="micLbl">Tap to Start Recording</div>`
+      ? `<div class="vf-mic-stage" id="micStage">
+           <span class="vf-ring r1"></span><span class="vf-ring r2"></span><span class="vf-ring r3"></span>
+           <button type="button" class="vf-mic" id="micBtn" onclick="micTap()" aria-label="Tap to talk">
+             <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#1F252C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21.5"/></svg>
+           </button>
+         </div>
+         <div class="vf-timer" id="vfTimer">0:00</div>
+         <div class="vf-wave" id="vfWave">${vfBars()}</div>
+         <div class="vf-mic-lbl" id="micLbl">Tap to speak</div>
+         <div class="vf-caption" id="vfCaption"></div>`
       : `<div class="vf-mic off">🎤</div><div class="vf-mic-lbl">Voice isn't available on this device — type below.</div>`;
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div class="vf-hero">
@@ -4183,7 +4209,11 @@ async function copyText(text){
 }
 
 /* ---------- voice dictation ---------- */
-let rec=null, recording=false, micWanted=false;
+let rec=null, recording=false, micWanted=false, recStartAt=0;
+// Live on-screen captions are a cosmetic *preview* (phone speech engine) shown while
+// recording — they NEVER write into the bid; Whisper is the source of truth on stop.
+// Kill switch if it ever fights the mic on a device: localStorage.bt_live_captions='off'.
+let LIVE_CAPTIONS = (localStorage.getItem('bt_live_captions')||'on')!=='off';
 // One voice path for every device: record → Whisper (server transcription). It's
 // the most accurate and identical on iPhone, Android, and desktop. The browser's
 // live speech API is only a fallback for when the server has no transcription key.
@@ -4191,9 +4221,16 @@ function liveSpeechSupported(){ return ('webkitSpeechRecognition' in window) || 
 function recordSupported(){ return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder); }
 function useWhisper(){ return recordSupported() && AI_TRANSCRIBE; } // primary path when configured
 function speechSupported(){ return useWhisper() || liveSpeechSupported(); }
+// Render the reactive waveform's bars (static markup; heights are driven live from
+// the mic analyser in startVAD). One place to change the bar count.
+function vfBars(){ return Array.from({length:28},()=>'<i class="vf-bar"></i>').join(''); }
 function updateMic(){ const b=document.getElementById('micBtn'); if(b) b.classList.toggle('rec',recording);
-  const txt = micState==='transcribing'?'Transcribing…' : recording?'Recording… Tap Again to Stop' : 'Tap to Start Recording';
-  const lbl=document.getElementById('micLbl'); if(lbl){ lbl.textContent=txt; return; }
+  const analyzing=micState==='transcribing';
+  const txt = analyzing?'Analyzing…' : recording?'Listening…' : 'Tap to speak';
+  const lbl=document.getElementById('micLbl'); if(lbl) lbl.textContent=txt;
+  const stage=document.getElementById('micStage'); if(stage) stage.classList.toggle('recording',recording);
+  const wave=document.getElementById('vfWave'); if(wave) wave.classList.toggle('on',recording);
+  const tm=document.getElementById('vfTimer'); if(tm){ tm.classList.toggle('on',recording); if(!recording&&!analyzing) tm.textContent='0:00'; }
   const l=b&&b.querySelector('.lbl'); if(l) l.textContent=txt; }
 
 /* ---- Record → server transcription (universal voice, incl. iPhone) ---- */
@@ -4219,7 +4256,7 @@ async function startRecord(){
   catch(e){ try{ mediaRec=new MediaRecorder(stream); }catch(_){ recBusy=false; stream.getTracks().forEach(t=>t.stop()); toast('Recording isn’t supported here.','warn'); return; } }
   mediaRec.ondataavailable=(ev)=>{ if(ev.data&&ev.data.size) mediaChunks.push(ev.data); };
   mediaRec.onstop=async ()=>{
-    stopVAD();
+    stopVAD(); stopLiveCaptions();
     if(recTimer){ clearTimeout(recTimer); recTimer=null; }
     try{ mediaStream&&mediaStream.getTracks().forEach(t=>t.stop()); }catch(e){}
     const blob=new Blob(mediaChunks,{type:(mediaRec&&mediaRec.mimeType)||'audio/webm'});
@@ -4238,13 +4275,14 @@ async function startRecord(){
     updateMic();
   };
   mediaRec.start();
-  recording=true; micState='recording'; updateMic(); buzz(18); startVAD(mediaStream);
+  recStartAt=Date.now();
+  recording=true; micState='recording'; updateMic(); buzz(18); startVAD(mediaStream); startLiveCaptions();
   recTimer=setTimeout(()=>{ if(recording){ toast('That was a long one — sending it now.','warn'); stopRecord(); } }, 60000);
   const ta0=document.getElementById('capText'); if(ta0) setTimeout(()=>{ try{ const rr=ta0.getBoundingClientRect(); window.scrollTo({top:Math.max(0,window.scrollY+rr.top-104),behavior:'smooth'}); }catch(_){} },90);
   if(recAbort) stopRecord(); // they let go during setup
 }
 function stopRecord(){
-  stopVAD();
+  stopVAD(); stopLiveCaptions();
   if(!recording){ recAbort=true; return; } // not live yet → abort as soon as it is
   recording=false; micState='transcribing'; updateMic();
   try{ mediaRec&&mediaRec.state!=='inactive'&&mediaRec.stop(); }catch(e){}
@@ -4253,18 +4291,38 @@ function stopRecord(){
 // Tap to talk: tap once to start; the AI listens and auto-stops when you go quiet
 // (~2.5s of silence after you've spoken). Tap again to stop early.
 let vadCtx=null, vadRAF=null, vadSpoke=false, vadQuietAt=0;
+// One animation loop, three jobs: (1) drive the reactive waveform from the live mic
+// spectrum, (2) tick the recording timer, (3) auto-stop after ~2.5s of silence.
 function startVAD(stream){
   try{
     const AC=window.AudioContext||window.webkitAudioContext; if(!AC||!stream) return;
     vadCtx=new AC(); const src=vadCtx.createMediaStreamSource(stream);
-    const an=vadCtx.createAnalyser(); an.fftSize=1024; src.connect(an);
-    const buf=new Uint8Array(an.fftSize); vadSpoke=false; vadQuietAt=0;
+    const an=vadCtx.createAnalyser(); an.fftSize=1024; an.smoothingTimeConstant=0.72; src.connect(an);
+    const buf=new Uint8Array(an.fftSize), freq=new Uint8Array(an.frequencyBinCount);
+    vadSpoke=false; vadQuietAt=0;
     const SPEAK=0.022, SILENCE_MS=2500;
+    const bars=Array.from(document.querySelectorAll('#vfWave .vf-bar')), NB=bars.length;
+    const smooth=new Array(NB).fill(0.12);
+    const usable=Math.floor(freq.length*0.62); // voice band — skip the dead high end
+    const tmEl=document.getElementById('vfTimer'); let lastTm=0;
     const tick=()=>{
       if(!recording){ stopVAD(); return; }
       an.getByteTimeDomainData(buf);
       let sum=0; for(let i=0;i<buf.length;i++){ const v=(buf[i]-128)/128; sum+=v*v; }
       const rms=Math.sqrt(sum/buf.length), now=Date.now();
+      // (1) waveform — peak-per-bin across the voice band, eased so it dances not jitters
+      if(NB){ an.getByteFrequencyData(freq);
+        for(let b=0;b<NB;b++){
+          const s=Math.floor(b/NB*usable), e=Math.floor((b+1)/NB*usable);
+          let m=0; for(let i=s;i<e;i++){ if(freq[i]>m) m=freq[i]; }
+          const v=0.12+Math.min(1,Math.pow(m/255,0.85)*1.7)*0.88;
+          smooth[b]=smooth[b]*0.55+v*0.45;
+          bars[b].style.transform='scaleY('+smooth[b].toFixed(3)+')';
+        }
+      }
+      // (2) timer (mm:ss), throttled
+      if(tmEl && now-lastTm>200){ lastTm=now; const t=Math.max(0,Math.floor((now-recStartAt)/1000)); tmEl.textContent=Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); }
+      // (3) silence auto-stop
       if(rms>SPEAK){ vadSpoke=true; vadQuietAt=0; }
       else if(vadSpoke){ if(!vadQuietAt) vadQuietAt=now; else if(now-vadQuietAt>SILENCE_MS){ stopVAD(); if(recording){ buzz(12); stopRecord(); } return; } }
       vadRAF=requestAnimationFrame(tick);
@@ -4272,7 +4330,56 @@ function startVAD(stream){
     vadRAF=requestAnimationFrame(tick);
   }catch(e){}
 }
-function stopVAD(){ if(vadRAF){ cancelAnimationFrame(vadRAF); vadRAF=null; } if(vadCtx){ try{ vadCtx.close(); }catch(e){} vadCtx=null; } }
+function stopVAD(){ if(vadRAF){ cancelAnimationFrame(vadRAF); vadRAF=null; } if(vadCtx){ try{ vadCtx.close(); }catch(e){} vadCtx=null; }
+  document.querySelectorAll('#vfWave .vf-bar').forEach(b=>{ b.style.transform='scaleY(.12)'; }); }
+
+// Live caption PREVIEW (cosmetic) — the phone's speech engine, shown in gray while
+// recording so the user sees the AI is hearing them. It writes ONLY to #vfCaption,
+// never to the bid text, so a misheard word can't pollute the Whisper transcript.
+let capRec=null, capWanted=false;
+function startLiveCaptions(){
+  if(!LIVE_CAPTIONS || !liveSpeechSupported()) return;
+  try{
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    capRec=new SR();
+    capRec.lang=SPEECH_LANG[SETTINGS.from||'es']||'es-US';
+    capRec.continuous=true; capRec.interimResults=true; capRec.maxAlternatives=1;
+    capWanted=true;
+    capRec.onresult=(e)=>{
+      let txt=''; for(let i=0;i<e.results.length;i++) txt+=' '+(e.results[i][0].transcript||'');
+      const el=document.getElementById('vfCaption'); if(el){ el.textContent=txt.trim().slice(-180); el.classList.add('on'); }
+    };
+    capRec.onend=()=>{ if(capWanted){ try{ capRec.start(); }catch(_){} } };
+    capRec.onerror=()=>{}; // best-effort only — never disturb the real recording
+    capRec.start();
+  }catch(_){ capRec=null; }
+}
+function stopLiveCaptions(){ capWanted=false; if(capRec){ try{ capRec.stop(); }catch(_){} capRec=null; }
+  const el=document.getElementById('vfCaption'); if(el){ el.textContent=''; el.classList.remove('on'); } }
+
+// Shared-element grow: the floating bottom-nav mic visually expands into the big
+// center mic so opening Voice Capture feels like one object, not a page load.
+function animateMicGrow(){
+  try{ if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return; }catch(_){}
+  const fab=document.querySelector('#bnAdd .fab'), mic=document.getElementById('micBtn');
+  if(!fab || !mic) return;
+  const from=fab.getBoundingClientRect(), to=mic.getBoundingClientRect();
+  if(!from.width || !to.width) return;
+  const clone=document.createElement('div'); clone.className='vf-mic-grow';
+  clone.innerHTML='<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#1F252C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21.5"/></svg>';
+  clone.style.cssText+=';left:'+from.left+'px;top:'+from.top+'px;width:'+from.width+'px;height:'+from.height+'px';
+  const svg=clone.querySelector('svg');
+  if(svg){ svg.style.transition='transform .42s cubic-bezier(.2,.8,.2,1)'; svg.style.transform='scale('+(from.width/to.width).toFixed(3)+')'; }
+  document.body.appendChild(clone);
+  mic.style.visibility='hidden';
+  clone.getBoundingClientRect(); // reflow so the transition takes
+  clone.style.transition='left .42s cubic-bezier(.2,.8,.2,1),top .42s cubic-bezier(.2,.8,.2,1),width .42s cubic-bezier(.2,.8,.2,1),height .42s cubic-bezier(.2,.8,.2,1)';
+  clone.style.left=to.left+'px'; clone.style.top=to.top+'px'; clone.style.width=to.width+'px'; clone.style.height=to.height+'px';
+  if(svg) svg.style.transform='scale(1)';
+  const done=()=>{ if(mic) mic.style.visibility=''; clone.remove(); };
+  clone.addEventListener('transitionend', done, {once:true});
+  setTimeout(done, 660);
+}
 function micTap(){
   if(recording||recBusy){ // tap again → stop / cancel
     if(useWhisper()) stopRecord();
