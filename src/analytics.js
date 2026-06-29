@@ -18,13 +18,86 @@ const one = (sql, ...a) => db.prepare(sql).get(...a);
 const cnt = (sql, ...a) => one(sql, ...a).c;
 
 // ---------- Event tracking (the single write path) ----------
-export function track(userId, name, props = {}) {
+// `ua` is the request's User-Agent (when known) so we can later tell iPhone from
+// Android and flag the in-app browsers where voice silently fails.
+export function track(userId, name, props = {}, ua = "") {
   if (!name) return;
   try {
-    db.prepare("INSERT INTO event (user_id, name, props, created_at) VALUES (?,?,?,?)")
-      .run(userId || null, String(name).slice(0, 60), JSON.stringify(props || {}).slice(0, 2000), Date.now());
+    db.prepare("INSERT INTO event (user_id, name, props, ua, created_at) VALUES (?,?,?,?,?)")
+      .run(userId || null, String(name).slice(0, 60), JSON.stringify(props || {}).slice(0, 2000), String(ua || "").slice(0, 300), Date.now());
   } catch { /* analytics must never break a request */ }
   forwardToSinks(userId, name, props);
+}
+
+// ---------- Device / browser classification ----------
+// Turn a raw User-Agent into the two facts that matter for adoption: what phone,
+// and whether it's the Instagram/Facebook in-app browser (where getUserMedia is
+// blocked, so voice capture can't work no matter how good the app is).
+export function classifyUA(ua) {
+  const s = String(ua || "");
+  const inApp =
+    /Instagram/i.test(s) ? "Instagram" :
+    /FBAN|FBAV|FB_IAB|FBIOS/i.test(s) ? "Facebook" :
+    /Line\//i.test(s) ? "Line" :
+    /MicroMessenger/i.test(s) ? "WeChat" :
+    /TikTok|musical_ly|BytedanceWebview/i.test(s) ? "TikTok" : "";
+  const os =
+    /iPhone|iPad|iPod/i.test(s) ? "iOS" :
+    /Android/i.test(s) ? "Android" :
+    /Mac OS X/i.test(s) ? "Mac" :
+    /Windows/i.test(s) ? "Windows" : "Other";
+  // On iOS every browser is WebKit under the hood; what matters is whether voice
+  // can run at all — in-app webviews can't get the mic.
+  const browser =
+    inApp ? inApp + " in-app" :
+    /CriOS|Chrome\//i.test(s) ? "Chrome" :
+    /Safari/i.test(s) ? "Safari" : "Other";
+  // Voice capture realistically works in a real browser; in-app webviews block it.
+  const voiceOk = !inApp;
+  return { os, browser, inApp, voiceOk };
+}
+
+// Device mix across everyone we've seen a User-Agent from — and, crucially, how
+// many landed inside an in-app browser that can't do voice.
+export function deviceBreakdown() {
+  const rows = db.prepare(
+    "SELECT ua, user_id FROM event WHERE ua IS NOT NULL AND ua <> '' ORDER BY id DESC LIMIT 5000"
+  ).all();
+  const seen = new Set();
+  const os = {}, browser = {};
+  let inAppUsers = 0, total = 0;
+  for (const r of rows) {
+    const key = r.user_id || r.ua;            // one vote per user (fall back to UA)
+    if (seen.has(key)) continue;
+    seen.add(key);
+    total++;
+    const c = classifyUA(r.ua);
+    os[c.os] = (os[c.os] || 0) + 1;
+    browser[c.browser] = (browser[c.browser] || 0) + 1;
+    if (c.inApp) inAppUsers++;
+  }
+  const sortObj = (o) => Object.entries(o).map(([k, c]) => ({ name: k, count: c })).sort((a, b) => b.count - a.count);
+  return { total, os: sortObj(os), browser: sortObj(browser), inAppUsers };
+}
+
+// The smoking gun: people who tried to record and the device wouldn't let them.
+// Grouped by reason + device so "they ghosted" becomes "their mic was blocked in
+// the Instagram browser".
+export function voiceFailures(limit = 50) {
+  const rows = db.prepare(
+    `SELECT e.props, e.ua, e.created_at, u.email
+       FROM event e LEFT JOIN user u ON u.id=e.user_id
+      WHERE e.name='record_failed' ORDER BY e.id DESC LIMIT ?`
+  ).all(Math.min(Number(limit) || 50, 200));
+  const byReason = {};
+  const items = rows.map((r) => {
+    let props = {}; try { props = JSON.parse(r.props || "{}"); } catch { /* ignore */ }
+    const reason = props.reason || "unknown";
+    byReason[reason] = (byReason[reason] || 0) + 1;
+    const c = classifyUA(r.ua);
+    return { reason, os: c.os, browser: c.browser, email: r.email || "", at: r.created_at };
+  });
+  return { count: rows.length, byReason: Object.entries(byReason).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count), items };
 }
 
 // Pluggable destinations. No-ops until the matching env var is set; documented
