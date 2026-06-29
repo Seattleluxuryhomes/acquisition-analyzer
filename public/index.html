@@ -2149,7 +2149,7 @@ function dashKPIs(visible){
   const won=visible.filter(j=>jobStatus(j)==='signed'||jobStatus(j)==='scheduled');
   const sent=visible.filter(j=>jobStatus(j)==='sent');
   const now=Date.now();
-  const followups=sent.filter(j=>now-(j.sent_at||j.updated_at||now) > 3*86400000);
+  const followups=visible.filter(isFollowupJob);
   const decided=won.length+sent.length;
   return { collected:(COLLECTED&&COLLECTED.total)||0, payments:(COLLECTED&&COLLECTED.count)||0,
     wonValue:sum(won), wonCount:won.length, pending:sum(sent), pendingCount:sent.length,
@@ -2166,7 +2166,13 @@ function leadCard(){
   </button>`;
 }
 function kpiStrip(k){
-  const card=(name,label,val,sub,cls)=>`<div class="kpi ${cls||''}"><div class="kpi-ic">${icon(name,18)}</div><div class="kpi-txt"><div class="kpi-l">${label}</div><div class="kpi-v">${val}</div><div class="kpi-s">${sub||''}</div></div></div>`;
+  // A stat card. Pass onclick to make it tappable (jumps to those jobs) — a plain div otherwise.
+  const card=(name,label,val,sub,cls,onclick)=>{
+    const inner=`<div class="kpi-ic">${icon(name,18)}</div><div class="kpi-txt"><div class="kpi-l">${label}</div><div class="kpi-v">${val}</div><div class="kpi-s">${sub||''}</div></div>`;
+    return onclick
+      ? `<button class="kpi ${cls||''}" style="cursor:pointer;text-align:left;font:inherit;width:100%" onclick="${onclick}">${inner}</button>`
+      : `<div class="kpi ${cls||''}">${inner}</div>`;
+  };
   return `<div class="kpis">
     <div class="kpi hero rev">
       <div class="kpi-ic">${icon('revenue',22)}</div>
@@ -2176,9 +2182,9 @@ function kpiStrip(k){
     <div class="kpi-grid">
       ${leadCard()}
       ${card('won','Won',moneyShort(k.wonValue),k.wonCount+' job'+(k.wonCount===1?'':'s'),'won')}
-      ${card('pending','Pending',moneyShort(k.pending),k.pendingCount+' out for bid','pend')}
+      ${card('pending','Pending',moneyShort(k.pending),k.pendingCount+' out for bid','pend',k.pendingCount?"goJobsFilter('sent')":'')}
       ${card('close','Close rate',k.close+'%','of decided bids','close')}
-      ${card('bell','Follow-ups',k.followups,k.followups?'need attention':'all clear',k.followups?'foll alert':'foll')}
+      ${card('bell','Follow-ups',k.followups,k.followups?'need attention':'all clear',k.followups?'foll alert':'foll',k.followups?'showFollowups()':'')}
     </div>
   </div>`;
 }
@@ -2224,11 +2230,15 @@ function viewHome(){
   visible.forEach(j=>{ counts[jobStatus(j)]++; });
   const chips = [['all','All'],...JOB_STAGES]
     .map(([k,lab])=>`<button class="fchip ${f===k?'on':''}" onclick="setJobFilter('${k}')">${lab}<span class="fc">${counts[k]||0}</span></button>`).join('');
-  let filtered = f==='all' ? visible : visible.filter(j=>jobStatus(j)===f);
+  let filtered = f==='followups' ? visible.filter(isFollowupJob)
+    : (f==='all' ? visible : visible.filter(j=>jobStatus(j)===f));
   if(f==='scheduled'){ filtered=[...filtered].sort((a,b)=>String(a.scheduled_date||'9999-99-99').localeCompare(String(b.scheduled_date||'9999-99-99'))); }
+  const folHead = f==='followups'
+    ? `<div class="setupnudge" style="background:rgba(169,78,56,.12);border-color:var(--rust)">🔔 <b>Follow up</b> — ${filtered.length} bid${filtered.length===1?'':'s'} sent 3+ days ago with no answer. Open one to call or text the client. <span class="nudge-go" style="cursor:pointer" onclick="setJobFilter('all')">Show all jobs</span></div>`
+    : '';
   let list;
-  if(filtered.length===0){ list = `<div class="hint" style="margin-top:16px">No ${statusLabel(f).toLowerCase()} jobs yet.</div>`; }
-  else { list = (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">🗺️ Tap 🧭 for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
+  if(filtered.length===0){ list = folHead + `<div class="hint" style="margin-top:16px">${f==='followups'?"No follow-ups needed — you're on top of it. 🎉":'No '+statusLabel(f).toLowerCase()+' jobs yet.'}</div>`; }
+  else { list = folHead + (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">🗺️ Tap 🧭 for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
   return `${hello}${news}${nudge}${crew}
     ${growthCard()}
     ${kpiStrip(dashKPIs(visible))}
@@ -2264,6 +2274,13 @@ function viewSchedule(){
     <div class="weekgrid">${dayBlocks}${laterBlock}</div>`;
 }
 function setJobFilter(f){ state.jobFilter=f; render(); }
+// A "follow-up" = a bid you SENT that's gone quiet (3+ days, no decision). Same
+// definition the dashboard counts, so the card number and the filtered list always match.
+function isFollowupJob(j){ return jobStatus(j)==='sent' && (Date.now()-(j.sent_at||j.updated_at||Date.now())) > 3*86400000; }
+// Tapping a dashboard stat card sets the matching job filter and scrolls to the list,
+// so a number on the dashboard drops you straight onto the jobs behind it.
+function goJobsFilter(f){ state.jobFilter=f; render(); requestAnimationFrame(()=>{ const el=document.querySelector('.newbar'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }); }
+function showFollowups(){ goJobsFilter('followups'); }
 function setJobStatus(id,s){
   const j=JOBS.find(x=>x.id===id); if(!j) return;
   j.status=s; if(s!=='draft' && !j.sent_at) j.sent_at=Date.now();
