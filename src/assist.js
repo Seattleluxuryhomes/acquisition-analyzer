@@ -82,6 +82,10 @@ function buildSystemPrompt(from, to, priceBook, trade) {
     "price with a guess. Only invent a rough USD placeholder when no price is given. If a price is " +
     "noted as plus tax, add that as an assumption. If the client supplies a material, add it as an " +
     "exclusion. " +
+    "LANGUAGE: write section names, line descriptions, assumptions and exclusions in correct, " +
+    "professional trade terminology — the words an experienced estimator puts on a real bid (e.g. " +
+    "tear-off, rough-in, service upgrade, footings, squares) — clear enough for a homeowner but never " +
+    "generic or amateur. " +
     (brain
       ? "TRADE FOCUS — this is a " + (tradeLabel(trade) || trade) + " job. Apply this trade's takeoff " +
         "method, derive quantities, and include the right line items, assumptions and exclusions:\n" + brain + "\n" +
@@ -649,19 +653,19 @@ export async function reviewBid(user, { trade, lines, text }) {
 // Trade-specific checklists — what the AI estimator needs to gather to price each
 // trade accurately. Trades not listed fall back to GENERIC_FIELDS.
 const TRADE_FIELDS = {
-  fencing: ["Total length (ft)", "Height", "Material (cedar, vinyl, chain-link…)", "Number of gates", "Remove existing fence?", "Haul away debris?", "Stain or natural", "Post type", "Terrain / slope"],
-  painting: ["Interior or exterior", "Rooms or square footage", "Surface repairs / patching", "Who supplies the paint", "Finish (flat, eggshell, satin…)", "Trim & doors included?", "Ceilings included?", "Number of coats"],
-  roofing: ["Roof type", "Roof size (squares / sq ft)", "Number of existing layers", "Decking condition / replacement", "Ventilation", "Flashing", "Gutters included?", "Tear-off & disposal"],
-  electrical: ["Service size (amps)", "Panel replacement?", "Number of new circuits", "Permit required?", "AFCI / GFCI needs", "Inspection needed?", "Wiring runs / access"],
-  "excavation-demo": ["Scope (dig / grade / haul / demo)", "Area or volume", "Depth", "Material to remove / haul", "Equipment access", "Utilities located?", "Disposal / dump fees", "Permits / grading plan"],
-  windows: ["Number of windows", "Window type / style", "Sizes / measurements", "Material (vinyl, wood, fiberglass)", "New construction or replacement", "Trim & finish", "Removal & disposal of old"],
-  concrete: ["Area (sq ft)", "Thickness", "Type (slab, driveway, footings…)", "Rebar / mesh", "Forming", "Finish (broom, smooth, stamped)", "Demo of existing?", "Disposal"],
-  flooring: ["Material (LVP, tile, hardwood…)", "Area (sq ft)", "Subfloor prep", "Remove existing floor?", "Transitions / trim", "Rooms involved", "Underlayment"],
-  decking: ["Deck size (sq ft)", "Material (cedar, composite, PT)", "Height / footings", "Railings", "Stairs", "Remove existing deck?", "Stain / finish"],
-  drywall: ["Area (sq ft / sheets)", "New or repair", "Finish level", "Texture", "Ceilings included?", "Painting included?"],
-  plumbing: ["Scope (fixtures, repipe, water heater…)", "Number of fixtures", "Material (PEX, copper…)", "Permit required?", "Access / walls open?", "Inspection needed?"],
+  fencing: ["Total linear feet", "Height", "Material (cedar, vinyl, chain-link…)", "Gates (count & width)", "Tear-out of existing fence?", "Post type & set (concrete-set?)", "Stain / finish or natural", "Grade / terrain", "Haul-off of debris"],
+  painting: ["Interior or exterior", "Rooms / square footage", "Prep & prime (patch, sand, caulk)", "Who supplies the paint", "Sheen (flat, eggshell, satin…)", "Trim, doors & jambs", "Ceilings included?", "Number of coats"],
+  roofing: ["Roof system (architectural, 3-tab, metal, TPO…)", "Squares (or footprint + pitch)", "Existing layers / tear-off", "Decking condition", "Underlayment & ice-and-water", "Ventilation (ridge / soffit)", "Flashing & drip edge", "Gutters", "Disposal"],
+  electrical: ["Service size (amps)", "Service upgrade or panel swap?", "New circuits / devices (count)", "Rough-in & trim-out scope", "AFCI / GFCI / tamper-resistant", "Permit & inspection", "Wire runs & access"],
+  "excavation-demo": ["Scope (clear, dig, grade, demo, haul)", "Volume — bank yards", "Cut / fill & depth", "Spoils: haul-off or on-site", "Compaction / import fill", "Equipment access", "Utilities located (811)?", "Permits / erosion control"],
+  windows: ["Opening count", "Type (single/double-hung, casement, slider…)", "Sizes (W×H)", "Retrofit or full-frame replacement", "Material (vinyl, wood, fiberglass)", "Egress required?", "Flashing / waterproofing", "Trim & disposal of old"],
+  concrete: ["Area (sq ft)", "Thickness / spec", "Type (slab, driveway, footings, flatwork)", "Reinforcement (rebar / mesh / fiber)", "Forming & sub-base", "Finish (broom, trowel, stamped, exposed)", "Demo & haul of existing?", "Control joints / sealer"],
+  flooring: ["Material (LVP, tile, hardwood, carpet…)", "Area (sq ft)", "Subfloor prep / leveling", "Tear-out of existing", "Underlayment / moisture barrier", "Transitions & trim", "Rooms / layout"],
+  decking: ["Deck size (sq ft)", "Decking material (cedar, composite, PT)", "Substructure & footings", "Railing system", "Stairs", "Tear-out of existing?", "Finish / stain"],
+  drywall: ["Area (sq ft / sheet count)", "Hang / tape / finish or repair", "Finish level (0–5)", "Texture (knockdown, orange peel, smooth)", "Ceilings", "Paint included?"],
+  plumbing: ["Scope (fixtures, repipe, water heater, gas…)", "Fixture count", "Material (PEX, copper, PVC / ABS)", "Rough-in & trim-out", "Permit & inspection", "Access / walls open?"],
 };
-const GENERIC_FIELDS = ["Customer name", "Job address", "Scope of work", "Key measurements / quantities", "Materials needed", "Who supplies materials", "Timeline / start date", "Site access"];
+const GENERIC_FIELDS = ["Customer & address", "Scope of work", "Key measurements / quantities", "Materials & who supplies them", "Site access & staging", "Permits / inspections", "Timeline / start date"];
 
 function intakeSystemPrompt(tradeLabel, fields) {
   return (
@@ -685,7 +689,11 @@ function intakeSystemPrompt(tradeLabel, fields) {
     "Also fill the structured fields from the conversation: client = customer name if stated (else \"\"), " +
     "address (else \"\"), scope = short work phrases, materials named, labor/crew tasks, timeline, notes = " +
     "anything else useful (put unsure/to-measure items here too). questions = up to 3 still-open items. " +
-    "project_name = client + main work, else address, else main scope. Use ONLY facts stated — never invent."
+    "project_name = client + main work, else address, else main scope. Use ONLY facts stated — never invent. " +
+    "VOICE: write every question, label and value the way a seasoned " + (tradeLabel || "construction") +
+    " estimator talks on a job walk — correct, professional trade terminology (e.g. rough-in / trim-out, " +
+    "tear-off, squares, service upgrade, footings, bank vs loose yards, full-frame vs retrofit, spoils / " +
+    "haul-off), never vague consumer phrasing. Keep questions short and natural."
   );
 }
 function sanitizeIntake(d) {
