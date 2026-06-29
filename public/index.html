@@ -1649,6 +1649,9 @@ function closeMore(){ const s=document.getElementById('sheet'); if(s) s.style.di
 // Tap → straight into capture with the mic already listening (the core workflow:
 // Speak → Generate → Send → Get Paid). Falls back silently if speech is unavailable.
 function fabTap(){ if(!entitled()){ go('paywall'); return; }
+  // On the capture screen the center nav mic is ALSO a record toggle (alongside the
+  // floating Record button) — both reach the same recording. Tap to start/stop.
+  if(state.view==='capture' && !state.loading){ micTap(); return; }
   // Don't silently wipe an in-progress dictation: if there are unsaved voice notes
   // on the capture screen, confirm before clearing them for a brand-new bid.
   const ta=document.getElementById('capText');
@@ -1710,6 +1713,7 @@ function render(){
   setOn('bnMore', state.view==='settings'||state.view==='admin'||state.view==='catalog'||state.view==='leads'||state.view==='team'||state.view==='why');
   // Draw the eye to the money button when there's nothing to do yet (first bid).
   const fab=document.getElementById('bnAdd'); if(fab) fab.classList.toggle('pulse', JOBS.filter(j=>!j._deleted).length===0 && state.view==='home');
+  paintFab();
   paintBell();
   if(state.view==='home'){ v.innerHTML = viewHome(); markNotifsSeen(); if(!TEAM.loaded) loadTeam(); }
   else if(state.view==='schedule') v.innerHTML = viewSchedule();
@@ -4433,7 +4437,16 @@ function updateMic(){ const b=document.getElementById('micBtn'); if(b) b.classLi
   const wrap=document.getElementById('capWrap'); if(wrap) wrap.classList.toggle('live',recording||analyzing);
   const lt=document.getElementById('capLiveT'); if(lt && (analyzing || (recording && !capRec))) lt.textContent = analyzing?'Analyzing what you said…':'Listening…';
   const l=b&&b.querySelector('.lbl'); if(l) l.textContent=txt;
-  paintRecFab(); }
+  paintRecFab(); paintFab(); }
+// The bottom-nav center mic also doubles as a record toggle on the capture screen —
+// red + "Stop" while recording, "Record" when idle there, "New" everywhere else.
+function paintFab(){
+  const b=document.getElementById('bnAdd'); if(!b) return;
+  const onCap = state.view==='capture' && !state.loading;
+  b.classList.toggle('rec', !!(onCap && recording));
+  const l=b.querySelector('.add-l');
+  if(l) l.textContent = onCap ? (recording ? 'Stop' : 'Record') : 'New';
+}
 // Floating Record button on the capture screen — always under the thumb, even scrolled
 // past the big mic. Red + live timer while recording; reads "Answer" with a gentle
 // pulse when the AI has just asked a question, so the conversation never dead-ends.
