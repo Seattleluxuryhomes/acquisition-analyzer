@@ -44,6 +44,20 @@ export function verifySkuImageSig(skuId, exp, sig) {
   }
 }
 
+// Private, expiring URL for a job DOCUMENT (permit PDF, approval, plans, etc.).
+// Same HMAC scheme as photos — files are never reachable without a valid signature.
+export function signDocUrl(jobId, docId, ttl = DEFAULT_TTL) {
+  const exp = Date.now() + ttl;
+  const sig = sign(`doc.${docId}.${exp}`);
+  return `/api/jobs/${jobId}/documents/${docId}?exp=${exp}&sig=${sig}`;
+}
+export function verifyDocSig(docId, exp, sig) {
+  if (!exp || !sig) return false;
+  if (Number(exp) < Date.now()) return false;
+  const expected = sign(`doc.${docId}.${exp}`);
+  try { return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)); } catch { return false; }
+}
+
 // Public, expiring link to a client proposal page (for texting/emailing a bid).
 // Carries an HMAC over "proposal.<jobId>.<expiry>" — no login needed, and it
 // only exposes buildProposal() data (margin/notes can never appear). 30 days to

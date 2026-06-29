@@ -343,6 +343,12 @@
   .ppx-b{position:absolute;top:5px;left:5px;background:rgba(31,37,44,.85);color:#fff;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:5px}
   .ppx-off{position:absolute;bottom:6px;left:0;right:0;text-align:center;color:#fff;font-size:.62rem;text-shadow:0 1px 3px rgba(0,0,0,.7)}
   .permit-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .docrow{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--surface2)}
+  .docrow .doc-ic{flex:0 0 auto;font-size:1.2rem}
+  .docrow .doc-name{flex:1;min-width:0;color:var(--text);font-weight:600;font-size:.92rem;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .docrow .doc-name:hover{color:var(--amber)}
+  .docrow .doc-meta{flex:0 0 auto;font-size:.72rem;color:var(--muted);white-space:nowrap}
+  .docrow .doc-act{flex:0 0 auto;text-decoration:none;color:var(--amber);font-size:1.05rem;padding:0 4px}
   .permit{border:1px solid var(--line,#e2dac9);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--surface2,#f3eee3)}
   .permit-top,.permit-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
   .permit-row:last-child{margin-bottom:0}
@@ -1678,6 +1684,7 @@ async function refreshJob(id){
     Object.assign(local, hydrate(s));
   }
   local.photos = serverPhotos.concat(pend);
+  local.documents = Array.isArray(s.documents) ? s.documents : (local.documents||[]); // signed URLs from the server
   persist();
   if(state.view==='job' && state.jobId===id) render();
 }
@@ -3073,6 +3080,10 @@ function tabBuild(j){
     </div>
 
     <div class="dispatchbox" style="margin-top:14px">
+      ${documentsHTML(j)}
+    </div>
+
+    <div class="dispatchbox" style="margin-top:14px">
       <button class="btn ghost full" onclick="openCO('${j.id}')">📝 New change order</button>
       <div class="hint" style="margin-top:6px">Scope grew? Document the extra work and have the client e-sign${PAYMENTS&&PAYMENTS.charges_enabled?' &amp; pay':''} — so you never do it for free.</div>
       <div id="coStatus">${coStatusHTML(j.id)}</div>
@@ -4291,6 +4302,48 @@ function permitsHTML(j){
   return `<div class="permit-h"><b>🧾 Permits</b><span class="hint" style="margin:0">Track what this job needs — and don't forget the fee.</span></div>
     ${rows}
     <button class="btn ghost full" style="margin-top:8px" onclick="addPermit()">+ Add a permit</button>`;
+}
+
+/* ---- Job documents: permit PDFs, approvals, plans, contracts (private, signed URLs) ---- */
+function fmtSize(n){ n=+n||0; return n<1024?n+' B':n<1048576?Math.round(n/1024)+' KB':(n/1048576).toFixed(1)+' MB'; }
+function docIcon(mime,name){ const m=((mime||'')+' '+(name||'')).toLowerCase(); if(/pdf/.test(m))return '📕'; if(/image|png|jpe?g|heic|webp/.test(m))return '🖼️'; if(/word|\.docx?\b/.test(m))return '📝'; if(/sheet|\.xlsx?\b|csv/.test(m))return '📊'; return '📄'; }
+function documentsHTML(j){
+  const docs=j.documents||[];
+  const rows=docs.length ? docs.map(d=>{
+    const dl=d.url + (d.url.includes('?')?'&':'?') + 'dl=1';
+    return `<div class="docrow">
+      <span class="doc-ic">${docIcon(d.mime,d.name)}</span>
+      <a class="doc-name" href="${escAttr(d.url)}" target="_blank" rel="noopener" title="Open">${esc(d.name)}</a>
+      <span class="doc-meta">${d.label?esc(d.label)+' · ':''}${fmtSize(d.size)}</span>
+      <a class="doc-act" href="${escAttr(dl)}" title="Download">⬇</a>
+      <button class="x-btn" onclick="deleteJobDoc('${j.id}','${d.id}')" title="Remove">✕</button>
+    </div>`;}).join('')
+    : `<div class="hint" style="padding:8px 2px">No documents yet — add permits, approvals, plans or contracts so everything for this job lives in one place.</div>`;
+  return `<div class="permit-h"><b>📄 Documents</b><span class="hint" style="margin:0">Permits, approvals, plans &amp; contracts — kept with the job, private to you.</span></div>
+    ${rows}
+    <input id="jobDocInput" type="file" accept=".pdf,.png,.jpg,.jpeg,.heic,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt,image/*,application/pdf" multiple style="display:none" onchange="uploadJobDoc(this)"/>
+    <button class="btn ghost full" style="margin-top:8px" onclick="document.getElementById('jobDocInput').click()">+ Upload document</button>`;
+}
+async function uploadJobDoc(input){
+  const files=Array.from(input.files||[]); input.value=''; if(!files.length) return;
+  const j=currentJob(); if(!j) return;
+  if(!online||!TOKEN){ toast('Connect to the internet to upload documents.','warn'); return; }
+  let ok=0;
+  for(const f of files){
+    if(f.size>16*1024*1024){ toast('“'+f.name+'” is over 16 MB — too large.','warn',4500); continue; }
+    try{
+      const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
+      const r=await api('/api/jobs/'+j.id+'/documents',{method:'POST',body:JSON.stringify({dataUrl,name:f.name})});
+      if(r&&r.document){ j.documents=[r.document,...(j.documents||[])]; ok++; }
+    }catch(e){ toast(e.status===404?'Save this job first, then upload.':('Could not upload “'+f.name+'”.'),'bad',4500); }
+  }
+  persist(); if(state.view==='job') render(); if(ok) toast('✓ '+ok+' document'+(ok===1?'':'s')+' uploaded','ok');
+}
+async function deleteJobDoc(jobId,docId){
+  if(!confirm('Remove this document?')) return;
+  const j=currentJob();
+  try{ await api('/api/jobs/'+jobId+'/documents/'+docId,{method:'DELETE'}); if(j) j.documents=(j.documents||[]).filter(d=>d.id!==docId); persist(); render(); }
+  catch(e){ toast(e.message||'Could not remove.','bad'); }
 }
 /* ---- Permits: contractor-only tracking (status + fee). Fee can flow into the bid. ---- */
 function addPermit(){ const j=currentJob(); j.permits=j.permits||[]; j.permits.push({id:uid(),type:'',jurisdiction:'',number:'',status:'needed',fee:0,notes:''}); touch(j); saveJobs(); render(); }

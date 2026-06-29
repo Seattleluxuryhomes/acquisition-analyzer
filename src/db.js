@@ -377,6 +377,22 @@ CREATE TABLE IF NOT EXISTS vendor (
 );
 CREATE INDEX IF NOT EXISTS vendor_user_idx ON vendor(user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS vendor_dedupe ON vendor(user_id, dedupe_key);
+
+-- Job documents: arbitrary file uploads attached to a job/project (permit PDFs,
+-- approvals, inspection reports, contracts, plans). Private — served only via signed,
+-- expiring URLs (hard rule #6), same as photos. 'label' is an optional category.
+CREATE TABLE IF NOT EXISTS document (
+  id TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL REFERENCES job(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  filename TEXT NOT NULL,          -- stored file on disk
+  orig_name TEXT NOT NULL,         -- original/display name
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  label TEXT DEFAULT '',           -- e.g. Permit, Inspection, Contract, Plans
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS document_job_idx ON document(job_id);
 `);
 
 // Migrate older databases that predate the billing columns.
