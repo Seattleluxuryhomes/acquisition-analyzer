@@ -34,7 +34,8 @@
   /* nav */
   nav{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;max-width:1040px;margin:0 auto}
   .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.18rem}
-  .mark{width:32px;height:32px;border-radius:8px;background:var(--amber);color:#1F252C;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.05rem}
+  .mark{width:32px;height:32px;border-radius:8px;background:var(--amber);display:flex;align-items:center;justify-content:center}
+  .mark img{width:74%;height:74%;object-fit:contain;display:block}
   .brand .amber{color:var(--amber)}
   .nav-cta{display:flex;align-items:center;gap:14px}
   .nav-cta .signin{color:var(--muted);font-weight:600;font-size:.92rem}
@@ -117,7 +118,7 @@
 <body>
 
 <nav>
-  <div class="brand"><span class="mark">B</span>Bid<span class="amber">translator</span></div>
+  <div class="brand"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span class="amber">translator</span></div>
   <div class="nav-cta"><a class="lang" href="/landing-es.html">ES</a><a class="signin" href="https://wa.me/12067142694" target="_blank" rel="noopener">💬 WhatsApp</a><a class="signin" href="/">Sign in</a><a class="btn" href="/">Start free</a></div>
 </nav>
 
