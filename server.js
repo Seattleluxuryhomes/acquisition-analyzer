@@ -32,6 +32,7 @@ import { renderScopeHTML } from "./src/scopeHtml.js";
 import { renderDrawHTML } from "./src/drawHtml.js";
 import { renderChangeOrderHTML } from "./src/changeOrderHtml.js";
 import { renderContractorSite } from "./src/contractorSite.js";
+import { renderGuidePage } from "./src/guidePage.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig, signProposalPdfUrl, verifyProposalPdfSig, signDocUrl, verifyDocSig } from "./src/files.js";
@@ -1510,6 +1511,13 @@ app.get("/pay/done", (req, res) => {
 <h1 style="font-size:1.4rem;color:${accent};margin:0 0 10px">${title}</h1>
 <p style="font-size:1rem;line-height:1.5;color:#5a5240;margin:0">${msg}</p>
 </div></body></html>`);
+});
+
+// Public SEO guide / FAQ — a crawlable "how it works + questions answered" page
+// for contractors (HowTo + FAQPage schema). Aliased so /guide, /how-it-works and
+// /faq all resolve to it.
+app.get(["/guide", "/how-it-works", "/faq"], (req, res) => {
+  res.type("html").send(renderGuidePage({ baseUrl: baseUrl(req) }));
 });
 
 // SPA fallback for the single-page app.
