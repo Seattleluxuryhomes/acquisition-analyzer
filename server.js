@@ -34,7 +34,7 @@ import { renderChangeOrderHTML } from "./src/changeOrderHtml.js";
 import { renderContractorSite } from "./src/contractorSite.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
-import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig, signProposalPdfUrl, verifyProposalPdfSig } from "./src/files.js";
+import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig, signProposalPdfUrl, verifyProposalPdfSig, signDocUrl, verifyDocSig } from "./src/files.js";
 import { renderProposalHTML } from "./src/proposalHtml.js";
 import * as Billing from "./src/billing.js";
 import * as Payments from "./src/payments.js";
@@ -98,7 +98,7 @@ const smallJson = express.json({ limit: "256kb" });
 const bigJson = express.json({ limit: "12mb" }); // price-sheet photo for SKU parsing
 const isPhotoUpload = (req) => req.method === "POST" &&
   (/^\/api\/jobs\/[^/]+\/photos\/?$/.test(req.path) || /^\/api\/skus\/[^/]+\/image\/?$/.test(req.path) ||
-   /^\/api\/jobs\/[^/]+\/visualize\/?$/.test(req.path));
+   /^\/api\/jobs\/[^/]+\/visualize\/?$/.test(req.path) || /^\/api\/jobs\/[^/]+\/documents\/?$/.test(req.path));
 const isBigJson = (req) => req.method === "POST" && (req.path === "/api/skus/parse" || req.path === "/api/assist/transcribe" || req.path === "/api/assist/scan");
 app.use((req, res, next) => (isPhotoUpload(req) ? next() : (isBigJson(req) ? bigJson(req, res, next) : smallJson(req, res, next))));
 app.use(express.static(path.join(__dirname, "public"), {
@@ -181,6 +181,8 @@ function attachPhotos(userId, job) {
   if (!job) return job;
   const rows = db.prepare("SELECT id, show_on_bid FROM photo WHERE job_id=? AND user_id=? ORDER BY created_at").all(job.id, userId);
   job.photos = rows.map((r) => ({ id: r.id, url: signPhotoUrl(job.id, r.id), showOnBid: !!r.show_on_bid }));
+  const docs = db.prepare("SELECT id, orig_name, mime, size, label, created_at FROM document WHERE job_id=? AND user_id=? ORDER BY created_at DESC").all(job.id, userId);
+  job.documents = docs.map((d) => ({ id: d.id, name: d.orig_name, mime: d.mime, size: d.size, label: d.label || "", at: d.created_at, url: signDocUrl(job.id, d.id) }));
   return job;
 }
 
@@ -720,6 +722,48 @@ app.delete("/api/jobs/:id/photos/:pid", requireAuth, wrap((req, res) => {
     .get(req.params.pid, req.params.id, req.user.id);
   if (!row) return res.status(404).json({ error: "Photo not found." });
   db.prepare("DELETE FROM photo WHERE id=?").run(req.params.pid);
+  try { fs.unlinkSync(path.join(PHOTO_DIR, row.filename)); } catch {}
+  res.json({ ok: true });
+}));
+
+// ---- Documents (permit PDFs, approvals, plans, contracts) — private, signed URLs ----
+const docJson = express.json({ limit: "22mb" });
+app.post("/api/jobs/:id/documents", requireAuth, docJson, wrap((req, res) => {
+  if (!Jobs.ownsJob(req.user.id, req.params.id)) return res.status(404).json({ error: "Job not found." });
+  const dataUrl = String((req.body && req.body.dataUrl) || "");
+  const bi = dataUrl.indexOf(";base64,");
+  if (!dataUrl.startsWith("data:") || bi < 0) return res.status(400).json({ error: "Expected a file." });
+  const buf = Buffer.from(dataUrl.slice(bi + 8), "base64");
+  if (!buf.length) return res.status(400).json({ error: "Empty file." });
+  if (buf.length > 16 * 1024 * 1024) return res.status(413).json({ error: "File too large — max 16 MB." });
+  const mime = (dataUrl.slice(5, bi).split(";")[0] || "application/octet-stream").slice(0, 100);
+  const orig = (String((req.body && req.body.name) || "document").replace(/[\r\n/\\]+/g, " ").trim() || "document").slice(0, 200);
+  const label = String((req.body && req.body.label) || "").slice(0, 40);
+  const did = uid();
+  const ext = ((orig.match(/\.([a-z0-9]{1,8})$/i) || [])[1] || (mime.split("/")[1] || "bin")).replace(/[^a-z0-9]/gi, "").slice(0, 8) || "bin";
+  const filename = `${did}.${ext}`;
+  fs.writeFileSync(path.join(PHOTO_DIR, filename), buf);
+  db.prepare("INSERT INTO document (id, job_id, user_id, filename, orig_name, mime, size, label, created_at) VALUES (?,?,?,?,?,?,?,?,?)")
+    .run(did, req.params.id, req.user.id, filename, orig, mime, buf.length, label, Date.now());
+  res.json({ document: { id: did, name: orig, mime, size: buf.length, label, at: Date.now(), url: signDocUrl(req.params.id, did) } });
+}));
+
+// Served by signature (not bearer), so links open directly. ?dl=1 forces download.
+app.get("/api/jobs/:id/documents/:docId", (req, res) => {
+  const { id, docId } = req.params;
+  if (!verifyDocSig(docId, req.query.exp, req.query.sig)) return res.status(403).send("Forbidden");
+  const row = db.prepare("SELECT * FROM document WHERE id=? AND job_id=?").get(docId, id);
+  if (!row) return res.status(404).send("Not found");
+  res.type(row.mime || "application/octet-stream");
+  res.setHeader("Cache-Control", "private, max-age=3600");
+  res.setHeader("Content-Disposition", `${req.query.dl ? "attachment" : "inline"}; filename="${String(row.orig_name).replace(/[\r\n"]/g, "")}"`);
+  fs.createReadStream(path.join(PHOTO_DIR, row.filename)).pipe(res);
+});
+
+app.delete("/api/jobs/:id/documents/:docId", requireAuth, wrap((req, res) => {
+  const row = db.prepare("SELECT * FROM document WHERE id=? AND job_id=? AND user_id=?").get(req.params.docId, req.params.id, req.user.id);
+  if (!row) return res.status(404).json({ error: "Document not found." });
+  db.prepare("DELETE FROM document WHERE id=?").run(req.params.docId);
   try { fs.unlinkSync(path.join(PHOTO_DIR, row.filename)); } catch {}
   res.json({ ok: true });
 }));
