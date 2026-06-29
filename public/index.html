@@ -950,7 +950,7 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   LEADS_NEW = r.leadsNew||0; if(state.view==='home') render();
   if(state.view==='capture') render();
   // Hydrate tax settings from the server unless the user has local unsaved edits.
-  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_about!==undefined) SETTINGS.site_about=r.settings.site_about; if(r.settings.site_published!==undefined) SETTINGS.site_published=r.settings.site_published; if(r.settings.site_branded_url!==undefined) SETTINGS.site_branded_url=r.settings.site_branded_url; if(r.settings.site_slug!==undefined) SETTINGS.site_slug=r.settings.site_slug; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
+  if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_about!==undefined) SETTINGS.site_about=r.settings.site_about; if(r.settings.site_logo!==undefined) SETTINGS.site_logo=r.settings.site_logo; if(r.settings.logo!==undefined) SETTINGS.logo=r.settings.logo; if(r.settings.site_published!==undefined) SETTINGS.site_published=r.settings.site_published; if(r.settings.site_branded_url!==undefined) SETTINGS.site_branded_url=r.settings.site_branded_url; if(r.settings.site_slug!==undefined) SETTINGS.site_slug=r.settings.site_slug; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
 }catch(e){} }
 
 /* ============ AI Growth Score (Sprint 13) ============ */
@@ -1500,7 +1500,8 @@ async function doAuth(){
     if(r.user){ SETTINGS=Object.assign({}, SETTINGS, {
       company:r.user.company||SETTINGS.company, name:r.user.name||'', phone:r.user.phone||'',
       license:r.user.license||'', from:r.user.default_from_lang||'es', to:r.user.default_to_lang||'en',
-      logo:(r.user.logo!==undefined?r.user.logo:SETTINGS.logo)||''
+      logo:(r.user.logo!==undefined?r.user.logo:SETTINGS.logo)||'',
+      site_logo:(r.user.site_logo!==undefined?r.user.site_logo:SETTINGS.site_logo)||''
     }); persistSettings(); }
     state.view='home';
     render();
@@ -1546,7 +1547,7 @@ async function syncNow(force){
     // 1) push settings if changed
     if(settingsDirty){
       const _sp={ company:SETTINGS.company, name:SETTINGS.name, phone:SETTINGS.phone,
-        license:SETTINGS.license, whatsapp:SETTINGS.whatsapp||'', from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'',
+        license:SETTINGS.license, whatsapp:SETTINGS.whatsapp||'', from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'', site_logo:SETTINGS.site_logo||'',
         tax_rate:Number(SETTINGS.tax_rate)||0, region:SETTINGS.region||'',
         site_tagline:SETTINGS.site_tagline||'', site_color:SETTINGS.site_color||'', site_about:SETTINGS.site_about||'' };
       if(SETTINGS.terms!==undefined) _sp.terms=SETTINGS.terms; // never blank out server terms before they've loaded
@@ -4165,9 +4166,17 @@ function viewSettings(){
     <label class="fld">Company logo (shows on your bids &amp; PDF)</label>
     <div class="logo-row">
       ${SETTINGS.logo?`<img class="logo-preview" src="${SETTINGS.logo}" alt="logo"/>`:`<div class="logo-empty">No logo yet</div>`}
-      <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="uploadLogo(this)"/>
+      <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="uploadLogo(this,'logo')"/>
       <button class="btn ghost sm" onclick="document.getElementById('logoInput').click()">${SETTINGS.logo?'Change logo':'Upload logo'}</button>
-      ${SETTINGS.logo?`<button class="btn ghost sm" onclick="removeLogo()">Remove</button>`:''}
+      ${SETTINGS.logo?`<button class="btn ghost sm" onclick="removeLogo('logo')">Remove</button>`:''}
+    </div>
+    <label class="fld">Website logo — for light backgrounds (use your dark logo)</label>
+    <div class="hint" style="margin:-2px 0 8px">Your website header is white, so a white logo disappears. Upload a dark/black version here. Defaults to your company logo if left empty.</div>
+    <div class="logo-row" style="background:#fff;border-radius:10px;padding:8px">
+      ${SETTINGS.site_logo?`<img class="logo-preview" src="${SETTINGS.site_logo}" alt="website logo"/>`:`<div class="logo-empty">Using company logo</div>`}
+      <input type="file" id="siteLogoInput" accept="image/*" style="display:none" onchange="uploadLogo(this,'site_logo')"/>
+      <button class="btn ghost sm" onclick="document.getElementById('siteLogoInput').click()">${SETTINGS.site_logo?'Change logo':'Upload logo'}</button>
+      ${SETTINGS.site_logo?`<button class="btn ghost sm" onclick="removeLogo('site_logo')">Remove</button>`:''}
     </div>
     <label class="fld">Company name</label>
     <input class="input" value="${escAttr(SETTINGS.company)}" oninput="setS('company',this.value)"/>
@@ -4276,7 +4285,8 @@ function toggleAutoTranslate(){ SETTINGS.autoTranslate = !(SETTINGS.autoTranslat
 // Resize the chosen image to a small data-URI so it stays well under the server's
 // limit, then save it like any other setting. PNG keeps logo transparency; if it
 // comes out large we fall back to JPEG.
-function uploadLogo(input){
+function uploadLogo(input, field){
+  field = field || 'logo';
   const f=input.files&&input.files[0]; if(!f) return;
   if(!/^image\//.test(f.type)){ alert('Please choose an image file.'); return; }
   const reader=new FileReader();
@@ -4290,14 +4300,14 @@ function uploadLogo(input){
       let data=c.toDataURL('image/png');
       if(data.length>180000) data=c.toDataURL('image/jpeg',0.85);
       if(data.length>240000){ alert('That image is too detailed — try a simpler or smaller logo.'); return; }
-      setS('logo',data); render();
+      setS(field,data); render();
     };
     img.onerror=()=>alert('Could not read that image.');
     img.src=e.target.result;
   };
   reader.readAsDataURL(f);
 }
-function removeLogo(){ setS('logo',''); render(); }
+function removeLogo(field){ setS(field||'logo',''); render(); }
 
 async function changePw(btn){
   const g=id=>{ const e=document.getElementById(id); return e?e.value:''; };

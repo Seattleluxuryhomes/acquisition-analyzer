@@ -157,7 +157,7 @@ app.use((err, _req, res, next) => {
 function settingsOf(user) {
   return {
     company: user.company, name: user.name, phone: user.phone, license: user.license, whatsapp: user.whatsapp || "",
-    from: user.default_from_lang, to: user.default_to_lang, logo: user.logo || "", email: user.email || "",
+    from: user.default_from_lang, to: user.default_to_lang, logo: user.logo || "", site_logo: user.site_logo || "", email: user.email || "",
     tax_rate: user.tax_rate == null ? 0 : user.tax_rate, region: user.region || "",
     // null → contractor hasn't customized; surface the default so the Settings
     // editor is pre-filled and proposals show terms out of the box.
@@ -365,10 +365,13 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
   if (typeof b.logo === "string" && b.logo.length > 250000) {
     return res.status(413).json({ error: "Logo image is too large — please use a smaller file." });
   }
+  if (typeof b.site_logo === "string" && b.site_logo.length > 250000) {
+    return res.status(413).json({ error: "Website logo image is too large — please use a smaller file." });
+  }
   if (typeof b.terms === "string" && b.terms.length > 6000) b.terms = b.terms.slice(0, 6000);
   if ("services" in b) b.services = JSON.stringify((Array.isArray(b.services) ? b.services : []).slice(0, 12).map((s) => String(s).slice(0, 40)));
   const map = { company: "company", name: "name", phone: "phone", license: "license", whatsapp: "whatsapp",
-    from: "default_from_lang", to: "default_to_lang", logo: "logo", region: "region", terms: "terms",
+    from: "default_from_lang", to: "default_to_lang", logo: "logo", site_logo: "site_logo", region: "region", terms: "terms",
     services: "services", site_tagline: "site_tagline", site_color: "site_color", site_about: "site_about" };
   const sets = [], vals = [];
   for (const [k, col] of Object.entries(map)) {

@@ -42,9 +42,11 @@ const BLURB = {
 export function renderContractorSite(profile = {}, opts = {}) {
   const company = esc(profile.company && profile.company !== "Your Company" ? profile.company : "Your Company");
   const initial = (company[0] || "B").toUpperCase();
-  // The contractor's uploaded logo (data URL, same one used on their bids/PDF). When
-  // present it IS the header brand; otherwise fall back to an initial-in-a-square.
-  const logo = String(profile.logo || "").trim();
+  // The contractor's uploaded logo (data URL). The website header sits on a light
+  // background, so prefer a dedicated dark "website logo" when set; otherwise fall
+  // back to the bid/PDF logo. When present it IS the header brand; otherwise fall
+  // back to an initial-in-a-square.
+  const logo = String(profile.site_logo || profile.logo || "").trim();
   const brandMark = logo
     ? `<div class="brand brand-logoed"><img class="brand-logo" src="${logo}" alt="${company}"/></div>`
     : `<div class="brand"><span class="mk">${esc(initial)}</span>${company}</div>`;
