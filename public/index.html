@@ -940,6 +940,7 @@ let ADMIN = false; // founder dashboard access (server decides via BT_ADMIN_EMAI
 /* ============ analytics ============ */
 // Fire-and-forget client event; analytics must never block or break the UI.
 function track(ev, props){ if(!TOKEN || !online || !ev) return; try{ api('/api/track',{method:'POST',body:JSON.stringify({event:ev,props:props||{}})}).catch(()=>{}); }catch(e){} }
+let sessionPinged=false; // fire the per-session device ping only once
 let AI_TRANSCRIBE = localStorage.getItem('bt_transcribe')==='1'; // server can transcribe recordings
 let AI_VISUALIZE = localStorage.getItem('bt_visualize')==='1'; // server can render materials into a room photo
 let AI_BUILD = localStorage.getItem('bt_aibuild')!=='0'; // server has the AI build/intake key
@@ -949,6 +950,9 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   AI_BUILD = !!(r.ai && r.ai.build); localStorage.setItem('bt_aibuild', AI_BUILD?'1':'0');
   LEADS_NEW = r.leadsNew||0; if(state.view==='home') render();
   if(state.view==='capture') render();
+  // One device ping per session so the founder dashboard sees who's on iPhone vs
+  // Android and who landed in an in-app browser — even if they never record.
+  if(!sessionPinged){ sessionPinged=true; const ia=inAppBrowser(); track('session_open',{ios:isIOS(),inApp:ia||'',voice:!ia&&recordSupported()}); }
   // Hydrate tax settings from the server unless the user has local unsaved edits.
   if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_about!==undefined) SETTINGS.site_about=r.settings.site_about; if(r.settings.site_logo!==undefined) SETTINGS.site_logo=r.settings.site_logo; if(r.settings.logo!==undefined) SETTINGS.logo=r.settings.logo; if(r.settings.site_published!==undefined) SETTINGS.site_published=r.settings.site_published; if(r.settings.site_branded_url!==undefined) SETTINGS.site_branded_url=r.settings.site_branded_url; if(r.settings.site_slug!==undefined) SETTINGS.site_slug=r.settings.site_slug; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
 }catch(e){} }
@@ -2448,8 +2452,10 @@ async function loadAdmin(){
     if(box()) box().innerHTML = adminHTML(ov, us.users||[]);
   }catch(e){ if(box()) box().innerHTML = `<div class="hint" style="margin-top:16px">${e.status===403?'Not authorized — set BT_ADMIN_EMAIL to your email.':'Could not load metrics.'}</div>`; }
 }
+// Human labels for the record_failed reasons the app reports.
+function reasonLabel(r){ return ({in_app_browser:'In-app browser (mic blocked)', permission_denied:'Mic permission denied', unsupported:'Browser unsupported', no_mediarecorder:'No recorder support'})[r] || r; }
 function adminHTML(d, users){
-  const o=d.overview||{}, f=d.funnel||[], drop=d.biggestDropoff, feats=d.features||[];
+  const o=d.overview||{}, f=d.funnel||[], drop=d.biggestDropoff, feats=d.features||[], dev=d.devices||{}, vf=d.voiceFailures||{};
   const k=(label,val,sub)=>`<div class="kpi"><div class="kpi-l">${label}</div><div class="kpi-v">${val}</div><div class="kpi-s">${sub||''}</div></div>`;
   const kpis = `<div class="kpis">`
     + k('Contractors', o.contractors, `+${o.newToday||0} today`)
@@ -2469,7 +2475,20 @@ function adminHTML(d, users){
     + (users.length?users.map(u=>`<div class="act-item"><div class="act-t">${esc(u.company)||esc(u.email)}${u.subscription_status&&u.subscription_status!=='none'?`<span class="subpill">${esc(u.subscription_status)}</span>`:''}</div><div class="act-s">${esc(u.email)} · leads ${u.leads} · bids ${u.bids} · accepted ${u.accepted} · collected ${money(u.revenueCollected)} · won ${money(u.pipelineWonValue)}${u.last_login?' · seen '+timeAgo(u.last_login):' · never logged in'}</div></div>`).join(''):'<div class="hint" style="padding:8px">No contractors yet.</div>')
     + `</div>`;
   const featHTML = feats.length?`<div class="panel"><div class="panel-h static"><span>⚙️ Feature adoption</span></div>`+feats.slice(0,14).map(ff=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center"><span class="act-t">${esc(ff.name)}</span><span class="act-s">${ff.c}× · ${ff.users} users</span></div>`).join('')+`</div>`:'';
-  return onboardPanel() + kpis + funnelHTML + usersHTML + featHTML;
+  // Devices & voice — who's on iPhone vs Android, who landed in an in-app browser
+  // (where the mic is blocked), and every time voice actually failed and why.
+  const osRow=(dev.os||[]).map(x=>`${esc(x.name)} ${x.count}`).join(' · ');
+  const brRow=(dev.browser||[]).map(x=>`${esc(x.name)} ${x.count}`).join(' · ');
+  const deviceHTML = (dev.total)?`<div class="panel"><div class="panel-h static"><span>📱 Devices &amp; voice</span>${dev.inAppUsers?`<span class="panel-link" style="color:#ff9b7a">${dev.inAppUsers} stuck in in-app browser</span>`:''}</div>`
+    + `<div class="act-item"><div class="act-t">Phones</div><div class="act-s">${osRow||'—'}</div></div>`
+    + `<div class="act-item"><div class="act-t">Browsers</div><div class="act-s">${brRow||'—'}</div></div>`
+    + (dev.inAppUsers?`<div class="act-item"><div class="act-t" style="color:#ff9b7a">⚠️ Voice can't run for ${dev.inAppUsers} user${dev.inAppUsers>1?'s':''}</div><div class="act-s">They opened the link inside Instagram/Facebook — the mic is blocked there. They need to open it in Safari/Chrome.</div></div>`:'')
+    + `</div>`:'';
+  const vfHTML = (vf.count)?`<div class="panel"><div class="panel-h static"><span>🎤 Voice failures (${vf.count})</span></div>`
+    + (vf.byReason||[]).map(r=>`<div class="act-item" style="display:flex;justify-content:space-between"><span class="act-t">${esc(reasonLabel(r.name))}</span><span class="act-s">${r.count}×</span></div>`).join('')
+    + (vf.items||[]).slice(0,8).map(it=>`<div class="act-item"><div class="act-s">${esc(it.os)} · ${esc(it.browser)}${it.email?' · '+esc(it.email):''} · ${timeAgo(it.at)}</div></div>`).join('')
+    + `</div>`:'';
+  return onboardPanel() + kpis + funnelHTML + deviceHTML + vfHTML + usersHTML + featHTML;
 }
 // Concierge onboarding — set a contractor up with a fully-configured account on the
 // full trial, optionally import their price list, and send/hand back a login link.
@@ -4526,6 +4545,11 @@ function paintRecFab(){
 /* ---- Record → server transcription (universal voice, incl. iPhone) ---- */
 let mediaRec=null, mediaChunks=[], mediaStream=null, micState='idle';
 function pickAudioMime(){ const c=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg']; for(const m of c){ if(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m)) return m; } return ''; }
+// Detect the social in-app browsers (Instagram, Facebook, etc). Their webviews
+// block the microphone, so voice can't run no matter what — we steer the user to
+// open the link in their real browser instead of letting it fail silently.
+function inAppBrowser(){ const s=navigator.userAgent||''; if(/Instagram/i.test(s)) return 'Instagram'; if(/FBAN|FBAV|FB_IAB|FBIOS/i.test(s)) return 'Facebook'; if(/MicroMessenger/i.test(s)) return 'WeChat'; if(/Line\//i.test(s)) return 'Line'; if(/TikTok|musical_ly|BytedanceWebview/i.test(s)) return 'TikTok'; return ''; }
+function isIOS(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||''); }
 let recBusy=false;   // a record session is mid-setup or running
 let recAbort=false;  // released before getUserMedia resolved → stop the moment it starts
 let recTimer=null;   // safety auto-stop so a stuck press can't record forever
@@ -4536,14 +4560,19 @@ function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} 
 async function startRecord(){
   if(recording||recBusy) return;
   if(!online||!TOKEN){ toast('Connect to the internet to dictate.','warn'); return; }
+  // In-app browsers (Instagram/Facebook/etc.) block the mic — don't let it fail
+  // silently. Tell the user how to fix it and log why, so the back end can see it.
+  const app=inAppBrowser();
+  if(app){ track('record_failed',{reason:'in_app_browser',app:app,ios:isIOS()}); toast('Tap ••• and "Open in '+(isIOS()?'Safari':'Browser')+'" to use voice.','warn',6000); return; }
+  if(!recordSupported()){ track('record_failed',{reason:'unsupported',ios:isIOS()}); toast(isIOS()?'Open this in Safari to use voice.':'Voice recording isn’t supported in this browser.','warn',6000); return; }
   recBusy=true; recAbort=false;
   let stream;
   try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
-  catch(e){ recBusy=false; toast('Allow microphone access to dictate.','warn',5000); return; }
+  catch(e){ recBusy=false; track('record_failed',{reason:'permission_denied',err:String(e&&e.name||''),ios:isIOS()}); toast('Allow microphone access to dictate.','warn',5000); return; }
   mediaStream=stream; mediaChunks=[];
   const mime=pickAudioMime();
   try{ mediaRec=new MediaRecorder(stream, mime?{mimeType:mime}:undefined); }
-  catch(e){ try{ mediaRec=new MediaRecorder(stream); }catch(_){ recBusy=false; stream.getTracks().forEach(t=>t.stop()); toast('Recording isn’t supported here.','warn'); return; } }
+  catch(e){ try{ mediaRec=new MediaRecorder(stream); }catch(_){ recBusy=false; stream.getTracks().forEach(t=>t.stop()); track('record_failed',{reason:'no_mediarecorder',ios:isIOS()}); toast('Recording isn’t supported here.','warn'); return; } }
   mediaRec.ondataavailable=(ev)=>{ if(ev.data&&ev.data.size) mediaChunks.push(ev.data); };
   mediaRec.onstop=async ()=>{
     stopVAD(); stopLiveCaptions();

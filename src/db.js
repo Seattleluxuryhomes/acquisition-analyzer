@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS event (
   user_id TEXT,
   name TEXT NOT NULL,
   props TEXT DEFAULT '{}',
+  ua TEXT DEFAULT '',
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS event_name_idx ON event(name);
@@ -516,6 +517,12 @@ ensureColumns("sku", [
 // contractor has it on record with the signed agreement).
 ensureColumns("signature", [
   ["signer_email", "TEXT DEFAULT ''"],
+]);
+// Device/browser string on each event, so the founder dashboard can tell iPhone
+// from Android and spot the Instagram/Facebook in-app browser (where the mic is
+// blocked). Migrated in because `event` predates this column in production.
+ensureColumns("event", [
+  ["ua", "TEXT DEFAULT ''"],
 ]);
 // The `dispatch` table already exists in production from the first scope-dispatch
 // deploy, so CREATE TABLE won't add these — they must be migrated in explicitly:

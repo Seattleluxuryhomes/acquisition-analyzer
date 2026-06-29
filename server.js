@@ -197,8 +197,8 @@ app.post("/api/auth/signup", wrap((req, res) => {
     // Attribute the signup to whoever's referral code they came in on (the GC
     // earns a crew credit once this user becomes a paying subscriber).
     const ref = String((req.body && (req.body.ref || req.body.r)) || "").trim();
-    if (ref && Referrals.setReferrer(out.user.id, ref)) track(out.user.id, "referred_signup", { by: ref });
-    track(out.user.id, "user_registered", { email: out.user.email, role: out.user.role || "contractor" });
+    if (ref && Referrals.setReferrer(out.user.id, ref)) track(out.user.id, "referred_signup", { by: ref }, uaOf(req));
+    track(out.user.id, "user_registered", { email: out.user.email, role: out.user.role || "contractor" }, uaOf(req));
   }
   res.json(out);
 }));
@@ -206,7 +206,7 @@ app.post("/api/auth/signin", wrap((req, res) => {
   const out = signin(req.body || {});
   if (out && out.user) {
     db.prepare("UPDATE user SET last_login=? WHERE id=?").run(Date.now(), out.user.id);
-    track(out.user.id, "user_logged_in", {});
+    track(out.user.id, "user_logged_in", {}, uaOf(req));
   }
   res.json(out);
 }));
@@ -392,7 +392,7 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
 // ---- Client-side analytics events (page_view, dashboard_viewed, feature_used…) ----
 app.post("/api/track", requireAuth, wrap((req, res) => {
   const { event, props } = req.body || {};
-  if (event) track(req.user.id, String(event), props && typeof props === "object" ? props : {});
+  if (event) track(req.user.id, String(event), props && typeof props === "object" ? props : {}, uaOf(req));
   res.json({ ok: true });
 }));
 
@@ -410,7 +410,8 @@ app.post("/api/notifications/seen", requireAuth, wrap((req, res) => {
 const requireAdmin = (req, res, next) =>
   Analytics.isAdmin(req.user) ? next() : res.status(403).json({ error: "Not authorized." });
 app.get("/api/admin/overview", requireAuth, requireAdmin, (req, res) =>
-  res.json({ overview: Analytics.overview(), funnel: Analytics.funnel(), biggestDropoff: Analytics.biggestDropoff(), features: Analytics.featureAdoption() }));
+  res.json({ overview: Analytics.overview(), funnel: Analytics.funnel(), biggestDropoff: Analytics.biggestDropoff(), features: Analytics.featureAdoption(),
+    devices: Analytics.deviceBreakdown(), voiceFailures: Analytics.voiceFailures() }));
 app.get("/api/admin/users", requireAuth, requireAdmin, (req, res) =>
   res.json({ users: Analytics.listUsers() }));
 app.get("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
@@ -1316,6 +1317,9 @@ function proposalOpts(jobRow, owner, proposal, req) {
 }
 // The client's IP for the signature audit trail (behind Hyperlift's edge proxy).
 const clientIp = (req) => (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket?.remoteAddress || "";
+// The device/browser string we stamp on analytics events (iPhone vs Android, and
+// the Instagram/Facebook in-app browser where voice can't run).
+const uaOf = (req) => String(req.headers["user-agent"] || "").slice(0, 300);
 // Lightweight audit beacon from the public proposal page (e.g. approval box ticked).
 const PUBLIC_AUDIT = new Set(["approval_checked", "proposal_viewed"]);
 app.post("/p/:id/event", wrap((req, res) => {
