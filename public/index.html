@@ -648,6 +648,9 @@
 
   /* auth */
   .auth{max-width:380px;margin:6vh auto 0;padding:0 4px}
+  .auth-lang{display:flex;justify-content:center;gap:8px;margin-bottom:4px}
+  .auth-lang-b{background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 14px;font-size:.86rem;font-weight:700;cursor:pointer;font-family:inherit}
+  .auth-lang-b.on{background:var(--amber);border-color:var(--amber);color:#1b1b1b}
   .auth h1{font-family:"Archivo";font-weight:900;font-size:1.8rem;letter-spacing:-.02em;margin:10px 0 4px}
   .auth-card{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:22px;margin-top:18px}
   .agentwelcome{background:rgba(30,66,89,.1);border:1px solid var(--blue,#1E4259);border-radius:10px;padding:12px 13px;margin-bottom:16px;font-size:.92rem;line-height:1.45}
@@ -924,6 +927,70 @@ const setupWaivedView = () => !!(BILLING && BILLING.setup_waived && BILLING.setu
 // New visitors should land on "Create account" (the landing CTA is "Start free");
 // returning users (who've signed in on this device before) land on "Sign in".
 const _returning = (function(){ try{ return localStorage.getItem('bt_returning')==='1'; }catch(e){ return false; } })();
+
+// ---- App language (i18n) ----
+// The contractor's own interface language. A stored choice wins; otherwise we
+// auto-detect from the phone so a Spanish-speaking contractor lands in Spanish and
+// can actually get in. t('key') looks up the string, falling back to English then
+// to the key itself, so a missing translation never renders blank.
+let LANG = (function(){ try{ const s=localStorage.getItem('bt_lang'); if(s==='en'||s==='es') return s; }catch(e){}
+  return (String((navigator.language||navigator.userLanguage||'en')).toLowerCase().slice(0,2)==='es') ? 'es' : 'en'; })();
+const I18N = {
+  en: {
+    auth_hero_h:"Just talk. We write the bid.",
+    auth_hero_sub:"Say the job out loud — in English or Spanish — and Bidtranslator turns it into a clean, priced proposal you can send from your phone.",
+    auth_one_account:"One account = your jobs, synced across your devices.",
+    auth_create_eyebrow:"Create your account", auth_welcome_eyebrow:"Welcome back",
+    auth_get_started:"Get started", auth_sign_in:"Sign in",
+    auth_email:"Email", auth_password:"Password",
+    auth_pass_new_ph:"At least 8 characters", auth_pass_cur_ph:"Your password",
+    auth_forgot_q:"Forgot password?", auth_create_account:"Create account",
+    auth_have_account:"Already have an account?", auth_new_here:"New here?",
+    auth_create_an_account:"Create an account",
+    auth_agent_welcome:"Real-estate agents — walk any listing, get bids from your contractors in minutes. Free your first year, then $50/mo locked forever.",
+    auth_agent_eyebrow:"Agent signup — free year",
+    forgot_sent_eyebrow:"Check your email", forgot_sent_h:"Reset link sent",
+    forgot_sent_note:"If an account exists for that email, we just sent a link to set a new password. It expires in 1 hour.",
+    forgot_back:"Back to sign in", forgot_eyebrow:"Forgot password", forgot_h:"Reset it",
+    forgot_note:"Enter your email and we'll send you a link to set a new password.",
+    forgot_send:"Send reset link",
+    reset_done_eyebrow:"All set", reset_done_h:"Password updated",
+    reset_done_note:"Your password's been changed. Sign in with your new one.",
+    reset_eyebrow:"Set a new password", reset_h:"New password",
+    reset_for:(e)=>`For ${e}.`, reset_new_label:"New password",
+    reset_confirm_label:"Confirm password", reset_confirm_ph:"Re-type it",
+    reset_update:"Update password", reset_your_account:"your account",
+  },
+  es: {
+    auth_hero_h:"Solo habla. Nosotros escribimos el presupuesto.",
+    auth_hero_sub:"Di el trabajo en voz alta — en inglés o español — y Bidtranslator lo convierte en una propuesta clara y con precio que puedes enviar desde tu teléfono.",
+    auth_one_account:"Una cuenta = tus trabajos, sincronizados en todos tus dispositivos.",
+    auth_create_eyebrow:"Crea tu cuenta", auth_welcome_eyebrow:"Bienvenido de nuevo",
+    auth_get_started:"Empezar", auth_sign_in:"Iniciar sesión",
+    auth_email:"Correo electrónico", auth_password:"Contraseña",
+    auth_pass_new_ph:"Al menos 8 caracteres", auth_pass_cur_ph:"Tu contraseña",
+    auth_forgot_q:"¿Olvidaste tu contraseña?", auth_create_account:"Crear cuenta",
+    auth_have_account:"¿Ya tienes una cuenta?", auth_new_here:"¿Eres nuevo?",
+    auth_create_an_account:"Crea una cuenta",
+    auth_agent_welcome:"Agentes de bienes raíces — recorre cualquier propiedad y recibe presupuestos de tus contratistas en minutos. Gratis el primer año, luego $50/mes para siempre.",
+    auth_agent_eyebrow:"Registro de agente — año gratis",
+    forgot_sent_eyebrow:"Revisa tu correo", forgot_sent_h:"Enlace enviado",
+    forgot_sent_note:"Si existe una cuenta para ese correo, acabamos de enviar un enlace para crear una nueva contraseña. Caduca en 1 hora.",
+    forgot_back:"Volver a iniciar sesión", forgot_eyebrow:"Olvidé mi contraseña", forgot_h:"Recupérala",
+    forgot_note:"Escribe tu correo y te enviaremos un enlace para crear una nueva contraseña.",
+    forgot_send:"Enviar enlace",
+    reset_done_eyebrow:"Listo", reset_done_h:"Contraseña actualizada",
+    reset_done_note:"Tu contraseña ha sido cambiada. Inicia sesión con la nueva.",
+    reset_eyebrow:"Crea una nueva contraseña", reset_h:"Nueva contraseña",
+    reset_for:(e)=>`Para ${e}.`, reset_new_label:"Nueva contraseña",
+    reset_confirm_label:"Confirmar contraseña", reset_confirm_ph:"Escríbela de nuevo",
+    reset_update:"Actualizar contraseña", reset_your_account:"tu cuenta",
+  },
+};
+function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); return v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); }
+function setLang(l){ if(l!=='en'&&l!=='es') return; LANG=l; try{ localStorage.setItem('bt_lang',l); }catch(e){} try{ document.documentElement.lang=l; }catch(e){} render(); }
+try{ document.documentElement.lang = LANG; }catch(e){}
+
 const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:_returning?'signin':'signup', authError:'', authSent:false, booted:false };
 let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
@@ -1898,70 +1965,74 @@ function viewAuth(){
   const m = state.authMode;
   const card = m==='forgot' ? authForgotCard() : m==='reset' ? authResetCard() : authSigninCard(m==='signup');
   return `<div class="auth">
+    <div class="auth-lang">
+      <button class="auth-lang-b ${LANG==='en'?'on':''}" onclick="setLang('en')">🇺🇸 English</button>
+      <button class="auth-lang-b ${LANG==='es'?'on':''}" onclick="setLang('es')">🇲🇽 Español</button>
+    </div>
     <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">translator</span></div>
     <div class="auth-hero">
       <div class="auth-mic">${icon('mic',34)}</div>
-      <div class="auth-hero-h">Just talk. We write the bid.</div>
-      <div class="auth-hero-sub">Say the job out loud — in English or Spanish — and Bidtranslator turns it into a clean, priced proposal you can send from your phone.</div>
+      <div class="auth-hero-h">${esc(t('auth_hero_h'))}</div>
+      <div class="auth-hero-sub">${esc(t('auth_hero_sub'))}</div>
     </div>
     ${card}
-    <div class="hint" style="text-align:center;margin-top:14px">One account = your jobs, synced across your devices.</div>
+    <div class="hint" style="text-align:center;margin-top:14px">${esc(t('auth_one_account'))}</div>
   </div>`;
 }
 function authSigninCard(isUp){
   const agent = isUp && SIGNUP_ROLE==='agent';
   return `<div class="auth-card">
-      ${agent?`<div class="agentwelcome">🏡 <b>Real-estate agents</b> — walk any listing, get bids from your contractors in minutes. <b>Free your first year</b>, then $50/mo locked forever.</div>`:''}
-      <div class="h-eyebrow">${agent?'Agent signup — free year':(isUp?'Create your account':'Welcome back')}</div>
-      <h1>${isUp?'Get started':'Sign in'}</h1>
-      <label class="fld">Email</label>
+      ${agent?`<div class="agentwelcome">🏡 ${esc(t('auth_agent_welcome'))}</div>`:''}
+      <div class="h-eyebrow">${agent?esc(t('auth_agent_eyebrow')):(isUp?esc(t('auth_create_eyebrow')):esc(t('auth_welcome_eyebrow')))}</div>
+      <h1>${isUp?esc(t('auth_get_started')):esc(t('auth_sign_in'))}</h1>
+      <label class="fld">${esc(t('auth_email'))}</label>
       <input id="authEmail" class="input" type="email" autocomplete="email" placeholder="you@yourcompany.com" value="${escAttr(USER&&USER.email||'')}"/>
-      <label class="fld">Password</label>
-      <input id="authPass" class="input" type="password" autocomplete="${isUp?'new-password':'current-password'}" placeholder="${isUp?'At least 8 characters':'Your password'}" onkeydown="if(event.key==='Enter')doAuth()"/>
-      ${isUp?'':`<div style="text-align:right;margin-top:8px"><a class="authlink" onclick="setAuthMode('forgot')">Forgot password?</a></div>`}
+      <label class="fld">${esc(t('auth_password'))}</label>
+      <input id="authPass" class="input" type="password" autocomplete="${isUp?'new-password':'current-password'}" placeholder="${isUp?escAttr(t('auth_pass_new_ph')):escAttr(t('auth_pass_cur_ph'))}" onkeydown="if(event.key==='Enter')doAuth()"/>
+      ${isUp?'':`<div style="text-align:right;margin-top:8px"><a class="authlink" onclick="setAuthMode('forgot')">${esc(t('auth_forgot_q'))}</a></div>`}
       ${state.authError?`<div class="err">${esc(state.authError)}</div>`:''}
-      <div style="margin-top:18px"><button class="btn full" onclick="doAuth()">${isUp?'Create account':'Sign in'}</button></div>
+      <div style="margin-top:18px"><button class="btn full" onclick="doAuth()">${isUp?esc(t('auth_create_account')):esc(t('auth_sign_in'))}</button></div>
       <div class="auth-switch">${isUp
-        ? `Already have an account? <a onclick="setAuthMode('signin')">Sign in</a>`
-        : `New here? <a onclick="setAuthMode('signup')">Create an account</a>`}</div>
+        ? `${esc(t('auth_have_account'))} <a onclick="setAuthMode('signin')">${esc(t('auth_sign_in'))}</a>`
+        : `${esc(t('auth_new_here'))} <a onclick="setAuthMode('signup')">${esc(t('auth_create_an_account'))}</a>`}</div>
     </div>`;
 }
 function authForgotCard(){
   if(state.authSent) return `<div class="auth-card">
-      <div class="h-eyebrow">Check your email</div>
-      <h1>Reset link sent</h1>
-      <p class="authnote">If an account exists for that email, we just sent a link to set a new password. It expires in 1 hour.</p>
-      <div style="margin-top:18px"><button class="btn full" onclick="setAuthMode('signin')">Back to sign in</button></div>
+      <div class="h-eyebrow">${esc(t('forgot_sent_eyebrow'))}</div>
+      <h1>${esc(t('forgot_sent_h'))}</h1>
+      <p class="authnote">${esc(t('forgot_sent_note'))}</p>
+      <div style="margin-top:18px"><button class="btn full" onclick="setAuthMode('signin')">${esc(t('forgot_back'))}</button></div>
     </div>`;
   return `<div class="auth-card">
-      <div class="h-eyebrow">Forgot password</div>
-      <h1>Reset it</h1>
-      <p class="authnote">Enter your email and we'll send you a link to set a new password.</p>
-      <label class="fld">Email</label>
+      <div class="h-eyebrow">${esc(t('forgot_eyebrow'))}</div>
+      <h1>${esc(t('forgot_h'))}</h1>
+      <p class="authnote">${esc(t('forgot_note'))}</p>
+      <label class="fld">${esc(t('auth_email'))}</label>
       <input id="forgotEmail" class="input" type="email" autocomplete="email" placeholder="you@yourcompany.com" onkeydown="if(event.key==='Enter')doForgot()"/>
       ${state.authError?`<div class="err">${esc(state.authError)}</div>`:''}
-      <div style="margin-top:18px"><button class="btn full" onclick="doForgot()">Send reset link</button></div>
-      <div class="auth-switch"><a onclick="setAuthMode('signin')">Back to sign in</a></div>
+      <div style="margin-top:18px"><button class="btn full" onclick="doForgot()">${esc(t('forgot_send'))}</button></div>
+      <div class="auth-switch"><a onclick="setAuthMode('signin')">${esc(t('forgot_back'))}</a></div>
     </div>`;
 }
 function authResetCard(){
   if(state.authSent) return `<div class="auth-card">
-      <div class="h-eyebrow">All set</div>
-      <h1>Password updated</h1>
-      <p class="authnote">Your password's been changed. Sign in with your new one.</p>
-      <div style="margin-top:18px"><button class="btn full" onclick="setAuthMode('signin')">Sign in</button></div>
+      <div class="h-eyebrow">${esc(t('reset_done_eyebrow'))}</div>
+      <h1>${esc(t('reset_done_h'))}</h1>
+      <p class="authnote">${esc(t('reset_done_note'))}</p>
+      <div style="margin-top:18px"><button class="btn full" onclick="setAuthMode('signin')">${esc(t('auth_sign_in'))}</button></div>
     </div>`;
   return `<div class="auth-card">
-      <div class="h-eyebrow">Set a new password</div>
-      <h1>New password</h1>
-      <p class="authnote">For ${esc((RESET&&RESET.email)||'your account')}.</p>
-      <label class="fld">New password</label>
-      <input id="resetPass" class="input" type="password" autocomplete="new-password" placeholder="At least 8 characters"/>
-      <label class="fld">Confirm password</label>
-      <input id="resetPass2" class="input" type="password" autocomplete="new-password" placeholder="Re-type it" onkeydown="if(event.key==='Enter')doReset()"/>
+      <div class="h-eyebrow">${esc(t('reset_eyebrow'))}</div>
+      <h1>${esc(t('reset_h'))}</h1>
+      <p class="authnote">${esc(t('reset_for')((RESET&&RESET.email)||t('reset_your_account')))}</p>
+      <label class="fld">${esc(t('reset_new_label'))}</label>
+      <input id="resetPass" class="input" type="password" autocomplete="new-password" placeholder="${escAttr(t('auth_pass_new_ph'))}"/>
+      <label class="fld">${esc(t('reset_confirm_label'))}</label>
+      <input id="resetPass2" class="input" type="password" autocomplete="new-password" placeholder="${escAttr(t('reset_confirm_ph'))}" onkeydown="if(event.key==='Enter')doReset()"/>
       ${state.authError?`<div class="err">${esc(state.authError)}</div>`:''}
-      <div style="margin-top:18px"><button class="btn full" onclick="doReset()">Update password</button></div>
-      <div class="auth-switch"><a onclick="setAuthMode('signin')">Back to sign in</a></div>
+      <div style="margin-top:18px"><button class="btn full" onclick="doReset()">${esc(t('reset_update'))}</button></div>
+      <div class="auth-switch"><a onclick="setAuthMode('signin')">${esc(t('forgot_back'))}</a></div>
     </div>`;
 }
 let RESET=null;
