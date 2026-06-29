@@ -2249,8 +2249,9 @@ function viewHome(){
   let filtered = f==='followups' ? visible.filter(isFollowupJob)
     : (f==='all' ? visible : visible.filter(j=>jobStatus(j)===f));
   if(f==='scheduled'){ filtered=[...filtered].sort((a,b)=>String(a.scheduled_date||'9999-99-99').localeCompare(String(b.scheduled_date||'9999-99-99'))); }
+  const folOne = (f==='followups' && filtered.length===1) ? filtered[0] : null; // tap the banner → straight to the bid
   const folHead = f==='followups'
-    ? `<div class="setupnudge" style="background:rgba(169,78,56,.12);border-color:var(--rust)">🔔 <b>Follow up</b> — ${filtered.length} bid${filtered.length===1?'':'s'} sent 3+ days ago with no answer. Open one to call or text the client. <span class="nudge-go" style="cursor:pointer" onclick="setJobFilter('all')">Show all jobs</span></div>`
+    ? `<div class="setupnudge" style="background:rgba(169,78,56,.12);border-color:var(--rust)${folOne?';cursor:pointer':''}" ${folOne?`onclick="go('job','${folOne.id}')"`:''}>🔔 <b>Follow up</b> — ${filtered.length} bid${filtered.length===1?'':'s'} sent 3+ days ago with no answer. ${folOne?'Tap to open it and call or text the client.':'Open one below to call or text the client.'} <span class="nudge-go" style="cursor:pointer" onclick="event.stopPropagation();setJobFilter('all')">Show all jobs</span></div>`
     : '';
   let list;
   if(filtered.length===0){ list = folHead + `<div class="hint" style="margin-top:16px">${f==='followups'?"No follow-ups needed — you're on top of it. 🎉":'No '+statusLabel(f).toLowerCase()+' jobs yet.'}</div>`; }
@@ -2349,14 +2350,6 @@ function reachBlock(j){
     +`<a class="maplink" href="tel:${escAttr(t)}">📞 Call</a>`
     +`<a class="maplink" href="sms:${escAttr(t)}">💬 Text</a>`
     +`<a class="maplink" href="https://wa.me/${escAttr(wa)}" target="_blank" rel="noopener">🟢 WhatsApp</a></div>`;
-}
-// A compact reach bar for inside the bid tabs — questions come up WHILE building,
-// so you can text/WhatsApp/call the customer without scrolling back to the top.
-function reachInline(j){
-  const p=(j.customer_phone||'').trim(); if(!p) return '';
-  const t=telDigits(p), wa=waDigits(p), who=(j.customer||'').trim().split(/\s+/)[0];
-  return `<div class="reachbar"><span class="reachbar-l">💬 Question on the bid? Reach ${who?esc(who):'the customer'}</span>
-    <span class="reachbar-b"><a class="reachbtn" href="sms:${escAttr(t)}">Text</a><a class="reachbtn wa" href="https://wa.me/${escAttr(wa)}" target="_blank" rel="noopener">WhatsApp</a><a class="reachbtn" href="tel:${escAttr(t)}">Call</a></span></div>`;
 }
 // One source of truth for a job's location: the explicit address field, or — so
 // you never type it twice — the project name itself when that looks like an
@@ -2929,7 +2922,7 @@ function tabNotebook(j){
   <input id="photoInput" type="file" accept="image/*" multiple style="display:none" onchange="handlePhotos(this)"/>
   <input id="photoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="handlePhotos(this)"/></div>`;
   out+=`<div style="margin-top:14px"><button class="btn full" onclick="setTab('build')">Build the bid →</button></div>`;
-  return reachInline(j)+out;
+  return out;
 }
 
 function lineAmt(l){ return l.type==='unit' ? (+l.qty||0)*(+l.rate||0) : l.type==='hourly' ? (+l.hours||0)*(+l.rate||0) : (+l.price||0); }
@@ -3025,7 +3018,6 @@ function tabBuild(j){
 
   return `<div class="h-eyebrow" style="margin-bottom:8px">Step 2 · Private estimating</div>
     <div class="note">AI prices are rough placeholders — you set the real numbers here.</div>
-    ${reachInline(j)}
     ${(j.transcript||'').trim() ? `<button class="btn ghost full" style="margin-bottom:12px" onclick="rebuildWithAI('${j.id}',this)">🪄 Rebuild these lines from the conversation with AI</button>` : ''}
     ${lines||'<div class="hint">No line items yet.</div>'}
     ${AI_BUILD && (j.lines||[]).length ? `<button class="btn ghost full" style="margin-top:10px" onclick="reviewBidAI('${j.id}',this)">💡 Find missing money — check this bid</button>
