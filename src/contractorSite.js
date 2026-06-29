@@ -42,6 +42,12 @@ const BLURB = {
 export function renderContractorSite(profile = {}, opts = {}) {
   const company = esc(profile.company && profile.company !== "Your Company" ? profile.company : "Your Company");
   const initial = (company[0] || "B").toUpperCase();
+  // The contractor's uploaded logo (data URL, same one used on their bids/PDF). When
+  // present it IS the header brand; otherwise fall back to an initial-in-a-square.
+  const logo = String(profile.logo || "").trim();
+  const brandMark = logo
+    ? `<div class="brand brand-logoed"><img class="brand-logo" src="${logo}" alt="${company}"/></div>`
+    : `<div class="brand"><span class="mk">${esc(initial)}</span>${company}</div>`;
   const accent = /^#[0-9a-f]{3,8}$/i.test(profile.site_color || "") ? profile.site_color : "#CF7F18";
   const phone = String(profile.phone || "").trim();
   const telHref = "tel:" + phone.replace(/[^\d+]/g, "");
@@ -108,6 +114,8 @@ export function renderContractorSite(profile = {}, opts = {}) {
   .nav .wrap{display:flex;align-items:center;justify-content:space-between;padding:14px 22px}
   .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.2rem}
   .brand .mk{width:34px;height:34px;border-radius:9px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900}
+  .brand-logo{height:40px;width:auto;max-width:230px;object-fit:contain;display:block}
+  @media(max-width:640px){.brand-logo{height:34px;max-width:170px}}
   .nav-r{display:flex;align-items:center;gap:14px}.nav-r .call{font-weight:700;color:var(--blue)}
   @media(max-width:640px){.nav-r .call{display:none}}
   .hero{background:linear-gradient(180deg,var(--soft),#fff);padding:64px 0 48px}
@@ -151,7 +159,7 @@ export function renderContractorSite(profile = {}, opts = {}) {
   .powered{margin-top:22px;text-align:center;color:var(--muted);font-size:.82rem}.powered a{color:var(--accent);font-weight:700}
 </style></head><body>
 <header class="nav"><div class="wrap">
-  <div class="brand"><span class="mk">${esc(initial)}</span>${company}</div>
+  ${brandMark}
   <div class="nav-r">${phone ? `<a class="call" href="${telHref}">📞 ${esc(phone)}</a>` : ""}<a class="btn" href="#estimate">Free estimate</a></div>
 </div></header>
 
