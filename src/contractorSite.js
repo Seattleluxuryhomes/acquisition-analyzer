@@ -39,7 +39,101 @@ const BLURB = {
   "interior-design": "Interior design that brings your space to life.",
 };
 
+// ---- Visitor-facing translations (the "language wheel") ----
+// Bidtranslator's whole promise is bilingual, so the storefront should greet a
+// homeowner in their own language. We translate everything WE control — UI chrome,
+// CTAs, the form, trade names and blurbs. The contractor's own custom tagline/About
+// are shown as they wrote them (translating their words needs AI — a later step).
+// Add a language by adding a dictionary here; the switcher lists whatever exists.
+const SITE_LANGS = [
+  { code: "en", label: "English", flag: "🇺🇸" },
+  { code: "es", label: "Español", flag: "🇲🇽" },
+];
+const T_STRINGS = {
+  en: {
+    freeEstimate: "Free estimate", getEstimate: "Get your free estimate", callUs: "Call us",
+    licensed: "Licensed, bonded & insured", freeEstimates: "Free estimates",
+    heroSub: (c) => `Get a free, no-pressure estimate from ${c} — fast.`,
+    servicesOffered: "Services offered", serviceOffered: "Service offered", free: "Free", estimates: "Estimates",
+    serviceArea: "Service area", clientRating: "Client rating", fast: "Fast", response: "Response",
+    whatWeDo: "What we do", services: "Services",
+    servicesLead: (c) => `Skilled, licensed work from ${c} — one team, one point of contact, one clean job.`,
+    qualityTitle: "Quality craftsmanship", qualityBlurb: "Skilled, licensed work you can count on — ask us about your project.",
+    about: "About", aboutOf: (c) => `About ${c}`,
+    recentWork: "Recent work", beforeAfter: "Before & After", before: "Before", after: "After",
+    tellUs: "Tell us about your project",
+    estimateLead: (c) => `Send a few details and ${c} will get you a clean, priced estimate — fast. No pressure, no obligation.`,
+    fName: "Your name", fPhone: "Phone", fAddress: "Address or neighborhood", fMessage: "What are you looking to do?",
+    requestEstimate: "Request my free estimate →", sending: "Sending…",
+    thanks: (c) => `✓ Thanks! ${c} got your request and will reach out shortly.`,
+    getStarted: "Get started", requestAFree: "Request a free estimate",
+    poweredBy: "Website & booking powered by", reviews: "Google reviews", titleFree: "Free Estimates",
+  },
+  es: {
+    freeEstimate: "Presupuesto gratis", getEstimate: "Pide tu presupuesto gratis", callUs: "Llámanos",
+    licensed: "Con licencia, fianza y seguro", freeEstimates: "Presupuestos gratis",
+    heroSub: (c) => `Recibe un presupuesto gratis y sin compromiso de ${c} — rápido.`,
+    servicesOffered: "Servicios", serviceOffered: "Servicio", free: "Gratis", estimates: "Presupuestos",
+    serviceArea: "Zona de servicio", clientRating: "Calificación", fast: "Rápida", response: "Respuesta",
+    whatWeDo: "Lo que hacemos", services: "Servicios",
+    servicesLead: (c) => `Trabajo profesional y con licencia de ${c} — un solo equipo, un solo contacto, un trabajo bien hecho.`,
+    qualityTitle: "Trabajo de calidad", qualityBlurb: "Trabajo profesional y con licencia en el que puedes confiar — pregúntanos por tu proyecto.",
+    about: "Nosotros", aboutOf: (c) => `Sobre ${c}`,
+    recentWork: "Trabajos recientes", beforeAfter: "Antes y después", before: "Antes", after: "Después",
+    tellUs: "Cuéntanos sobre tu proyecto",
+    estimateLead: (c) => `Envía algunos detalles y ${c} te dará un presupuesto claro y con precio — rápido. Sin compromiso.`,
+    fName: "Tu nombre", fPhone: "Teléfono", fAddress: "Dirección o vecindario", fMessage: "¿Qué necesitas hacer?",
+    requestEstimate: "Pedir mi presupuesto gratis →", sending: "Enviando…",
+    thanks: (c) => `✓ ¡Gracias! ${c} recibió tu solicitud y se comunicará contigo pronto.`,
+    getStarted: "Empezar", requestAFree: "Pedir un presupuesto gratis",
+    poweredBy: "Sitio web y reservas con tecnología de", reviews: "reseñas de Google", titleFree: "Presupuestos Gratis",
+  },
+};
+// Spanish trade names + blurbs (what we author). Falls back to the English label/
+// blurb for any trade not yet translated, so nothing ever renders blank.
+const TRADE_ES = {
+  "general-contractor": "Contratista general", windows: "Ventanas y puertas", roofing: "Techado", siding: "Revestimiento",
+  gutters: "Canaletas", painting: "Pintura", flooring: "Pisos", concrete: "Concreto", fencing: "Cercas", decking: "Terrazas",
+  drywall: "Tablaroca", doors: "Puertas", insulation: "Aislamiento", "kitchen-remodel": "Remodelación de cocina",
+  "bathroom-remodel": "Remodelación de baño", landscaping: "Jardinería", framing: "Estructura", electrical: "Electricidad",
+  plumbing: "Plomería", hvac: "Calefacción y aire", masonry: "Albañilería", "garage-doors": "Puertas de garaje",
+  "excavation-demo": "Excavación y demolición", countertops: "Encimeras", tile: "Azulejo", staging: "Home staging",
+  "interior-design": "Diseño de interiores",
+};
+const BLURB_ES = {
+  "general-contractor": "Remodelaciones y construcciones completas, gestionadas de principio a fin.",
+  windows: "Ventanas y puertas eficientes, medidas e instaladas correctamente.",
+  roofing: "Techos nuevos y reemplazos hechos para durar, con un trabajo limpio.",
+  siding: "Revestimiento que protege y transforma el exterior de tu casa.",
+  gutters: "Canaletas sin uniones que llevan el agua a donde debe ir.",
+  painting: "Pintura interior y exterior con un acabado que dura.",
+  flooring: "Madera, vinil y azulejo instalados planos, nivelados y resistentes.",
+  concrete: "Entradas, patios y losas vaciadas y terminadas para durar.",
+  fencing: "Cercas y portones derechos, sólidos y en la línea correcta.",
+  decking: "Terrazas y barandales para disfrutar por años.",
+  drywall: "Colgado, encintado y texturizado — paredes y techos lisos.",
+  doors: "Puertas interiores y exteriores ajustadas y bien terminadas.",
+  insulation: "Aislamiento que te mantiene cómodo y baja los recibos.",
+  "kitchen-remodel": "Cocinas que funcionan como cocinas — de los gabinetes a las encimeras.",
+  "bathroom-remodel": "Baños bien hechos, impermeabilizados para durar.",
+  landscaping: "Jardinería y paisajismo que realza toda tu propiedad.",
+  framing: "Estructura sólida — los huesos de todo buen proyecto.",
+  electrical: "Electricidad con licencia — contactos, iluminación, paneles y servicio.",
+  plumbing: "Plomería con licencia — llaves, retubería y calentadores.",
+  hvac: "Calefacción y aire dimensionados e instalados para comodidad real.",
+  masonry: "Albañilería y estuco — ladrillo, block, piedra y reparación.",
+  "garage-doors": "Puertas de garaje y motores instalados y reparados.",
+  "excavation-demo": "Movimiento de tierra, nivelación, acarreo y demolición bien hechos.",
+  countertops: "Encimeras plantilladas, fabricadas e instaladas con un trabajo limpio.",
+  tile: "Azulejo bien puesto — pisos, paredes, regaderas y cenefas.",
+};
+
 export function renderContractorSite(profile = {}, opts = {}) {
+  // The visitor's language ("language wheel"): a ?lang= choice the server resolves,
+  // defaulting to English. Only languages we have a dictionary for are honored.
+  const lang = T_STRINGS[opts.lang] ? opts.lang : "en";
+  const T = T_STRINGS[lang];
+  const isES = lang === "es";
   const company = esc(profile.company && profile.company !== "Your Company" ? profile.company : "Your Company");
   const initial = (company[0] || "B").toUpperCase();
   // The contractor's uploaded logo (data URL). The website header sits on a light
@@ -56,22 +150,28 @@ export function renderContractorSite(profile = {}, opts = {}) {
   const email = esc(profile.email || "");
   const license = esc(profile.license || "");
   const area = esc(profile.region || profile.city || "");
-  const tagline = esc(profile.site_tagline || "Quality work you can trust — done right, on time.");
+  // Default tagline is translated; a contractor's CUSTOM tagline is shown as written.
+  const defaultTagline = isES ? "Trabajo de calidad en el que puedes confiar — bien hecho y a tiempo." : "Quality work you can trust — done right, on time.";
+  const tagline = esc(profile.site_tagline || defaultTagline);
   const about = esc(String(profile.site_about || "").trim());   // AI-written About paragraph (optional)
   const offer = opts.offer && opts.offer.headline ? opts.offer : null;   // funnel offer mode (Sprint 15)
   const lookup = Object.fromEntries(tradeList().map((t) => [t.key, t]));
   const services = (Array.isArray(profile.services) ? profile.services : [])
     .map((k) => lookup[k]).filter(Boolean)
-    .map((t) => ({ emoji: t.emoji, label: t.label.replace(/\s*\(.*\)$/, ""), blurb: BLURB[t.key] || `Professional ${t.label.toLowerCase()} done right.` }));
+    .map((t) => ({
+      emoji: t.emoji,
+      label: (isES && TRADE_ES[t.key]) || t.label.replace(/\s*\(.*\)$/, ""),
+      blurb: (isES ? (BLURB_ES[t.key] || BLURB[t.key]) : BLURB[t.key]) || (isES ? `Trabajo profesional de ${t.label.toLowerCase()} bien hecho.` : `Professional ${t.label.toLowerCase()} done right.`),
+    }));
   const rating = profile.rating ? String(profile.rating) : "";   // from Google reviews layer (#15) — omitted until real
   const reviews = profile.reviews ? String(profile.reviews) : "";
   const leadAction = opts.leadAction || "";                       // inbound-leads URL (token-authed) for the estimate form
 
   const svcCards = services.length
     ? services.map((s) => `<div class="card"><div class="ic">${s.emoji}</div><h3>${esc(s.label)}</h3><p>${esc(s.blurb)}</p></div>`).join("")
-    : `<div class="card"><div class="ic">🔨</div><h3>Quality craftsmanship</h3><p>Skilled, licensed work you can count on — ask us about your project.</p></div>`;
+    : `<div class="card"><div class="ic">🔨</div><h3>${esc(T.qualityTitle)}</h3><p>${esc(T.qualityBlurb)}</p></div>`;
 
-  const ratingBadge = rating ? `<span class="stars">★★★★★</span> <span><b>${esc(rating)}</b>${reviews ? ` · ${esc(reviews)} Google reviews` : ""}</span>` : "";
+  const ratingBadge = rating ? `<span class="stars">★★★★★</span> <span><b>${esc(rating)}</b>${reviews ? ` · ${esc(reviews)} ${esc(T.reviews)}` : ""}</span>` : "";
 
   // Clean line icons (no clip-art emoji) — same stroke style as the app, brand-colored.
   const I = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -82,24 +182,39 @@ export function renderContractorSite(profile = {}, opts = {}) {
     pin: I('<path d="M12 21s7-5.6 7-11a7 7 0 0 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/>'),
     star: I('<path d="M12 3.2l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.5 6.8 19.2l1-5.8L3.6 9.3l5.8-.8z"/>'),
     bolt: I('<path d="M13 2L4 14h6l-1 8 9-12h-6z"/>'),
+    globe: I('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/>'),
   };
 
   // The 4th stat square — only ever show something that MEANS something: the real
   // service area if set, else a real client rating, else a fast-response promise.
   // (No empty "Local" filler.)
   const stat4 = area
-    ? `<div class="s"><div class="ic">${ICON.pin}</div><div class="v">${esc(area)}</div><div class="l">Service area</div></div>`
+    ? `<div class="s"><div class="ic">${ICON.pin}</div><div class="v">${esc(area)}</div><div class="l">${esc(T.serviceArea)}</div></div>`
     : rating
-    ? `<div class="s"><div class="ic">${ICON.star}</div><div class="v">${esc(rating)}</div><div class="l">Client rating</div></div>`
-    : `<div class="s"><div class="ic">${ICON.bolt}</div><div class="v">Fast</div><div class="l">Response</div></div>`;
+    ? `<div class="s"><div class="ic">${ICON.star}</div><div class="v">${esc(rating)}</div><div class="l">${esc(T.clientRating)}</div></div>`
+    : `<div class="s"><div class="ic">${ICON.bolt}</div><div class="v">${esc(T.fast)}</div><div class="l">${esc(T.response)}</div></div>`;
 
-  return `<!doctype html><html lang="en"><head>
+  // The language switcher ("wheel") — a compact selector that reloads the page in
+  // the chosen language. Only shows when more than one language is available.
+  const altBase = String(opts.altBase || "");   // canonical path for ?lang= links (set by server)
+  const langWheel = SITE_LANGS.length > 1
+    ? `<div class="lang"><span class="lang-globe" aria-hidden="true">${ICON.globe}</span><select aria-label="Language" onchange="var u=new URL(location.href);u.searchParams.set('lang',this.value);location.href=u.toString()">`
+      + SITE_LANGS.map((L) => `<option value="${L.code}"${L.code === lang ? " selected" : ""}>${L.flag} ${esc(L.label)}</option>`).join("")
+      + `</select></div>`
+    : "";
+  // hreflang alternates for SEO — tell Google we serve the page in each language.
+  const hreflangs = altBase
+    ? SITE_LANGS.map((L) => `<link rel="alternate" hreflang="${L.code}" href="${esc(altBase)}?lang=${L.code}" />`).join("")
+    : "";
+
+  return `<!doctype html><html lang="${lang}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${company}${area ? ` — ${area}` : ""} | Free Estimates</title>
-<meta name="description" content="${company} — ${tagline} ${license ? "Licensed, bonded &amp; insured." : ""} Free estimates." />
+<title>${company}${area ? ` — ${area}` : ""} | ${T.titleFree}</title>
+<meta name="description" content="${company} — ${tagline} ${license ? T.licensed + "." : ""} ${T.freeEstimates}." />
 <meta name="theme-color" content="${accent}" />
+${hreflangs}
 <meta property="og:type" content="website" /><meta property="og:title" content="${company}" />
-<meta property="og:description" content="${tagline} Free estimates." />
+<meta property="og:description" content="${tagline} ${T.freeEstimates}." />
 <script type="application/ld+json">${JSON.stringify({
   "@context": "https://schema.org", "@type": "GeneralContractor", name: profile.company || "Contractor",
   ...(phone ? { telephone: phone } : {}), ...(area ? { areaServed: area } : {}),
@@ -120,6 +235,9 @@ export function renderContractorSite(profile = {}, opts = {}) {
   @media(max-width:640px){.brand-logo{height:34px;max-width:170px}}
   .nav-r{display:flex;align-items:center;gap:14px}.nav-r .call{font-weight:700;color:var(--blue)}
   @media(max-width:640px){.nav-r .call{display:none}}
+  .lang{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--rule);border-radius:10px;padding:6px 10px}
+  .lang-globe svg{width:17px;height:17px;color:var(--accent);display:block}
+  .lang select{border:none;background:transparent;font-family:inherit;font-size:.92rem;font-weight:700;color:var(--ink);cursor:pointer;outline:none;padding-right:2px}
   .hero{background:linear-gradient(180deg,var(--soft),#fff);padding:64px 0 48px}
   .hero h1{font-size:2.9rem;line-height:1.07;margin:0 0 14px;max-width:16ch;font-weight:800}
   .hero p.sub{font-size:1.2rem;color:var(--muted);max-width:46ch;margin:0 0 24px}
@@ -162,61 +280,61 @@ export function renderContractorSite(profile = {}, opts = {}) {
 </style></head><body>
 <header class="nav"><div class="wrap">
   ${brandMark}
-  <div class="nav-r">${phone ? `<a class="call" href="${telHref}">📞 ${esc(phone)}</a>` : ""}<a class="btn" href="#estimate">Free estimate</a></div>
+  <div class="nav-r">${phone ? `<a class="call" href="${telHref}">📞 ${esc(phone)}</a>` : ""}${langWheel}<a class="btn" href="#estimate">${esc(T.freeEstimate)}</a></div>
 </div></header>
 
 <section class="hero"><div class="wrap">
-  <div class="eyebrow">${area ? esc(area) + " · " : ""}${license ? "Licensed, bonded &amp; insured" : "Free estimates"}</div>
+  <div class="eyebrow">${area ? esc(area) + " · " : ""}${license ? T.licensed : T.freeEstimates}</div>
   <h1>${offer && offer.headline ? esc(offer.headline) : tagline}</h1>
-  <p class="sub">${offer && offer.subhead ? esc(offer.subhead) : `Get a free, no-pressure estimate from ${company} — fast.`}</p>
+  <p class="sub">${offer && offer.subhead ? esc(offer.subhead) : T.heroSub(company)}</p>
   ${offer
-    ? `<div class="cta"><a class="btn lg" href="#estimate">${esc(offer.cta || "Get my free estimate")}</a></div>`
-    : `<div class="cta"><a class="btn lg" href="#estimate">Get your free estimate</a>${phone ? `<a class="btn ghost lg" href="${telHref}">📞 Call us</a>` : ""}</div>`}
-  <div class="badges">${ratingBadge}${license ? `<span>${ICON.shield} Licensed, bonded &amp; insured · <b>${license}</b></span>` : `<span>${ICON.shield} <b>Licensed, bonded &amp; insured</b></span>`}<span>${ICON.clipboard} <b>Free estimates</b></span></div>
+    ? `<div class="cta"><a class="btn lg" href="#estimate">${esc(offer.cta || T.getEstimate)}</a></div>`
+    : `<div class="cta"><a class="btn lg" href="#estimate">${esc(T.getEstimate)}</a>${phone ? `<a class="btn ghost lg" href="${telHref}">📞 ${esc(T.callUs)}</a>` : ""}</div>`}
+  <div class="badges">${ratingBadge}${license ? `<span>${ICON.shield} ${T.licensed} · <b>${license}</b></span>` : `<span>${ICON.shield} <b>${T.licensed}</b></span>`}<span>${ICON.clipboard} <b>${T.freeEstimates}</b></span></div>
 </div></section>
 
-<div class="stats wrap"><div class="s"><div class="ic">${ICON.tools}</div><div class="v">${services.length || "✓"}</div><div class="l">${services.length === 1 ? "Service offered" : "Services offered"}</div></div>
-  <div class="s"><div class="ic">${ICON.shield}</div><div class="v">✓</div><div class="l">Licensed, bonded &amp; insured</div></div>
-  <div class="s"><div class="ic">${ICON.clipboard}</div><div class="v">Free</div><div class="l">Estimates</div></div>
+<div class="stats wrap"><div class="s"><div class="ic">${ICON.tools}</div><div class="v">${services.length || "✓"}</div><div class="l">${services.length === 1 ? T.serviceOffered : T.servicesOffered}</div></div>
+  <div class="s"><div class="ic">${ICON.shield}</div><div class="v">✓</div><div class="l">${T.licensed}</div></div>
+  <div class="s"><div class="ic">${ICON.clipboard}</div><div class="v">${T.free}</div><div class="l">${T.estimates}</div></div>
   ${stat4}</div>
 
-<section class="wrap"><div class="eyebrow">What we do</div><h2>Services</h2>
-  <p class="lead">Skilled, licensed work from ${company} — one team, one point of contact, one clean job.</p>
+<section class="wrap"><div class="eyebrow">${T.whatWeDo}</div><h2>${T.services}</h2>
+  <p class="lead">${T.servicesLead(company)}</p>
   <div class="svc">${svcCards}</div></section>
 
-${about ? `<section class="wrap about"><div class="eyebrow">About</div><h2>About ${company}</h2><p class="lead about-p">${about}</p></section>` : ""}
+${about ? `<section class="wrap about"><div class="eyebrow">${T.about}</div><h2>${T.aboutOf(company)}</h2><p class="lead about-p">${about}</p></section>` : ""}
 
-${(Array.isArray(opts.projects) && opts.projects.length) ? `<section class="wrap work"><div class="eyebrow">Recent work</div><h2>Before &amp; After</h2>
+${(Array.isArray(opts.projects) && opts.projects.length) ? `<section class="wrap work"><div class="eyebrow">${T.recentWork}</div><h2>${T.beforeAfter}</h2>
   <div class="projects">${opts.projects.map((p) => {
     const ba = (p.before && p.before.length && p.after && p.after.length)
-      ? `<div class="ba"><figure><img src="${esc(p.before[0])}" alt="Before"/><figcaption>Before</figcaption></figure><figure><img src="${esc(p.after[0])}" alt="After"/><figcaption>After</figcaption></figure></div>`
+      ? `<div class="ba"><figure><img src="${esc(p.before[0])}" alt="${esc(T.before)}"/><figcaption>${esc(T.before)}</figcaption></figure><figure><img src="${esc(p.after[0])}" alt="${esc(T.after)}"/><figcaption>${esc(T.after)}</figcaption></figure></div>`
       : `<div class="gal">${[...(p.after || []), ...(p.before || [])].slice(0, 4).map((u) => `<img src="${esc(u)}" alt="${esc(p.title)}"/>`).join("")}</div>`;
     return `<article class="proj"><h3>${esc(p.title)}</h3>${(p.service || p.area) ? `<div class="proj-meta">${esc([p.service, p.area].filter(Boolean).join(" · "))}</div>` : ""}${ba}${p.description ? `<p class="proj-d">${esc(p.description)}</p>` : ""}</article>`;
   }).join("")}</div></section>` : ""}
 
 <section class="wrap" id="estimate"><div class="estimate">
-  <div class="eyebrow" style="color:#e7b35c">Free estimate</div>
-  <h2>Tell us about your project</h2>
-  <p>Send a few details and ${company} will get you a clean, priced estimate — fast. No pressure, no obligation.</p>
+  <div class="eyebrow" style="color:#e7b35c">${T.freeEstimate}</div>
+  <h2>${T.tellUs}</h2>
+  <p>${T.estimateLead(company)}</p>
   <form class="form" id="estForm">
-    <div class="row"><input name="name" type="text" placeholder="Your name" required /><input name="phone" type="tel" placeholder="Phone" required /></div>
-    <input name="city" type="text" placeholder="Address or neighborhood" />
-    <textarea name="message" placeholder="What are you looking to do?"></textarea>
-    <button class="btn lg" type="submit" style="justify-content:center">Request my free estimate →</button>
+    <div class="row"><input name="name" type="text" placeholder="${esc(T.fName)}" required /><input name="phone" type="tel" placeholder="${esc(T.fPhone)}" required /></div>
+    <input name="city" type="text" placeholder="${esc(T.fAddress)}" />
+    <textarea name="message" placeholder="${esc(T.fMessage)}"></textarea>
+    <button class="btn lg" type="submit" style="justify-content:center">${esc(T.requestEstimate)}</button>
   </form>
-  <div id="estOk" class="ok" style="display:none;margin-top:14px">✓ Thanks! ${company} got your request and will reach out shortly.</div>
+  <div id="estOk" class="ok" style="display:none;margin-top:14px">${T.thanks(company)}</div>
 </div></section>
 
 <footer><div class="wrap"><div class="grid">
   <div><b>${company}</b>${area ? `<br>${esc(area)}` : ""}${phone ? `<br>📞 ${esc(phone)}` : ""}${email ? ` · ${email}` : ""}</div>
-  <div><b>Get started</b><br><a href="#estimate" style="color:var(--accent);font-weight:700">Request a free estimate</a></div>
-  ${license ? `<div><b>Licensed, bonded &amp; insured</b><br>${license}<br>Free estimates</div>` : ""}
-</div><div class="powered">Website &amp; booking powered by <a href="https://bidtranslator.com">Bidtranslator</a></div></div></footer>
+  <div><b>${T.getStarted}</b><br><a href="#estimate" style="color:var(--accent);font-weight:700">${esc(T.requestAFree)}</a></div>
+  ${license ? `<div><b>${T.licensed}</b><br>${license}<br>${T.freeEstimates}</div>` : ""}
+</div><div class="powered">${T.poweredBy} <a href="https://bidtranslator.com">Bidtranslator</a></div></div></footer>
 <script>
   var f=document.getElementById('estForm'), action=${JSON.stringify(leadAction)};
   f.addEventListener('submit',function(e){ e.preventDefault();
     var fd={ name:f.name.value, phone:f.phone.value, city:f.city.value, message:f.message.value, source:'Website', job_type:'' };
-    var btn=f.querySelector('button'); btn.disabled=true; btn.textContent='Sending…';
+    var btn=f.querySelector('button'); btn.disabled=true; btn.textContent=${JSON.stringify(T.sending)};
     function done(){ f.style.display='none'; document.getElementById('estOk').style.display='block'; }
     if(!action){ done(); return; }
     fetch(action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fd)})

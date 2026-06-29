@@ -1224,7 +1224,7 @@ app.get("/f/:id", (req, res) => {
     title: p.title, description: p.description, service: p.service, area: p.area,
     before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)), after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
   }));
-  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects, offer: { headline: f.headline, subhead: f.subhead, cta: f.cta } }));
+  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects, offer: { headline: f.headline, subhead: f.subhead, cta: f.cta }, lang: pickSiteLang(req), altBase: `${baseUrl(req)}/f/${encodeURIComponent(f.id)}` }));
 });
 
 // Public, login-free contractor website (built from their profile + published
@@ -1241,7 +1241,7 @@ app.get("/c/:id", (req, res) => {
     before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)),
     after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
   }));
-  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects }));
+  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects, lang: pickSiteLang(req), altBase: `${baseUrl(req)}/c/${encodeURIComponent(u.site_slug || u.id)}` }));
 });
 
 // ---- Share a bid: a clean public link the contractor texts/emails ----
@@ -1321,6 +1321,20 @@ const clientIp = (req) => (req.headers["x-forwarded-for"] || "").split(",")[0].t
 // The device/browser string we stamp on analytics events (iPhone vs Android, and
 // the Instagram/Facebook in-app browser where voice can't run).
 const uaOf = (req) => String(req.headers["user-agent"] || "").slice(0, 300);
+// Visitor language for the public contractor site ("language wheel"): an explicit
+// ?lang= choice wins; otherwise sniff the browser's Accept-Language so a Spanish
+// speaker lands in Spanish automatically. Only languages the site supports.
+const SITE_LANGS_SUPPORTED = ["en", "es"];
+function pickSiteLang(req) {
+  const q = String(req.query.lang || "").slice(0, 5).toLowerCase();
+  if (SITE_LANGS_SUPPORTED.includes(q)) return q;
+  const al = String(req.headers["accept-language"] || "").toLowerCase();
+  for (const part of al.split(",")) {
+    const code = part.trim().split(";")[0].slice(0, 2);
+    if (SITE_LANGS_SUPPORTED.includes(code)) return code;
+  }
+  return "en";
+}
 // Lightweight audit beacon from the public proposal page (e.g. approval box ticked).
 const PUBLIC_AUDIT = new Set(["approval_checked", "proposal_viewed"]);
 app.post("/p/:id/event", wrap((req, res) => {
