@@ -2598,9 +2598,9 @@ function viewCapture(){
       <div class="photogrid" id="capPhotoGrid">${capPhotoThumbs()}</div>
     </div>
 
-    <label class="fld" style="margin-top:14px">Trade <span class="hint" style="font-weight:400">— pick one and the AI estimates like that trade</span></label>
+    <label class="fld" style="margin-top:14px">Trade <span class="hint" style="font-weight:400">(Optional)</span></label>
     <select id="capTrade" class="input" onchange="capDraft('trade',this.value); renderTradeHint()">
-      <option value="">No specific trade — let AI decide</option>
+      <option value="">Auto Detect Trade (Recommended)</option>
       ${TRADE_PICK.map(t=>`<option value="${t.key}" ${CAP_DRAFT.trade===t.key?'selected':''}>${t.emoji} ${t.label}</option>`).join('')}
     </select>
     <div id="tradeHint">${tradeBringHint()}</div>
