@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>BidVoice — speak the offer</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="app" class="app"><div class="loading">Loading…</div></div>
+
+  <!-- Sticky bottom nav (mobile-first) -->
+  <nav id="nav" class="nav" hidden>
+    <button data-route="dashboard" class="nav-btn active">
+      <svg viewBox="0 0 24 24" class="ico"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg>
+      <span>Offers</span>
+    </button>
+    <button data-route="new" class="nav-btn nav-mic">
+      <span class="mic-orb"><svg viewBox="0 0 24 24" class="ico"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M8 21h8"/></svg></span>
+    </button>
+    <button data-route="settings" class="nav-btn">
+      <svg viewBox="0 0 24 24" class="ico"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1l-.3-2.5h-4l-.3 2.5a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

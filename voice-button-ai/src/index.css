@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background: #09090b;
+}
+
+/* Chrome extension popup needs an explicit size so it isn't a tiny box. */
+@media (display-mode: browser) {
+  body {
+    min-width: 380px;
+  }
+}
+
+/* The extension popup root gets a fixed, comfortable size. */
+html.is-extension-popup,
+html.is-extension-popup body,
+html.is-extension-popup #root {
+  width: 400px;
+  height: 600px;
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Light mode.                                                            */
+/*  Components are authored dark-first with zinc + white-overlay utilities. */
+/*  Rather than fork every component, we remap those specific utilities at  */
+/*  the html.light scope (higher specificity than Tailwind's 0,1,0, so      */
+/*  these win). text-white stays white (it sits on brand gradients).        */
+/* ---------------------------------------------------------------------- */
+html.light {
+  color-scheme: light;
+}
+html.light body {
+  background: #f4f4f5;
+}
+
+html.light [class*='bg-zinc-950'] {
+  background-color: rgba(255, 255, 255, 0.85);
+}
+html.light [class*='bg-white/'] {
+  background-color: rgba(0, 0, 0, 0.045);
+}
+html.light [class*='border-white/'] {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+html.light .text-zinc-100 { color: #18181b; }
+html.light .text-zinc-200 { color: #27272a; }
+html.light .text-zinc-300 { color: #3f3f46; }
+html.light .text-zinc-400 { color: #52525b; }
+html.light .text-zinc-500 { color: #71717a; }
+html.light .text-zinc-600 { color: #a1a1aa; }
+
+/* Keep the frosted nav/overlay readable on a light backdrop. */
+html.light .from-white\/\[0\.05\] {
+  --tw-gradient-from: rgba(0, 0, 0, 0.04);
+}
+
+/* Nicer custom scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+}
+
+/* Extra utility used in components */
+.h-4\.5 {
+  height: 1.125rem;
+}
+.w-4\.5 {
+  width: 1.125rem;
+}
