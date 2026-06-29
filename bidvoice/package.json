@@ -1,0 +1,17 @@
+{
+  "name": "bidvoice",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BidVoice — the fastest voice-first NWMLS offer-writing operating system for real estate brokers.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server/index.mjs",
+    "dev": "node --watch server/index.mjs"
+  },
+  "dependencies": {
+    "pdfkit": "^0.15.0"
+  }
+}

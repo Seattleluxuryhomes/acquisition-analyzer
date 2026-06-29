@@ -19,3 +19,26 @@ services:
         sync: false
       - key: VBAI_FREE_DAILY_CREDITS
         value: "60"
+
+  # BidVoice — voice-first NWMLS offer writer. No build step (vanilla PWA +
+  # node:sqlite). A persistent disk keeps the offer history + signatures.
+  - type: web
+    name: bidvoice
+    runtime: node
+    rootDir: bidvoice
+    branch: claude/voice-button-ai-mvp-ka7a8f
+    plan: free
+    buildCommand: npm install
+    startCommand: node server/index.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: BIDVOICE_MODEL
+        value: claude-opus-4-8
+      - key: BIDVOICE_DATA_DIR
+        value: /var/data
+    disk:
+      name: bidvoice-data
+      mountPath: /var/data
+      sizeGB: 1
