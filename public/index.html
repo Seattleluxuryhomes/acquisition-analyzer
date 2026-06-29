@@ -492,6 +492,20 @@
   .vf-live-eq i:nth-child(2){animation-delay:.15s}.vf-live-eq i:nth-child(3){animation-delay:.3s}.vf-live-eq i:nth-child(4){animation-delay:.45s}
   @keyframes vfeq{0%,100%{transform:scaleY(.28)}50%{transform:scaleY(1)}}
   @media(prefers-reduced-motion:reduce){.vf-live-eq i{animation:none;transform:scaleY(.6)}}
+  /* Floating Record button — the always-reachable voice control on the capture screen.
+     Idle = amber "Record". AI just asked something = amber "Answer" + breathing ring.
+     Recording = red "Stop" + live timer + pulse. Never have to scroll back to the mic. */
+  .recfab{position:fixed;right:14px;bottom:88px;z-index:36;display:inline-flex;align-items:center;gap:9px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:.95rem;color:var(--ink);border-radius:30px;padding:13px 18px;background:radial-gradient(120% 120% at 32% 24%, #FFC264 0%, #EE9B2E 56%, #DC8918 100%);box-shadow:0 10px 26px rgba(207,127,24,.5), inset 0 1px 0 rgba(255,255,255,.4);transition:transform .12s ease, background .2s, color .2s;-webkit-tap-highlight-color:transparent}
+  .recfab:active{transform:scale(.95)}
+  .recfab .rf-ic{display:flex;align-items:center}
+  .recfab .rf-time{display:none;font-variant-numeric:tabular-nums;opacity:.92}
+  .recfab.await{animation:recbreathe 2.2s ease-in-out infinite}
+  @keyframes recbreathe{0%,100%{box-shadow:0 10px 26px rgba(207,127,24,.5), inset 0 1px 0 rgba(255,255,255,.4), 0 0 0 0 rgba(238,155,46,.5)}50%{box-shadow:0 10px 26px rgba(207,127,24,.5), inset 0 1px 0 rgba(255,255,255,.4), 0 0 0 11px rgba(238,155,46,0)}}
+  .recfab.rec{background:radial-gradient(120% 120% at 32% 24%, #E07A5F 0%, #B85440 56%, #A94E38 100%);color:#fff;animation:recpulse 1.15s ease-in-out infinite}
+  .recfab.rec .rf-ic svg{stroke:#fff}
+  .recfab.rec .rf-time{display:inline}
+  @keyframes recpulse{0%,100%{box-shadow:0 10px 26px rgba(169,78,56,.55), inset 0 1px 0 rgba(255,255,255,.35), 0 0 0 0 rgba(169,78,56,.5)}50%{box-shadow:0 10px 26px rgba(169,78,56,.55), inset 0 1px 0 rgba(255,255,255,.35), 0 0 0 13px rgba(169,78,56,0)}}
+  @media(prefers-reduced-motion:reduce){.recfab.await,.recfab.rec{animation:none}}
   .reread{float:right;background:none;border:1px solid var(--line);color:var(--amber);border-radius:6px;font-family:"IBM Plex Sans";font-size:.64rem;padding:2px 7px;cursor:pointer;margin-top:-2px}
   .intake{margin-top:12px}
   .intake-h{font-family:"IBM Plex Sans";font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--amber);margin-bottom:6px;display:flex;align-items:center;gap:6px}
@@ -1629,10 +1643,6 @@ function closeMore(){ const s=document.getElementById('sheet'); if(s) s.style.di
 // Tap → straight into capture with the mic already listening (the core workflow:
 // Speak → Generate → Send → Get Paid). Falls back silently if speech is unavailable.
 function fabTap(){ if(!entitled()){ go('paywall'); return; }
-  // On the capture screen this center mic is a RECORD TOGGLE — always under your thumb,
-  // even when you've scrolled down past the big mic to read the details. Tap to start,
-  // tap to stop (no push-to-hold). A new bid from here is the long-press menu.
-  if(state.view==='capture' && !state.loading){ micTap(); return; }
   // Don't silently wipe an in-progress dictation: if there are unsaved voice notes
   // on the capture screen, confirm before clearing them for a brand-new bid.
   const ta=document.getElementById('capText');
@@ -1693,11 +1703,10 @@ function render(){
   setOn('bnMore', state.view==='settings'||state.view==='admin'||state.view==='catalog'||state.view==='leads'||state.view==='team'||state.view==='why');
   // Draw the eye to the money button when there's nothing to do yet (first bid).
   const fab=document.getElementById('bnAdd'); if(fab) fab.classList.toggle('pulse', JOBS.filter(j=>!j._deleted).length===0 && state.view==='home');
-  paintFab();
   paintBell();
   if(state.view==='home'){ v.innerHTML = viewHome(); markNotifsSeen(); if(!TEAM.loaded) loadTeam(); }
   else if(state.view==='schedule') v.innerHTML = viewSchedule();
-  else if(state.view==='capture') v.innerHTML = viewCapture();
+  else if(state.view==='capture'){ v.innerHTML = viewCapture(); paintRecFab(); }
   else if(state.view==='job') v.innerHTML = viewJob();
   else if(state.view==='settings') v.innerHTML = viewSettings();
   else if(state.view==='catalog') { v.innerHTML = viewCatalog(); if(!CATALOG.loaded) loadSkus(); }
@@ -2603,7 +2612,13 @@ function viewCapture(){
     <div class="consent">
       <label><input type="checkbox" id="capConsent"/> <span>When my area requires it, I'll let the other person know the conversation is being captured.</span></label>
       <div class="consent-fine">Placeholder wording — not legal advice. Final consent terms to be reviewed before launch.</div>
-    </div>`;
+    </div>
+    <div aria-hidden="true" style="height:104px"></div>
+    ${(window.isSecureContext && speechSupported()) ? `<button class="recfab" id="recfab" onclick="micTap()" aria-label="Record — tap to talk">
+      <span class="rf-ic"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#1F252C" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21.5"/></svg></span>
+      <span class="rf-label" id="rfLabel">Record</span>
+      <span class="rf-time" id="rfTime">0:00</span>
+    </button>` : ''}`;
 }
 // The AI-extracted job details card (Client / Address / Scope / Materials / Timeline).
 function intakeCard(){
@@ -2638,6 +2653,7 @@ function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value
 let intakeTimer=null, intakeRunning=false, intakeLastAt=0, intakeLastLen=0;
 function renderIntakeRegions(){
   const r=document.getElementById('intakeRegion'); if(r) r.innerHTML=intakeCard()+questionsCard();
+  paintRecFab(); // surface "Answer" on the floating button when the AI has questions
 }
 function scheduleIntake(){
   if(!AI_BUILD || !online || !TOKEN) return;
@@ -4372,16 +4388,19 @@ function updateMic(){ const b=document.getElementById('micBtn'); if(b) b.classLi
   const wrap=document.getElementById('capWrap'); if(wrap) wrap.classList.toggle('live',recording||analyzing);
   const lt=document.getElementById('capLiveT'); if(lt && (analyzing || (recording && !capRec))) lt.textContent = analyzing?'Analyzing what you said…':'Listening…';
   const l=b&&b.querySelector('.lbl'); if(l) l.textContent=txt;
-  paintFab(); }
-// The bottom-nav center mic doubles as the record toggle on the capture screen: it
-// turns red while recording and its label reads Record/Stop, so it's always reachable
-// even when the big mic is scrolled out of view. Elsewhere it stays the "New" button.
-function paintFab(){
-  const b=document.getElementById('bnAdd'); if(!b) return;
-  const onCap = state.view==='capture' && !state.loading;
-  b.classList.toggle('rec', !!(onCap && recording));
-  const l=b.querySelector('.add-l');
-  if(l) l.textContent = onCap ? (recording ? 'Stop' : 'Record') : 'New';
+  paintRecFab(); }
+// Floating Record button on the capture screen — always under the thumb, even scrolled
+// past the big mic. Red + live timer while recording; reads "Answer" with a gentle
+// pulse when the AI has just asked a question, so the conversation never dead-ends.
+function paintRecFab(){
+  const f=document.getElementById('recfab'); if(!f) return;
+  const analyzing = micState==='transcribing';
+  const hasQ = !!(CAP_INTAKE && CAP_INTAKE.questions && CAP_INTAKE.questions.length);
+  f.classList.toggle('rec', recording);
+  f.classList.toggle('analyzing', analyzing);
+  f.classList.toggle('await', !recording && !analyzing && hasQ);
+  const lbl=document.getElementById('rfLabel');
+  if(lbl) lbl.textContent = analyzing ? 'Reading…' : recording ? 'Stop' : (hasQ ? 'Answer' : 'Record');
 }
 
 /* ---- Record → server transcription (universal voice, incl. iPhone) ---- */
@@ -4455,7 +4474,7 @@ function startVAD(stream){
     const bars=Array.from(document.querySelectorAll('#vfWave .vf-bar')), NB=bars.length;
     const smooth=new Array(NB).fill(0.12);
     const usable=Math.floor(freq.length*0.62); // voice band — skip the dead high end
-    const tmEl=document.getElementById('vfTimer'); let lastTm=0;
+    const tmEl=document.getElementById('vfTimer'), rfEl=document.getElementById('rfTime'); let lastTm=0;
     const tick=()=>{
       if(!recording){ stopVAD(); return; }
       an.getByteTimeDomainData(buf);
@@ -4471,8 +4490,8 @@ function startVAD(stream){
           bars[b].style.transform='scaleY('+smooth[b].toFixed(3)+')';
         }
       }
-      // (2) timer (mm:ss), throttled
-      if(tmEl && now-lastTm>200){ lastTm=now; const t=Math.max(0,Math.floor((now-recStartAt)/1000)); tmEl.textContent=Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); }
+      // (2) timer (mm:ss), throttled — both the big mic and the floating Record button
+      if(now-lastTm>200){ lastTm=now; const t=Math.max(0,Math.floor((now-recStartAt)/1000)), str=Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); if(tmEl) tmEl.textContent=str; if(rfEl) rfEl.textContent=str; }
       // (3) silence auto-stop
       if(rms>SPEAK){ vadSpoke=true; vadQuietAt=0; }
       else if(vadSpoke){ if(!vadQuietAt) vadQuietAt=now; else if(now-vadQuietAt>SILENCE_MS){ stopVAD(); if(recording){ buzz(12); stopRecord(); } return; } }
