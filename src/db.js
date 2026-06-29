@@ -414,6 +414,9 @@ ensureColumns("user", [
   ["connect_charges_enabled", "INTEGER DEFAULT 0"],
   // Company logo (small data-URI) shown on the client bid + PDF.
   ["logo", "TEXT"],
+  // Website logo for light backgrounds (e.g. a dark/black mark for the white
+  // contractor site header). Falls back to `logo` when not set.
+  ["site_logo", "TEXT"],
   // Analytics: last sign-in + when onboarding was completed.
   ["last_login", "INTEGER"],
   ["onboarded_at", "INTEGER"],
