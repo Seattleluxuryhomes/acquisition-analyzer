@@ -779,7 +779,7 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
 // Voice-first intake: extract structured job fields from the spoken transcript as
 // the contractor talks (auto-fills the New Job screen).
 app.post("/api/assist/intake", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
-  res.json({ intake: await assistIntake(req.user, { text: (req.body && req.body.text) || "" }) });
+  res.json({ intake: await assistIntake(req.user, { text: (req.body && req.body.text) || "", trade: (req.body && req.body.trade) || "" }) });
 }));
 // Trade estimator library: the list of trades (with what to bring) for the picker.
 app.get("/api/trades", requireAuth, (req, res) => res.json({ trades: tradeList() }));

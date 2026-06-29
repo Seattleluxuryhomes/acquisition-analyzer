@@ -523,6 +523,20 @@
   .intake-row .iv{flex:1;color:var(--text);font-size:.92rem}
   .qcard{background:rgba(238,155,46,.08);border:1px solid var(--amber-deep);border-radius:12px;padding:12px 14px}
   .qrow{font-size:.9rem;color:var(--text);padding:3px 0}
+  /* Conversational AI estimator: live checklist + the next spoken question */
+  .est-card .intake-h{position:relative}
+  .est-tts{position:absolute;right:0;top:-2px;background:none;border:none;font-size:1rem;cursor:pointer;padding:0 2px}
+  .est-list{display:flex;flex-direction:column;gap:2px;margin:4px 0 2px}
+  .est-item{display:flex;align-items:flex-start;gap:8px;font-size:.92rem;padding:4px 2px;line-height:1.35}
+  .est-item .est-ic{flex:0 0 auto}
+  .est-item.missing .est-l{color:var(--muted)}
+  .est-item.captured .est-l b{color:var(--text)}
+  .est-flag{font-size:.72rem;color:var(--rust);background:rgba(169,78,56,.14);border-radius:5px;padding:1px 6px;margin-left:4px}
+  .est-q{margin-top:10px;background:rgba(238,155,46,.1);border:1px solid var(--amber-deep);border-radius:12px;padding:12px 14px}
+  .est-q-t{font-size:1.02rem;font-weight:700;color:var(--text);line-height:1.35}
+  .est-q-act{display:flex;gap:8px;margin-top:10px}
+  .est-ready{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;background:rgba(62,125,90,.14);border:1px solid rgba(62,125,90,.4);border-radius:12px;padding:12px 14px;font-size:.96rem;color:var(--text)}
+  .est-ready .btn{margin-left:auto}
   .langchip{display:block;width:100%;margin-top:16px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:10px 12px;font-family:"IBM Plex Sans";font-size:.72rem;cursor:pointer;text-align:center}
   /* Photo capture on New Job — one premium "Add Photos" action, icon echoes the mic. */
   .cap-photos{margin-top:16px}
@@ -2635,9 +2649,25 @@ function intakeCard(){
   if(!body) return intakeRunning?`<div class="intake">${head}</div>`:'';
   return `<div class="intake">${head}<div class="intake-box">${body}</div><div class="hint" style="margin-top:6px">Auto-named: <b style="color:var(--text)">${esc(autoProjectName())}</b> — you can rename it after.</div></div>`;
 }
+// The conversational estimator: a live checklist (captured / to-confirm / still-needed)
+// + the single next question, spoken aloud, with "I'm not sure" and a ready state.
 function questionsCard(){
-  const qs=CAP_INTAKE&&CAP_INTAKE.questions; if(!qs||!qs.length) return '';
-  return `<div class="intake qcard"><div class="intake-h">${icon('activity',13)} A few things to confirm</div>${qs.map(q=>`<div class="qrow">• ${esc(String(q))}</div>`).join('')}</div>`;
+  const x=CAP_INTAKE; if(!x) return '';
+  const cl=Array.isArray(x.checklist)?x.checklist:[];
+  const nq=(x.next_question||'').trim();
+  const ready=!!x.ready;
+  if(!cl.length && !nq && !ready) return '';
+  const ic=(s)=> s==='captured'?'✅':s==='unsure'?'⚠️':'⬜';
+  const clHTML = cl.length ? `<div class="est-list">${cl.map(c=>`<div class="est-item ${esc(c.status)}"><span class="est-ic">${ic(c.status)}</span><span class="est-l">${esc(c.label)}${c.status==='captured'&&c.value?` — <b>${esc(c.value)}</b>`:''}${c.status==='unsure'?` <span class="est-flag">to confirm</span>`:''}</span></div>`).join('')}</div>` : '';
+  let action='';
+  if(ready){
+    action=`<div class="est-ready">✓ <b>I have everything I need.</b><button class="btn sm" onclick="buildFromConversation()">Build the estimate →</button></div>`;
+  } else if(nq){
+    action=`<div class="est-q"><div class="est-q-t">💬 ${esc(nq)}</div>
+      <div class="est-q-act"><button class="btn sm" onclick="micTap()">🎤 Answer</button><button class="btn ghost sm" onclick="capNotSure()">I'm not sure</button></div></div>`;
+  }
+  const tts=('speechSynthesis' in window) ? `<button class="est-tts" onclick="toggleTts()" title="${TTS_ON?'Mute the estimator':'Let the estimator speak'}">${TTS_ON?'🔊':'🔇'}</button>` : '';
+  return `<div class="intake est-card"><div class="intake-h">${icon('activity',13)} AI Estimator${intakeRunning?' <span class="intake-load">thinking…</span>':''}${tts}</div>${clHTML}${action}</div>`;
 }
 // Auto project name from client + work (or address, or scope) — no manual entry.
 function autoProjectName(){
@@ -2672,11 +2702,33 @@ async function runIntake(force){
   if(!force && t.length-intakeLastLen < 12 && (Date.now()-intakeLastAt) < 7000) return; // coalesce
   intakeRunning=true; renderIntakeRegions();
   try{
-    const r=await api('/api/assist/intake',{method:'POST', body:JSON.stringify({ text:t })});
-    if(r && r.intake){ CAP_INTAKE=r.intake; persistIntake(); intakeLastAt=Date.now(); intakeLastLen=t.length; }
+    const r=await api('/api/assist/intake',{method:'POST', body:JSON.stringify({ text:t, trade:(CAP_DRAFT.trade||'') })});
+    if(r && r.intake){ CAP_INTAKE=r.intake; persistIntake(); intakeLastAt=Date.now(); intakeLastLen=t.length;
+      // The estimator speaks: read the next question aloud, or announce it's ready.
+      if(CAP_INTAKE.ready) speakQuestion('Great. Your estimate is ready.');
+      else if((CAP_INTAKE.next_question||'').trim()) speakQuestion(CAP_INTAKE.next_question.trim());
+    }
   }catch(e){ /* keep going; this is a live helper, never block the user */ }
   intakeRunning=false;
   if(state.view==='capture') renderIntakeRegions();
+}
+// The estimator "talks": speak the next question via the browser's built-in TTS, so it
+// feels like a back-and-forth. Muteable; never repeats the same line twice.
+let TTS_ON = localStorage.getItem('bt_tts')!=='off';
+let _ttsLast='';
+function speakQuestion(q){
+  if(!TTS_ON || !q || q===_ttsLast) return;
+  try{ if(!('speechSynthesis' in window)) return; _ttsLast=q; const u=new SpeechSynthesisUtterance(q); u.rate=1.02; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
+}
+function toggleTts(){ TTS_ON=!TTS_ON; localStorage.setItem('bt_tts', TTS_ON?'on':'off'); if(!TTS_ON){ try{ speechSynthesis.cancel(); }catch(e){} } _ttsLast=''; if(state.view==='capture') renderIntakeRegions(); }
+// "I'm not sure": flag the current question for review and let the estimator move on —
+// never dead-end the conversation over one unknown.
+function capNotSure(){
+  const nq=((CAP_INTAKE&&CAP_INTAKE.next_question)||'').trim();
+  const ta=document.getElementById('capText'); if(!ta) return;
+  ta.value=[ta.value.trim(), (nq?`(Not sure about: ${nq} — please flag for review.)`:'(Not sure on that — flag for review.)')].filter(Boolean).join(' ');
+  capDraft('text', ta.value); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px';
+  runIntake(true); // re-evaluate: AI marks it "unsure" and asks the next thing
 }
 function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v}</option>`).join(''); }
 
@@ -4453,7 +4505,7 @@ function paintFab(){
 function paintRecFab(){
   const f=document.getElementById('recfab'); if(!f) return;
   const analyzing = micState==='transcribing';
-  const hasQ = !!(CAP_INTAKE && CAP_INTAKE.questions && CAP_INTAKE.questions.length);
+  const hasQ = !!(CAP_INTAKE && (CAP_INTAKE.next_question||'').trim() && !CAP_INTAKE.ready);
   f.classList.toggle('rec', recording);
   f.classList.toggle('analyzing', analyzing);
   f.classList.toggle('await', !recording && !analyzing && hasQ);

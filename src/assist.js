@@ -646,25 +646,56 @@ export async function reviewBid(user, { trade, lines, text }) {
 // materials, labor, timeline, notes, an auto project name, and follow-up questions.
 // Lightweight + frequent (runs as they talk), so it's rate-limited but does NOT
 // burn the monthly build cap.
-function intakeSystemPrompt() {
+// Trade-specific checklists — what the AI estimator needs to gather to price each
+// trade accurately. Trades not listed fall back to GENERIC_FIELDS.
+const TRADE_FIELDS = {
+  fencing: ["Total length (ft)", "Height", "Material (cedar, vinyl, chain-link…)", "Number of gates", "Remove existing fence?", "Haul away debris?", "Stain or natural", "Post type", "Terrain / slope"],
+  painting: ["Interior or exterior", "Rooms or square footage", "Surface repairs / patching", "Who supplies the paint", "Finish (flat, eggshell, satin…)", "Trim & doors included?", "Ceilings included?", "Number of coats"],
+  roofing: ["Roof type", "Roof size (squares / sq ft)", "Number of existing layers", "Decking condition / replacement", "Ventilation", "Flashing", "Gutters included?", "Tear-off & disposal"],
+  electrical: ["Service size (amps)", "Panel replacement?", "Number of new circuits", "Permit required?", "AFCI / GFCI needs", "Inspection needed?", "Wiring runs / access"],
+  "excavation-demo": ["Scope (dig / grade / haul / demo)", "Area or volume", "Depth", "Material to remove / haul", "Equipment access", "Utilities located?", "Disposal / dump fees", "Permits / grading plan"],
+  windows: ["Number of windows", "Window type / style", "Sizes / measurements", "Material (vinyl, wood, fiberglass)", "New construction or replacement", "Trim & finish", "Removal & disposal of old"],
+  concrete: ["Area (sq ft)", "Thickness", "Type (slab, driveway, footings…)", "Rebar / mesh", "Forming", "Finish (broom, smooth, stamped)", "Demo of existing?", "Disposal"],
+  flooring: ["Material (LVP, tile, hardwood…)", "Area (sq ft)", "Subfloor prep", "Remove existing floor?", "Transitions / trim", "Rooms involved", "Underlayment"],
+  decking: ["Deck size (sq ft)", "Material (cedar, composite, PT)", "Height / footings", "Railings", "Stairs", "Remove existing deck?", "Stain / finish"],
+  drywall: ["Area (sq ft / sheets)", "New or repair", "Finish level", "Texture", "Ceilings included?", "Painting included?"],
+  plumbing: ["Scope (fixtures, repipe, water heater…)", "Number of fixtures", "Material (PEX, copper…)", "Permit required?", "Access / walls open?", "Inspection needed?"],
+};
+const GENERIC_FIELDS = ["Customer name", "Job address", "Scope of work", "Key measurements / quantities", "Materials needed", "Who supplies materials", "Timeline / start date", "Site access"];
+
+function intakeSystemPrompt(tradeLabel, fields) {
   return (
-    "You read a contractor's spoken description of a job and extract structured " +
-    "intake. Respond with ONLY valid minified JSON, no markdown, matching exactly: " +
-    '{"project_name":string,"client":string,"address":string,"scope":[string],' +
-    '"materials":[string],"labor":[string],"timeline":string,"notes":string,"questions":[string]}. ' +
-    "Rules: client = the customer's name if stated (else \"\"). address = the job address if stated " +
-    "(else \"\"). scope = short phrases of the work to do. materials = materials named. labor = labor/" +
-    "crew tasks (demo, haul-away, install, paint…). timeline = any dates/deadline (else \"\"). notes = " +
-    "anything else useful the contractor should remember. questions = 2 to 4 SHORT follow-up questions " +
-    "the contractor still needs answered to price it (missing measurements, material/finish choices, " +
-    "budget, access, who supplies what, timeline). project_name = a short job name from the client + " +
-    "main work, e.g. \"Martinez — Kitchen remodel\"; if no client name, use the address, else the main " +
-    "scope. At most 8 items per list. Use ONLY facts stated — never invent details."
+    "You are an experienced estimator interviewing a contractor about a job — one question at a time — to " +
+    "gather everything needed for a professional, accurate estimate. " +
+    (tradeLabel ? "Trade: " + tradeLabel + ". " : "") +
+    "Respond with ONLY valid minified JSON, no markdown, matching exactly: " +
+    '{"project_name":string,"client":string,"address":string,"scope":[string],"materials":[string],' +
+    '"labor":[string],"timeline":string,"notes":string,' +
+    '"checklist":[{"label":string,"value":string,"status":"captured"|"missing"|"unsure"}],' +
+    '"next_question":string,"ready":boolean,"questions":[string]}. ' +
+    "CHECKLIST: assess each of these items for THIS job — " + JSON.stringify(fields) + ". For each item " +
+    "relevant to this job, output {label, value, status}: \"captured\" (with a short value the contractor " +
+    "gave), \"missing\" (not stated yet), or \"unsure\" (the contractor said they don't know / it needs to " +
+    "be measured later). Skip items clearly irrelevant to this job. Keep each value short. " +
+    "NEXT_QUESTION: the SINGLE most important still-missing item, phrased as one short, natural spoken " +
+    "question (e.g. \"About how tall will the fence be?\"). Empty string when nothing important is missing. " +
+    "Ask the MINIMUM questions needed — never ask about something already captured or flagged unsure, and " +
+    "never ask filler. READY: true only when every critical item is captured OR flagged unsure (you have " +
+    "enough to produce an accurate estimate; unsure items get flagged for review). " +
+    "Also fill the structured fields from the conversation: client = customer name if stated (else \"\"), " +
+    "address (else \"\"), scope = short work phrases, materials named, labor/crew tasks, timeline, notes = " +
+    "anything else useful (put unsure/to-measure items here too). questions = up to 3 still-open items. " +
+    "project_name = client + main work, else address, else main scope. Use ONLY facts stated — never invent."
   );
 }
 function sanitizeIntake(d) {
   const list = (a) => (Array.isArray(a) ? a : []).slice(0, 8).map((s) => String(s).slice(0, 160)).filter(Boolean);
   d = d && typeof d === "object" ? d : {};
+  const checklist = (Array.isArray(d.checklist) ? d.checklist : []).slice(0, 24).map((c) => ({
+    label: String((c && c.label) || "").slice(0, 80),
+    value: String((c && c.value) || "").slice(0, 120),
+    status: ["captured", "unsure", "missing"].includes(c && c.status) ? c.status : "missing",
+  })).filter((c) => c.label);
   return {
     project_name: String(d.project_name || "").slice(0, 120),
     client: String(d.client || "").slice(0, 120),
@@ -674,21 +705,27 @@ function sanitizeIntake(d) {
     labor: list(d.labor),
     timeline: String(d.timeline || "").slice(0, 160),
     notes: String(d.notes || "").slice(0, 600),
+    checklist,
+    next_question: String(d.next_question || "").slice(0, 240),
+    ready: !!d.ready,
     questions: list(d.questions),
   };
 }
-export async function assistIntake(user, { text }) {
+export async function assistIntake(user, { text, trade }) {
   if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
   const t = String(text || "").trim();
   if (t.length < 8) { const e = new Error("Say a little more about the job first."); e.status = 400; throw e; }
   if (!checkRate(user.id)) { const e = new Error("One moment — too many updates at once."); e.status = 429; throw e; }
+  const tradeKey = String(trade || "").trim().toLowerCase();
+  const fields = TRADE_FIELDS[tradeKey] || GENERIC_FIELDS;
+  const tradeLabel = tradeKey ? tradeKey.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
   const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
   let res;
   try {
     res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: 900, system: intakeSystemPrompt(), messages: [{ role: "user", content: "JOB DESCRIPTION:\n" + t.slice(0, 8000) }] }),
+      body: JSON.stringify({ model, max_tokens: 1300, system: intakeSystemPrompt(tradeLabel, fields), messages: [{ role: "user", content: "CONVERSATION SO FAR (contractor describing the job and answering questions):\n" + t.slice(0, 8000) }] }),
     });
   } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
   if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
