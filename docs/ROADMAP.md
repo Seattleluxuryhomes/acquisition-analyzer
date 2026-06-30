@@ -52,5 +52,27 @@ profitability tracking — proactively. The "AI employee" fully realized.
 
 ---
 
+## Backlog / Future ideas (captured, not scheduled)
+
+### 🏡 Property Services AI — candidate go-to-market wedge
+A simpler vertical than remodelers, and likely an *easier first market*: cleanup,
+junk removal, exterior cleaning (pressure/soft wash), yard services, and
+construction prep. These operators don't need a 24-trade estimator — they need
+"talk → estimate → schedule → get paid," which makes for a faster first "wow" and
+cheap land-and-expand (start with cleanup, grow into landscaping/fencing/painting/
+remodel on the same platform).
+- *Mostly content, not new architecture:* new trade brains + packaging on top of
+  the engine (takeoff, scheduling, before/after gallery, review requests already exist).
+- Bid Brain example: *"Clean this property before the painters arrive"* → itemized
+  services + labor hours + dump runs + trailer + fees + estimate → creates estimate/
+  invoice, schedules crew, maps the dump, before/after gallery, requests the review.
+- **Property Ready Mode:** *"Get this house ready for sale / for a remodel"* →
+  Bid Brain generates a complete multi-service checklist and runs it end to end —
+  the Autonomous-PM vision (M6) made concrete; a true project coordinator.
+- Status: **not for immediate development.** Strong candidate for the first vertical
+  we point real acquisition at once the core (M2–M3) is solid.
+
+---
+
 *Each completed milestone becomes part of the product story. Update this file as
 milestones ship.*
