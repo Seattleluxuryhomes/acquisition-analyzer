@@ -25,7 +25,7 @@ const LANGS = {
 };
 
 // Cost guardrails (hard rule / spec §7, §13): per-user monthly cap + light rate limit.
-const MONTHLY_CAP = Number(process.env.BT_AI_MONTHLY_CAP || 200);
+const MONTHLY_CAP = Number(process.env.BT_AI_MONTHLY_CAP || 2000);
 const recentCalls = new Map(); // userId -> [timestamps]
 const RATE_WINDOW = 60 * 1000;
 const RATE_MAX = Number(process.env.BT_AI_RATE_MAX || 40); // voice-first does many small calls (record + live intake); keep headroom so a demo doesn't trip the per-minute limit
@@ -40,6 +40,9 @@ function checkRate(userId) {
 }
 
 function checkMonthlyCap(user) {
+  // Founder/admin is never capped — heavy testing must never silence the AI.
+  const admin = (process.env.BT_ADMIN_EMAIL || "").trim().toLowerCase();
+  if (admin && String((user && user.email) || "").toLowerCase() === admin) return true;
   const period = new Date().toISOString().slice(0, 7); // YYYY-MM
   let count = user.ai_calls_month;
   if (user.ai_calls_period !== period) count = 0;
