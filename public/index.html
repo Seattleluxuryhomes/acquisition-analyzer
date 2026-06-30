@@ -831,6 +831,27 @@
   .bb-quick{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   .bb-quick button{background:rgba(255,255,255,.05);border:1px solid rgba(140,180,255,.16);color:#cdd9f2;border-radius:999px;padding:7px 13px;font-size:.82rem;font-weight:600;font-family:inherit;cursor:pointer}
   .bb-mem2{margin-top:14px;color:#8ea2c8;font-size:.82rem;text-align:center}
+  /* conversation-first overlay: thread + live feed + input */
+  .bb-thread{display:flex;flex-direction:column;gap:9px;margin:12px 0 4px;max-height:48vh;overflow:auto;padding-right:2px}
+  .bb-msg{display:flex;gap:8px;align-items:flex-end}
+  .bb-msg.you{justify-content:flex-end}
+  .bb-bub{max-width:80%;padding:10px 13px;border-radius:16px;font-size:.96rem;line-height:1.4;font-weight:500}
+  .bb-msg.you .bb-bub{background:radial-gradient(120% 120% at 32% 24%, #E8A23C 0%, var(--amber) 72%);color:#1b1b1b;border-bottom-right-radius:5px}
+  .bb-msg.brain .bb-bub{background:rgba(120,160,255,.1);border:1px solid rgba(140,180,255,.2);color:#eaf1ff;border-bottom-left-radius:5px}
+  .bb-msg-b{width:22px;height:22px;border-radius:50%;flex:0 0 auto;align-self:flex-start;margin-top:2px;background:radial-gradient(circle at 40% 35%, #6fb0ff, #1a2b4a);box-shadow:0 0 10px rgba(74,140,255,.5)}
+  .bb-feed{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+  .bb-feed-i{background:rgba(58,214,122,.12);border:1px solid rgba(58,214,122,.3);color:#bff3d2;border-radius:999px;padding:4px 10px;font-size:.78rem;font-weight:600}
+  .bb-openbid{margin-top:12px;align-self:flex-start;background:radial-gradient(120% 120% at 32% 24%, #E8A23C 0%, var(--amber) 62%, #B86A12 100%);color:#1b1b1b;border:none;border-radius:12px;padding:11px 18px;font-weight:800;font-family:inherit;font-size:.95rem;cursor:pointer}
+  .bb-input{display:flex;align-items:center;gap:8px;margin-top:12px;background:rgba(255,255,255,.05);border:1px solid rgba(140,180,255,.2);border-radius:14px;padding:5px 5px 5px 14px}
+  .bb-conv-in{flex:1;min-width:0;background:none;border:none;outline:none;color:#eaf1ff;font-family:inherit;font-size:.98rem;padding:9px 0}
+  .bb-conv-in::placeholder{color:#7e8fb3}
+  .bb-mic-btn{width:40px;height:40px;border-radius:50%;border:none;flex:0 0 auto;display:flex;align-items:center;justify-content:center;cursor:pointer;background:radial-gradient(120% 120% at 32% 24%, #E8A23C 0%, var(--amber) 72%)}
+  .bb-mic-btn .ico{stroke:#1b1b1b}
+  .bb-mic-btn.rec{background:radial-gradient(120% 120% at 32% 24%, #E07A5F, #A94E38);animation:bbpulse 1.1s ease-in-out infinite}
+  .bb-mic-btn.rec .ico{stroke:#fff}
+  .bb-send{width:38px;height:38px;border-radius:50%;border:none;flex:0 0 auto;background:rgba(120,160,255,.16);color:#cdd9f2;font-size:1rem;cursor:pointer}
+  .bb-more{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .bb-more button{background:rgba(255,255,255,.04);border:1px solid rgba(140,180,255,.14);color:#9fb0d4;border-radius:999px;padding:6px 12px;font-size:.8rem;font-weight:600;font-family:inherit;cursor:pointer}
 </style>
 </head>
 <body>
@@ -1088,6 +1109,9 @@ const I18N = {
     bb_ctx_estimate:"What should I add to this estimate?",
     bb_ctx_customer:"What do you need for this customer?",
     bb_ctx_schedule:"What are we scheduling?",
+    bb_conv_hint:"Speak or type…", bb_conv_more:"Got it — keep going.",
+    bb_conv_ready:"Looks complete. Want me to open the full bid?",
+    bb_open_bid:"Open the full bid",
   },
   es: {
     auth_hero_h:"Solo habla. Nosotros escribimos el presupuesto.",
@@ -1127,6 +1151,9 @@ const I18N = {
     bb_ctx_estimate:"¿Qué agrego a este presupuesto?",
     bb_ctx_customer:"¿Qué necesitas para este cliente?",
     bb_ctx_schedule:"¿Qué vamos a agendar?",
+    bb_conv_hint:"Habla o escribe…", bb_conv_more:"Entendido — sigue.",
+    bb_conv_ready:"Se ve completo. ¿Abro el presupuesto completo?",
+    bb_open_bid:"Abrir presupuesto completo",
   },
 };
 function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); return v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); }
@@ -2014,8 +2041,8 @@ function bbUp(e){
   else { bbLastTap=now; bbTapTimer=setTimeout(()=>{ bbOpenPanel(); }, 280); }                         // single tap → panel
 }
 // Long-press / "Talk": start a new voice estimate and begin recording right away.
-function bbVoiceNow(){ buzz(16); bbClosePanel(); bbSetState('idle'); if(typeof brainStartVoice==='function') brainStartVoice();
-  setTimeout(()=>{ if(state.view==='capture' && !recording && typeof micTap==='function'){ try{ micTap(); }catch(_){} } }, 420); }
+// Long-press → open the conversation overlay in place and start listening (never navigates).
+function bbVoiceNow(){ buzz(16); bbOpenPanel(); setTimeout(()=>{ if(typeof bbConvMic==='function') bbConvMic(); }, 220); }
 // Context-aware prompt — Bid Brain knows where you are (Phase 1: tailored prompt).
 function bbContextPrompt(){
   const v=state.view;
