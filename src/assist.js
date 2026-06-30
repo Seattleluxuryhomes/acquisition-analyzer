@@ -3,6 +3,10 @@
 // or the call fails, this throws — the client falls back to manual entry (rule #4).
 import db from "./db.js";
 import { tradeBrain, tradeLabel } from "./trades.js";
+// Trade Intelligence Pack: the single source of truth for trade knowledge. The
+// estimator's intake checklists now live there (one home, shared with the
+// receptionist + website), not inline here.
+import { tradeFields } from "./tradePacks.js";
 
 // Display names (native) used to tell the AI which languages to translate
 // between. The AI can translate any language; this just drives the picker and
@@ -653,44 +657,8 @@ export async function reviewBid(user, { trade, lines, text }) {
 // materials, labor, timeline, notes, an auto project name, and follow-up questions.
 // Lightweight + frequent (runs as they talk), so it's rate-limited but does NOT
 // burn the monthly build cap.
-// Trade-specific checklists — what the AI estimator needs to gather to price each
-// trade accurately. Trades not listed fall back to GENERIC_FIELDS.
-const TRADE_FIELDS = {
-  fencing: ["Total linear feet", "Height", "Material (cedar, vinyl, chain-link…)", "Gates (count & width)", "Tear-out of existing fence?", "Post type & set (concrete-set?)", "Stain / finish or natural", "Grade / terrain", "Haul-off of debris"],
-  painting: ["Interior or exterior", "Rooms / square footage", "Prep & prime (patch, sand, caulk)", "Who supplies the paint", "Sheen (flat, eggshell, satin…)", "Trim, doors & jambs", "Ceilings included?", "Number of coats"],
-  roofing: ["Roof system (architectural, 3-tab, metal, TPO…)", "Squares (or footprint + pitch)", "Existing layers / tear-off", "Decking condition", "Underlayment & ice-and-water", "Ventilation (ridge / soffit)", "Flashing & drip edge", "Gutters", "Disposal"],
-  electrical: ["Service size (amps)", "Service upgrade or panel swap?", "New circuits / devices (count)", "Rough-in & trim-out scope", "AFCI / GFCI / tamper-resistant", "Permit & inspection", "Wire runs & access"],
-  "excavation-demo": ["Scope (clear & grub, mass ex, trenching, grading, demo, haul)", "Volume — bank cubic yards (BCY)", "Cut / fill balance — export or import?", "Soil type (sand, clay, rock?)", "Spoils: haul-off or stockpile on-site", "Compaction spec & import fill", "Dewatering / groundwater?", "Equipment access & staging", "Utility locates (811)", "Erosion control / permits", "Haul distance / dump fees"],
-  windows: ["Opening count (windows & doors)", "Type per opening (single / double-hung, casement, slider, picture…)", "Sizes (W×H) or to-measure", "Retrofit / insert vs full-frame replacement", "Frame material (vinyl, wood, fiberglass, clad)", "Glass package (Low-E, dual / triple, tempered where required)", "Egress required (bedrooms / basements)?", "Interior & exterior trim / casing", "Flashing & waterproofing (full-frame)", "Removal & disposal of old units", "Lead-safe (pre-1978) & access / height"],
-  concrete: ["Area (sq ft)", "Thickness / spec", "Type (slab, driveway, footings, flatwork)", "Reinforcement (rebar / mesh / fiber)", "Forming & sub-base", "Finish (broom, trowel, stamped, exposed)", "Demo & haul of existing?", "Control joints / sealer"],
-  flooring: ["Material (LVP, tile, hardwood, carpet…)", "Area (sq ft)", "Subfloor prep / leveling", "Tear-out of existing", "Underlayment / moisture barrier", "Transitions & trim", "Rooms / layout"],
-  decking: ["Deck size (sq ft)", "Decking material (cedar, composite, PT)", "Substructure & footings", "Railing system", "Stairs", "Tear-out of existing?", "Finish / stain"],
-  drywall: ["Area (sq ft / sheet count)", "Hang / tape / finish or repair", "Finish level (0–5)", "Texture (knockdown, orange peel, smooth)", "Ceilings", "Paint included?"],
-  plumbing: ["Scope (fixtures, repipe, water heater, gas…)", "Fixture count", "Material (PEX, copper, PVC / ABS)", "Rough-in & trim-out", "Permit & inspection", "Access / walls open?"],
-  siding: ["Area (sq ft) / wall count", "Material (vinyl, fiber-cement, LP, cedar, stucco)", "Tear-off of existing?", "House wrap / weather barrier", "Trim, corners & J-channel", "Soffit & fascia", "Flashing (windows / doors)", "Stories / access (scaffold?)", "Pre-finished or paint"],
-  gutters: ["Linear feet of gutter", "Profile & size (5\"/6\" K-style, half-round)", "Material (aluminum, steel, copper)", "Downspouts (count & size)", "Gutter guards?", "Fascia condition / repair", "Tear-off of existing?", "Stories / access"],
-  hvac: ["Scope (replace, new install, repair)", "System type (split, package, mini-split, furnace, heat pump)", "Tonnage / BTU (sizing / Manual J)", "Ductwork — new, replace, or existing", "Electrical / gas available?", "Thermostat / controls", "Permit & inspection", "Access (attic, crawl, roof)"],
-  tile: ["Area (sq ft) — floor / wall / both", "Tile type & size (porcelain, ceramic, stone, mosaic)", "Substrate prep (backerboard, waterproofing)", "Pattern / layout", "Demo of existing?", "Niches, curbs, edges / trim", "Grout & sealing", "Heated floor?"],
-  masonry: ["Scope (brick, block, stone, repair, repoint)", "Area / linear feet / count", "Material & veneer type", "Footings / foundation?", "Mortar & reinforcement", "Tear-out of existing?", "Flashing & weeps", "Access / scaffold"],
-  "kitchen-remodel": ["Scope (cabinets, counters, plumbing, electrical, floor)", "Layout change / walls moved?", "Cabinets (stock, semi-custom, custom)", "Countertop material", "Appliances — who supplies?", "Plumbing & electrical changes", "Flooring", "Permits", "Demo & disposal"],
-  "bathroom-remodel": ["Scope (tub/shower, vanity, tile, plumbing, electrical)", "Layout change?", "Shower / tub (tile, surround, pan)", "Waterproofing", "Vanity & fixtures — who supplies?", "Plumbing & electrical changes", "Ventilation fan", "Flooring & tile", "Permits", "Demo & disposal"],
-  landscaping: ["Scope (planting, sod, hardscape, irrigation, grading)", "Area (sq ft)", "Plant / material list", "Hardscape (pavers, retaining wall, patio)", "Irrigation / drainage", "Soil prep / amendment", "Haul-off of debris", "Equipment access"],
-  framing: ["Scope (walls, floors, roof, addition)", "Square footage / wall LF", "Lumber package — who supplies?", "Engineered members (LVL, I-joist, trusses)?", "Sheathing", "Plans / engineering provided?", "Crane / access", "Permit & inspection"],
-  "garage-doors": ["Door count & sizes (W×H)", "Type (sectional, roll-up; insulated?)", "Material (steel, wood, aluminum, glass)", "Opener (new or reuse)", "Springs & hardware", "Removal of existing?", "Windows / style"],
-  countertops: ["Material (quartz, granite, laminate, butcher block)", "Square footage / linear feet", "Edge profile", "Sink & cooktop cutouts", "Backsplash?", "Template & install", "Demo of existing?", "Plumbing disconnect / reconnect"],
-  doors: ["Opening count", "Type (interior, exterior, slab vs pre-hung, French, sliding)", "Sizes (W×H)", "Material (wood, steel, fiberglass)", "Hardware (locksets, hinges)", "Jamb / casing / trim", "Removal of existing?", "Weatherstrip & threshold (exterior)"],
-  insulation: ["Area (sq ft) & location (attic, walls, crawl)", "Type (batts, blown-in, spray foam, rigid)", "R-value target", "Air sealing / vapor barrier", "Existing insulation — remove?", "Access", "Ventilation / baffles"],
-  "fire-alarm": ["Device counts (pull stations, smoke/heat detectors, horn/strobes)", "Panel — new FACP or tie-in to existing", "Addressable vs conventional", "Conduit/wire (plenum?) & runs", "Monitoring & comms (cellular/IP)", "AHJ / permit & acceptance test", "Risers / floors", "Demo of existing devices"],
-  "low-voltage": ["Systems (data, AV, intercom, paging, WiFi)", "Drop/jack count & category (Cat6/6A/fiber)", "Cable type & total footage", "Rack / IDF / headend & patch panels", "Pathways (conduit, J-hooks, plenum)", "Terminations & testing/certification", "Floors / buildings", "Demo or reuse of existing cabling"],
-  "access-control": ["Door count", "Reader & lock type per door (maglock, strike, mortise)", "New panels/controllers or existing system", "Credentials (card, fob, mobile, biometric)", "Power supplies & battery backup", "Door position switches / REX / ADA operators", "Software / hosting & integration", "Conduit & wire runs"],
-  "security-cameras": ["Camera count by type (dome, bullet, PTZ, fisheye)", "Indoor / outdoor & mounting height", "Resolution & lens / coverage", "NVR/VMS, storage & retention days", "PoE switches & cabling runs", "Network / remote viewing", "Existing system tie-in?", "Lift/boom for high mounts"],
-  mechanical: ["System scope (HVAC, hydronic/piping, process)", "Tonnage / load (or Manual J / equipment schedule)", "Ductwork — new, modify, or reuse", "Piping linear feet & material", "Equipment (RTUs, AHUs, boilers, pumps, VRF)", "Controls / BAS", "Rigging & roof/structural access", "Permit, balancing & startup"],
-  elevator: ["Type (traction, hydraulic, MRL, LULA, lift)", "Number of stops & floors served", "Hoistway dimensions & pit/overhead", "Capacity (lbs) & speed", "New install vs modernization", "Cab finishes & fixtures", "Code/permit & state inspection", "Power & machine room needs"],
-  engineering: ["Discipline (structural, civil, MEP, geotechnical)", "Scope / deliverable (stamped drawings, calcs, PE letter)", "Plans, sketches or existing drawings provided?", "Project type & jurisdiction (code/AHJ)", "Site visit required?", "Number of revisions included", "Schedule / turnaround", "Permit submittal support"],
-  geotech: ["Site location & size", "Number & depth of borings / test pits", "Structure type the report supports", "Deliverable (report, recommendations, bearing capacity)", "Lab testing scope", "Access for drill rig & utility clearance (811)", "Groundwater / known conditions", "Schedule / turnaround"],
-  survey: ["Parcel size & location (address / APN)", "Survey type (boundary, topographic, ALTA/NSPS, as-built)", "Deliverable format (PDF, CAD, stamped plat)", "Monumentation / staking required?", "Existing records, deeds or prior surveys", "Site access & terrain", "Title commitment provided (ALTA)?", "Schedule / turnaround"],
-};
-const GENERIC_FIELDS = ["Customer & address", "Scope of work", "Key measurements / quantities", "Materials & who supplies them", "Site access & staging", "Permits / inspections", "Timeline / start date"];
+// Trade-specific intake checklists now live in the Trade Intelligence Pack
+// (src/tradePacks.js) — one source of truth shared with the receptionist + website.
 
 function intakeSystemPrompt(tradeLabel, fields) {
   return (
@@ -890,7 +858,7 @@ export async function assistIntake(user, { text, trade }) {
   if (t.length < 8) { const e = new Error("Say a little more about the job first."); e.status = 400; throw e; }
   if (!checkRate(user.id)) { const e = new Error("One moment — too many updates at once."); e.status = 429; throw e; }
   const tradeKey = String(trade || "").trim().toLowerCase();
-  const fields = TRADE_FIELDS[tradeKey] || GENERIC_FIELDS;
+  const fields = tradeFields(tradeKey);
   const tradeLabel = tradeKey ? tradeKey.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "";
   const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
   let res;

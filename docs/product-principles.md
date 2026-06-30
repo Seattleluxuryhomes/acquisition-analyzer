@@ -44,6 +44,16 @@ opening another feature." They think *"I'm asking Bid Brain to take care of it."
 > **The line:** *The contractor builds. BidVoice remembers, organizes, schedules,
 > answers, follows up, and runs the office.*
 
+**Interface-agnostic.** The intelligence is separate from the interface. The same Trade
+Intelligence Pack + Bid Brain must be able to power a website, the phone receptionist, a
+voice assistant, smart glasses, or whatever device AI brings next. The interface changes;
+the intelligence does not.
+
+**The category test (the real north star).** Every feature should feel like the contractor
+*hired another employee* — "I hired someone to answer my phones / build my website / follow
+up / ask for referrals / write estimates." When it feels like payroll, not software, we've
+won.
+
 **The test for every feature:** *Would this make a contractor's day easier tomorrow
 morning?* Yes -> right direction. No -> rethink it. (Our deepest moat is the
 **Trade Intelligence Pack** — Bid Brain knowing the trade before the conversation even

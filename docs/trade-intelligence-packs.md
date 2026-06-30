@@ -104,13 +104,41 @@ onboarding better tomorrow morning → the receptionist later stands on top of i
 the existing scheduler, jobs, and `[[action]]` directive framework) rather than starting
 from zero. Investment compounds; nothing is throwaway.
 
-## Not building this now
+## Priority & status (founder's call)
 
-Per the founder's standing direction, this is the *target*, not tonight's work. This doc
-exists so today's design doesn't preclude it. **The first concrete build step, when
-greenlit:** the consolidation seam above (`tradePack(key)`, behavior-preserving) — small,
-safe, and it unlocks every later field. Each pack field after that is its own small
-milestone, proven on roofing first.
+The build order is set: **Phase 1 — Trade Intelligence Pack** (this) → **Phase 2 — AI
+Receptionist** → **Phase 3 — premium SEO engine**. SEO without conversion is wasted
+traffic; once the receptionist exists, every visitor is worth far more, and every SEO page
+is just another consumer of the same pack.
+
+**Phase 1 — started.** The seam is laid: `src/tradePacks.js` is now the single source of
+truth. The estimator's intake checklists were **relocated here from `assist.js`** (one
+home), the estimating brain / labels / capture hints are **composed from `trades.js`** (not
+duplicated), and `tradePack(key)` exposes the unified shape — with **roofing filled deep**
+as the reference pack (8 SEO services, 7 receptionist intake questions, FAQs, upsells,
+warranty). Behavior is preserved: the estimator gets the exact same fields it always did.
+- *Remaining consolidation:* the client picker's copy of emoji/label/"bring" in
+  `public/index.html` (`TRADE_PICK`) should migrate to read from a pack endpoint.
+- *Next pack fields (each a small milestone, roofing-first):* proposal language, follow-up
+  sequences, marketing/SEO copy, location copy, photo-recognition context.
+
+## Two principles that outlive today's build
+
+- **Interface-agnostic.** A pack returns *data, never UI*. The same intelligence must be
+  able to power a web page, the phone receptionist, a voice assistant, smart glasses, or
+  whatever device comes next. The interface changes; the intelligence does not. (`tradePack()`
+  returns plain objects for exactly this reason.)
+- **One operating system, one timeline.** Website, receptionist, CRM, scheduler, estimator,
+  Bid Brain, marketing, reviews, referrals — nothing exists in isolation. Every capability
+  shares the same customer timeline and the same Trade Intelligence Pack.
+
+## The bar that defines the category
+
+BidVoice should never feel like software. Every feature should feel like the contractor
+*hired another employee*: "I hired someone to answer my phones." "…to build my website."
+"…to follow up with customers." "…to ask for referrals." "…to write estimates." When we
+hit that, BidVoice stops competing with software and starts **competing with payroll** —
+a different category entirely.
 
 ## The test for every feature
 > *Would this make a contractor's day easier tomorrow morning?*
