@@ -1565,7 +1565,7 @@ function viewInbox(){
     <div class="ic-t">${esc(s.title)}</div>
     <textarea class="input ic-body" id="icb_${s.id}">${esc(s.body)}</textarea>
     <div class="ic-actions">
-      <button class="btn sm" onclick="inboxApprove('${s.id}','${esc(s.type)}')">✓ Approve</button>
+      <button class="btn sm" onclick="inboxApprove('${s.id}','${esc(s.type)}')">${icon('check',14)} Approve</button>
       <button class="btn ghost sm" onclick="inboxDismiss('${s.id}')">Dismiss</button>
     </div></div>`;
   return head+items.map(card).join('');
@@ -1600,7 +1600,7 @@ function funnelsBlock(){
     <div style="flex:1;min-width:0"><div class="fn-t">${icon('target',15)} ${esc(f.headline||f.offer||f.name)}</div>
       <div class="fn-s">${f.views} views · ${f.leads} leads · <b style="color:#2f6d4a">${f.conversion}%</b></div></div>
     <button class="btn sm" onclick="copyFunnel('${f.id}')">${icon('link',14)} Link</button>
-    <button class="x-btn" onclick="delFunnel('${f.id}')">✕</button>
+    <button class="x-btn" onclick="delFunnel('${f.id}')">${icon('x',14)}</button>
   </div>`).join('');
 }
 async function createFunnel(btn){
@@ -1694,7 +1694,7 @@ function viewProspecting(){
     <input id="psKeyword" class="input" placeholder="Keyword (optional)"/>
     <button class="btn full" onclick="prospectSearch()">${PROSPECT.searching?'Searching…':(icon('search',15)+' Find prospects')}</button></div>`;
   const results=PROSPECT.results.length?`<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px"><b>${PROSPECT.results.length} found</b><button class="btn ghost sm" onclick="prospectSaveAll()">Save all to CRM</button></div>`+
-    PROSPECT.results.map((p,i)=>`<div class="ps-card"><div style="flex:1;min-width:0"><div class="ps-n">${psName(p)}</div><div class="ps-m">${psMeta(p)}${p.phone?(' · '+esc(p.phone)):''}</div></div><button class="btn sm ${p._saved?'ghost':''}" onclick="prospectSaveOne(${i})" ${p._saved?'disabled':''}>${p._saved?'✓':'+ Save'}</button></div>`).join(''):'';
+    PROSPECT.results.map((p,i)=>`<div class="ps-card"><div style="flex:1;min-width:0"><div class="ps-n">${psName(p)}</div><div class="ps-m">${psMeta(p)}${p.phone?(' · '+esc(p.phone)):''}</div></div><button class="btn sm ${p._saved?'ghost':''}" onclick="prospectSaveOne(${i})" ${p._saved?'disabled':''}>${p._saved?icon('check',14):'+ Save'}</button></div>`).join(''):'';
   const saved=PROSPECT.saved;
   const crmTools=`<div style="display:flex;gap:8px;margin:24px 0 10px;align-items:center">
     <h3 class="grow-h" style="margin:0;flex:1">Your prospects (${saved.length})</h3>
@@ -1704,7 +1704,7 @@ function viewProspecting(){
   const crm=crmTools+(saved.length?saved.map(p=>{
     const opts=Object.keys(PSTATUS_LABEL).map(s=>`<option value="${s}" ${p.status===s?'selected':''}>${PSTATUS_LABEL[s]}</option>`).join('');
     const tel=telDigits(p.phone), site=p.website?(p.website.startsWith('http')?p.website:'https://'+p.website):'';
-    return `<div class="ps-saved"><div class="ps-saved-top"><div style="flex:1;min-width:0"><div class="ps-n">${psName(p)}</div><div class="ps-m">${psMeta(p)} · <span class="ps-src">${esc(p.source)}</span></div></div><select class="input sm pstatus" onchange="prospectStatus('${p.id}',this.value)">${opts}</select><button class="x-btn" onclick="prospectDelete('${p.id}')">✕</button></div>
+    return `<div class="ps-saved"><div class="ps-saved-top"><div style="flex:1;min-width:0"><div class="ps-n">${psName(p)}</div><div class="ps-m">${psMeta(p)} · <span class="ps-src">${esc(p.source)}</span></div></div><select class="input sm pstatus" onchange="prospectStatus('${p.id}',this.value)">${opts}</select><button class="x-btn" onclick="prospectDelete('${p.id}')">${icon('x',14)}</button></div>
       <div class="ps-reach">${p.phone?`<a class="reachbtn" href="tel:${escAttr(tel)}">Call</a><a class="reachbtn" href="sms:${escAttr(tel)}">Text</a>`:''}${p.email?`<a class="reachbtn" href="mailto:${escAttr(p.email)}">Email</a>`:''}${site?`<a class="reachbtn wa" href="${escAttr(site)}" target="_blank" rel="noopener">Site</a>`:''}</div>
       <textarea class="input sm ps-note" placeholder="Notes…" onchange="prospectNote('${p.id}',this.value)">${esc(p.notes||'')}</textarea></div>`;
   }).join(''):'<div class="hint">No prospects yet — search above, or save them as you go.</div>');
@@ -1751,7 +1751,7 @@ function vendorListHTML(){
   return items.map(v=>{
     const tel=telDigits(v.phone), site=v.website?(v.website.startsWith('http')?v.website:'https://'+v.website):'';
     const meta=[v.trade,v.materials].filter(Boolean).join(' · ');
-    return `<div class="ps-saved"><div class="ps-saved-top"><div style="flex:1;min-width:0"><div class="ps-n">${esc(v.name||v.phone||'Vendor')}</div><div class="ps-m">${esc(meta)||'—'}</div></div><button class="x-btn" onclick="vendorDelete('${v.id}')">✕</button></div>
+    return `<div class="ps-saved"><div class="ps-saved-top"><div style="flex:1;min-width:0"><div class="ps-n">${esc(v.name||v.phone||'Vendor')}</div><div class="ps-m">${esc(meta)||'—'}</div></div><button class="x-btn" onclick="vendorDelete('${v.id}')">${icon('x',14)}</button></div>
       <div class="ps-reach">${v.phone?`<a class="reachbtn" href="tel:${escAttr(tel)}">Call</a><button class="reachbtn" onclick="vendorQuote('${v.id}')">Quote</button>`:''}${v.email?`<a class="reachbtn" href="mailto:${escAttr(v.email)}">Email</a>`:''}${site?`<a class="reachbtn wa" href="${escAttr(site)}" target="_blank" rel="noopener">Site</a>`:''}</div>
       <textarea class="input sm ps-note" placeholder="Notes…" onchange="vendorNote('${v.id}',this.value)">${esc(v.notes||'')}</textarea></div>`;
   }).join('');
@@ -1837,7 +1837,7 @@ function notifBanner(){
       : (i.jobId?`if(this.closest('.news-row')._sw)return; go('job','${i.jobId}')`:'');
     return `<div class="news-row" ontouchstart="nTouch(event,this)" ontouchmove="nTouch(event,this)" ontouchend="nTouch(event,this,${i.id})" ontouchcancel="nTouch(event,this,${i.id})">
       <button class="news-item ${i.unread?'unread':''}" onclick="${nav}"><div class="news-t">${msg}</div><div class="news-s">${sub}</div></button>
-      <button class="news-x" onclick="event.stopPropagation();dismissNotif(${i.id})" title="Dismiss" aria-label="Dismiss">✕</button>
+      <button class="news-x" onclick="event.stopPropagation();dismissNotif(${i.id})" title="Dismiss" aria-label="Dismiss">${icon('x',14)}</button>
     </div>`;
   };
   return `<div class="newsbanner"><div class="news-h">${icon('party',16)} Good news${unread?` · <span class="news-count">${unread} new</span>`:''}</div>`
@@ -2830,7 +2830,7 @@ function viewPaywall(){
         <li>One dashboard for the whole operation</li>
       </ul>
       <div id="teamInterest">${interestDone('team')
-        ? `<button class="btn ghost full" disabled>✓ You're on the list — we'll email you</button>`
+        ? `<button class="btn ghost full" disabled>${icon('check',14)} You're on the list — we'll email you</button>`
         : `<button class="btn ghost full" onclick="notifyInterest('team',this)">${icon('bell',15)} Notify me when it's ready</button>`}</div>
     </div>
     ${BILLING&&BILLING.has_subscription?`<div style="margin-top:14px;text-align:center"><button class="btn ghost" onclick="openPortal(this)">Manage billing</button></div>`:''}`;
@@ -2844,7 +2844,7 @@ async function notifyInterest(feature, btn){
     try{ localStorage.setItem('bt_interest_'+feature,'1'); }catch(e){}
     const n=(r&&r.count)||1;
     const box=document.getElementById('teamInterest');
-    if(box) box.innerHTML=`<button class="btn ghost full" disabled>✓ You're on the list${n>1?` — ${n} contractors want this`:''}</button>`;
+    if(box) box.innerHTML=`<button class="btn ghost full" disabled>${icon('check',14)} You're on the list${n>1?` — ${n} contractors want this`:''}</button>`;
   }catch(e){ btn.disabled=false; btn.textContent=old; alert('Could not save right now — please try again.'); }
 }
 
@@ -3578,7 +3578,7 @@ async function onboardContractor(btn){
   try{
     const r=await api('/api/admin/onboard',{method:'POST',body:JSON.stringify(body)});
     const res=document.getElementById('obResult');
-    const sent = r.emailed ? `✓ Invite emailed to <b>${esc(email)}</b>.` : (r.mailConfigured?`Account created — email didn't send.`:`Account created (email not configured — copy the link below).`);
+    const sent = r.emailed ? `${icon('check',14)} Invite emailed to <b>${esc(email)}</b>.` : (r.mailConfigured?`Account created — email didn't send.`:`Account created (email not configured — copy the link below).`);
     const skus = r.skusImported?` Imported <b>${r.skusImported}</b> price-book items.`:'';
     res.innerHTML = `${sent}${skus}<div style="margin-top:8px;display:flex;gap:6px;align-items:center"><input class="input" style="font-size:.8rem" readonly value="${esc(r.link)}" onclick="this.select()"/><button class="btn sm" onclick="copyText('${esc(r.link)}').then(()=>toast('Link copied','ok'))">Copy</button></div>`;
     ['obEmail','obCompany','obName','obPhone','obRegion','obTax','obPrice','obNote'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
@@ -3736,7 +3736,7 @@ function questionsCard(){
   const clHTML = cl.length ? `<div class="est-list">${cl.map(c=>`<div class="est-item ${esc(c.status)}"><span class="est-ic">${ic(c.status)}</span><span class="est-l">${esc(c.label)}${c.status==='captured'&&c.value?` — <b>${esc(c.value)}</b>`:''}${c.status==='unsure'?` <span class="est-flag">to confirm</span>`:''}</span></div>`).join('')}</div>` : '';
   let action='';
   if(ready){
-    action=`<div class="est-ready">✓ <b>I have everything I need.</b><button class="btn sm" onclick="buildFromConversation()">Build the estimate →</button></div>`;
+    action=`<div class="est-ready">${icon('check',15)} <b>I have everything I need.</b><button class="btn sm" onclick="buildFromConversation()">Build the estimate →</button></div>`;
   } else if(nq){
     action=`<div class="est-q"><div class="est-q-t">${icon('message',16)} ${esc(nq)}</div>
       <div class="est-q-act"><button class="btn sm" onclick="micTap()">${icon('mic',15)} Answer</button><button class="btn ghost sm" onclick="capNotSure()">I'm not sure</button></div></div>`;
@@ -4047,9 +4047,9 @@ function tabNotebook(j){
   const photos=j.photos||[];
   const onBid=photos.filter(p=>p.showOnBid).length;
   out+=`<div class="nb-sec"><h3>Photos</h3><div class="photogrid">${
-    photos.map((p,i)=>`<div class="thumb${p.showOnBid?' onbid':''}"><img src="${p._pending?p.dataUrl:p.url}" alt="job photo"/><button class="x" onclick="delPhoto(${i})" title="Remove">✕</button>${p._pending?'<span class="pend">offline</span>':''}<button class="bidtog ${p.showOnBid?'on':''}" onclick="togglePhotoBid(${i})" title="Show this photo on the client bid">${p.showOnBid?'★ On bid':'☆ Add to bid'}</button></div>`).join('')
+    photos.map((p,i)=>`<div class="thumb${p.showOnBid?' onbid':''}"><img src="${p._pending?p.dataUrl:p.url}" alt="job photo"/><button class="x" onclick="delPhoto(${i})" title="Remove">${icon('x',14)}</button>${p._pending?'<span class="pend">offline</span>':''}<button class="bidtog ${p.showOnBid?'on':''}" onclick="togglePhotoBid(${i})" title="Show this photo on the client bid">${p.showOnBid?icon('check',13)+' On bid':icon('plus',13)+' Add to bid'}</button></div>`).join('')
   }<button class="addphoto" onclick="pickPhoto('cam')">${icon('camera',20)}Camera</button><button class="addphoto" onclick="pickPhoto('lib')">${icon('image',20)}Upload</button></div>
-  <div class="hint">${photos.length?`Tap ☆ on a photo to show it on the client's bid. ${onBid?`<b style="color:var(--paper)">${onBid} on the bid.</b>`:'None on the bid yet.'}`:'Add photos, then choose which ones the client sees on their bid.'}</div>
+  <div class="hint">${photos.length?`Tap <b>Add to bid</b> on a photo to show it on the client's bid. ${onBid?`<b style="color:var(--paper)">${onBid} on the bid.</b>`:'None on the bid yet.'}`:'Add photos, then choose which ones the client sees on their bid.'}</div>
   <input id="photoInput" type="file" accept="image/*" multiple style="display:none" onchange="handlePhotos(this)"/>
   <input id="photoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="handlePhotos(this)"/></div>`;
   out+=`<div style="margin-top:14px"><button class="btn full" onclick="setTab('build')">Build the bid →</button></div>`;
@@ -4100,7 +4100,7 @@ function lineEditor(l){
   return `<div class="line">
       <div class="ltop">
         <input class="ldesc" value="${escAttr(l.desc)}" oninput="updLine('${l.id}','desc',this.value)" placeholder="Describe the work or item"/>
-        <button class="del" onclick="delLine('${l.id}')" title="Remove">✕</button>
+        <button class="del" onclick="delLine('${l.id}')" title="Remove">${icon('x',14)}</button>
       </div>
       <div class="lroom"><input value="${escAttr(l.section||'')}" onchange="updLine('${l.id}','section',this.value)" placeholder="Room / area (e.g. Bathroom)" title="Group this line under a room or area"/></div>
       <div class="lctl ${t}">
@@ -4142,7 +4142,7 @@ function tabBuild(j){
   const depPct=(j.deposit_pct==null?25:j.deposit_pct);
   const ups=(j.upgrades||[]).map((u,i)=>`<div class="line"><div class="ltop">
       <input class="ldesc" value="${escAttr(u.desc)}" oninput="updUp(${i},'desc',this.value)" placeholder="Optional upgrade"/>
-      <button class="del" onclick="delUp(${i})">✕</button></div>
+      <button class="del" onclick="delUp(${i})">${icon('x',14)}</button></div>
       <div class="lctl"><span class="mono" style="font-size:.74rem;color:var(--muted)">add-on</span>
       <input class="mini" type="number" min="0" value="${u.price||0}" oninput="updUp(${i},'price',this.value)"/>
       <span></span><span class="lt-amt">${money(u.price)}</span></div></div>`).join('');
@@ -4558,7 +4558,7 @@ function leadRow(l){
     <div class="lead-foot"><span class="lead-src">${esc(l.source||'Lead')} · ${timeAgo(l.created_at)}</span>
       <select class="lead-status-sel" onchange="setLeadStatus('${l.id}',this.value)">${LEAD_STATUSES.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}</select></div>
     <div class="lead-actions"><button class="btn" style="flex:1" onclick="convertLead('${l.id}')">Convert to job →</button>
-      <button class="lead-del" onclick="delLead('${l.id}')" title="Delete">✕</button></div>
+      <button class="lead-del" onclick="delLead('${l.id}')" title="Delete">${icon('x',14)}</button></div>
   </div>`;
 }
 function refreshLeadList(){ const el=document.getElementById('leadList'); if(el) el.innerHTML=leadListHTML(); }
@@ -4652,7 +4652,7 @@ function previewRow(it,i){ return `<div class="skurow">
     <input class="skuname-in" value="${escAttr(it.name)}" oninput="editPreview(${i},'name',this.value)"/>
     <select class="mini" onchange="editPreview(${i},'unit',this.value)">${UNITS.map(u=>`<option ${u===it.unit?'selected':''}>${u}</option>`).join('')}</select>
     <input class="mini skuprice" type="number" min="0" value="${it.unit_price||0}" oninput="editPreview(${i},'unit_price',this.value)"/>
-    <button class="del" onclick="delPreview(${i})" title="Remove">✕</button>
+    <button class="del" onclick="delPreview(${i})" title="Remove">${icon('x',14)}</button>
   </div>`; }
 function skuListHTML(){
   const q=skuQ.trim().toLowerCase();
@@ -4662,11 +4662,11 @@ function skuListHTML(){
   return list.map(s=>`<div class="skurow">
       <div class="skuthumb-wrap">
         <button class="skuthumb${s.image?' has':''}" onclick="skuPhotoTap('${s.id}')" title="${s.image?'Change photo':'Add a photo of this color'}">${s.image?`<img src="${s.image}" alt="${escAttr(s.name)}" loading="lazy"/>`:icon('camera',20)}</button>
-        ${s.image?`<button class="thumbx" onclick="removeSkuPhoto('${s.id}',event)" title="Remove photo">✕</button>`:''}
+        ${s.image?`<button class="thumbx" onclick="removeSkuPhoto('${s.id}',event)" title="Remove photo">${icon('x',14)}</button>`:''}
       </div>
       <div class="skuinfo"><div class="skuname">${esc(s.name)}</div><div class="skumeta">${s.category?esc(s.category)+' · ':''}${esc(s.unit)}</div></div>
       <input class="mini skuprice" type="number" min="0" value="${s.unit_price||0}" onchange="updSku('${s.id}','unit_price',this.value)"/>
-      <button class="del" onclick="delSku('${s.id}')" title="Remove">✕</button>
+      <button class="del" onclick="delSku('${s.id}')" title="Remove">${icon('x',14)}</button>
     </div>`).join('');
 }
 /* ============ Team / subs — build your crew + the viral invite loop ============ */
@@ -4680,9 +4680,9 @@ function viewTeam(){
     const meta=[tl, LANGS[s.lang]||'', s.phone].filter(Boolean).join(' · ');
     const invited=(s.status==='invited'||s.status==='joined');
     const action=invited
-      ? `<span class="subpill">✓ invited</span><button class="tlink" onclick="inviteSub('${s.id}')">resend</button>`
+      ? `<span class="subpill">${icon('check',13)} invited</span><button class="tlink" onclick="inviteSub('${s.id}')">resend</button>`
       : `<button class="btn sm" onclick="inviteSub('${s.id}')">${icon('share',14)} Send invite</button><button class="tlink" onclick="inviteSub('${s.id}','sms')">text</button>`;
-    return `<div class="act-item" style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${esc(s.name)||esc(s.phone)||'Sub'}</div><div class="act-s">${esc(meta)||'—'}</div></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">${action}<button class="tlink danger" onclick="deleteSubRow('${s.id}')" title="Remove">✕</button></div></div>`;
+    return `<div class="act-item" style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${esc(s.name)||esc(s.phone)||'Sub'}</div><div class="act-s">${esc(meta)||'—'}</div></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">${action}<button class="tlink danger" onclick="deleteSubRow('${s.id}')" title="Remove">${icon('x',14)}</button></div></div>`;
   }).join('');
   const setupFirst = !companyReady()
     ? `<button class="setupnudge" onclick="go('settings')">First, name your company so your crew knows who's inviting them — then send the invites. <span class="nudge-go">Add company name ${icon('chevron',12)}</span></button>`
@@ -4762,7 +4762,7 @@ function dispatchStatusHTML(jobId){
   const arr=DISPATCHES[jobId]; if(arr===undefined){ loadDispatches(jobId); return ''; }
   if(!arr.length) return '';
   const money=n=>'$'+(Number(n)||0).toLocaleString('en-US');
-  const pill=s=>({sent:'sent',viewed:icon('eye',13)+' viewed',accepted:'✓ accepted',bid:icon('revenue',13)+' bid in',declined:'—'})[s]||s;
+  const pill=s=>({sent:'sent',viewed:icon('eye',13)+' viewed',accepted:icon('check',13)+' accepted',bid:icon('revenue',13)+' bid in',declined:'—'})[s]||s;
   return '<div style="margin-top:10px">'+arr.map(d=>{
     const amt=(d.bid_amount!=null&&d.bid_amount!=='')?(' · <b style="color:#8fd0a8">'+money(d.bid_amount)+'</b>'):'';
     const accept=d.status==='bid'?`<button class="btn sm" onclick="acceptBidUI('${jobId}','${d.id}')">Accept</button>`:'';
@@ -4819,7 +4819,7 @@ async function sendDispatch(jobId){
       return { name:s.name||'Sub', phone:s.phone||'', msg };
     });
     const rows=LAST_SENDS.map((s,i)=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="act-t">${esc(s.name)}</div><button class="btn sm" onclick="dispSend(${i})">${icon('share',14)} Send</button></div>`).join('');
-    const rr=document.getElementById('dispResult'); if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ ${kind==='rfq'?'Bid requests':'Scope'} created — tap to send each:</div>${rows}`;
+    const rr=document.getElementById('dispResult'); if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">${icon('check',14)} ${kind==='rfq'?'Bid requests':'Scope'} created — tap to send each:</div>${rows}`;
     render();
     toast(kind==='rfq'?'Bid requests created.':'Scope created.','ok');
   }catch(e){ toast(e.message||'Could not send.','bad'); }
@@ -4841,7 +4841,7 @@ function drawStatusHTML(jobId){
   const arr=DRAWS[jobId]; if(arr===undefined){ loadDraws(jobId); return ''; }
   if(!arr.length) return '';
   const money=n=>'$'+(Number(n)||0).toLocaleString('en-US');
-  const pill=s=>({requested:'sent — awaiting approval',approved:'✓ approved',paid:'✓ paid',declined:'declined'})[s]||s;
+  const pill=s=>({requested:'sent — awaiting approval',approved:icon('check',13)+' approved',paid:icon('check',13)+' paid',declined:'declined'})[s]||s;
   return '<div style="margin-top:10px">'+arr.map(d=>{
     const link=location.origin+'/d/'+d.id;
     const send=d.status==='requested'?`<button class="btn sm" onclick="copyDrawLink('${escAttr(link)}')">${icon('clipboard',14)} Link</button>`:'';
@@ -4882,7 +4882,7 @@ async function sendDraw(jobId){
     DRAWS[jobId]=[r.draw, ...(DRAWS[jobId]||[])];
     const link=r.url||(location.origin+'/d/'+r.draw.id);
     const rr=document.getElementById('drawResult');
-    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ Draw created — send the owner or bank this link:</div><div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><div class="act-t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn sm" onclick="copyDrawLink('${escAttr(link)}')">${icon('clipboard',14)} Copy</button></div>`;
+    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">${icon('check',14)} Draw created — send the owner or bank this link:</div><div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><div class="act-t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn sm" onclick="copyDrawLink('${escAttr(link)}')">${icon('clipboard',14)} Copy</button></div>`;
     render();
     toast('Draw request created.','ok');
   }catch(e){ toast(e.message||'Could not create draw.','bad'); }
@@ -4900,7 +4900,7 @@ function coStatusHTML(jobId){
   const arr=COS[jobId]; if(arr===undefined){ loadCOs(jobId); return ''; }
   if(!arr.length) return '';
   const money=n=>(n<0?'-$':'$')+Math.abs(Number(n)||0).toLocaleString('en-US');
-  const pill=s=>({sent:'sent — awaiting signature',approved:'✓ signed',paid:'✓ paid',declined:'declined'})[s]||s;
+  const pill=s=>({sent:'sent — awaiting signature',approved:icon('check',13)+' signed',paid:icon('check',13)+' paid',declined:'declined'})[s]||s;
   return '<div style="margin-top:10px">'+arr.map(co=>{
     const link=location.origin+'/co/'+co.id;
     const send=co.status==='sent'?`<button class="btn sm" onclick="copyCOLink('${escAttr(link)}')">${icon('clipboard',14)} Link</button>`:'';
@@ -4914,7 +4914,7 @@ function coDelItem(i){ CO_ITEMS.splice(i,1); if(!CO_ITEMS.length) CO_ITEMS=[{des
 function coItemChange(i,k,v){ if(!CO_ITEMS[i])return; CO_ITEMS[i][k]=(k==='amount')?(+v||0):v; const t=CO_ITEMS.reduce((s,l)=>s+(+l.amount||0),0); const el=document.getElementById('coTotal'); if(el) el.textContent='$'+t.toLocaleString('en-US'); }
 function renderCOBody(j){
   const body=document.getElementById('coBody'); if(!body) return;
-  const rows=CO_ITEMS.map((l,i)=>`<div class="permit-row"><input class="input sm" placeholder="What changed (e.g. Rock excavation, extra 40 CY)" value="${escAttr(l.desc||'')}" oninput="coItemChange(${i},'desc',this.value)"/><div class="permit-fee"><span class="mono" style="color:var(--muted)">$</span><input class="input sm" type="number" placeholder="0" value="${l.amount||''}" oninput="coItemChange(${i},'amount',this.value)"/></div><button class="x-btn" onclick="coDelItem(${i})">✕</button></div>`).join('');
+  const rows=CO_ITEMS.map((l,i)=>`<div class="permit-row"><input class="input sm" placeholder="What changed (e.g. Rock excavation, extra 40 CY)" value="${escAttr(l.desc||'')}" oninput="coItemChange(${i},'desc',this.value)"/><div class="permit-fee"><span class="mono" style="color:var(--muted)">$</span><input class="input sm" type="number" placeholder="0" value="${l.amount||''}" oninput="coItemChange(${i},'amount',this.value)"/></div><button class="x-btn" onclick="coDelItem(${i})">${icon('x',14)}</button></div>`).join('');
   const t=CO_ITEMS.reduce((s,l)=>s+(+l.amount||0),0);
   body.innerHTML=`
     <div class="hint" style="margin-bottom:8px">The client opens a link, reviews the change, and e-signs to approve${PAYMENTS&&PAYMENTS.charges_enabled?' (and can pay)':''}. Client-facing — enter your client prices.</div>
@@ -4941,7 +4941,7 @@ async function sendCO(jobId){
     COS[jobId]=[r.change_order, ...(COS[jobId]||[])];
     const link=r.url||(location.origin+'/co/'+r.change_order.id);
     const rr=document.getElementById('coResult');
-    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ Change order #${r.change_order.number} created — send your client this link to e-sign:</div><div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><div class="act-t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn sm" onclick="copyCOLink('${escAttr(link)}')">${icon('clipboard',14)} Copy</button></div>`;
+    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">${icon('check',14)} Change order #${r.change_order.number} created — send your client this link to e-sign:</div><div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><div class="act-t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn sm" onclick="copyCOLink('${escAttr(link)}')">${icon('clipboard',14)} Copy</button></div>`;
     render();
     toast('Change order created.','ok');
   }catch(e){ toast(e.message||'Could not create change order.','bad'); }
@@ -4976,7 +4976,7 @@ function renderScanBody(){
         ms.map((mm,i)=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <div style="flex:1;min-width:0"><div class="act-t">${SCAN_EMOJI[mm.category]||'📦'} ${esc(mm.item)}<span style="color:var(--muted);font-weight:400">${esc(conf(mm.confidence))}</span></div>
           <div class="act-s">${esc(mm.spec||mm.category)}${mm.note?(' · '+esc(mm.note)):''}</div></div>
-          <button class="btn sm ${SCAN.added[i]?'ghost':''}" onclick="scanAdd(${i})" ${SCAN.added[i]?'disabled':''}>${SCAN.added[i]?'✓ Added':'+ Bid'}</button></div>`).join('')+
+          <button class="btn sm ${SCAN.added[i]?'ghost':''}" onclick="scanAdd(${i})" ${SCAN.added[i]?'disabled':''}>${SCAN.added[i]?icon('check',14)+' Added':'+ Bid'}</button></div>`).join('')+
         (SCAN.results.summary?`<div class="hint" style="margin-top:10px">${icon('package',14)} ${esc(SCAN.results.summary)}</div>`:'');
     }
   }
@@ -5052,7 +5052,7 @@ async function publishProj(jobId,btn){
     PUBPROJS[jobId]=[r.project, ...(PUBPROJS[jobId]||[])];
     if(SETTINGS){ SETTINGS.site_published=true; persistSettings(); }
     const rr=document.getElementById('pubProjResult');
-    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ <b>${esc(r.project.title||'Project')}</b> is live on your website.</div><a class="btn sm" style="margin-top:6px;display:inline-block" href="${esc(r.siteUrl||('/c/'+(USER&&USER.id||'')))}" target="_blank">View your website →</a>`;
+    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">${icon('check',14)} <b>${esc(r.project.title||'Project')}</b> is live on your website.</div><a class="btn sm" style="margin-top:6px;display:inline-block" href="${esc(r.siteUrl||('/c/'+(USER&&USER.id||'')))}" target="_blank">View your website →</a>`;
     render();
     toast('✓ Published to your website.','ok',5000);
   }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Publish to my website'; } toast(e.status===402?'Subscribe to use AI features.':(e.message||'Could not publish.'),'bad',5000); }
@@ -5070,7 +5070,7 @@ function viewCatalog(){
         <input id="skuCsv" type="file" accept=".csv,.txt,text/*" style="display:none" onchange="skuPickCsv(this)"/>
         <input id="skuPhoto" type="file" accept="image/*" capture="environment" style="display:none" onchange="skuPickPhoto(this)"/>
       </div>
-      ${CATALOG.image?`<div class="skuimg"><img src="${CATALOG.image}" alt="price sheet"/><button class="del" onclick="skuClearImage()" title="Remove">✕</button></div>`:''}
+      ${CATALOG.image?`<div class="skuimg"><img src="${CATALOG.image}" alt="price sheet"/><button class="del" onclick="skuClearImage()" title="Remove">${icon('x',14)}</button></div>`:''}
       <button class="btn full" style="margin-top:10px" onclick="parseSkuUpload(this)">Organize with AI</button>
       <div class="hint">Snap a supplier price sheet or paste a list — AI splits variants, infers units &amp; categories, and skips the blanks.</div>
     </div>
@@ -5288,7 +5288,7 @@ function viewSettings(){
            <div class="hint" style="margin-top:4px">Make it live and get your address. Free, hosted for you — no setup.</div>`}
       <button class="btn ghost full" style="margin-top:8px" onclick="toast('Custom domains are coming soon — you’ll be able to connect yourcompany.com. Want it now? Tap “Request a custom website”.','ok',5000)">${icon('link',15)} Connect a custom domain <span style="color:var(--muted);font-weight:400">(coming soon)</span></button>
       ${SETTINGS.site_requested
-        ? `<div class="freecallout" style="margin-top:12px">✓ Custom website requested — we'll reach out to build it with you.</div>`
+        ? `<div class="freecallout" style="margin-top:12px">${icon('check',15)} Custom website requested — we'll reach out to build it with you.</div>`
         : `<button class="btn ghost full" style="margin-top:8px" onclick="requestCustomSite(this)">${icon('wand',15)} Want a custom-built website? Request one</button>
            <div class="hint" style="margin-top:4px">Like your free site, but built for you — your photos, your pages, your domain. Tap and we'll reach out.</div>`}
     </div>
@@ -5306,7 +5306,7 @@ function viewSettings(){
       </div>
       <div class="row2" style="margin-top:8px">
         <div><label class="fld">Proposal language</label><select class="input" onchange="setS('bidLang',this.value)"><option value="">Same as client</option>${langOpts(SETTINGS.bidLang||'')}</select></div>
-        <div><label class="fld">Auto-translate proposal</label><button class="btn ghost sm" style="width:100%" onclick="toggleAutoTranslate()">${SETTINGS.autoTranslate!==false?'✓ On':'Off'}</button></div>
+        <div><label class="fld">Auto-translate proposal</label><button class="btn ghost sm" style="width:100%" onclick="toggleAutoTranslate()">${SETTINGS.autoTranslate!==false?icon('check',13)+' On':'Off'}</button></div>
       </div>
       <div class="hint">Set once — every new job uses these automatically, so you never pick languages while creating a bid. Auto-translate writes the client's proposal in their language; turn it off to keep it in yours.</div>
     </div>
@@ -5428,7 +5428,7 @@ function permitsHTML(j){
       <div class="permit-row">
         <div class="permit-fee"><span class="mono" style="color:var(--muted)">$</span><input class="input sm" type="number" min="0" placeholder="Fee" value="${p.fee||''}" onchange="updPermit('${p.id}','fee',this.value)"/></div>
         <button class="btn ghost sm" onclick="permitToLine('${p.id}')" title="Add this fee to the bid as a line item">＋ Add fee to bid</button>
-        <button class="x-btn" onclick="delPermit('${p.id}')" title="Remove">✕</button>
+        <button class="x-btn" onclick="delPermit('${p.id}')" title="Remove">${icon('x',14)}</button>
       </div>
     </div>`).join('');
   return `<div class="permit-h"><b>${icon('receipt',15)} Permits</b><span class="hint" style="margin:0">Track what this job needs — and don't forget the fee.</span></div>
@@ -5448,7 +5448,7 @@ function documentsHTML(j){
       <a class="doc-name" href="${escAttr(d.url)}" target="_blank" rel="noopener" title="Open">${esc(d.name)}</a>
       <span class="doc-meta">${d.label?esc(d.label)+' · ':''}${fmtSize(d.size)}</span>
       <a class="doc-act" href="${escAttr(dl)}" title="Download">⬇</a>
-      <button class="x-btn" onclick="deleteJobDoc('${j.id}','${d.id}')" title="Remove">✕</button>
+      <button class="x-btn" onclick="deleteJobDoc('${j.id}','${d.id}')" title="Remove">${icon('x',14)}</button>
     </div>`;}).join('')
     : `<div class="hint" style="padding:8px 2px">No documents yet — add permits, approvals, plans or contracts so everything for this job lives in one place.</div>`;
   return `<div class="permit-h"><b>${icon('doc',15)} Documents</b><span class="hint" style="margin:0">Permits, approvals, plans &amp; contracts — kept with the job, private to you.</span></div>
@@ -5570,6 +5570,7 @@ const ICONS={
   receipt:'<path d="M5 3v18l2-1.2 2 1.2 2-1.2 2 1.2 2-1.2 2 1.2V3l-2 1.2L14 3l-2 1.2L10 3 8 4.2 6 3z"/><path d="M8 8h8M8 12h8"/>',
   party:'<path d="M3 21l4.5-12 7.5 7.5L3 21z"/><path d="M9.5 13.5 7 11"/><path d="M14 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/><path d="M20 9l.6 1.4L22 11l-1.4.6L20 13l-.6-1.4L18 11l1.4-.6z"/>',
   plug:'<path d="M9 2v6M15 2v6"/><path d="M7 8h10v3a5 5 0 0 1-10 0z"/><path d="M12 16v6"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
 };
 function icon(name, size){ const s=size||18; return `<svg class="ico" viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||''}</svg>`; }
 
@@ -5913,7 +5914,7 @@ async function togglePhotoBid(i){
    to the new job as pending uploads — no full re-render, to preserve typing) ---------- */
 function capPhotoThumbs(){
   // Thumbnails only — the camera/upload actions are dedicated buttons above the grid.
-  return CAP_PHOTOS.map((p,i)=>`<div class="thumb"><img src="${p.dataUrl}" alt="job photo"/><button class="x" onclick="capDelPhoto(${i})" title="Remove">✕</button></div>`).join('');
+  return CAP_PHOTOS.map((p,i)=>`<div class="thumb"><img src="${p.dataUrl}" alt="job photo"/><button class="x" onclick="capDelPhoto(${i})" title="Remove">${icon('x',14)}</button></div>`).join('');
 }
 function renderCapPhotos(){ const g=document.getElementById('capPhotoGrid'); if(g) g.innerHTML=capPhotoThumbs(); }
 function capPickPhoto(mode){ const el=document.getElementById(mode==='cam'?'capPhotoCamInput':'capPhotoInput'); if(el) el.click(); }
