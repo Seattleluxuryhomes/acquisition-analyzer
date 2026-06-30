@@ -33,9 +33,16 @@
 - [ ] **Overall experience feels intentional and production-ready.**
 
 ## Standing audit backlog (quality debt to retire before the next big merge)
-- **System-emoji sweep.** Audit found ~139 emoji glyphs across ~301 UI lines.
-  Flagship surfaces (Bid Brain companion + onboarding) are being moved to the custom
-  icon system first; the long tail (trade pickers, growth, settings, inbox, etc.)
-  follows. Flags stay.
+- **System-emoji sweep — done for pictographs.** Every colorful system emoji in the
+  interface is now on the custom icon system: flagship surfaces (Bid Brain + onboarding),
+  plus the long tail — growth/inbox, schedule & directions, admin panels, the estimator,
+  "Why Bidtranslator", job editor, team/draw/change-orders, material scanner, settings,
+  websites, permits & documents. What intentionally remains is *typographic* only:
+  the dingbats `✓` (used in toasts/`textContent` where SVG can't go), `✕` close buttons,
+  and the `★`/`☆` photo-on-bid toggle — all monochrome text glyphs, not emoji. Country
+  flags in the language picker stay (inherently emoji), as does the `🌐` fallback for a
+  language with no flag. Trade-picker, material-category, and source-tag glyphs are data,
+  not chrome, and are out of scope. Added ~28 line-icons to the `ICONS` registry to cover
+  the new surfaces.
 - **Front-end modularization.** The UI is one inline `public/index.html` (~340KB) —
   great for zero-build speed, a scaling risk long term. Retire deliberately.

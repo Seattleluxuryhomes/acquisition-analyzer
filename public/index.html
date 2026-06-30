@@ -213,7 +213,8 @@
   @keyframes bt-wave{0%{transform:rotate(0)}15%{transform:rotate(14deg)}30%{transform:rotate(-8deg)}45%{transform:rotate(12deg)}60%{transform:rotate(-4deg)}75%{transform:rotate(8deg)}100%{transform:rotate(0)}}
   .greet-emoji.wave{animation:bt-wave 1s ease-in-out 1}
   @media(prefers-reduced-motion:reduce){.greet-emoji.wave{animation:none}}
-  .daily-insight{font-size:.95rem;color:var(--muted);margin-top:5px;line-height:1.45}
+  .daily-insight{font-size:.95rem;color:var(--muted);margin-top:5px;line-height:1.45;display:flex;align-items:center;gap:7px}
+  .di-ic{display:inline-flex;flex:none;color:var(--amber)}
   .kpis{display:flex;flex-direction:column;gap:11px;margin:2px 0 20px}
   .kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 16px;display:flex;gap:13px;align-items:flex-start;box-shadow:var(--shadow)}
   .kpi-ic{flex:0 0 auto;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--surface2);color:var(--muted)}
@@ -687,7 +688,7 @@
   .why-sub{color:var(--muted);font-size:.95rem;line-height:1.5;margin-bottom:16px}
   .why-list{display:flex;flex-direction:column;gap:10px}
   .why-card{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 14px}
-  .why-emoji{font-size:1.35rem;line-height:1.2;flex:none;width:30px;text-align:center}
+  .why-emoji{line-height:1.2;flex:none;width:30px;display:flex;align-items:center;justify-content:center;color:var(--amber)}
   .why-t{font-weight:700;font-size:.98rem;color:var(--text)}
   .why-d{color:var(--muted);font-size:.88rem;line-height:1.42;margin-top:2px}
 
@@ -1040,7 +1041,7 @@
       <div class="top-actions">
         <button class="trial-chip" id="trialChip" style="display:none" onclick="go('paywall')"></button>
         <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
-        <button class="icon-btn bell" id="navBell" onclick="openNotifs()" style="display:none" title="What's new"><span class="ni">🔔</span><span class="nl">🔔</span><span class="badge" id="notifBadge" style="display:none"></span></button>
+        <button class="icon-btn bell" id="navBell" onclick="openNotifs()" style="display:none" title="What's new"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8H3.5S6 15 6 9"/><path d="M10.5 21a1.8 1.8 0 0 0 3 0"/></svg><span class="badge" id="notifBadge" style="display:none"></span></button>
       </div>
     </div>
     <div class="offline-banner" id="offlineBanner" style="display:none">Offline — your work is saved on this device and will sync when you reconnect.</div>
@@ -1172,8 +1173,8 @@
 <div id="vizPhotoSheet" class="sheet-wrap" style="display:none" onclick="closeVizPhotoSheet()">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-h">Photo of the client's room</div>
-    <button class="sheet-i" onclick="vizRoomSource('cam')">📷 Take a photo</button>
-    <button class="sheet-i" onclick="vizRoomSource('lib')">🖼️ Choose from library</button>
+    <button class="sheet-i" onclick="vizRoomSource('cam')"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.4-2h7.2L17 7h2.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.4"/></svg> Take a photo</button>
+    <button class="sheet-i" onclick="vizRoomSource('lib')"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5-9 8.5"/></svg> Choose from library</button>
     <button class="sheet-i" onclick="closeVizPhotoSheet()">Cancel</button>
   </div>
 </div>
@@ -1533,7 +1534,7 @@ function viewGrowth(){
       <div class="growbar"><div class="growbar-f" style="width:${g.foundation_earned/0.8}%"></div></div>
       <div class="growbar-l">Foundation ${g.foundation_earned}/80 · Momentum ${g.momentum_earned}/20</div></div>
     </div>
-    ${todo.length?`<h3 class="grow-h">Your next wins</h3>${todo.map(rowOf).join('')}`:'<div class="hint" style="margin-top:14px">🎉 You\'ve done everything available — keep publishing fresh work to hold the top.</div>'}
+    ${todo.length?`<h3 class="grow-h">Your next wins</h3>${todo.map(rowOf).join('')}`:`<div class="hint" style="margin-top:14px">${icon('party',15)} You've done everything available — keep publishing fresh work to hold the top.</div>`}
     ${done.length?`<h3 class="grow-h" style="margin-top:22px">Done</h3>${done.map(rowOf).join('')}`:''}`;
 }
 function jsAttr(o){ return JSON.stringify(o).replace(/"/g,'&quot;'); }
@@ -1549,18 +1550,18 @@ async function inboxGenerate(btn){
   if(!online||!TOKEN){ toast('Connect to the internet.','warn'); return; }
   if(btn){ btn.disabled=true; btn.textContent='Looking for suggestions…'; }
   try{ const r=await api('/api/inbox/generate',{method:'POST'}); INBOX={items:r.items||[]}; localStorage.setItem('bt_inbox', JSON.stringify(INBOX));
-    toast(r.created?('✨ '+r.created+' new suggestion'+(r.created>1?'s':'')):'No new suggestions right now — finish a few jobs and check back.','ok',4500); render();
+    toast(r.created?(r.created+' new suggestion'+(r.created>1?'s':'')):'No new suggestions right now — finish a few jobs and check back.','ok',4500); render();
   }catch(e){ toast(e.message||'Could not generate.','bad'); }
-  if(btn){ btn.disabled=false; btn.textContent='✨ Find suggestions'; }
+  if(btn){ btn.disabled=false; btn.textContent='Find suggestions'; }
 }
 function viewInbox(){
   const items=(INBOX&&INBOX.items)||[];
   const head=`<div class="h-eyebrow">Your AI assistant</div><h1 class="page">Approval Inbox</h1>
     <div class="sub">Your AI assistant drafts the work — you approve with one tap. Nothing is ever sent without you.</div>
-    <button class="btn ghost full" style="margin:10px 0" onclick="inboxGenerate(this)">✨ Find suggestions</button>`;
+    <button class="btn ghost full" style="margin:10px 0" onclick="inboxGenerate(this)">${icon('wand',15)} Find suggestions</button>`;
   if(!items.length) return head+`<div class="empty"><div class="big">You're all caught up</div><div class="sub">As you win jobs, your assistant will draft review requests &amp; follow-ups here.</div></div>`;
   const card=(s)=>`<div class="inboxcard" id="ic_${s.id}">
-    <div class="ic-type">${s.type==='review_request'?'⭐ Review request':(s.type==='follow_up'?'💬 Lead follow-up':'✨ Suggestion')}</div>
+    <div class="ic-type">${s.type==='review_request'?(icon('star',14)+' Review request'):(s.type==='follow_up'?(icon('message',14)+' Lead follow-up'):(icon('wand',14)+' Suggestion'))}</div>
     <div class="ic-t">${esc(s.title)}</div>
     <textarea class="input ic-body" id="icb_${s.id}">${esc(s.body)}</textarea>
     <div class="ic-actions">
@@ -1596,7 +1597,7 @@ function funnelsBlock(){
   const items=(FUNNELS&&FUNNELS.items)||[];
   if(!items.length) return '';
   return items.map(f=>`<div class="funnelrow">
-    <div style="flex:1;min-width:0"><div class="fn-t">🎯 ${esc(f.headline||f.offer||f.name)}</div>
+    <div style="flex:1;min-width:0"><div class="fn-t">${icon('target',15)} ${esc(f.headline||f.offer||f.name)}</div>
       <div class="fn-s">${f.views} views · ${f.leads} leads · <b style="color:#2f6d4a">${f.conversion}%</b></div></div>
     <button class="btn sm" onclick="copyFunnel('${f.id}')">${icon('link',14)} Link</button>
     <button class="x-btn" onclick="delFunnel('${f.id}')">✕</button>
@@ -1616,7 +1617,7 @@ async function createFunnel(btn){
     toast('✓ Offer page live — link copied. Run ads to it or text it to leads.','ok',5500);
     render();
   }catch(e){ toast(e.status===402?'Subscribe to use AI features.':(e.message||'Could not create.'),'bad',5000); }
-  if(btn){ btn.disabled=false; btn.textContent='✨ Create an offer page'; }
+  if(btn){ btn.disabled=false; btn.textContent='Create an offer page'; }
 }
 function copyFunnel(id){ const link=location.origin+'/f/'+id; try{ navigator.clipboard.writeText(link); toast('Link copied.','ok'); }catch(e){ prompt('Copy:',link); } }
 async function delFunnel(id){ if(!confirm('Delete this offer page?'))return; try{ await api('/api/funnels/'+id,{method:'DELETE'}); FUNNELS.items=(FUNNELS.items||[]).filter(f=>f.id!==id); render(); }catch(e){} }
@@ -1684,14 +1685,14 @@ function psMeta(p){ return esc([p.trade||p.business_type,[p.city,p.state].filter
 function viewProspecting(){
   if(!PROSPECT.loaded){ loadProspecting(); }
   const cfg=PROSPECT.config;
-  const connect=(cfg&&!cfg.configured)?`<div class="freecallout" style="margin-bottom:14px">🔌 <b>Gojiberry not connected.</b> Add <b>GOJIBERRY_API_KEY</b> + <b>GOJIBERRY_BASE_URL</b> to your environment to search. Your CRM below works either way.</div>`:'';
+  const connect=(cfg&&!cfg.configured)?`<div class="freecallout" style="margin-bottom:14px">${icon('plug',15)} <b>Gojiberry not connected.</b> Add <b>GOJIBERRY_API_KEY</b> + <b>GOJIBERRY_BASE_URL</b> to your environment to search. Your CRM below works either way.</div>`:'';
   const tradeOpts=`<option value="">Any trade</option>`+TRADE_PICK.map(t=>`<option value="${t.key}">${esc(t.label)}</option>`).join('');
   const form=`<div class="ps-form">
     <select id="psTrade" class="input">${tradeOpts}</select>
     <input id="psType" class="input" placeholder="Business type (e.g. remodeler, stager, vendor)"/>
     <div class="row2"><input id="psCity" class="input" placeholder="City"/><input id="psState" class="input" placeholder="State"/></div>
     <input id="psKeyword" class="input" placeholder="Keyword (optional)"/>
-    <button class="btn full" onclick="prospectSearch()">${PROSPECT.searching?'Searching…':'🔎 Find prospects'}</button></div>`;
+    <button class="btn full" onclick="prospectSearch()">${PROSPECT.searching?'Searching…':(icon('search',15)+' Find prospects')}</button></div>`;
   const results=PROSPECT.results.length?`<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px"><b>${PROSPECT.results.length} found</b><button class="btn ghost sm" onclick="prospectSaveAll()">Save all to CRM</button></div>`+
     PROSPECT.results.map((p,i)=>`<div class="ps-card"><div style="flex:1;min-width:0"><div class="ps-n">${psName(p)}</div><div class="ps-m">${psMeta(p)}${p.phone?(' · '+esc(p.phone)):''}</div></div><button class="btn sm ${p._saved?'ghost':''}" onclick="prospectSaveOne(${i})" ${p._saved?'disabled':''}>${p._saved?'✓':'+ Save'}</button></div>`).join(''):'';
   const saved=PROSPECT.saved;
@@ -1826,7 +1827,7 @@ function notifBanner(){
     const msg=i.type==='paid'
       ? `<span class="news-ic pay">${icon('revenue',15)}</span><b>${esc(who)}</b> paid a ${money(i.amount||0)} deposit`
       : i.type==='lead'
-        ? `<span class="news-ic">📥</span><b>${esc((i.leadName||'').trim()||'New lead')}</b> requested an estimate`
+        ? `<span class="news-ic">${icon('download',16)}</span><b>${esc((i.leadName||'').trim()||'New lead')}</b> requested an estimate`
         : `<span class="news-ic">${icon('check',15)}</span><b>${esc(who)}</b> accepted your proposal`;
     const sub=i.type==='lead'
       ? `${i.jobType?esc(i.jobType)+' · ':''}${timeAgo(i.at)} · tap to follow up`
@@ -1839,7 +1840,7 @@ function notifBanner(){
       <button class="news-x" onclick="event.stopPropagation();dismissNotif(${i.id})" title="Dismiss" aria-label="Dismiss">✕</button>
     </div>`;
   };
-  return `<div class="newsbanner"><div class="news-h">🎉 Good news${unread?` · <span class="news-count">${unread} new</span>`:''}</div>`
+  return `<div class="newsbanner"><div class="news-h">${icon('party',16)} Good news${unread?` · <span class="news-count">${unread} new</span>`:''}</div>`
     + items.slice(0,4).map(row).join('') + `</div>`;
 }
 function dismissNotif(id){
@@ -2748,12 +2749,12 @@ async function requestCustomSite(btn){
     SETTINGS.site_requested=true; SETTINGS.site_request_note=r.site_request_note||note; persistSettings();
     toast('✓ Request sent — we’ll reach out to build it with you.','ok',5000);
     render();
-  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='✨ Want a custom-built website? Request one'; } toast(e.message||'Could not send your request.','bad'); }
+  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Want a custom-built website? Request one'; } toast(e.message||'Could not send your request.','bad'); }
 }
 async function writeSiteAI(btn){
   if(!online||!TOKEN){ toast('Connect to the internet to use AI.','warn'); return; }
   if(!(SETTINGS.company||'').trim()){ toast('Add your company name first (above) so AI knows who it’s writing for.','warn'); return; }
-  if(btn){ btn.disabled=true; btn.textContent='✍️ Writing your website…'; }
+  if(btn){ btn.disabled=true; btn.textContent='Writing your website…'; }
   try{
     const r=await api('/api/me/site-copy',{method:'POST'});
     if(r.tagline) SETTINGS.site_tagline=r.tagline;
@@ -2765,7 +2766,7 @@ async function writeSiteAI(btn){
     toast('✓ Your website copy is written — tap “View your website”.','ok',5000);
     render();
   }catch(e){ toast(e.status===402?'Subscribe to use AI features.':(e.code==='AI_UNCONFIGURED'?'AI isn’t switched on yet (add ANTHROPIC_API_KEY).':(e.message||'Could not write it.')),'bad',5000); }
-  if(btn){ btn.disabled=false; btn.textContent='✨ Write my website with AI'; }
+  if(btn){ btn.disabled=false; btn.textContent='Write my website with AI'; }
 }
 async function publishWebsite(btn){
   if(!online||!TOKEN){ toast('Connect to the internet to publish.','warn'); return; }
@@ -2773,9 +2774,9 @@ async function publishWebsite(btn){
   try{
     const r=await api('/api/me/publish-site',{method:'POST'});
     SETTINGS.site_published=true; SETTINGS.site_slug=r.slug||''; SETTINGS.site_branded_url=r.branded_url||''; persistSettings();
-    toast('🌐 Your website is live!','ok',5000);
+    toast('Your website is live!','ok',5000);
     render();
-  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='🌐 Publish Website'; } toast(e.message||'Could not publish.','bad'); }
+  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Publish Website'; } toast(e.message||'Could not publish.','bad'); }
 }
 function toggleService(key){
   let arr=Array.isArray(SETTINGS.services)?SETTINGS.services.slice():[];
@@ -2805,7 +2806,7 @@ function viewPaywall(){
         : (setupWaivedView()
           ? `your ${priceStr(BILLING.setup_fee_base)} setup fee is <b style="color:var(--paper)">waived</b> (founding member) — just your first ${priceStr(planMonthly())}`
           : `your first ${priceStr(planMonthly())} is charged`)}, then ${priceStr(planMonthly())}/month. Cancel anytime.</div>
-      ${(BILLING&&BILLING.referral)?`<div class="freecallout">🎉 Or get it <b>FREE</b> — bring ${BILLING.referral.freeAt} contractors who subscribe and your ${priceStr(BILLING.referral.base)}/mo drops to <b>$0</b>.</div>`:''}
+      ${(BILLING&&BILLING.referral)?`<div class="freecallout">${icon('party',15)} Or get it <b>FREE</b> — bring ${BILLING.referral.freeAt} contractors who subscribe and your ${priceStr(BILLING.referral.base)}/mo drops to <b>$0</b>.</div>`:''}
       <ul class="feat">
         <li>Unlimited job notebooks</li>
         <li>Voice capture &amp; English ⇄ Spanish translation</li>
@@ -2830,7 +2831,7 @@ function viewPaywall(){
       </ul>
       <div id="teamInterest">${interestDone('team')
         ? `<button class="btn ghost full" disabled>✓ You're on the list — we'll email you</button>`
-        : `<button class="btn ghost full" onclick="notifyInterest('team',this)">🔔 Notify me when it's ready</button>`}</div>
+        : `<button class="btn ghost full" onclick="notifyInterest('team',this)">${icon('bell',15)} Notify me when it's ready</button>`}</div>
     </div>
     ${BILLING&&BILLING.has_subscription?`<div style="margin-top:14px;text-align:center"><button class="btn ghost" onclick="openPortal(this)">Manage billing</button></div>`:''}`;
 }
@@ -2933,7 +2934,7 @@ function authSigninCard(isUp){
   const agent = isUp && SIGNUP_ROLE==='agent';
   return `<div class="auth-card">
       ${authLangPicker()}
-      ${agent?`<div class="agentwelcome">🏡 ${esc(t('auth_agent_welcome'))}</div>`:''}
+      ${agent?`<div class="agentwelcome">${icon('home',15)} ${esc(t('auth_agent_welcome'))}</div>`:''}
       <div class="h-eyebrow">${agent?esc(t('auth_agent_eyebrow')):(isUp?esc(t('auth_create_eyebrow')):esc(t('auth_welcome_eyebrow')))}</div>
       <h1>${isUp?esc(t('auth_get_started')):esc(t('auth_sign_in'))}</h1>
       <label class="fld">${esc(t('auth_email'))}</label>
@@ -3172,26 +3173,26 @@ function dailyInsight(){
   const now=Date.now();
   // 1) money in overnight — the best possible thing to greet them with
   const paid=((NOTIFS&&NOTIFS.items)||[]).filter(i=>i.type==='paid' && (now-(i.at||0))<16*3600*1000);
-  if(paid.length){ const amt=paid.reduce((s,i)=>s+(i.amount||0),0); return '💵 '+(amt?('You received '+money(amt)+' — great way to start the day.'):'You received a payment — great way to start.'); }
+  if(paid.length){ const amt=paid.reduce((s,i)=>s+(i.amount||0),0); return {ic:'revenue', text:(amt?('You received '+money(amt)+' — great way to start the day.'):'You received a payment — great way to start.')}; }
   // 2) appointments today
   const appts=jobs.filter(j=>j.scheduled_date===todayKey());
-  if(appts.length){ return '📅 You have '+appts.length+' appointment'+(appts.length>1?'s':'')+' today.'; }
+  if(appts.length){ return {ic:'calendar', text:'You have '+appts.length+' appointment'+(appts.length>1?'s':'')+' today.'}; }
   // 3) follow-ups your AI assistant already drafted
   const fu=((INBOX&&INBOX.items)||[]).filter(i=>i.type==='follow_up').length;
-  if(fu){ return '💬 You have '+fu+' follow-up'+(fu>1?'s':'')+' ready — one could be your next customer.'; }
+  if(fu){ return {ic:'message', text:'You have '+fu+' follow-up'+(fu>1?'s':'')+' ready — one could be your next customer.'}; }
   // 4) fresh leads
-  if((LEADS_NEW||0)>0){ return '🚀 You have '+LEADS_NEW+' new lead'+(LEADS_NEW>1?'s':'')+' — strike while it’s hot.'; }
+  if((LEADS_NEW||0)>0){ return {ic:'rocket', text:'You have '+LEADS_NEW+' new lead'+(LEADS_NEW>1?'s':'')+' — strike while it’s hot.'}; }
   // 5) estimates ready to send (drafts with real content)
   const drafts=jobs.filter(j=>jobStatus(j)==='draft' && (j.lines||[]).some(l=>l.desc));
-  if(drafts.length){ return '🎯 You have '+drafts.length+' estimate'+(drafts.length>1?'s':'')+' ready to send.'; }
+  if(drafts.length){ return {ic:'target', text:'You have '+drafts.length+' estimate'+(drafts.length>1?'s':'')+' ready to send.'}; }
   // 6) wins this week
   const wk=now-7*86400000;
   const closed=jobs.filter(j=>(jobStatus(j)==='signed'||jobStatus(j)==='scheduled') && (j.sent_at||0)>wk).length;
-  if(closed){ return '🔥 You’ve closed '+closed+' project'+(closed>1?'s':'')+' this week — great work.'; }
+  if(closed){ return {ic:'flame', text:'You’ve closed '+closed+' project'+(closed>1?'s':'')+' this week — great work.'}; }
   // 7) brand new / quiet — point them at growth
-  if(!jobs.length){ return '🌱 Let’s generate your next customer today.'; }
-  // 8) no urgent signal → an upbeat nudge
-  return pickMotivation();
+  if(!jobs.length){ return {ic:'sprout', text:'Let’s generate your next customer today.'}; }
+  // 8) no urgent signal — an upbeat nudge
+  return {ic:'star', text:pickMotivation()};
 }
 function greetingHTML(){
   const who=(SETTINGS.name||'').trim();
@@ -3199,7 +3200,7 @@ function greetingHTML(){
   const waveCls=(isHand && !greetWaved)?' wave':''; greetWaved=true;
   return `<div class="dash-hello"><div class="h-eyebrow">${esc(SETTINGS.company)||'Your business'}</div>
     <h1 class="page">${greetingWord()}${who?', '+esc(who):''}</h1>
-    <div class="daily-insight">${esc(dailyInsight())}</div></div>`;
+    <div class="daily-insight">${(di=>`<span class="di-ic">${icon(di.ic,15)}</span><span>${esc(di.text)}</span>`)(dailyInsight())}</div></div>`;
 }
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function timeAgo(ts){ if(!ts) return ''; const m=Math.floor((Date.now()-ts)/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
@@ -3323,11 +3324,11 @@ function viewHome(){
   if(f==='scheduled'){ filtered=[...filtered].sort((a,b)=>String(a.scheduled_date||'9999-99-99').localeCompare(String(b.scheduled_date||'9999-99-99'))); }
   const folOne = (f==='followups' && filtered.length===1) ? filtered[0] : null; // tap the banner → straight to the bid
   const folHead = f==='followups'
-    ? `<div class="setupnudge" style="background:rgba(169,78,56,.12);border-color:var(--rust)${folOne?';cursor:pointer':''}" ${folOne?`onclick="go('job','${folOne.id}')"`:''}>🔔 <b>Follow up</b> — ${filtered.length} bid${filtered.length===1?'':'s'} sent 3+ days ago with no answer. ${folOne?'Tap to open it and call or text the client.':'Open one below to call or text the client.'} <span class="nudge-go" style="cursor:pointer" onclick="event.stopPropagation();setJobFilter('all')">Show all jobs</span></div>`
+    ? `<div class="setupnudge" style="background:rgba(169,78,56,.12);border-color:var(--rust)${folOne?';cursor:pointer':''}" ${folOne?`onclick="go('job','${folOne.id}')"`:''}>${icon('bell',15)} <b>Follow up</b> — ${filtered.length} bid${filtered.length===1?'':'s'} sent 3+ days ago with no answer. ${folOne?'Tap to open it and call or text the client.':'Open one below to call or text the client.'} <span class="nudge-go" style="cursor:pointer" onclick="event.stopPropagation();setJobFilter('all')">Show all jobs</span></div>`
     : '';
   let list;
-  if(filtered.length===0){ list = folHead + `<div class="hint" style="margin-top:16px">${f==='followups'?"No follow-ups needed — you're on top of it. 🎉":'No '+statusLabel(f).toLowerCase()+' jobs yet.'}</div>`; }
-  else { list = folHead + (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">🗺️ Tap 🧭 for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
+  if(filtered.length===0){ list = folHead + `<div class="hint" style="margin-top:16px">${f==='followups'?"No follow-ups needed — you're on top of it. "+icon('party',14):'No '+statusLabel(f).toLowerCase()+' jobs yet.'}</div>`; }
+  else { list = folHead + (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">${icon('map',14)} Tap ${icon('compass',13)} for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
   return `${hello}${news}${nudge}${crew}
     ${growthCard()}
     ${kpiStrip(dashKPIs(visible))}
@@ -3350,16 +3351,16 @@ function viewSchedule(){
     return `<div class="sch-item"><button class="sch-main" onclick="go('job','${j.id}')">
       <div class="sch-t">${esc(j.title)||'Untitled'}</div>
       <div class="sch-s">${j.scheduled_time?`<b style="color:var(--amber)">${fmtTime(j.scheduled_time)}</b> · `:''}${ea?esc(ea)+' · ':''}${money(bidPrice(j))}</div></button>
-      ${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">🧭</a>`:''}<a class="sch-dir" href="${calLink(j)}" target="_blank" rel="noopener" title="Add to Calendar">📲</a></div>`; };
+      ${m?`<a class="sch-dir" href="${m.dir}" target="_blank" rel="noopener" title="Directions">${icon('compass',16)}</a>`:''}<a class="sch-dir" href="${calLink(j)}" target="_blank" rel="noopener" title="Add to Calendar">${icon('calendar',16)}</a></div>`; };
   const dayBlocks=days.map(d=>{
     const k=iso(d); const jobs=(byDate[k]||[]).sort(byTime);
     const lbl=d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
-    return `<div class="wk-day ${k===todayK?'today':''}"><div class="wk-h">${k===todayK?'Today · ':''}${lbl}${jobs.length?` · ${jobs.length} ${jobs.length===1?'job':'jobs'}${jobs.length>1?' ⚠️':''}`:''}</div>${jobs.length?jobs.map(item).join(''):'<div class="wk-empty">—</div>'}</div>`;
+    return `<div class="wk-day ${k===todayK?'today':''}"><div class="wk-h">${k===todayK?'Today · ':''}${lbl}${jobs.length?` · ${jobs.length} ${jobs.length===1?'job':'jobs'}${jobs.length>1?' '+icon('alert',12):''}`:''}</div>${jobs.length?jobs.map(item).join(''):'<div class="wk-empty">—</div>'}</div>`;
   }).join('');
   const later=visible.filter(j=>j.scheduled_date>iso(days[6])).sort((a,b)=>a.scheduled_date.localeCompare(b.scheduled_date));
   const laterBlock=later.length?`<div class="wk-day"><div class="wk-h">Later</div>${later.map(item).join('')}</div>`:'';
   return `<div class="h-eyebrow">Schedule</div><h1 class="page">This week</h1>
-    <div class="sub">Your scheduled jobs &amp; estimates — tap 🧭 for directions.</div>
+    <div class="sub">Your scheduled jobs &amp; estimates — tap ${icon('compass',13)} for directions.</div>
     <div class="weekgrid">${dayBlocks}${laterBlock}</div>`;
 }
 function setJobFilter(f){ state.jobFilter=f; render(); }
@@ -3390,7 +3391,7 @@ function jobsOnDate(date, excludeId){
 function conflictNote(j){
   const others=jobsOnDate(j.scheduled_date, j.id);
   if(!others.length) return '';
-  return `<div class="schedwarn">⚠️ Heads up — ${others.length} other ${others.length===1?'job':'jobs'} already on ${fmtDate(j.scheduled_date)}: ${others.map(o=>(o.scheduled_time?fmtTime(o.scheduled_time)+' ':'')+(esc(o.title)||'Untitled')).join(' · ')}</div>`;
+  return `<div class="schedwarn">${icon('alert',15)} Heads up — ${others.length} other ${others.length===1?'job':'jobs'} already on ${fmtDate(j.scheduled_date)}: ${others.map(o=>(o.scheduled_time?fmtTime(o.scheduled_time)+' ':'')+(esc(o.title)||'Untitled')).join(' · ')}</div>`;
 }
 function fmtDate(d){
   if(!d) return ''; const p=String(d).split('-'); if(p.length!==3) return d;
@@ -3420,7 +3421,7 @@ function reachBlock(j){
   const t=telDigits(p), wa=waDigits(p);
   return `<div class="addrlinks">`
     +`<a class="maplink" href="tel:${escAttr(t)}">${icon('phone',13)} Call</a>`
-    +`<a class="maplink" href="sms:${escAttr(t)}">💬 Text</a>`
+    +`<a class="maplink" href="sms:${escAttr(t)}">${icon('message',14)} Text</a>`
     +`<a class="maplink" href="https://wa.me/${escAttr(wa)}" target="_blank" rel="noopener">WhatsApp</a></div>`;
 }
 // One source of truth for a job's location: the explicit address field, or — so
@@ -3460,18 +3461,18 @@ function addrBlock(j){
   const loc=jobLocation(j);           // the address actually used everywhere
   const links = loc ? (()=>{ const m=mapsLinks(loc); return `<div class="addrlinks">`
     +`<a class="maplink" href="${m.map}" target="_blank" rel="noopener">${icon('pin',13)} Map</a>`
-    +`<a class="maplink" href="${m.dir}" target="_blank" rel="noopener">🧭 Directions</a>`
-    +`<a class="maplink" href="${m.sv}" target="_blank" rel="noopener">👁 Street View</a></div>`; })() : '';
+    +`<a class="maplink" href="${m.dir}" target="_blank" rel="noopener">${icon('compass',14)} Directions</a>`
+    +`<a class="maplink" href="${m.sv}" target="_blank" rel="noopener">${icon('eye',14)} Street View</a></div>`; })() : '';
   // Project name IS the address (and no separate one): show it resolved — one field,
   // no second empty box — with a link to add a different address only if needed.
   if(!sep && loc && REVEAL_ADDR!==j.id){
     return `<div class="addrrow"><label class="fld">Address</label>
-      <div class="addrresolved">📍 ${esc(loc)} <span class="addrok">· from project name</span></div>
+      <div class="addrresolved">${icon('pin',14)} ${esc(loc)} <span class="addrok">· from project name</span></div>
       ${links}
       <button type="button" class="linklike" onclick="revealAddr('${j.id}')">Use a different address</button></div>`;
   }
   // Otherwise show the input (explicit address set, none yet, or "use different").
-  const input=`<input class="addrinput" value="${escAttr(sep)}" onchange="setAddress('${j.id}',this.value)" placeholder="📍 Job address — for maps & directions"/>`;
+  const input=`<input class="addrinput" value="${escAttr(sep)}" onchange="setAddress('${j.id}',this.value)" placeholder="Job address — for maps & directions"/>`;
   const note = !loc ? `<div class="hint" style="margin-top:4px">Add an address for one-tap maps, directions &amp; calendar — or just put the address in the project name above and it carries over here.</div>` : '';
   return `<div class="addrrow"><label class="fld">Address</label>${input}${note}${links}</div>`;
 }
@@ -3481,9 +3482,9 @@ function routeCardHTML(j){
   return `<div class="routecard">
     <button class="routemain" onclick="go('job','${j.id}')">
       <div class="jt">${esc(j.title)||'Untitled job'}</div>
-      <div class="jm">${j.scheduled_date?`📅 ${fmtDate(j.scheduled_date)} · `:''}${j.address?esc(j.address):'<span style="color:var(--muted)">No address yet</span>'}</div>
+      <div class="jm">${j.scheduled_date?`${icon('calendar',13)} ${fmtDate(j.scheduled_date)} · `:''}${j.address?esc(j.address):'<span style="color:var(--muted)">No address yet</span>'}</div>
     </button>
-    ${m?`<a class="btn blue sm routedir" href="${m.dir}" target="_blank" rel="noopener">🧭</a>`:''}
+    ${m?`<a class="btn blue sm routedir" href="${m.dir}" target="_blank" rel="noopener">${icon('compass',16)}</a>`:''}
   </div>`;
 }
 
@@ -3517,23 +3518,23 @@ function adminHTML(d, users){
     + k('Active subs', o.activeSubscriptions, 'paying')
     + `</div>`;
   const maxF = f.length ? (f[0].count||1) : 1;
-  const funnelHTML = `<div class="panel"><div class="panel-h static"><span>📉 Contractor funnel</span>${drop&&drop.dropoffFromPrev?`<span class="panel-link" style="color:#ff9b7a">drop: ${esc(drop.from)}→${esc(drop.to)} ${drop.dropoffFromPrev}%</span>`:''}</div>`
+  const funnelHTML = `<div class="panel"><div class="panel-h static"><span>${icon('chart',15)} Contractor funnel</span>${drop&&drop.dropoffFromPrev?`<span class="panel-link" style="color:#ff9b7a">drop: ${esc(drop.from)}→${esc(drop.to)} ${drop.dropoffFromPrev}%</span>`:''}</div>`
     + f.map(s=>`<div class="frow"><div class="fbar" style="width:${Math.max(4,Math.round((s.count/maxF)*100))}%"></div><div class="flabel">${esc(s.stage)}</div><div class="fval">${s.count}${s.dropoffFromPrev?` <span class="fdrop">▼${s.dropoffFromPrev}%</span>`:''}</div></div>`).join('')
     + `</div>`;
-  const usersHTML = `<div class="panel"><div class="panel-h static"><span>👥 Contractors (${users.length})</span></div>`
+  const usersHTML = `<div class="panel"><div class="panel-h static"><span>${icon('users',15)} Contractors (${users.length})</span></div>`
     + (users.length?users.map(u=>`<div class="act-item"><div class="act-t">${esc(u.company)||esc(u.email)}${u.subscription_status&&u.subscription_status!=='none'?`<span class="subpill">${esc(u.subscription_status)}</span>`:''}</div><div class="act-s">${esc(u.email)} · leads ${u.leads} · bids ${u.bids} · accepted ${u.accepted} · collected ${money(u.revenueCollected)} · won ${money(u.pipelineWonValue)}${u.last_login?' · seen '+timeAgo(u.last_login):' · never logged in'}</div></div>`).join(''):'<div class="hint" style="padding:8px">No contractors yet.</div>')
     + `</div>`;
-  const featHTML = feats.length?`<div class="panel"><div class="panel-h static"><span>⚙️ Feature adoption</span></div>`+feats.slice(0,14).map(ff=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center"><span class="act-t">${esc(ff.name)}</span><span class="act-s">${ff.c}× · ${ff.users} users</span></div>`).join('')+`</div>`:'';
+  const featHTML = feats.length?`<div class="panel"><div class="panel-h static"><span>${icon('gear',15)} Feature adoption</span></div>`+feats.slice(0,14).map(ff=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center"><span class="act-t">${esc(ff.name)}</span><span class="act-s">${ff.c}× · ${ff.users} users</span></div>`).join('')+`</div>`:'';
   // Devices & voice — who's on iPhone vs Android, who landed in an in-app browser
   // (where the mic is blocked), and every time voice actually failed and why.
   const osRow=(dev.os||[]).map(x=>`${esc(x.name)} ${x.count}`).join(' · ');
   const brRow=(dev.browser||[]).map(x=>`${esc(x.name)} ${x.count}`).join(' · ');
-  const deviceHTML = (dev.total)?`<div class="panel"><div class="panel-h static"><span>📱 Devices &amp; voice</span>${dev.inAppUsers?`<span class="panel-link" style="color:#ff9b7a">${dev.inAppUsers} stuck in in-app browser</span>`:''}</div>`
+  const deviceHTML = (dev.total)?`<div class="panel"><div class="panel-h static"><span>${icon('phone',15)} Devices &amp; voice</span>${dev.inAppUsers?`<span class="panel-link" style="color:#ff9b7a">${dev.inAppUsers} stuck in in-app browser</span>`:''}</div>`
     + `<div class="act-item"><div class="act-t">Phones</div><div class="act-s">${osRow||'—'}</div></div>`
     + `<div class="act-item"><div class="act-t">Browsers</div><div class="act-s">${brRow||'—'}</div></div>`
-    + (dev.inAppUsers?`<div class="act-item"><div class="act-t" style="color:#ff9b7a">⚠️ Voice can't run for ${dev.inAppUsers} user${dev.inAppUsers>1?'s':''}</div><div class="act-s">They opened the link inside Instagram/Facebook — the mic is blocked there. They need to open it in Safari/Chrome.</div></div>`:'')
+    + (dev.inAppUsers?`<div class="act-item"><div class="act-t" style="color:#ff9b7a">${icon('alert',14)} Voice can't run for ${dev.inAppUsers} user${dev.inAppUsers>1?'s':''}</div><div class="act-s">They opened the link inside Instagram/Facebook — the mic is blocked there. They need to open it in Safari/Chrome.</div></div>`:'')
     + `</div>`:'';
-  const vfHTML = (vf.count)?`<div class="panel"><div class="panel-h static"><span>🎤 Voice failures (${vf.count})</span></div>`
+  const vfHTML = (vf.count)?`<div class="panel"><div class="panel-h static"><span>${icon('mic',15)} Voice failures (${vf.count})</span></div>`
     + (vf.byReason||[]).map(r=>`<div class="act-item" style="display:flex;justify-content:space-between"><span class="act-t">${esc(reasonLabel(r.name))}</span><span class="act-s">${r.count}×</span></div>`).join('')
     + (vf.items||[]).slice(0,8).map(it=>`<div class="act-item"><div class="act-s">${esc(it.os)} · ${esc(it.browser)}${it.email?' · '+esc(it.email):''} · ${timeAgo(it.at)}</div></div>`).join('')
     + `</div>`:'';
@@ -3542,7 +3543,7 @@ function adminHTML(d, users){
 // Concierge onboarding — set a contractor up with a fully-configured account on the
 // full trial, optionally import their price list, and send/hand back a login link.
 function onboardPanel(){
-  return `<div class="panel" style="margin-bottom:14px"><div class="panel-h static"><span>🤝 Onboard a contractor</span></div>
+  return `<div class="panel" style="margin-bottom:14px"><div class="panel-h static"><span>${icon('handshake',15)} Onboard a contractor</span></div>
     <div style="padding:12px">
       <div class="hint" style="margin:0 0 10px">Set a contractor up for them — full trial, their info pre-loaded, price list imported. They get a link to set a password and go.</div>
       <input id="obEmail" class="input" type="email" placeholder="Their email (required)"/>
@@ -3631,7 +3632,7 @@ const TRADE_PICK = [
 ];
 function tradeBringHint(){
   const t=TRADE_PICK.find(x=>x.key===CAP_DRAFT.trade); if(!t||!t.bring) return '';
-  return `<div class="hint" style="margin-top:6px">📐 For an accurate ${esc(t.label)} bid, also capture: ${esc(t.bring)}.</div>`;
+  return `<div class="hint" style="margin-top:6px">${icon('ruler',15)} For an accurate ${esc(t.label)} bid, also capture: ${esc(t.bring)}.</div>`;
 }
 function renderTradeHint(){ const el=document.getElementById('tradeHint'); if(el) el.innerHTML=tradeBringHint(); }
 function tradeLbl(key){ const t=TRADE_PICK.find(x=>x.key===key); return t?t.label:''; }
@@ -3656,7 +3657,7 @@ function viewCapture(){
   }
   const fromName=LANGS[SETTINGS.from]||SETTINGS.from, toName=LANGS[SETTINGS.bidLang||SETTINGS.to]||SETTINGS.to;
   const micBlock = !window.isSecureContext
-    ? `<div class="vf-mic off">🎤</div><div class="vf-mic-lbl warn">Voice needs a secure (https) connection — your SSL isn't active yet. Type below for now.</div>`
+    ? `<div class="vf-mic off">${icon('mic',22)}</div><div class="vf-mic-lbl warn">Voice needs a secure (https) connection — your SSL isn't active yet. Type below for now.</div>`
     : speechSupported()
       ? `<div class="vf-mic-stage" id="micStage">
            <span class="vf-ring r1"></span><span class="vf-ring r2"></span><span class="vf-ring r3"></span>
@@ -3667,7 +3668,7 @@ function viewCapture(){
          <div class="vf-timer" id="vfTimer">0:00</div>
          <div class="vf-wave" id="vfWave">${vfBars()}</div>
          <div class="vf-mic-lbl" id="micLbl">Tap to speak</div>`
-      : `<div class="vf-mic off">🎤</div><div class="vf-mic-lbl">Voice isn't available on this device — type below.</div>`;
+      : `<div class="vf-mic off">${icon('mic',22)}</div><div class="vf-mic-lbl">Voice isn't available on this device — type below.</div>`;
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div class="vf-hero">
       <h1 class="vf-title">Tell me about the job</h1>
@@ -3704,7 +3705,7 @@ function viewCapture(){
     <button class="btn full" style="margin-top:16px" onclick="buildFromConversation()">Continue to bid draft →</button>
     <button class="btn ghost full" style="margin-top:8px" onclick="buildManual()">Save job</button>
 
-    <button class="langchip" onclick="go('settings')" title="Change languages in Settings">🌐 You: ${esc(fromName)} · Client: ${esc(toName)} · change in Settings</button>
+    <button class="langchip" onclick="go('settings')" title="Change languages in Settings">${icon('globe',15)} You: ${esc(fromName)} · Client: ${esc(toName)} · change in Settings</button>
 
     <div class="consent">
       <label><input type="checkbox" id="capConsent"/> <span>When my area requires it, I'll let the other person know the conversation is being captured.</span></label>
@@ -3731,16 +3732,16 @@ function questionsCard(){
   const nq=(x.next_question||'').trim();
   const ready=!!x.ready;
   if(!cl.length && !nq && !ready) return '';
-  const ic=(s)=> s==='captured'?'✅':s==='unsure'?'⚠️':'⬜';
+  const ic=(s)=> s==='captured'?icon('check',14):s==='unsure'?icon('alert',14):'<svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.85" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>';
   const clHTML = cl.length ? `<div class="est-list">${cl.map(c=>`<div class="est-item ${esc(c.status)}"><span class="est-ic">${ic(c.status)}</span><span class="est-l">${esc(c.label)}${c.status==='captured'&&c.value?` — <b>${esc(c.value)}</b>`:''}${c.status==='unsure'?` <span class="est-flag">to confirm</span>`:''}</span></div>`).join('')}</div>` : '';
   let action='';
   if(ready){
     action=`<div class="est-ready">✓ <b>I have everything I need.</b><button class="btn sm" onclick="buildFromConversation()">Build the estimate →</button></div>`;
   } else if(nq){
-    action=`<div class="est-q"><div class="est-q-t">💬 ${esc(nq)}</div>
-      <div class="est-q-act"><button class="btn sm" onclick="micTap()">🎤 Answer</button><button class="btn ghost sm" onclick="capNotSure()">I'm not sure</button></div></div>`;
+    action=`<div class="est-q"><div class="est-q-t">${icon('message',16)} ${esc(nq)}</div>
+      <div class="est-q-act"><button class="btn sm" onclick="micTap()">${icon('mic',15)} Answer</button><button class="btn ghost sm" onclick="capNotSure()">I'm not sure</button></div></div>`;
   }
-  const tts=('speechSynthesis' in window) ? `<button class="est-tts" onclick="toggleTts()" title="${TTS_ON?'Mute the estimator':'Let the estimator speak'}">${TTS_ON?'🔊':'🔇'}</button>` : '';
+  const tts=('speechSynthesis' in window) ? `<button class="est-tts" onclick="toggleTts()" title="${TTS_ON?'Mute the estimator':'Let the estimator speak'}">${TTS_ON?icon('speaker',16):icon('mute',16)}</button>` : '';
   return `<div class="intake est-card"><div class="intake-h">${icon('activity',13)} AI Estimator${intakeRunning?' <span class="intake-load">thinking…</span>':''}${tts}</div>${clHTML}${action}</div>`;
 }
 // Auto project name from client + work (or address, or scope) — no manual entry.
@@ -3819,22 +3820,22 @@ function demoProject(){ closeMore(); go('capture'); loadSample(); }
 // "Why Bidtranslator" — the value story, every benefit framed as time/energy saved.
 function viewWhy(){
   const items=[
-    ['🗣️','Talk instead of type','Describe the job out loud — the AI writes and structures the bid for you. You never type a proposal from scratch again.'],
-    ['🌎','One bid, two languages','Talk in your language; your client reads theirs — automatically. No translating by hand.'],
-    ['💰','Priced the moment you finish','Your margin is built in, so a real, priced bid appears instantly. No calculator, no markup math.'],
-    ['🎩','Professional proposal, auto-built','Your logo, organized scope, and clean totals — generated for you. Looks like a seasoned GC sent it.'],
-    ['🛡️','Terms &amp; protections on every bid','Warranty, change orders, allowances, permits, and payment terms included by default — fewer disputes.'],
-    ['✍️','Signed on the spot','Your client reviews and signs on their phone; everyone gets a signed PDF. No chasing for days.'],
-    ['💳','Get paid by card, immediately','The deposit is paid the moment they sign — money straight to your account. Start the job already paid.'],
-    ['📒','Your books update themselves','Connect QuickBooks once; signed bids sync in as Estimates. No double data entry.'],
-    ['🗂️','Everything in one place','Notes, photos, bids, signatures, and payments live in one app that remembers everything.'],
-    ['📱','All on your phone, on site','Capture, price, send, sign, and collect — before you leave the driveway. Get your evenings back.'],
+    ['mic','Talk instead of type','Describe the job out loud — the AI writes and structures the bid for you. You never type a proposal from scratch again.'],
+    ['globe','One bid, two languages','Talk in your language; your client reads theirs — automatically. No translating by hand.'],
+    ['revenue','Priced the moment you finish','Your margin is built in, so a real, priced bid appears instantly. No calculator, no markup math.'],
+    ['doc','Professional proposal, auto-built','Your logo, organized scope, and clean totals — generated for you. Looks like a seasoned GC sent it.'],
+    ['shield','Terms &amp; protections on every bid','Warranty, change orders, allowances, permits, and payment terms included by default — fewer disputes.'],
+    ['edit','Signed on the spot','Your client reviews and signs on their phone; everyone gets a signed PDF. No chasing for days.'],
+    ['card','Get paid by card, immediately','The deposit is paid the moment they sign — money straight to your account. Start the job already paid.'],
+    ['book','Your books update themselves','Connect QuickBooks once; signed bids sync in as Estimates. No double data entry.'],
+    ['folder','Everything in one place','Notes, photos, bids, signatures, and payments live in one app that remembers everything.'],
+    ['phone','All on your phone, on site','Capture, price, send, sign, and collect — before you leave the driveway. Get your evenings back.'],
   ];
   return `<div class="why">
     <div class="h-eyebrow">Why Bidtranslator</div>
     <h1 class="why-h">Bid more jobs in less time.</h1>
     <div class="why-sub">Talk through the job and Bidtranslator hands you a finished, priced, professional bid — in your client's language. They sign and pay on their phone, and it lands in your books automatically.</div>
-    <div class="why-list">${items.map(([e,t,d])=>`<div class="why-card"><div class="why-emoji">${e}</div><div><div class="why-t">${t}</div><div class="why-d">${d}</div></div></div>`).join('')}</div>
+    <div class="why-list">${items.map(([e,t,d])=>`<div class="why-card"><div class="why-emoji">${icon(e,22)}</div><div><div class="why-t">${t}</div><div class="why-d">${d}</div></div></div>`).join('')}</div>
     <button class="btn full" style="margin-top:18px" onclick="go('capture')">${icon('mic',16)} Start a bid with your voice</button>
   </div>`;
 }
@@ -3891,7 +3892,7 @@ async function reviewBidAI(id, btn){
   try{
     const r=await api('/api/assist/review',{method:'POST',body:JSON.stringify({ trade:j.trade||'', lines:(j.lines||[]).map(l=>({desc:l.desc,section:l.section})), text:j.transcript||'' })});
     REVIEW[id]=r.recommendations||[]; renderReview(id);
-    if(!REVIEW[id].length) toast('Looks complete — no obvious gaps. 👍','ok');
+    if(!REVIEW[id].length) toast('Looks complete — no obvious gaps.','ok');
   }catch(e){ if(e.status===402){ gate402(e); } else toast(e.message||'Could not check the bid.','bad'); }
   if(btn){ btn.disabled=false; btn.textContent=orig; }
 }
@@ -3899,8 +3900,8 @@ function renderReview(id){
   const box=document.getElementById('reviewBox'); if(!box) return;
   const recs=REVIEW[id]||[];
   if(!recs.length){ box.innerHTML=''; return; }
-  box.innerHTML=`<div class="panel" style="margin:10px 0;border-color:var(--amber)"><div class="panel-h static"><span>💡 ${recs.length} thing${recs.length===1?'':'s'} worth checking</span></div>`
-    + recs.map((r,i)=>`<div class="act-item" style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${r.type==='upsell'?'⬆️ ':'⚠️ '}${esc(r.item)}</div><div class="act-s">${esc(r.reason)}${r.impact?(' · <b style="color:#8fd0a8">'+esc(r.impact)+'</b>'):''}</div></div><button class="btn sm" onclick="addRecLine('${id}',${i})">+ Add</button></div>`).join('')
+  box.innerHTML=`<div class="panel" style="margin:10px 0;border-color:var(--amber)"><div class="panel-h static"><span>${icon('bulb',15)} ${recs.length} thing${recs.length===1?'':'s'} worth checking</span></div>`
+    + recs.map((r,i)=>`<div class="act-item" style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${r.type==='upsell'?icon('send',13)+' ':icon('alert',13)+' '}${esc(r.item)}</div><div class="act-s">${esc(r.reason)}${r.impact?(' · <b style="color:#8fd0a8">'+esc(r.impact)+'</b>'):''}</div></div><button class="btn sm" onclick="addRecLine('${id}',${i})">+ Add</button></div>`).join('')
     + `</div>`;
 }
 function addRecLine(id,i){
@@ -3985,8 +3986,8 @@ function viewJob(){
     <div class="stagebar">${JOB_STAGES.map(([k,lab])=>`<button class="stbtn ${jobStatus(j)===k?'on':''}" onclick="setJobStatus('${j.id}','${k}')">${lab}</button>`).join('')}</div>
     ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">${icon('calendar',14)} Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/><input type="time" class="schedinput" value="${escAttr(j.scheduled_time||'')}" onchange="setScheduleTime('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">${icon('calendar',13)} Add to Calendar</a>`:''}</div>${conflictNote(j)}`:''}
     <label class="fld">Customer</label>
-    <div class="addrrow"><input id="custInput" class="addrinput" value="${escAttr(j.customer||'')}" onchange="setCustomer('${j.id}',this.value)" placeholder="👤 Customer name — shown on the proposal"/></div>
-    <div class="addrrow"><input id="custPhoneInput" class="addrinput" type="tel" inputmode="tel" value="${escAttr(j.customer_phone||'')}" onchange="setCustomerPhone('${j.id}',this.value)" placeholder="📞 Customer phone — tap to call or text"/></div>
+    <div class="addrrow"><input id="custInput" class="addrinput" value="${escAttr(j.customer||'')}" onchange="setCustomer('${j.id}',this.value)" placeholder="Customer name — shown on the proposal"/></div>
+    <div class="addrrow"><input id="custPhoneInput" class="addrinput" type="tel" inputmode="tel" value="${escAttr(j.customer_phone||'')}" onchange="setCustomerPhone('${j.id}',this.value)" placeholder="Customer phone — tap to call or text"/></div>
     <div id="custReach">${reachBlock(j)}</div>
     <div id="addrWrap">${addrBlock(j)}</div>
     ${tabs}`;
@@ -4022,7 +4023,7 @@ function tabNotebook(j){
   let out='';
   out+=sec('What you captured · '+(LANGS[j.from]||j.from),
     `<textarea class="editarea" oninput="updJob('transcript',this.value)" placeholder="Captured conversation…">${esc(j.transcript)}</textarea>
-     <button class="btn full" style="margin-top:10px" onclick="rebuildWithAI('${j.id}',this)">🪄 Build the bid from this text</button>
+     <button class="btn full" style="margin-top:10px" onclick="rebuildWithAI('${j.id}',this)">${icon('wand',15)} Build the bid from this text</button>
      <div class="hint">Reads the conversation above and fills in the line items, rooms &amp; totals with AI. You can edit everything after.</div>`);
   out+=briefCard(j);
   const machine = j.summary || j.translation;
@@ -4047,7 +4048,7 @@ function tabNotebook(j){
   const onBid=photos.filter(p=>p.showOnBid).length;
   out+=`<div class="nb-sec"><h3>Photos</h3><div class="photogrid">${
     photos.map((p,i)=>`<div class="thumb${p.showOnBid?' onbid':''}"><img src="${p._pending?p.dataUrl:p.url}" alt="job photo"/><button class="x" onclick="delPhoto(${i})" title="Remove">✕</button>${p._pending?'<span class="pend">offline</span>':''}<button class="bidtog ${p.showOnBid?'on':''}" onclick="togglePhotoBid(${i})" title="Show this photo on the client bid">${p.showOnBid?'★ On bid':'☆ Add to bid'}</button></div>`).join('')
-  }<button class="addphoto" onclick="pickPhoto('cam')"><span style="font-size:1.2rem;line-height:1">📷</span>Camera</button><button class="addphoto" onclick="pickPhoto('lib')"><span style="font-size:1.2rem;line-height:1">🖼️</span>Upload</button></div>
+  }<button class="addphoto" onclick="pickPhoto('cam')">${icon('camera',20)}Camera</button><button class="addphoto" onclick="pickPhoto('lib')">${icon('image',20)}Upload</button></div>
   <div class="hint">${photos.length?`Tap ☆ on a photo to show it on the client's bid. ${onBid?`<b style="color:var(--paper)">${onBid} on the bid.</b>`:'None on the bid yet.'}`:'Add photos, then choose which ones the client sees on their bid.'}</div>
   <input id="photoInput" type="file" accept="image/*" multiple style="display:none" onchange="handlePhotos(this)"/>
   <input id="photoCamInput" type="file" accept="image/*" capture="environment" multiple style="display:none" onchange="handlePhotos(this)"/></div>`;
@@ -4148,22 +4149,22 @@ function tabBuild(j){
 
   return `<div class="h-eyebrow" style="margin-bottom:8px">Step 2 · Private estimating</div>
     <div class="note">AI prices are rough placeholders — you set the real numbers here.</div>
-    ${(j.transcript||'').trim() ? `<button class="btn ghost full" style="margin-bottom:12px" onclick="rebuildWithAI('${j.id}',this)">🪄 Rebuild these lines from the conversation with AI</button>` : ''}
+    ${(j.transcript||'').trim() ? `<button class="btn ghost full" style="margin-bottom:12px" onclick="rebuildWithAI('${j.id}',this)">${icon('wand',15)} Rebuild these lines from the conversation with AI</button>` : ''}
     ${lines||'<div class="hint">No line items yet.</div>'}
-    ${AI_BUILD && (j.lines||[]).length ? `<button class="btn ghost full" style="margin-top:10px" onclick="reviewBidAI('${j.id}',this)">💡 Find missing money — check this bid</button>
+    ${AI_BUILD && (j.lines||[]).length ? `<button class="btn ghost full" style="margin-top:10px" onclick="reviewBidAI('${j.id}',this)">${icon('bulb',15)} Find missing money — check this bid</button>
       <div class="hint" style="margin-top:4px">AI checks your bid against what ${tradeLbl(j.trade)||'this trade'}'s bids usually include — so you don't eat costs you forgot to charge for.</div>` : ''}
     <div id="reviewBox"></div>
-    ${AI_BUILD?`<button class="btn full" style="margin-top:10px" onclick="openScan('${j.id}')">📷 Scan materials with AI</button>
+    ${AI_BUILD?`<button class="btn full" style="margin-top:10px" onclick="openScan('${j.id}')">${icon('camera',16)} Scan materials with AI</button>
       <div class="hint" style="margin-top:4px">Snap a room or exterior — AI identifies the paint, flooring, tile, fixtures, trim, doors, windows, roofing &amp; landscaping so you don't type the scope. Tap to drop any into the bid.</div>`:''}
     <select class="tplsel" onchange="applyTemplate(this.value);this.value=''" title="Add a typical starter checklist for your trade">
-      <option value="">📋 Start from a trade template…</option>
+      <option value="">Start from a trade template…</option>
       ${Object.entries(TRADE_TEMPLATES).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('')}
     </select>
     <div style="display:flex;gap:8px;margin-top:4px">
       <button class="btn ghost addline" style="flex:1" onclick="addLine()">+ Add line</button>
       <button class="btn ghost addline" style="flex:1" onclick="openSkuPicker()">+ From price book</button>
     </div>
-    ${AI_VISUALIZE?`<button class="btn full" style="margin-top:10px" onclick="vizStart('${j.id}')">✨ See it in their kitchen</button>
+    ${AI_VISUALIZE?`<button class="btn full" style="margin-top:10px" onclick="vizStart('${j.id}')">${icon('wand',16)} See it in their kitchen</button>
       <div class="hint" style="margin-top:4px">Pick a material that has a photo, add the client's room, and AI renders it in — the picture is added to the bid.</div>`:''}
 
     <div class="totbar"><span class="tl">Client price</span><span class="tv">${money(total)}</span></div>
@@ -4180,7 +4181,7 @@ function tabBuild(j){
     <div class="hint">Your rate for client bids (set in Setup, editable per job). 0 = no tax — e.g. tax-exempt labor.</div>
 
     <div class="depositbox">
-      <label class="fld">💳 Deposit to collect when the client accepts</label>
+      <label class="fld">${icon('card',14)} Deposit to collect when the client accepts</label>
       <div style="display:flex;align-items:center;gap:8px"><input class="input" type="number" min="0" max="100" value="${depPct}" oninput="updJob('deposit_pct',this.value)" style="max-width:90px"/><span class="mono" style="color:var(--muted)">% of total</span></div>
       <div class="hint">Client pays <b style="color:var(--paper)">${money(Math.round(total*(depPct/100)))}</b> on acceptance${PAYMENTS&&PAYMENTS.charges_enabled?' (via your Stripe).':'. Finish “Set up payments” to collect it automatically.'}</div>
     </div>
@@ -4192,7 +4193,7 @@ function tabBuild(j){
     </div>
 
     <div class="dispatchbox" style="margin-top:14px">
-      <button class="btn ghost full" onclick="openDraw('${j.id}')">📸 Request a draw (progress payment)</button>
+      <button class="btn ghost full" onclick="openDraw('${j.id}')">${icon('camera',16)} Request a draw (progress payment)</button>
       <div class="hint" style="margin-top:6px">Document completed work with photos, then send the owner or their bank a link to approve${PAYMENTS&&PAYMENTS.charges_enabled?' &amp; pay':''}.</div>
       <div id="drawStatus">${drawStatusHTML(j.id)}</div>
     </div>
@@ -4212,7 +4213,7 @@ function tabBuild(j){
     </div>
 
     <div class="dispatchbox" style="margin-top:14px">
-      <button class="btn ghost full" onclick="openPubProj('${j.id}')">🌐 Publish this project to your website</button>
+      <button class="btn ghost full" onclick="openPubProj('${j.id}')">${icon('globe',16)} Publish this project to your website</button>
       <div class="hint" style="margin-top:6px">Finished? One tap adds it to your website's Before &amp; After gallery — AI writes the description. Your site grows itself.</div>
       <div id="pubProjStatus">${pubProjStatusHTML(j.id)}</div>
     </div>
@@ -4235,9 +4236,9 @@ function tabClient(j){
   return `<div class="h-eyebrow" style="margin-bottom:8px">Step 3 · What the client sees</div>
     ${html}
     <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn" onclick="shareBid('text',this)">💬 Text</button>
+      <button class="btn" onclick="shareBid('text',this)">${icon('message',15)} Text</button>
       <button class="btn" onclick="shareBid('whatsapp',this)">WhatsApp</button>
-      <button class="btn" onclick="shareBid('email',this)">✉️ Email</button>
+      <button class="btn" onclick="shareBid('email',this)">${icon('mail',15)} Email</button>
       <button class="btn ghost" onclick="shareBid('copy',this)">${icon('link',15)} Copy link</button>
       <button class="btn ghost" onclick="shareBid('share',this)">Share…</button>
     </div>
@@ -4450,7 +4451,7 @@ function billingSection(){
     const until = ag.free_until ? new Date(ag.free_until).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
     return `<div class="billbox"><h3>Subscription</h3>
       <div class="statline"><span class="badge active">Agent — free year</span></div>
-      <div class="hint" style="margin-top:8px">🏡 Free until <b style="color:var(--paper)">${esc(until)}</b> (${ag.days_left} day${ag.days_left===1?'':'s'} left), then <b style="color:var(--paper)">${priceStr(ag.after_monthly||50)}/mo locked</b> — never rises.</div>
+      <div class="hint" style="margin-top:8px">${icon('home',15)} Free until <b style="color:var(--paper)">${esc(until)}</b> (${ag.days_left} day${ag.days_left===1?'':'s'} left), then <b style="color:var(--paper)">${priceStr(ag.after_monthly||50)}/mo locked</b> — never rises.</div>
       ${ag.nudge?`<div class="freecallout" style="margin-top:10px">⏳ Your free year is ending soon. Keep it free: bring ${BILLING.referral?BILLING.referral.freeAt:5} contractors who subscribe and your bill stays <b>$0</b>.</div>`:''}</div>`;
   }
   const s=BILLING.status;
@@ -4660,7 +4661,7 @@ function skuListHTML(){
   if(!list.length) return '<div class="hint">No SKUs yet. Upload a price sheet or list above.</div>';
   return list.map(s=>`<div class="skurow">
       <div class="skuthumb-wrap">
-        <button class="skuthumb${s.image?' has':''}" onclick="skuPhotoTap('${s.id}')" title="${s.image?'Change photo':'Add a photo of this color'}">${s.image?`<img src="${s.image}" alt="${escAttr(s.name)}" loading="lazy"/>`:'📷'}</button>
+        <button class="skuthumb${s.image?' has':''}" onclick="skuPhotoTap('${s.id}')" title="${s.image?'Change photo':'Add a photo of this color'}">${s.image?`<img src="${s.image}" alt="${escAttr(s.name)}" loading="lazy"/>`:icon('camera',20)}</button>
         ${s.image?`<button class="thumbx" onclick="removeSkuPhoto('${s.id}',event)" title="Remove photo">✕</button>`:''}
       </div>
       <div class="skuinfo"><div class="skuname">${esc(s.name)}</div><div class="skumeta">${s.category?esc(s.category)+' · ':''}${esc(s.unit)}</div></div>
@@ -4692,15 +4693,15 @@ function viewTeam(){
    <div class="sub">Add your subs and send them the app. They get it free to receive your job scope — in their language. Get five of your crew on and the bids start flowing both ways.</div>
    ${setupFirst}
    <div class="teamprog"><div class="teamprog-bar"><div class="teamprog-fill" style="width:${pct}%"></div></div>
-     <div class="teamprog-lbl">${c.invited} of ${target} subs invited${c.invited>=target?' 🎉 — nice, your crew is on it':''}</div></div>
-   <div class="panel" style="margin-top:14px"><div class="panel-h static"><span>➕ Add a sub</span></div>
+     <div class="teamprog-lbl">${c.invited} of ${target} subs invited${c.invited>=target?(' '+icon('party',13)+' — nice, your crew is on it'):''}</div></div>
+   <div class="panel" style="margin-top:14px"><div class="panel-h static"><span>${icon('plus',15)} Add a sub</span></div>
      <div style="padding:10px">
        <div class="row2"><input id="subName" class="input" placeholder="Name"/><input id="subPhone" class="input" type="tel" placeholder="Phone / WhatsApp"/></div>
        <div class="row2" style="margin-top:8px"><select id="subTrade" class="input">${tradeOpts}</select><select id="subLang" class="input">${langOpts(langSel)}</select></div>
        <button class="btn full" style="margin-top:10px" onclick="saveSub()">Add to crew</button>
      </div>
    </div>
-   <div class="panel" style="margin-top:14px"><div class="panel-h static"><span>👷 Your crew (${(TEAM.items||[]).length})</span></div>
+   <div class="panel" style="margin-top:14px"><div class="panel-h static"><span>${icon('hardhat',15)} Your crew (${(TEAM.items||[]).length})</span></div>
      ${rows||'<div class="hint" style="padding:10px">No subs yet — add your first above, then send them the app.</div>'}
    </div>`;
 }
@@ -4745,7 +4746,7 @@ function teamNudge(){
   const c=TEAM.counts||{invited:0,target:5}, target=c.target||5;
   if(c.invited>=target) return '';
   const left=target-c.invited;
-  return `<div class="teamnudge"><h3>👷 Build your team — send it to ${left} more sub${left===1?'':'s'}</h3>
+  return `<div class="teamnudge"><h3>${icon('hardhat',16)} Build your team — send it to ${left} more sub${left===1?'':'s'}</h3>
     <p>Add your crew and send them Bidtranslator. They get it free to receive your scope in their language — and you're building the network you bid through.</p>
     <button class="btn full" onclick="go('team')">${c.invited>0?`Add more of your crew (${c.invited}/${target})`:'Add your subs'}</button></div>`;
 }
@@ -4761,11 +4762,11 @@ function dispatchStatusHTML(jobId){
   const arr=DISPATCHES[jobId]; if(arr===undefined){ loadDispatches(jobId); return ''; }
   if(!arr.length) return '';
   const money=n=>'$'+(Number(n)||0).toLocaleString('en-US');
-  const pill=s=>({sent:'sent',viewed:'👀 viewed',accepted:'✓ accepted',bid:'💰 bid in',declined:'—'})[s]||s;
+  const pill=s=>({sent:'sent',viewed:icon('eye',13)+' viewed',accepted:'✓ accepted',bid:icon('revenue',13)+' bid in',declined:'—'})[s]||s;
   return '<div style="margin-top:10px">'+arr.map(d=>{
     const amt=(d.bid_amount!=null&&d.bid_amount!=='')?(' · <b style="color:#8fd0a8">'+money(d.bid_amount)+'</b>'):'';
     const accept=d.status==='bid'?`<button class="btn sm" onclick="acceptBidUI('${jobId}','${d.id}')">Accept</button>`:'';
-    return `<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${d.kind==='rfq'?'💬':'📤'} ${esc(d.sub_name||'Sub')}</div><div class="act-s">${pill(d.status)}${amt}${d.accepted_by&&d.status==='accepted'?' · '+esc(d.accepted_by):''}</div></div>${accept}</div>`;
+    return `<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${d.kind==='rfq'?icon('message',14):icon('send',14)} ${esc(d.sub_name||'Sub')}</div><div class="act-s">${pill(d.status)}${amt}${d.accepted_by&&d.status==='accepted'?' · '+esc(d.accepted_by):''}</div></div>${accept}</div>`;
   }).join('')+'</div>';
 }
 let DISPATCH_MODE='work', LAST_SENDS=[];
@@ -4788,7 +4789,7 @@ function renderDispatchBody(j){
   const items=lines.map((l,i)=>`<label class="ckrow"><input type="checkbox" class="dispItem" data-i="${i}" checked/> <span>${esc(l.desc)}${l.section?(' · '+esc(l.section)):''}</span></label>`).join('')||'<div class="hint" style="padding:6px">No line items yet.</div>';
   const subs=(TEAM.items||[]).map(s=>`<label class="ckrow"><input type="checkbox" class="dispSub2" data-id="${escAttr(s.id)}" data-name="${escAttr(s.name||s.phone||'Sub')}" data-lang="${escAttr(s.lang||'')}" data-phone="${escAttr(s.phone||'')}"/> <span>${esc(s.name||s.phone||'Sub')}${s.trade?(' · '+esc((TRADE_PICK.find(t=>t.key===s.trade)||{}).label||s.trade)):''}</span></label>`).join('');
   body.innerHTML=`
-    <div class="modetog"><button class="mt ${!rfq?'on':''}" onclick="setDispatchMode('work')">📤 Assign work</button><button class="mt ${rfq?'on':''}" onclick="setDispatchMode('rfq')">💬 Request bids</button></div>
+    <div class="modetog"><button class="mt ${!rfq?'on':''}" onclick="setDispatchMode('work')">${icon('send',14)} Assign work</button><button class="mt ${rfq?'on':''}" onclick="setDispatchMode('rfq')">${icon('message',14)} Request bids</button></div>
     <div class="hint" style="margin:8px 0">${rfq?'Send to a few contractors — each enters their price, you accept the best.':'Send the work to a sub — they tap to accept. They see the work &amp; photos, never your prices.'}</div>
     <label class="fld">Scope to send <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(uncheck what they don't need)</span></label>
     <div class="cklist">${items}</div>
@@ -4843,8 +4844,8 @@ function drawStatusHTML(jobId){
   const pill=s=>({requested:'sent — awaiting approval',approved:'✓ approved',paid:'✓ paid',declined:'declined'})[s]||s;
   return '<div style="margin-top:10px">'+arr.map(d=>{
     const link=location.origin+'/d/'+d.id;
-    const send=d.status==='requested'?`<button class="btn sm" onclick="copyDrawLink('${escAttr(link)}')">📋 Link</button>`:'';
-    return `<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">📸 ${money(d.amount)}${d.description?(' · '+esc(d.description)):''}</div><div class="act-s">${pill(d.status)}${d.approved_by&&(d.status==='approved'||d.status==='paid')?' · '+esc(d.approved_by):''}</div></div>${send}</div>`;
+    const send=d.status==='requested'?`<button class="btn sm" onclick="copyDrawLink('${escAttr(link)}')">${icon('clipboard',14)} Link</button>`:'';
+    return `<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${icon('camera',14)} ${money(d.amount)}${d.description?(' · '+esc(d.description)):''}</div><div class="act-s">${pill(d.status)}${d.approved_by&&(d.status==='approved'||d.status==='paid')?' · '+esc(d.approved_by):''}</div></div>${send}</div>`;
   }).join('')+'</div>';
 }
 async function openDraw(jobId){
@@ -4881,7 +4882,7 @@ async function sendDraw(jobId){
     DRAWS[jobId]=[r.draw, ...(DRAWS[jobId]||[])];
     const link=r.url||(location.origin+'/d/'+r.draw.id);
     const rr=document.getElementById('drawResult');
-    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ Draw created — send the owner or bank this link:</div><div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><div class="act-t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn sm" onclick="copyDrawLink('${escAttr(link)}')">📋 Copy</button></div>`;
+    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ Draw created — send the owner or bank this link:</div><div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><div class="act-t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn sm" onclick="copyDrawLink('${escAttr(link)}')">${icon('clipboard',14)} Copy</button></div>`;
     render();
     toast('Draw request created.','ok');
   }catch(e){ toast(e.message||'Could not create draw.','bad'); }
@@ -4902,8 +4903,8 @@ function coStatusHTML(jobId){
   const pill=s=>({sent:'sent — awaiting signature',approved:'✓ signed',paid:'✓ paid',declined:'declined'})[s]||s;
   return '<div style="margin-top:10px">'+arr.map(co=>{
     const link=location.origin+'/co/'+co.id;
-    const send=co.status==='sent'?`<button class="btn sm" onclick="copyCOLink('${escAttr(link)}')">📋 Link</button>`:'';
-    return `<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">📝 CO #${co.number} · ${money(co.amount)}${co.title?(' · '+esc(co.title)):''}</div><div class="act-s">${pill(co.status)}${co.signed_by&&(co.status==='approved'||co.status==='paid')?' · '+esc(co.signed_by):''}</div></div>${send}</div>`;
+    const send=co.status==='sent'?`<button class="btn sm" onclick="copyCOLink('${escAttr(link)}')">${icon('clipboard',14)} Link</button>`:'';
+    return `<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${icon('edit',14)} CO #${co.number} · ${money(co.amount)}${co.title?(' · '+esc(co.title)):''}</div><div class="act-s">${pill(co.status)}${co.signed_by&&(co.status==='approved'||co.status==='paid')?' · '+esc(co.signed_by):''}</div></div>${send}</div>`;
   }).join('')+'</div>';
 }
 function openCO(jobId){ const j=JOBS.find(x=>x.id===jobId)||currentJob(); if(!j) return; CO_ITEMS=[{desc:'',amount:0}]; renderCOBody(j); const el=document.getElementById('coSheet'); if(el) el.style.display='flex'; }
@@ -4940,7 +4941,7 @@ async function sendCO(jobId){
     COS[jobId]=[r.change_order, ...(COS[jobId]||[])];
     const link=r.url||(location.origin+'/co/'+r.change_order.id);
     const rr=document.getElementById('coResult');
-    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ Change order #${r.change_order.number} created — send your client this link to e-sign:</div><div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><div class="act-t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn sm" onclick="copyCOLink('${escAttr(link)}')">📋 Copy</button></div>`;
+    if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ Change order #${r.change_order.number} created — send your client this link to e-sign:</div><div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><div class="act-t" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(link)}</div><button class="btn sm" onclick="copyCOLink('${escAttr(link)}')">${icon('clipboard',14)} Copy</button></div>`;
     render();
     toast('Change order created.','ok');
   }catch(e){ toast(e.message||'Could not create change order.','bad'); }
@@ -4960,12 +4961,12 @@ function renderScanBody(){
   const body=document.getElementById('scanBody'); if(!body) return;
   if(!SCAN.image){
     body.innerHTML=`<div class="hint" style="margin-bottom:12px">Take a photo of a room or the outside of a house. AI identifies the materials &amp; finishes — paint, flooring, tile, fixtures, lighting, windows, trim, doors, roofing &amp; landscaping — so you don't type the scope. It just has to save you time, not be perfect.</div>
-      <button class="btn full" onclick="document.getElementById('scanCam').click()">📸 Take a photo</button>
-      <button class="btn ghost full" style="margin-top:8px" onclick="document.getElementById('scanLib').click()">🖼️ Choose from library</button>`;
+      <button class="btn full" onclick="document.getElementById('scanCam').click()">${icon('camera',16)} Take a photo</button>
+      <button class="btn ghost full" style="margin-top:8px" onclick="document.getElementById('scanLib').click()">${icon('image',16)} Choose from library</button>`;
     return;
   }
   let res='';
-  if(SCAN.loading) res=`<div class="hint" style="text-align:center;padding:14px">🔎 Identifying materials…</div>`;
+  if(SCAN.loading) res=`<div class="hint" style="text-align:center;padding:14px">${icon('search',15)} Identifying materials…</div>`;
   else if(SCAN.results){
     const ms=SCAN.results.materials||[];
     if(!ms.length) res=`<div class="hint">No materials picked out — try a closer or better-lit photo.</div>`;
@@ -4976,7 +4977,7 @@ function renderScanBody(){
           <div style="flex:1;min-width:0"><div class="act-t">${SCAN_EMOJI[mm.category]||'📦'} ${esc(mm.item)}<span style="color:var(--muted);font-weight:400">${esc(conf(mm.confidence))}</span></div>
           <div class="act-s">${esc(mm.spec||mm.category)}${mm.note?(' · '+esc(mm.note)):''}</div></div>
           <button class="btn sm ${SCAN.added[i]?'ghost':''}" onclick="scanAdd(${i})" ${SCAN.added[i]?'disabled':''}>${SCAN.added[i]?'✓ Added':'+ Bid'}</button></div>`).join('')+
-        (SCAN.results.summary?`<div class="hint" style="margin-top:10px">🧱 ${esc(SCAN.results.summary)}</div>`:'');
+        (SCAN.results.summary?`<div class="hint" style="margin-top:10px">${icon('package',14)} ${esc(SCAN.results.summary)}</div>`:'');
     }
   }
   body.innerHTML=`<img src="${SCAN.image}" alt="scan" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"/>
@@ -5017,7 +5018,7 @@ async function loadPubProjs(jobId){
 function pubProjStatusHTML(jobId){
   const arr=PUBPROJS[jobId]; if(arr===undefined){ loadPubProjs(jobId); return ''; }
   if(!arr.length) return '';
-  return '<div style="margin-top:10px">'+arr.map(p=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">🌐 ${esc(p.title||'Published project')}</div><div class="act-s">Live on your website${p.area?(' · '+esc(p.area)):''}</div></div><a class="btn sm" href="/c/'+(USER&&USER.id||'')+'" target="_blank">View</a></div>`).join('')+'</div>';
+  return '<div style="margin-top:10px">'+arr.map(p=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${icon('globe',14)} ${esc(p.title||'Published project')}</div><div class="act-s">Live on your website${p.area?(' · '+esc(p.area)):''}</div></div><a class="btn sm" href="/c/'+(USER&&USER.id||'')+'" target="_blank">View</a></div>`).join('')+'</div>';
 }
 function openPubProj(jobId){
   const j=JOBS.find(x=>x.id===jobId)||currentJob(); if(!j) return;
@@ -5036,7 +5037,7 @@ function renderPubProjBody(j){
   body.innerHTML=`
     <div class="hint" style="margin-bottom:8px">Tap photos to feature them. Tap again to mark <b>Before</b>, again to remove. AI writes the description — you don't type a thing.</div>
     <div class="ppgrid">${grid}</div>
-    <button class="btn full" style="margin-top:12px" onclick="publishProj('${j.id}',this)">🌐 Publish to my website</button>
+    <button class="btn full" style="margin-top:12px" onclick="publishProj('${j.id}',this)">${icon('globe',16)} Publish to my website</button>
     <div class="hint" style="margin-top:6px;text-align:center">Only the photos you pick go public. Everything else stays private.</div>
     <div id="pubProjResult"></div>`;
 }
@@ -5054,7 +5055,7 @@ async function publishProj(jobId,btn){
     if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ <b>${esc(r.project.title||'Project')}</b> is live on your website.</div><a class="btn sm" style="margin-top:6px;display:inline-block" href="${esc(r.siteUrl||('/c/'+(USER&&USER.id||'')))}" target="_blank">View your website →</a>`;
     render();
     toast('✓ Published to your website.','ok',5000);
-  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='🌐 Publish to my website'; } toast(e.status===402?'Subscribe to use AI features.':(e.message||'Could not publish.'),'bad',5000); }
+  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Publish to my website'; } toast(e.status===402?'Subscribe to use AI features.':(e.message||'Could not publish.'),'bad',5000); }
 }
 function viewCatalog(){
   const sk=CATALOG.skus||[], pv=CATALOG.preview;
@@ -5090,15 +5091,15 @@ function viewCatalog(){
     </div>
 
     <div class="nb-sec"><h3>Your price book · ${sk.length}</h3>
-      ${sk.length?`<div class="hint" style="margin:-4px 0 10px">Tap the 📷 on any item to add a photo of that color or material.</div><input class="input" placeholder="Search…" oninput="skuSearch(this.value)" style="margin-bottom:10px"/>`:''}
+      ${sk.length?`<div class="hint" style="margin:-4px 0 10px">Tap the ${icon('camera',14)} on any item to add a photo of that color or material.</div><input class="input" placeholder="Search…" oninput="skuSearch(this.value)" style="margin-bottom:10px"/>`:''}
       <div id="skuList">${skuListHTML()}</div>
       <input id="skuRowCam" type="file" accept="image/*" capture="environment" style="display:none" onchange="skuRowPhotoPick(this)"/>
       <input id="skuRowLib" type="file" accept="image/*" style="display:none" onchange="skuRowPhotoPick(this)"/>
       <div id="skuPhotoSheet" class="sheet-wrap" style="display:none" onclick="closeSkuPhotoSheet()">
         <div class="sheet" onclick="event.stopPropagation()">
           <div class="sheet-h">Add a photo</div>
-          <button class="sheet-i" onclick="skuPhotoSource('cam')">📷 Take a photo</button>
-          <button class="sheet-i" onclick="skuPhotoSource('lib')">🖼️ Choose from library</button>
+          <button class="sheet-i" onclick="skuPhotoSource('cam')">${icon('camera',16)} Take a photo</button>
+          <button class="sheet-i" onclick="skuPhotoSource('lib')">${icon('image',16)} Choose from library</button>
           <button class="sheet-i" onclick="closeSkuPhotoSheet()">Cancel</button>
         </div>
       </div>
@@ -5137,7 +5138,7 @@ function renderPicker(){
   const q=(((document.getElementById('pickQ')||{}).value)||'').trim().toLowerCase();
   let l=(CATALOG.skus||[]); if(q) l=l.filter(s=>(s.name+' '+s.category).toLowerCase().includes(q));
   const act=(id)=>state.pickMode==='viz'?`vizPickMaterial('${id}')`:`insertSku('${id}')`;
-  el.innerHTML = l.length ? l.slice(0,250).map(s=>`<button class="pickitem" onclick="${act(s.id)}">${s.image?`<img class="pickthumb" src="${s.image}" alt="" loading="lazy"/>`:`<span class="pickthumb none">📷</span>`}<span class="pn">${esc(s.name)}</span><span class="pp">${money(s.unit_price)}/${esc(s.unit)}</span></button>`).join('')
+  el.innerHTML = l.length ? l.slice(0,250).map(s=>`<button class="pickitem" onclick="${act(s.id)}">${s.image?`<img class="pickthumb" src="${s.image}" alt="" loading="lazy"/>`:`<span class="pickthumb none">${icon('camera',18)}</span>`}<span class="pn">${esc(s.name)}</span><span class="pp">${money(s.unit_price)}/${esc(s.unit)}</span></button>`).join('')
     : '<div class="hint" style="padding:12px 10px">No SKUs yet — add some in More → Price book.</div>';
 }
 function insertSku(id){ const s=(CATALOG.skus||[]).find(x=>x.id===id); const j=currentJob(); if(!s||!j) return;
@@ -5261,41 +5262,41 @@ function viewSettings(){
     <input class="input" value="${escAttr(SETTINGS.license)}" oninput="setS('license',this.value)" style="max-width:240px"/>
     <label class="fld">WhatsApp number <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(optional — blank uses your phone)</span></label>
     <input class="input" value="${escAttr(SETTINGS.whatsapp||'')}" oninput="setS('whatsapp',this.value)" placeholder="${escAttr(SETTINGS.phone||'+1 206 555 0100')}" style="max-width:280px"/>
-    <div class="hint" style="margin-top:6px">Shown on your client proposals as a “💬 WhatsApp me” button. Include your country code (e.g. +1).</div>
+    <div class="hint" style="margin-top:6px">Shown on your client proposals as a “${icon('message',13)} WhatsApp me” button. Include your country code (e.g. +1).</div>
     <div class="nb-sec" style="margin-top:16px">
       <h3>Terms &amp; protections</h3>
       <div class="hint" style="margin-bottom:8px">Shown on every bid &amp; PDF — warranty, change orders, allowances, payment terms, permits. One per line. Edit to match your business. (Placeholder language — have it reviewed before you rely on it.)</div>
       <textarea class="input" rows="9" style="min-height:170px;line-height:1.4;font-size:.9rem" oninput="setS('terms',this.value)" placeholder="One term per line…">${esc(SETTINGS.terms!==undefined?SETTINGS.terms:'')}</textarea>
     </div>
     <div class="nb-sec" style="margin-top:16px">
-      <h3>Your website 🌐</h3>
+      <h3>Your website ${icon('globe',16)}</h3>
       <div class="hint" style="margin-bottom:8px">A free customer-facing website with your brand, your services, and a “request a free estimate” form that comes straight to you as a lead. Set it up here, then tap “View your website”.</div>
-      ${AI_BUILD?`<button class="btn full" style="margin-bottom:10px" onclick="writeSiteAI(this)">✨ Write my website with AI</button>
+      ${AI_BUILD?`<button class="btn full" style="margin-bottom:10px" onclick="writeSiteAI(this)">${icon('wand',16)} Write my website with AI</button>
         <div class="hint" style="margin:-4px 0 10px">Uses what's in your profile — your company &amp; services — to write your headline and About page. You never touch a word.</div>`:''}
       <label class="fld">Headline</label>
       <input id="siteTagline" class="input" value="${escAttr(SETTINGS.site_tagline||'')}" oninput="setS('site_tagline',this.value)" placeholder="Quality work you can trust — done right, on time."/>
       <label class="fld" style="margin-top:8px">About your business</label>
-      <textarea id="siteAbout" class="input" style="min-height:84px" oninput="setS('site_about',this.value)" placeholder="A couple sentences about your work — or tap ✨ above and let AI write it.">${esc(SETTINGS.site_about||'')}</textarea>
+      <textarea id="siteAbout" class="input" style="min-height:84px" oninput="setS('site_about',this.value)" placeholder="A couple sentences about your work — or tap the AI button above and let AI write it.">${esc(SETTINGS.site_about||'')}</textarea>
       <label class="fld" style="margin-top:8px">Brand color</label>
       <div style="display:flex;align-items:center;gap:8px"><input class="input" type="color" value="${escAttr(/^#[0-9a-fA-F]{6}$/.test(SETTINGS.site_color||'')?SETTINGS.site_color:'#CF7F18')}" oninput="setS('site_color',this.value)" style="max-width:64px;padding:4px;height:44px"/><span class="hint">Used across your site.</span></div>
       <label class="fld" style="margin-top:10px">Services you offer <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(tap to add)</span></label>
       <div class="svcpick">${TRADE_PICK.map(t=>{const on=(SETTINGS.services||[]).includes(t.key);return `<button class="svcchip ${on?'on':''}" onclick="toggleService('${t.key}')">${t.emoji} ${esc(t.label)}</button>`;}).join('')}</div>
-      <button class="btn full" style="margin-top:12px" onclick="openMySite()">🌐 View your website</button>
+      <button class="btn full" style="margin-top:12px" onclick="openMySite()">${icon('globe',16)} View your website</button>
       ${SETTINGS.site_published
-        ? `<div class="freecallout" style="margin-top:12px">🌐 <b>Your website is live.</b><div style="margin-top:4px;font-size:.9rem">${esc(SETTINGS.site_branded_url||'')} <span style="color:var(--muted)">(coming soon)</span></div></div>`
-        : `<button class="btn blue full" style="margin-top:8px" onclick="publishWebsite(this)">🌐 Publish Website</button>
+        ? `<div class="freecallout" style="margin-top:12px">${icon('globe',15)} <b>Your website is live.</b><div style="margin-top:4px;font-size:.9rem">${esc(SETTINGS.site_branded_url||'')} <span style="color:var(--muted)">(coming soon)</span></div></div>`
+        : `<button class="btn blue full" style="margin-top:8px" onclick="publishWebsite(this)">${icon('globe',16)} Publish Website</button>
            <div class="hint" style="margin-top:4px">Make it live and get your address. Free, hosted for you — no setup.</div>`}
-      <button class="btn ghost full" style="margin-top:8px" onclick="toast('Custom domains are coming soon — you’ll be able to connect yourcompany.com. Want it now? Tap “Request a custom website”.','ok',5000)">🔗 Connect a custom domain <span style="color:var(--muted);font-weight:400">(coming soon)</span></button>
+      <button class="btn ghost full" style="margin-top:8px" onclick="toast('Custom domains are coming soon — you’ll be able to connect yourcompany.com. Want it now? Tap “Request a custom website”.','ok',5000)">${icon('link',15)} Connect a custom domain <span style="color:var(--muted);font-weight:400">(coming soon)</span></button>
       ${SETTINGS.site_requested
         ? `<div class="freecallout" style="margin-top:12px">✓ Custom website requested — we'll reach out to build it with you.</div>`
-        : `<button class="btn ghost full" style="margin-top:8px" onclick="requestCustomSite(this)">✨ Want a custom-built website? Request one</button>
+        : `<button class="btn ghost full" style="margin-top:8px" onclick="requestCustomSite(this)">${icon('wand',15)} Want a custom-built website? Request one</button>
            <div class="hint" style="margin-top:4px">Like your free site, but built for you — your photos, your pages, your domain. Tap and we'll reach out.</div>`}
     </div>
     <div class="nb-sec" style="margin-top:16px">
-      <h3>AI Funnels 🎯</h3>
+      <h3>AI Funnels ${icon('target',16)}</h3>
       <div class="hint" style="margin-bottom:8px">High-converting offer pages, built by AI. Pick a service &amp; an offer — get a link to run ads or text to leads. Every submit drafts an AI follow-up in your Approval Inbox.</div>
       <div id="funnelList">${funnelsBlock()}</div>
-      <button class="btn full" style="margin-top:8px" onclick="createFunnel(this)">✨ Create an offer page</button>
+      <button class="btn full" style="margin-top:8px" onclick="createFunnel(this)">${icon('wand',16)} Create an offer page</button>
     </div>
     <div class="nb-sec" style="margin-top:16px">
       <h3>Languages</h3>
@@ -5430,14 +5431,14 @@ function permitsHTML(j){
         <button class="x-btn" onclick="delPermit('${p.id}')" title="Remove">✕</button>
       </div>
     </div>`).join('');
-  return `<div class="permit-h"><b>🧾 Permits</b><span class="hint" style="margin:0">Track what this job needs — and don't forget the fee.</span></div>
+  return `<div class="permit-h"><b>${icon('receipt',15)} Permits</b><span class="hint" style="margin:0">Track what this job needs — and don't forget the fee.</span></div>
     ${rows}
     <button class="btn ghost full" style="margin-top:8px" onclick="addPermit()">+ Add a permit</button>`;
 }
 
 /* ---- Job documents: permit PDFs, approvals, plans, contracts (private, signed URLs) ---- */
 function fmtSize(n){ n=+n||0; return n<1024?n+' B':n<1048576?Math.round(n/1024)+' KB':(n/1048576).toFixed(1)+' MB'; }
-function docIcon(mime,name){ const m=((mime||'')+' '+(name||'')).toLowerCase(); if(/pdf/.test(m))return '📕'; if(/image|png|jpe?g|heic|webp/.test(m))return '🖼️'; if(/word|\.docx?\b/.test(m))return '📝'; if(/sheet|\.xlsx?\b|csv/.test(m))return '📊'; return '📄'; }
+function docIcon(mime,name){ const m=((mime||'')+' '+(name||'')).toLowerCase(); if(/image|png|jpe?g|heic|webp/.test(m))return icon('image',18); if(/sheet|\.xlsx?\b|csv/.test(m))return icon('chart',18); if(/word|\.docx?\b/.test(m))return icon('edit',18); return icon('doc',18); }
 function documentsHTML(j){
   const docs=j.documents||[];
   const rows=docs.length ? docs.map(d=>{
@@ -5450,7 +5451,7 @@ function documentsHTML(j){
       <button class="x-btn" onclick="deleteJobDoc('${j.id}','${d.id}')" title="Remove">✕</button>
     </div>`;}).join('')
     : `<div class="hint" style="padding:8px 2px">No documents yet — add permits, approvals, plans or contracts so everything for this job lives in one place.</div>`;
-  return `<div class="permit-h"><b>📄 Documents</b><span class="hint" style="margin:0">Permits, approvals, plans &amp; contracts — kept with the job, private to you.</span></div>
+  return `<div class="permit-h"><b>${icon('doc',15)} Documents</b><span class="hint" style="margin:0">Permits, approvals, plans &amp; contracts — kept with the job, private to you.</span></div>
     ${rows}
     <input id="jobDocInput" type="file" accept=".pdf,.png,.jpg,.jpeg,.heic,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt,image/*,application/pdf" multiple style="display:none" onchange="uploadJobDoc(this)"/>
     <button class="btn ghost full" style="margin-top:8px" onclick="document.getElementById('jobDocInput').click()">+ Upload document</button>`;
@@ -5543,6 +5544,32 @@ const ICONS={
   upload:'<path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M5 18v1.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V18"/>',
   download:'<path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/>',
   wand:'<path d="M5 21l11-11"/><path d="M14.5 5.5l4 4"/><path d="M18 3l.7 1.8L20.5 5.5l-1.8.7L18 8l-.7-1.8L15.5 5.5l1.8-.7z"/><path d="M5 13l.5 1.3L6.8 15l-1.3.5L5 17l-.5-1.5L3.2 15l1.3-.7z"/>',
+  message:'<path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 21l2.1-5.4A8.5 8.5 0 1 1 21 11.5z"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  rocket:'<path d="M5 13c-1.5 1.5-2 5-2 5s3.5-.5 5-2"/><path d="M19 3c-4 0-7 2-10 5l-2 2 5 5 2-2c3-3 5-6 5-10z"/><circle cx="14.5" cy="8.5" r="1.5"/>',
+  flame:'<path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-2 1-3.5 1-3.5S9 11 10 11c1.5 0-1-5 2-8z"/>',
+  sprout:'<path d="M12 21v-7"/><path d="M12 14c0-3-2-5-6-5 0 3 2 5 6 5z"/><path d="M12 12c0-3 2-6 6-6 0 3-2 6-6 6z"/>',
+  map:'<path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z"/><path d="M9 4v13M15 6.5v13"/>',
+  compass:'<circle cx="12" cy="12" r="9"/><path d="M16 8l-2 6-6 2 2-6 6-2z"/>',
+  eye:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  handshake:'<path d="M11 6 8.5 4a2 2 0 0 0-2.7.2L2 8l3.5 4L8 10"/><path d="m13 6 2.5-2a2 2 0 0 1 2.7.2L22 8l-3.5 4L16 10"/><path d="M8 10l3 3 2-2 3 3"/>',
+  ruler:'<path d="M3 16.5 16.5 3 21 7.5 7.5 21z"/><path d="M7.5 7.5l2 2M11 4l2 2M14.5 7.5l2 2"/>',
+  speaker:'<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
+  mute:'<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>',
+  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/>',
+  card:'<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 9.5h19M6 15h4"/>',
+  book:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/>',
+  folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  bulb:'<path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.3 1 2.5h6c0-1.2.2-1.7 1-2.5A6 6 0 0 0 12 3z"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+  clipboard:'<rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  hardhat:'<path d="M3 18a9 9 0 0 1 18 0z"/><path d="M9 18V9a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v9"/><path d="M2 18h20"/>',
+  refresh:'<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 4v4h-4"/>',
+  receipt:'<path d="M5 3v18l2-1.2 2 1.2 2-1.2 2 1.2 2-1.2 2 1.2V3l-2 1.2L14 3l-2 1.2L10 3 8 4.2 6 3z"/><path d="M8 8h8M8 12h8"/>',
+  party:'<path d="M3 21l4.5-12 7.5 7.5L3 21z"/><path d="M9.5 13.5 7 11"/><path d="M14 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/><path d="M20 9l.6 1.4L22 11l-1.4.6L20 13l-.6-1.4L18 11l1.4-.6z"/>',
+  plug:'<path d="M9 2v6M15 2v6"/><path d="M7 8h10v3a5 5 0 0 1-10 0z"/><path d="M12 16v6"/>',
 };
 function icon(name, size){ const s=size||18; return `<svg class="ico" viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||''}</svg>`; }
 
