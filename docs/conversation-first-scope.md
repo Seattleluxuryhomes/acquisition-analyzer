@@ -10,6 +10,20 @@
 > single overlay, with far fewer taps than the form — and never leaves their screen.
 > **Status:** scope only. No code until approved.
 
+## Design principles (the "AI coworker, not a popup menu" mandate)
+- **Conversation is the primary interface.** The first thing in the overlay is a
+  natural conversation (greeting + thread) with **Speak / Type** front and center —
+  not a grid of feature buttons.
+- **Feature buttons are demoted.** Photos/Attach/quick-actions become a small,
+  secondary affordance (an overflow/“more”), not the main event. Over time, every
+  function becomes reachable *by talking*, so buttons fade as the command vocabulary grows.
+- **The brain is a living status indicator.** It animates and changes color by state:
+  **idle, listening, thinking, speaking, working, learning, completed, error.** The
+  brain *is* the status — the user reads what Bid Brain is doing from the brain itself.
+- **North star for every decision:** move toward contractors talking to Bid Brain
+  more than tapping menus. If a choice adds a tap or a menu instead of a sentence,
+  reconsider it.
+
 ## Core principle: in place, never navigate
 - Tapping 🧠 Bid Brain **expands a floating panel over the current screen** (the
   screen stays visible behind a light dim). It does **not** route to a page.
