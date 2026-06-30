@@ -66,6 +66,56 @@ export function greetingCounts(userId) {
   return { activeEstimates: active, awaitingSignature: awaiting, followupsDue: followups };
 }
 
+// ---- business snapshot: the context Bid Brain "remembers" about this contractor ----
+// Everything here is scoped to one user_id (ownership rule) and is the contractor's
+// OWN data, so it's safe to feed their private assistant — margin included (the chat
+// is contractor-only and never reaches a client). Compact on purpose: it rides in the
+// AI prompt every turn, so it stays a tight, recent slice of the business.
+function jobTotal(linesJson) {
+  let lines; try { lines = JSON.parse(linesJson || "[]"); } catch { return 0; }
+  if (!Array.isArray(lines)) return 0;
+  return Math.round(lines.reduce((sum, l) => {
+    const t = l && l.type;
+    if (t === "hourly") return sum + (Number(l.hours) || 0) * (Number(l.rate) || 0);
+    if (t === "unit") return sum + (Number(l.qty) || 0) * (Number(l.rate) || 0);
+    return sum + (Number(l.price) || 0);
+  }, 0));
+}
+export function businessSnapshot(userId, user) {
+  const now = Date.now(), day = 86400000;
+  const rows = db.prepare(
+    "SELECT id, customer, address, title, status, lines, margin, scheduled_date, scheduled_time, " +
+    "summary, sent_at, updated_at, created_at FROM job WHERE user_id=? ORDER BY COALESCE(updated_at, created_at) DESC LIMIT 14"
+  ).all(userId);
+  const jobs = rows.map((j) => {
+    const hasBid = j.lines && j.lines !== "[]" && j.lines !== "";
+    const ageDays = Math.floor((now - (j.sent_at || j.updated_at || j.created_at || now)) / day);
+    return {
+      id: j.id,
+      customer: (j.customer || "").slice(0, 80),
+      title: (j.title || "").slice(0, 100),
+      address: (j.address || "").slice(0, 120),
+      status: j.status || "draft",
+      total: hasBid ? jobTotal(j.lines) : 0,
+      scheduled: j.scheduled_date ? (j.scheduled_date + (j.scheduled_time ? " " + j.scheduled_time : "")) : "",
+      ageDays,
+      summary: (j.summary || "").slice(0, 160),
+    };
+  });
+  // distinct recent customers (most-recent first)
+  const seen = new Set(), customers = [];
+  for (const j of jobs) { const c = j.customer.trim(); if (c && !seen.has(c.toLowerCase())) { seen.add(c.toLowerCase()); customers.push(c); } }
+  const b = brain(userId, user);
+  return {
+    company: (user && (user.company || user.name)) || "",
+    counts: b.greeting,
+    typical_markup: b.memory.typical_markup,
+    last_trade: b.memory.last_trade,
+    recent_customers: customers.slice(0, 10),
+    jobs,
+  };
+}
+
 // ---- the full Bid Brain snapshot for /api/brain ----
 export function brain(userId, user) {
   const mem = getMemory(userId);

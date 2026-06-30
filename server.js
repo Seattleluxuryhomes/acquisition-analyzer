@@ -12,7 +12,7 @@ import db, { PHOTO_DIR } from "./src/db.js";
 import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
-import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, generateReviewRequest, generateLeadFollowup, generateFunnelHeadline, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured } from "./src/assist.js";
+import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, generateReviewRequest, generateLeadFollowup, generateFunnelHeadline, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured, bidBrainChat, localBrainReply } from "./src/assist.js";
 import * as SiteProjects from "./src/siteProjects.js";
 import { growthScore } from "./src/growth.js";
 import * as Inbox from "./src/inbox.js";
@@ -788,6 +788,26 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
 // Bid Brain: the AI entry point's live snapshot — greeting counts (real data only)
 // + this contractor's learned memory. Per-account; never mixes contractors.
 app.get("/api/brain", requireAuth, (req, res) => res.json(Memory.brain(req.user.id, req.user)));
+// Bid Brain Chat: the always-on conversational AI operations manager. Grounded in
+// THIS contractor's live business snapshot (scoped to their user_id) so it remembers
+// their jobs, customers and statuses across the day. AI is gated on entitlement, but
+// every authed contractor still gets a useful grounded reply (local fallback) so the
+// companion is never silent (rule #4). Returns {reply, action?, jobId?}.
+app.post("/api/brain/chat", requireAuth, wrap(async (req, res) => {
+  const messages = (req.body && req.body.messages) || [];
+  const snapshot = Memory.businessSnapshot(req.user.id, req.user);
+  if (!aiConfigured() || !Billing.isEntitled(req.user)) {
+    return res.json({ ...localBrainReply(snapshot, messages), source: "local" });
+  }
+  try {
+    const out = await bidBrainChat(req.user, { messages, snapshot });
+    track(req.user.id, "brain_chat", { action: out.action || "" });
+    res.json({ ...out, source: "ai" });
+  } catch (e) {
+    if (e && (e.code === "AI_CAPPED" || e.status === 429)) throw e;     // surface the cap message
+    res.json({ ...localBrainReply(snapshot, messages), source: "local" });
+  }
+}));
 // Voice-first intake: extract structured job fields from the spoken transcript as
 // the contractor talks (auto-fills the New Job screen).
 app.post("/api/assist/intake", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
