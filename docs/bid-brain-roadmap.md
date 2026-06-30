@@ -43,6 +43,27 @@ in-app experience; from here we deepen and then sync out, one milestone at a tim
   > "You have a 2-hour opening tomorrow afternoon — want me to slot the Smith estimate there?"
   > "This appointment is 40 min from your next job — want me to reorder the day to cut drive time?"
 
+### 🌅 M3 — Daily Briefings & Interruptions (real initiative)  ← after this branch is polished
+The reframe (founder's call): these are **not "notifications."** They're an employee
+keeping you informed — Bid Brain quietly running the business in the background and
+speaking up only when it's *meaningful, timely, and true*. Every one fires from a
+**real event**, never fabricated intelligence.
+
+The cadence:
+- **🌅 Morning Briefing** — "Here's what happened overnight." (the briefing we just
+  built, delivered proactively instead of only on open)
+- **☀️ Midday Check-in** — "You have a gap at 2:30. Want me to fill it?"
+- **🎉 Celebrations** — "Proposal signed!" · "Jenny just paid a deposit."
+- **⚠️ Needs Attention** — "Smith hasn't responded in 7 days." · "A payment is overdue."
+- **🌙 End-of-Day Recap** — "Today you sent 3 estimates, collected $1,500, and have
+  2 follow-ups ready."
+
+Real triggers only (the guardrail): deposit paid · proposal signed · proposal
+unopened N days · customer replied · schedule gap tomorrow · payment overdue.
+Build order: in-app interruption cards first (no new infra), then push notifications
+once each is wired to a genuine event. **No fabricated intelligence — only meaningful,
+timely, real information.**
+
 ### Beyond (the operations-manager trajectory)
 As memory accrues, Bid Brain graduates from recall → action → anticipation:
 remember every customer & estimate · learn pricing habits & markup strategy · learn
