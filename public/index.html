@@ -3618,6 +3618,16 @@ const TRADE_PICK = [
   { key:'tile', emoji:'🔲', label:'Tile', bring:'area per surface (floor/wall/shower), tile size & pattern, and wet areas' },
   { key:'staging', emoji:'🛋️', label:'Home Staging', bring:'vacant or occupied, number of rooms, price tier, and the staging period in months' },
   { key:'interior-design', emoji:'🪑', label:'Interior Design', bring:'rooms in scope, your pricing model (hourly/flat/%/cost-plus), and the furnishings budget' },
+  // Commercial / specialty / professional services
+  { key:'fire-alarm', emoji:'🚨', label:'Fire Alarm', bring:'device counts (pulls, smokes, horns/strobes), panel type, and new vs. tie-in to existing' },
+  { key:'low-voltage', emoji:'🔌', label:'Low Voltage / Structured Cabling', bring:'systems (data, AV, intercom, paging), drop/jack counts, cable type, and rack/headend needs' },
+  { key:'access-control', emoji:'🔐', label:'Access Control', bring:'door count, reader & lock type per door, new vs. existing panels, and credential type' },
+  { key:'security-cameras', emoji:'📹', label:'Security Cameras', bring:'camera count by type, NVR/storage & retention, indoor/outdoor, and cabling runs' },
+  { key:'mechanical', emoji:'⚙️', label:'Mechanical', bring:'system scope (HVAC, piping, process), tonnage or load, and ductwork/piping linear feet' },
+  { key:'elevator', emoji:'🛗', label:'Elevator / Lift', bring:'number of stops & floors, hoistway dimensions, capacity, and new install vs. modernization' },
+  { key:'engineering', emoji:'📐', label:'Engineering', bring:'discipline (structural, civil, MEP), plans or sketches, and the deliverable (stamped drawings, calcs)' },
+  { key:'geotech', emoji:'⛰️', label:'Geotechnical', bring:'site location & size, number/depth of borings, and whether a report with recommendations is needed' },
+  { key:'survey', emoji:'🧭', label:'Land Survey', bring:'parcel size & location, survey type (boundary, topo, ALTA), and the deliverable format' },
 ];
 function tradeBringHint(){
   const t=TRADE_PICK.find(x=>x.key===CAP_DRAFT.trade); if(!t||!t.bring) return '';
