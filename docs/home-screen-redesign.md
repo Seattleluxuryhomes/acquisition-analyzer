@@ -297,3 +297,116 @@ never lie, and get smarter every month from their own data. The decision to conf
 triage-first MVP (§18) over the Timeline spine's `attentionFeed` + `project_state`, with the calm,
 restraint-first, anti-dashboard design as a hard requirement — measured by the five 6:30 AM
 feelings, not by engagement.*
+
+---
+
+# PART III — Post-dashboard: the Home is a *briefing* (the governing frame)
+
+## 19. Why dashboards exist — and why AI makes them obsolete
+
+A dashboard is a wall of gauges because the software **couldn't think** — so it offloaded
+*interpretation* onto the human and made them the analyst. That was the right design when software
+couldn't reason. It can now. So the model inverts: **the AI does the interpreting** (the analyst /
+chief-of-staff job) and hands the contractor a **briefing** — conclusions and decisions, not
+gauges. A dashboard inside an AI product is a horse-drawn carriage with an engine bolted on. We
+delete the dashboard not to simplify the UI, but because its entire reason for existing is gone.
+
+## 20. One correction to the metaphor (co-founder note)
+
+"Mission Control" is right in **function** — someone owns the complexity so you don't — but wrong
+in **aesthetic**: NASA's Mission Control is a *wall of monitors*, which is exactly the dense
+dashboard we're killing. The truer models for the *feeling* are the **F1 race engineer's radio**
+and the **chief of staff's morning note**: a single calm voice that absorbed the firehose and
+hands the principal only what they need. We borrow Mission Control's **intent, not its look.**
+
+## 21. What the best briefings share (the research, distilled)
+
+- **Executive / chief of staff / elite EA** — pre-digest the firehose into a one-pager; surface
+  *decisions*, not data: "here are the 3 calls only you can make today."
+- **Military commander's brief** — **BLUF: Bottom Line Up Front.** Conclusion first; situation →
+  what it means → recommendation → decision needed. *Commander's intent* so the team acts without
+  asking.
+- **Aviation crew brief** — **exception-based**: only deviations are briefed; normal is assumed
+  handled. Threats-&-errors: what could go wrong today and the plan.
+- **Hospital handoff (SBAR / I-PASS)** — Situation, Background, Assessment, **Recommendation**; an
+  explicit **action list**; and **anticipatory guidance** ("if X, do Y"). Severity-tagged. The
+  receiver instantly knows what needs them.
+- **F1 race engineer** — the driver can't process telemetry at 200 mph; the engineer filters it to
+  **one calm, perfectly-timed instruction.** Minimal words, only what's needed *now*, calm even in
+  crisis.
+
+The five traits (founder's): **short, relevant, actionable, calm, trustworthy.** The mechanics that
+produce them: **BLUF · decision-centric · exception-based · anticipatory · layered.**
+
+## 22. The briefing grammar (this is the structure of the Home)
+
+The Home is the AI office manager's morning handoff, in this order — *not* widgets:
+
+1. **BLUF** — one sentence: state of the business + does anything need you. *"Morning, Mike. The
+   business is on track — one thing needs you."* The headline is how *few* things need them.
+2. **What only you can decide** — the 1–3 decisions, each stated bottom-line-first with a
+   **recommendation** + a one-tap action. *Decisions, not data.* (Real `attention` events, ranked
+   by materiality; each satisfies the card contract, §13.)
+3. **Handled / in motion** — exception-based, brief, **honest**: only what truly happened or is
+   progressing. Reassurance, not a feed. *"Two proposals are out and being read; the Johnson
+   deposit cleared."*
+4. **What I'm watching (anticipatory)** — the SBAR/F1 move that removes worry by pre-committing the
+   plan: *"If the Smiths don't sign by Friday, I'll nudge them — nothing for you to do."*
+5. **Done.** The brief ends; the contractor leaves for the job. A great brief gets you *out the
+   door*, not staring at a screen.
+
+Delivered by the **orb, spoken** (the voice loop) — like a person briefing you, not text read off
+gauges.
+
+## 23. Two properties a briefing has that a dashboard never does
+
+- **It's a moment, not a place.** A handoff is an *event* you receive and walk away from — fresh
+  each open, **time-aware** (a morning brief, a midday check-in, an end-of-day recap are *different*
+  briefings), and content to say *"nothing new since 9 a.m."* A dashboard is ambient and persistent;
+  a briefing is temporal and ephemeral. The Home should feel like a moment, not a monitor.
+- **It's layered (BLUF + drill-down).** Skimmable in 5 seconds; the supporting detail is one tap
+  away, never on screen. The commander reads the bottom line and drills only if needed.
+
+## 24. Every system feeds the one briefing (the synthesis, not the sum)
+
+The briefing is the **single filter** over everything we've built. Each system contributes events;
+the briefing alone decides what — if anything — rises to the contractor. **None of these gets its
+own widget on the Home.**
+
+| System | Contributes | Surfaces only if… |
+|---|---|---|
+| Receptionist | calls/leads handled, bookings | a lead needs a human decision |
+| PM / Health | at-risk jobs (cited) | a job is red/yellow and needs them |
+| Scheduling | today's plan, gaps, conflicts | a conflict or an empty day needs a call |
+| Payments / Draws | money in, draw-ready, overdue | a draw is ready or a payment is overdue |
+| Change / Stop-Work | pending approvals | something awaits the contractor's sign-off |
+| Reviews / Referrals | earned opportunities | a delighted customer is worth asking now |
+| Website / Marketing | leads captured | a new lead needs follow-up |
+| Trust System | what needs verification | an assumption is blocking a send |
+| Company Brain | how *this* owner prioritizes | — (it shapes the *ranking*, not a card) |
+
+The Home is the **synthesis** of all of it into one calm experience — the office manager who read
+everything so the contractor reads one line.
+
+## 25. Honest scope (same discipline, applied to the briefing)
+
+The **grammar** ships now; the **content** is bounded by real data + real automation. Early: BLUF +
+"what needs you" (real `attention` events) + an honest "on track" + a modest "watching." The "I
+handled N things" line and rich anticipation grow as the receptionist/automation actually *do*
+things — each claim citing the real action. We ship the briefing *structure* truthfully and let it
+fill in; we never fake the "handled" line to make the brief look busier. A briefing that honestly
+says "one thing needs you, the rest is quiet" is the product working — not an empty state.
+
+## 26. The test (sharpened)
+
+6:30 a.m., before the first job: **calm, prepared, organized, confident, supported — then gone,**
+out the door, informed and lighter. If they linger and study it, it's still a dashboard. If they
+*receive* it and leave, it's a briefing. That — not engagement, not time-in-app — is the win.
+
+---
+
+*No code. Parts I–II are the anatomy; Part III is the philosophy that orders them: the Home is not a
+dashboard, it is a briefing from your AI employee — BLUF, decision-centric, exception-based,
+anticipatory, calm, and honest — synthesizing every system into the single answer to "what only
+needs my attention right now?" Build the triage/briefing MVP over the Timeline spine; measure it by
+the 6:30 a.m. feelings, not by clicks.*
