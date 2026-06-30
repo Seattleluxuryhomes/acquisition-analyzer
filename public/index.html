@@ -906,7 +906,20 @@
   .bb-typing i{width:6px;height:6px;border-radius:50%;background:#9fb6e6;opacity:.5;animation:bbtype 1.1s ease-in-out infinite}
   .bb-typing i:nth-child(2){animation-delay:.18s}.bb-typing i:nth-child(3){animation-delay:.36s}
   @keyframes bbtype{0%,100%{opacity:.35;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
-  .bb-input{flex:0 0 auto;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid rgba(140,180,255,.2);border-radius:16px;padding:6px 6px 6px 8px}
+  .bb-input{flex:0 0 auto;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid rgba(140,180,255,.2);border-radius:16px;padding:6px 6px 6px 8px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.04);transition:border-color .3s ease, box-shadow .3s ease}
+  .bb-input:focus-within{border-color:rgba(140,180,255,.42);box-shadow:0 0 0 1px rgba(140,180,255,.2), 0 0 20px rgba(120,160,255,.14), inset 0 1px 0 rgba(255,255,255,.06)}
+  .bb-input.recording{border-color:rgba(54,214,122,.5);box-shadow:0 0 0 1px rgba(54,214,122,.28), 0 0 20px rgba(54,214,122,.18)}
+  /* recording UI: live waveform + timer (replaces the field while capturing) */
+  .bb-rec{display:none;flex:1 1 auto;min-width:0;align-items:center;gap:10px;padding:0 4px}
+  .bb-input.recording .bb-in-field{display:none}
+  .bb-input.recording .bb-rec{display:flex}
+  .bb-wave{display:flex;align-items:center;gap:3px;height:26px}
+  .bb-wave i{width:3px;height:30%;border-radius:2px;background:#46e08a;box-shadow:0 0 6px rgba(54,214,122,.5);animation:bbwave 1s ease-in-out infinite}
+  .bb-wave i:nth-child(1){animation-delay:0s}.bb-wave i:nth-child(2){animation-delay:.12s}.bb-wave i:nth-child(3){animation-delay:.24s}
+  .bb-wave i:nth-child(4){animation-delay:.36s}.bb-wave i:nth-child(5){animation-delay:.18s}.bb-wave i:nth-child(6){animation-delay:.30s}.bb-wave i:nth-child(7){animation-delay:.06s}
+  @keyframes bbwave{0%,100%{height:22%;opacity:.65}50%{height:92%;opacity:1}}
+  .bb-rectime{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:.9rem;font-weight:600;color:#5fe6a0;letter-spacing:.02em}
   .bb-in-mic{flex:0 0 auto;width:38px;height:38px;border-radius:12px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;background:rgba(120,160,255,.12);color:#cfe0ff;transition:background .3s ease}
   .bb-in-mic.rec{background:radial-gradient(120% 120% at 30% 24%,#46e08a,#1faf63);color:#08210f;animation:bbpulse 1s ease-in-out infinite}
   /* ===== The intelligent action key — one control that morphs to say "what's next" ===== */
@@ -939,6 +952,8 @@
   .bb-ak.is-thinking .ak-orb .bb-brain .bb-syn path{stroke:rgb(154,123,255);animation-duration:.9s}
   @keyframes bbthink{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.08) rotate(8deg)}}
   /* success — quick teal glow + ripple, then back to idle */
+  .bb-ak.is-success .ak-orb{opacity:0!important;transform:scale(.5)!important}
+  .bb-ak.is-success .ak-check{opacity:1;transform:scale(1)}
   .bb-ak.is-success{pointer-events:none;color:#062018;
     background:radial-gradient(120% 120% at 32% 24%, #5ce8c0, #1faf8f);box-shadow:0 0 22px rgba(45,212,191,.6)}
   .bb-ak.is-success .ak-orb{opacity:1;transform:scale(1)}
@@ -946,7 +961,8 @@
   .bb-ak.is-success::after{content:"";position:absolute;inset:-2px;border-radius:15px;border:1.6px solid rgba(45,212,191,.75);animation:bbring .75s ease-out}
   @media(prefers-reduced-motion:reduce){.bb-ak,.bb-ak *{animation:none!important;transition:opacity .2s ease!important}}
   .bb-in-field{flex:1 1 auto;min-width:0;background:none;border:none;outline:none;color:#eaf1ff;font-family:inherit;font-size:1rem;padding:0 4px}
-  .bb-in-field::placeholder{color:#8ea2c8}
+  .bb-in-field::placeholder{color:#8ea2c8;transition:opacity .22s ease}
+  .bb-in-field.phfade::placeholder{opacity:0}
   .bb-tools{flex:0 0 auto;display:flex;gap:8px;margin-top:10px}
   .bb-tools button{flex:1 1 0;background:rgba(255,255,255,.05);border:1px solid rgba(140,180,255,.16);color:#cdd9f2;border-radius:12px;padding:9px 10px;font-size:.85rem;font-weight:600;font-family:inherit;cursor:pointer}
   .bb-tools button:active{transform:scale(.97)}
@@ -1310,6 +1326,9 @@ const I18N = {
     bb_ctx_schedule:"What are we scheduling?",
     bb_help_q:"What can I help you with?",
     bb_ask_ph:"Ask Bid Brain anything…",
+    bb_ph_0:"Describe your next job…", bb_ph_1:"Ask about today's schedule…",
+    bb_ph_2:"Need to build an estimate?", bb_ph_3:"What needs my attention today?",
+    bb_ph_4:"Add photos to get started…", bb_ph_5:"Who should I follow up with?",
     bb_attach_files:"Attach Files",
     bb_sg_create:"Create an Estimate", bb_sg_continue:"Continue Last Estimate",
     bb_sg_customer:"Find a Customer", bb_sg_schedule:"Schedule Tomorrow",
@@ -1387,6 +1406,9 @@ const I18N = {
     bb_ctx_schedule:"¿Qué vamos a agendar?",
     bb_help_q:"¿En qué te puedo ayudar?",
     bb_ask_ph:"Pregúntale lo que sea a Bid Brain…",
+    bb_ph_0:"Describe tu próximo trabajo…", bb_ph_1:"Pregunta por la agenda de hoy…",
+    bb_ph_2:"¿Armamos un presupuesto?", bb_ph_3:"¿Qué necesita mi atención hoy?",
+    bb_ph_4:"Agrega fotos para empezar…", bb_ph_5:"¿A quién le doy seguimiento?",
     bb_attach_files:"Adjuntar archivos",
     bb_sg_create:"Crear un presupuesto", bb_sg_continue:"Continuar último presupuesto",
     bb_sg_customer:"Buscar un cliente", bb_sg_schedule:"Agendar mañana",
@@ -2393,13 +2415,15 @@ function bbOpenPanel(){
   p.innerHTML = `
     <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> Bid Brain <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
     <div class="bb-conv" id="bbConv"></div>
-    <div class="bb-input">
+    <div class="bb-input" id="bbInputBar">
       <button class="bb-in-mic" id="bbMicBtn" onclick="bbConvMic()" aria-label="${escAttr(t('bb_talk'))}">${icon('mic',20)}</button>
-      <input id="bbInput" class="bb-in-field" type="text" autocomplete="off" enterkeyhint="send" placeholder="${escAttr(t('bb_ask_ph'))}" oninput="bbAkAuto()" onkeydown="if(event.key==='Enter'){event.preventDefault();bbConvSend();}">
+      <input id="bbInput" class="bb-in-field" type="text" autocomplete="off" enterkeyhint="send" placeholder="${escAttr(bbPlaceholder())}" oninput="bbAkAuto()" onkeydown="if(event.key==='Enter'){event.preventDefault();bbConvSend();}">
+      <div class="bb-rec" aria-hidden="true"><span class="bb-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="bb-rectime" id="bbRecTime">0:00</span></div>
       <button class="bb-ak is-idle" id="bbActKey" onclick="bbActionTap()" aria-label="Bid Brain">
         <span class="ak ak-orb"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg></span>
         <span class="ak ak-send"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19.5V5.5"/><path d="M5.5 12l6.5-6.5 6.5 6.5"/></svg></span>
         <span class="ak ak-stop"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="3" fill="currentColor"/></svg></span>
+        <span class="ak ak-check"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span>
       </button>
     </div>
     <div class="bb-tools">
@@ -2408,7 +2432,7 @@ function bbOpenPanel(){
     </div>
     <div class="bb-suggest">${bbSuggestionsHTML()}</div>`;
   s.style.display='block'; p.style.display='block';
-  bbConvRender();
+  bbConvRender(); bbPhStart();
 }
 function bbConvRender(){
   const c=document.getElementById('bbConv'); if(!c) return;
@@ -2461,7 +2485,7 @@ function bbDoAction(a, jobId){
     case 'order_materials': if(typeof toast==='function') toast(t('bb_materials_soon'),'ok'); break;
   }
 }
-function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.getElementById('bbScrim'); if(p)p.style.display='none'; if(s)s.style.display='none'; if(BBC.recording) bbConvStopRec(true); if(bbState!=='idle') bbSetState('idle'); }
+function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.getElementById('bbScrim'); if(p)p.style.display='none'; if(s)s.style.display='none'; bbPhStop(); if(BBC.recording) bbConvStopRec(true); bbRecStop(); if(bbState!=='idle') bbSetState('idle'); }
 // In-overlay voice: record → transcribe → drop straight into the conversation.
 async function bbConvMic(){
   if(BBC.recording){ bbConvStopRec(); return; }
@@ -2469,11 +2493,11 @@ async function bbConvMic(){
   let stream; try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(_){ if(typeof toast==='function') toast('Microphone access is needed to talk.','warn'); return; }
   const mime=(typeof pickAudioMime==='function'?pickAudioMime():'');
   try{ BBC.rec=new MediaRecorder(stream, mime?{mimeType:mime}:undefined); }catch(_){ try{ BBC.rec=new MediaRecorder(stream); }catch(__){ stream.getTracks().forEach(t=>t.stop()); return; } }
-  BBC.recChunks=[]; BBC.recording=true; BBC.cancelRec=false; bbSetState('listening'); bbAk('recording');
+  BBC.recChunks=[]; BBC.recording=true; BBC.cancelRec=false; bbSetState('listening'); bbAk('recording'); bbRecStart();
   const mic=document.getElementById('bbMicBtn'); if(mic) mic.classList.add('rec');
   BBC.rec.ondataavailable=e=>{ if(e.data&&e.data.size) BBC.recChunks.push(e.data); };
   BBC.rec.onstop=async()=>{
-    stream.getTracks().forEach(t=>t.stop()); const mic2=document.getElementById('bbMicBtn'); if(mic2) mic2.classList.remove('rec');
+    bbRecStop(); stream.getTracks().forEach(t=>t.stop()); const mic2=document.getElementById('bbMicBtn'); if(mic2) mic2.classList.remove('rec');
     if(BBC.cancelRec){ BBC.cancelRec=false; BBC.recording=false; bbSetState('idle'); bbAkAuto(); return; }
     const blob=new Blob(BBC.recChunks,{type:mime||'audio/webm'}); BBC.recording=false;
     if(blob.size<700){ bbSetState('idle'); bbAkAuto(); return; }
@@ -2488,6 +2512,22 @@ async function bbConvMic(){
   try{ BBC.rec.start(); }catch(_){ BBC.recording=false; bbSetState('idle'); }
 }
 function bbConvStopRec(cancel){ try{ if(cancel) BBC.cancelRec=true; if(BBC.rec&&BBC.rec.state!=='inactive') BBC.rec.stop(); }catch(_){ } }
+// Contextual placeholder — the field invites the next useful action instead of acting
+// like a generic chatbot, and gently rotates through prompts while it sits empty.
+const BB_PH=['bb_ph_0','bb_ph_1','bb_ph_2','bb_ph_3','bb_ph_4','bb_ph_5'];
+let bbPhIdx=0, bbPhTimer=null, bbRecTimer=null, bbRecT0=0;
+function bbPlaceholder(){ return t(BB_PH[bbPhIdx%BB_PH.length]); }
+function bbPhStart(){ clearInterval(bbPhTimer); bbPhTimer=setInterval(()=>{
+  const i=document.getElementById('bbInput'); if(!i||i.value||BBC.recording||document.activeElement===i) return;
+  bbPhIdx=(bbPhIdx+1)%BB_PH.length; i.classList.add('phfade');
+  setTimeout(()=>{ i.placeholder=bbPlaceholder(); i.classList.remove('phfade'); }, 220);
+}, 4200); }
+function bbPhStop(){ clearInterval(bbPhTimer); bbPhTimer=null; }
+// Recording timer (left side communicates state: waveform + mm:ss while capturing).
+function bbRecStart(){ const bar=document.getElementById('bbInputBar'); if(bar) bar.classList.add('recording'); bbRecT0=Date.now();
+  const tick=()=>{ const el=document.getElementById('bbRecTime'); if(el){ const s=Math.max(0,Math.floor((Date.now()-bbRecT0)/1000)); el.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); } };
+  tick(); clearInterval(bbRecTimer); bbRecTimer=setInterval(tick, 300); }
+function bbRecStop(){ clearInterval(bbRecTimer); bbRecTimer=null; const bar=document.getElementById('bbInputBar'); if(bar) bar.classList.remove('recording'); }
 // ===== The intelligent action key: one control that morphs to communicate the next step.
 // idle (calm orb) → typing (Send) → recording (Stop) → thinking (living orb) → success (teal). =====
 const BB_AK_STATES=['is-idle','is-typing','is-recording','is-thinking','is-success'];
