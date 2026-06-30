@@ -39,7 +39,7 @@ The throughline: these fields earn trust not by being right every time, but by b
 
 ---
 
-## 2. The seven Trust Principles (the culture, memorable on purpose)
+## 2. The eight Trust Principles (the culture, memorable on purpose)
 
 1. **Every number knows where it came from.** (Provenance is mandatory, not optional.)
 2. **Confidence is earned, never asserted.** (No percentage we haven't grounded or measured.)
@@ -48,6 +48,7 @@ The throughline: these fields earn trust not by being right every time, but by b
 5. **Safe when unsure.** (Uncertainty fails toward a flag, never toward a confident guess.)
 6. **The record is permanent.** (Every suggestion, assumption, and override is logged forever.)
 7. **Quiet is earned.** (As real data accrues, confidence rises and caveats recede — over-warning is its own failure.)
+8. **Never hide uncertainty — reduce it.** (Every assumption ships with the fastest path to remove it. "I don't know" is never the end of the sentence; "here's how we'll know" is.)
 
 ---
 
@@ -201,5 +202,89 @@ why. Trust, made visible, becomes the reason they never go back.
 
 ---
 
-*No code. This document is intended to become a core, standing design principle of BidVoice —
-every future feature is measured against it.*
+---
+
+## 10. Principle 8 in practice — the Assumption Resolution Menu (trust made *generative*)
+
+An assumption is not a disclaimer to display — it is an **open task with a known fix.** Every
+`assumed` or `missing` value ships with a ranked menu of ways to resolve it, each showing the
+method, the effort, and the **confidence lift** it delivers — ordered fastest-acceptable first.
+
+> **Assumed: roof area 2,100 sq ft — needs verification.** Fastest ways to know:
+> - 📐 **Enter the measurement** — 30 sec → 🟢 Verified
+> - 📷 **Add roof photos** (AI estimate) — 1 min → 🟡 Estimated (±15%)
+> - 📄 **Upload the blueprint** — 2 min → 🔵 Calculated (±5%)
+> - 📍 **Import aerial measurement** (EagleView, *future*) — instant → 🟢 Verified (±2%)
+> - 👷 **Measure on site** — next visit → 🟢 Verified
+
+The AI never stops at "I don't know." It says **"here's the fastest way for us to know."** This
+makes the platform *generative*: it continuously converts assumptions into verified facts, each
+conversion recorded to the black box and raising the estimate's defensibility (§12). Design
+notes: the resolution paths are **pack-driven** (each trade knows its valid measurement methods
+and their tolerances); the confidence lift is real (tied to each method's measured accuracy,
+calibrated over time); resolving is one tap and updates the `TrustedValue.source` + the timeline.
+
+## 11. The Trust Indicator Standard (scan an estimate in seconds)
+
+A five-state indicator on every value — **color + icon + word** (never color alone; color must
+never be the only signal — an accessibility *and* a safety rule). This is the "Professional AI
+Standard": a label any contractor (or homeowner, bank, or insurer) reads instantly.
+
+| Indicator | Meaning | Maps to provenance |
+|---|---|---|
+| 🟢 **Verified** | A human confirmed it, or it was measured / from an authoritative source | `measured` · `verified` · `external(authoritative)` |
+| 🔵 **Calculated** | Computed deterministically from inputs that are all green | `computed` (all inputs verified) |
+| 🟡 **Estimated** | An AI/pack estimate within a stated tolerance; inputs known | `pack` · `company` · `computed` (estimated inputs) |
+| 🟠 **Assumed** | A gap filled by a default — needs verification; carries a Resolution Menu | `assumed` |
+| 🔴 **Missing** | Required info absent — blocks the Trust Gate | (no value) |
+
+- **Aggregation:** a line's indicator = the *weakest* of its value and its inputs (defense in
+  depth — one rotten input shows). An estimate's header is a **composition** ("84% verified/
+  calculated · 3 assumed · 1 missing"), **dollar-weighted** so a trivial assumed value doesn't
+  tank a solid bid and a huge assumed quantity dominates — and tapping the header jumps straight
+  to the 🟠/🔴 items. A contractor focuses attention in seconds.
+
+## 12. Auditability — "Could BidVoice explain every number to an insurer, a bank, or a court?"
+
+**Honest answer today: No.** Most estimate numbers are AI placeholders (hard rule #7) with no
+captured derivation, and the line-item model is scalar, not provenance-bearing. We could explain
+our *process*, not *every number*. This architecture is precisely what closes that gap — and it
+should be a launch gate, not a someday.
+
+**The bar, stated honestly.** Auditors, insurers, and courts do not demand we be *right*. They
+demand we be **accountable**: every number **traceable** to a source or a **disclosed
+assumption**, derived by a **shown method**, reviewed and **stamped by a responsible human**, in
+an **immutable record.** That is achievable — and it is exactly the assistant model.
+
+> **Defensibility = traceability + disclosure + human authority + immutability.**
+> (Correctness stays the contractor's professional judgment — which is the whole point of an
+> *assistant*. **Defensible ≠ correct.** We guarantee we can explain *how we got every number and
+> what was assumed* — not that every number is right. That distinction is itself a trust act, and
+> it is exactly what these institutions require: accountability, not infallibility.)
+
+**The mechanism — the Derivation Trace.** Any number expands into a tree of its inputs; the
+leaves must all be `measured` / `stated` / `external(sourced)` / `verified`, or `assumed`
+**that a human acknowledged, with a recorded basis.** A number is **Defensible** iff every leaf
+is verified or an acknowledged assumption; a `computed` number's defensibility is the AND of its
+inputs. An estimate's **Defensibility Score** = the dollar-weighted share of defensible numbers;
+"audit-ready" = 100% (every material number traces, every assumption disclosed and acknowledged).
+
+**Same trace, three packagings (the per-audience export):**
+- **Insurance packet** — scope ↔ damage photos ↔ code/manufacturer basis, line by line (the
+  Xactimate-grade justification adjusters expect).
+- **Bank draw package** — % complete ↔ progress photos + inspections, contract reconciliation,
+  lien waivers. (We already auto-assemble draws; provenance makes them bank-defensible.)
+- **Court / dispute record** — the black box: what was agreed, every change order signed, every
+  assumption disclosed *at the time*, who approved when. Immutable and replayable.
+
+**What "Yes" requires (the honest build list):** the `TrustedValue` model threaded through line
+items; the Resolution system (§10); capturing every AI derivation + assumption to the timeline
+*at creation*; the Defensibility Score + the Trust Gate; and the export packagers. None trivial;
+all must be designed in **now** — provenance retrofitted later is a rewrite.
+
+---
+
+*No code. This document is the **Professional AI Standard** for BidVoice — a standing core design
+principle. Every future feature, and every consequential number, is measured against it. The
+ambition is plain: not the smartest contractor platform — the one an insurer, a bank, and a court
+would all accept, because every number can account for itself.*
