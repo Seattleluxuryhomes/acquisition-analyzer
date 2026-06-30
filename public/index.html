@@ -802,6 +802,15 @@
   /* ripple rings */
   .bb-ring{position:absolute;inset:0;border-radius:50%;border:1.6px solid rgba(var(--bbc),.7);opacity:0;pointer-events:none;z-index:1}
   @keyframes bbring{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(2.25)}}
+  /* SIGNATURE: a crisp orbital halo + one traveling node — the element that makes
+     the mark instantly "Bid Brain" anywhere it appears (per the brand board). */
+  .bb-halo{position:absolute;inset:-4px;border-radius:50%;pointer-events:none;z-index:1;
+    border:1.5px solid rgba(var(--bbc),.62);box-shadow:0 0 10px rgba(var(--bbc),.45), inset 0 0 8px rgba(var(--bbc),.22)}
+  .bb-orbit-dot{position:absolute;top:-4px;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;pointer-events:none;z-index:3;
+    background:#fff;box-shadow:0 0 8px 2px rgba(var(--bbc),.95);transform-origin:3px 35px;animation:bbspin 9s linear infinite}
+  .bb-dock.thinking .bb-orbit-dot{animation-duration:3.4s}
+  .bb-dock.working .bb-orbit-dot{animation-duration:4.5s}
+  .bb-dock.paused .bb-orbit-dot{animation-play-state:paused}
   /* ============ STATES (color = --bbc · motion communicates intent) ============ */
   /* idle — slow breathing, soft blue */
   .bb-dock.idle{--bbc:90,160,255;animation:bbbreathe 4.8s ease-in-out infinite}
@@ -834,7 +843,7 @@
   .bb-dock.learning .bb-brain .bb-spark path:nth-child(3){animation-delay:1s}
   .bb-dock.learning .bb-brain .bb-syn path{opacity:1;stroke-width:1.6}
   /* success — quick white sparkle + happy pop, then back to idle */
-  .bb-dock.success{--bbc:126,240,168;animation:bbpop .55s cubic-bezier(.3,1.6,.5,1)}
+  .bb-dock.success{--bbc:45,212,191;animation:bbpop .55s cubic-bezier(.3,1.6,.5,1)}   /* teal, per brand board */
   .bb-dock.success .bb-brain .bb-spark{opacity:1;fill:#fff;animation:bbtwinkle .55s ease-in-out 2}
   .bb-dock.success .bb-ring{animation:bbring .7s ease-out}
   @keyframes bbpop{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
@@ -904,7 +913,7 @@
     <button class="bn" id="bnMore" onclick="openMore()"><span class="bi"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></span><span class="bl">More</span></button>
   </nav>
   <div id="bbDock" class="bb-dock idle" role="button" tabindex="0" aria-label="Bid Brain — tap to open, hold to talk" style="display:none">
-    <span class="bb-ring"></span><span class="bb-ring r2"></span>
+    <span class="bb-ring"></span><span class="bb-ring r2"></span><span class="bb-halo"></span><span class="bb-orbit-dot"></span>
     <svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">
       <defs>
         <radialGradient id="bbCore" cx="50%" cy="42%" r="62%"><stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#ffffff" stop-opacity=".55"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
@@ -1949,7 +1958,7 @@ function viewBrain(){
     {ic:'📅',l:t('bb_card_followups'),on:'showFollowups()'},
   ];
   const memLine = m.last_trade
-    ? `<div class="bb-mem">🧠 ${esc(t('bb_remembers'))} ${esc(bbPrettyTrade(m.last_trade))}${(m.typical_markup!=null)?` · ${esc(t('bb_markup'))} ${m.typical_markup}%`:''}</div>` : '';
+    ? `<div class="bb-mem">${bbMark(14)} ${esc(t('bb_remembers'))} ${esc(bbPrettyTrade(m.last_trade))}${(m.typical_markup!=null)?` · ${esc(t('bb_markup'))} ${m.typical_markup}%`:''}</div>` : '';
   return `<div class="brain">
     <div class="bb-greet">
       <div class="bb-hi">${esc(greet)}${first?', '+esc(first):''}.</div>
@@ -1981,6 +1990,9 @@ function bbGreetData(){
 }
 // The neural-brain inner markup, reused in the panel header (references the dock's gradient/filter defs).
 const BB_SVG_INNER = `<defs><radialGradient id="bbCore" cx="50%" cy="42%" r="62%"><stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#ffffff" stop-opacity=".55"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient><filter id="bbGlow2" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceGraphic" stdDeviation="2.4" result="w"/><feGaussianBlur in="SourceGraphic" stdDeviation="0.7" result="t"/><feMerge><feMergeNode in="w"/><feMergeNode in="t"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g class="bb-net" filter="url(#bbGlow2)"><g class="bb-syn" fill="none" stroke-width="1.35" stroke-linecap="round"><path d="M30 30 L24 42"/><path d="M24 42 L19 55"/><path d="M19 55 L27 66"/><path d="M24 42 L38 48"/><path d="M38 48 L50 36"/><path d="M30 30 L50 36"/><path d="M38 48 L42 60"/><path d="M27 66 L42 60"/><path d="M42 60 L50 62"/><path d="M70 30 L76 42"/><path d="M76 42 L81 55"/><path d="M81 55 L73 66"/><path d="M76 42 L62 48"/><path d="M62 48 L50 36"/><path d="M70 30 L50 36"/><path d="M62 48 L58 60"/><path d="M73 66 L58 60"/><path d="M58 60 L50 62"/><path d="M50 36 L50 62"/><path d="M42 60 L58 60"/></g><g class="bb-node"><circle cx="30" cy="30" r="3.4"/><circle cx="24" cy="42" r="3.5"/><circle cx="19" cy="55" r="3"/><circle cx="27" cy="66" r="3"/><circle cx="38" cy="48" r="3.2"/><circle cx="42" cy="60" r="3"/><circle cx="50" cy="36" r="4"/><circle cx="50" cy="62" r="3.3"/><circle cx="62" cy="48" r="3.2"/><circle cx="58" cy="60" r="3"/><circle cx="70" cy="30" r="3.4"/><circle cx="76" cy="42" r="3.5"/><circle cx="81" cy="55" r="3"/><circle cx="73" cy="66" r="3"/></g><g class="bb-core" fill="url(#bbCore)"><circle cx="30" cy="30" r="2.2"/><circle cx="24" cy="42" r="2.3"/><circle cx="19" cy="55" r="2"/><circle cx="27" cy="66" r="2"/><circle cx="38" cy="48" r="2.1"/><circle cx="42" cy="60" r="2"/><circle cx="50" cy="36" r="2.7"/><circle cx="50" cy="62" r="2.2"/><circle cx="62" cy="48" r="2.1"/><circle cx="58" cy="60" r="2"/><circle cx="70" cy="30" r="2.2"/><circle cx="76" cy="42" r="2.3"/><circle cx="81" cy="55" r="2"/><circle cx="73" cy="66" r="2"/></g></g>`;
+// The Bid Brain mark as a small inline glyph — used in body text in place of any
+// generic 🧠 emoji, so our own neural identity is the ONLY brain symbol in the app.
+function bbMark(px){ px=px||15; return `<svg class="bb-brain bb-mark-mini" viewBox="0 0 100 100" width="${px}" height="${px}" aria-hidden="true" style="display:inline-block;vertical-align:-.18em">${BB_SVG_INNER}</svg>`; }
 // brain personality state: idle(blue) listening(green) thinking(blue→purple) speaking(orange) working(gold) learning(gold) success(white) error(red)
 let bbState='idle', bbErrTimer=null;
 const BB_STATES=['idle','listening','thinking','speaking','working','learning','success','error'];
@@ -2112,7 +2124,7 @@ function bbOpenPanel(){
       <button onclick="bbq('customer')">👥 ${esc(t('bb_card_customer'))}</button>
       <button onclick="bbq('followups')">📅 ${esc(t('bb_card_followups'))}</button>
     </div>
-    ${dd.m.last_trade?`<div class="bb-mem2">🧠 ${esc(t('bb_remembers'))} ${esc(bbPrettyTrade(dd.m.last_trade))}${dd.m.typical_markup!=null?` · ${esc(t('bb_markup'))} ${dd.m.typical_markup}%`:''}</div>`:''}`;
+    ${dd.m.last_trade?`<div class="bb-mem2">${bbMark(14)} ${esc(t('bb_remembers'))} ${esc(bbPrettyTrade(dd.m.last_trade))}${dd.m.typical_markup!=null?` · ${esc(t('bb_markup'))} ${dd.m.typical_markup}%`:''}</div>`:''}`;
   s.style.display='block'; p.style.display='block';
 }
 function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.getElementById('bbScrim'); if(p)p.style.display='none'; if(s)s.style.display='none'; }
