@@ -824,6 +824,10 @@
   /* idle — slow breathing, soft blue */
   .bb-dock.idle{--bbc:90,160,255;animation:bbbreathe 4.8s ease-in-out infinite}
   @keyframes bbbreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+  /* ready — soft green glow: "your turn", before active recording */
+  .bb-dock.ready{--bbc:54,214,122;animation:bbbreathe 2.4s ease-in-out infinite}
+  .bb-dock.ready .bb-ring{animation:bbring 2.2s ease-out infinite}
+  .bb-dock.ready .bb-brain .bb-node circle{animation-duration:1.8s}
   /* listening — green, expansion + outward ripple */
   .bb-dock.listening{--bbc:54,214,122;animation:bbpulse 1.15s ease-in-out infinite}
   .bb-dock.listening .bb-ring{animation:bbring 1.5s ease-out infinite}
@@ -922,7 +926,9 @@
   @keyframes bbwave{0%,100%{height:22%;opacity:.65}50%{height:92%;opacity:1}}
   .bb-rectime{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:.9rem;font-weight:600;color:#5fe6a0;letter-spacing:.02em}
   .bb-in-mic{flex:0 0 auto;width:38px;height:38px;border-radius:12px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;background:rgba(120,160,255,.12);color:#cfe0ff;transition:background .3s ease}
+  .bb-in-mic.ready{background:rgba(54,214,122,.18);color:#7ff0b0;box-shadow:0 0 0 1px rgba(54,214,122,.5),0 0 16px rgba(54,214,122,.32);animation:bbpulse 1.5s ease-in-out infinite}
   .bb-in-mic.rec{background:radial-gradient(120% 120% at 30% 24%,#46e08a,#1faf63);color:#08210f;animation:bbpulse 1s ease-in-out infinite}
+  @media(prefers-reduced-motion:reduce){.bb-in-mic.ready,.bb-dock.ready{animation:none}}
   /* ===== The intelligent action key — one control that morphs to say "what's next" ===== */
   .bb-ak{position:relative;flex:0 0 auto;width:40px;height:40px;border:none;border-radius:13px;cursor:default;overflow:visible;
     display:flex;align-items:center;justify-content:center;font-family:inherit;-webkit-tap-highlight-color:transparent;
@@ -1344,6 +1350,12 @@ const I18N = {
     bb_sched_when:"Sure — what day and time should I set it for?",
     bb_sched_which:"Which appointment should I move? Tell me the day or who it's with.",
     bb_err_reply:"I couldn't reach my brain just now. Try again in a moment — your work is safe.",
+    bb_mic_denied:"I need microphone access to listen. You can still type below, or turn on mic permission in your browser settings and tap the mic again.",
+    bb_mic_none:"I can't find a microphone on this device. You can still type below and I'll keep up.",
+    bb_ready_hint:"Answer now — or tap the mic",
+    bb_listening_hint:"Listening… tap to stop",
+    bb_gentle_nudge:"I'm ready when you are — tap the mic, or type.",
+    bb_heard:(x)=>`I heard: “${x}”. Is that right?`,
     bb_pulse_active:(n)=>`You have ${n} active estimate${n>1?'s':''}.`,
     bb_pulse_follow:(n)=>`${n} follow-up${n>1?'s':''} need${n>1?'':'s'} attention.`,
     bb_pulse_await:(n)=>`${n} proposal${n>1?'s':''} awaiting signature.`,
@@ -1424,6 +1436,12 @@ const I18N = {
     bb_sched_when:"Claro — ¿para qué día y hora lo agendo?",
     bb_sched_which:"¿Cuál cita muevo? Dime el día o con quién es.",
     bb_err_reply:"No pude conectar con mi cerebro ahora mismo. Inténtalo de nuevo en un momento — tu trabajo está a salvo.",
+    bb_mic_denied:"Necesito acceso al micrófono para escuchar. Puedes escribir abajo, o activar el permiso del micrófono en tu navegador y tocar el micrófono otra vez.",
+    bb_mic_none:"No encuentro un micrófono en este dispositivo. Puedes escribir abajo y te sigo.",
+    bb_ready_hint:"Responde ahora — o toca el micrófono",
+    bb_listening_hint:"Escuchando… toca para detener",
+    bb_gentle_nudge:"Cuando quieras — toca el micrófono, o escribe.",
+    bb_heard:(x)=>`Escuché: “${x}”. ¿Es correcto?`,
     bb_pulse_active:(n)=>`Tienes ${n} presupuesto${n>1?'s':''} activo${n>1?'s':''}.`,
     bb_pulse_follow:(n)=>`${n} seguimiento${n>1?'s':''} necesita${n>1?'n':''} atención.`,
     bb_pulse_await:(n)=>`${n} propuesta${n>1?'s':''} esperando firma.`,
@@ -2256,7 +2274,7 @@ const BB_SVG_INNER = `<defs><radialGradient id="bbCore" cx="50%" cy="42%" r="62%
 function bbMark(px){ px=px||15; return `<svg class="bb-brain bb-mark-mini" viewBox="0 0 100 100" width="${px}" height="${px}" aria-hidden="true" style="display:inline-block;vertical-align:-.18em">${BB_SVG_INNER}</svg>`; }
 // brain personality state: idle(blue) listening(green) thinking(blue→purple) speaking(orange) working(gold) learning(gold) success(white) error(red)
 let bbState='idle', bbErrTimer=null;
-const BB_STATES=['idle','listening','thinking','speaking','working','learning','success','error'];
+const BB_STATES=['idle','ready','listening','thinking','speaking','working','learning','success','error'];
 function bbSetState(s){ const d=document.getElementById('bbDock'); if(!d) return; s=s||'idle';
   if(s==='completed'||s==='done') s='success';      // aliases
   if(BB_STATES.indexOf(s)<0) s='idle';
@@ -2465,9 +2483,19 @@ async function bbConvSend(text){
     if(scheduled){ BBC.thread.push({role:'action',action:'schedule',label:t('bb_go_schedule')}); }
     else if(r&&r.action){ const label=bbActionLabel(r.action); if(label) BBC.thread.push({role:'action',action:(r.action==='open_job'?'job':r.action),jobId:(r.jobId||''),label}); }
     bbThreadSave(); bbConvRender();
-    bbSetState(scheduled?'success':'speaking'); if(typeof speakQuestion==='function') speakQuestion(reply);
-    bbAk('success'); setTimeout(bbAkAuto, 1100);
-    setTimeout(()=>{ if(!BBC.recording && (bbState==='speaking'||bbState==='success')) bbSetState('idle'); }, 2200);
+    // The conversation loop: speak the reply, and the moment Bid Brain finishes
+    // talking, if it just asked something, become ready to listen — and if the mic
+    // is already trusted and hands-free is on, open it — so the contractor simply
+    // answers out loud. No hunting for a button, no dead air. (onEnd fires after
+    // speech ends, so we never record Bid Brain's own voice.)
+    bbClearVoiceTimers();
+    const myTurn=++bbTurn, askedQuestion=bbIsQuestion(reply);
+    bbSetState(scheduled?'success':'speaking'); bbAk('success'); setTimeout(()=>{ if(myTurn===bbTurn) bbAkAuto(); }, 1100);
+    bbSpeak(reply, { onEnd: ()=>{
+      if(myTurn!==bbTurn || BBC.recording || BBC.busy) return;   // a newer turn / barge-in took over
+      if(askedQuestion){ bbEnterReady(bbMicReady() && bbHandsFree()); }
+      else if(bbState==='speaking'||bbState==='success'){ bbSetState('idle'); bbAkAuto(); }
+    }});
   }catch(e){
     BBC.busy=false; BBC.thread.push({role:'assistant',content:(e&&e.message)||t('bb_err_reply')}); bbThreadSave(); bbConvRender(); bbSetState('error'); bbAkAuto();
   }
@@ -2488,33 +2516,99 @@ function bbDoAction(a, jobId){
     case 'order_materials': if(typeof toast==='function') toast(t('bb_materials_soon'),'ok'); break;
   }
 }
-function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.getElementById('bbScrim'); if(p)p.style.display='none'; if(s)s.style.display='none'; bbPhStop(); if(BBC.recording) bbConvStopRec(true); bbRecStop(); if(bbState!=='idle') bbSetState('idle'); }
-// In-overlay voice: record → transcribe → drop straight into the conversation.
+function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.getElementById('bbScrim'); if(p)p.style.display='none'; if(s)s.style.display='none'; bbPhStop(); bbClearVoiceTimers(); bbStopSpeaking(); bbTurn++; if(BBC.recording) bbConvStopRec(true); bbConvVADStop(); bbRecStop(); const m=document.getElementById('bbMicBtn'); if(m) m.classList.remove('ready'); if(bbState!=='idle') bbSetState('idle'); }
+// In-overlay voice: (barge-in) → record → silence auto-stop → transcribe → send.
 async function bbConvMic(){
-  if(BBC.recording){ bbConvStopRec(); return; }
-  if(typeof recordSupported==='function' && !recordSupported()){ const i=document.getElementById('bbInput'); if(i) i.focus(); return; }
-  let stream; try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(_){ if(typeof toast==='function') toast('Microphone access is needed to talk.','warn'); return; }
+  if(bbSpeaking()) bbStopSpeaking();           // barge-in: stop Bid Brain so it can listen
+  bbTurn++; bbClearVoiceTimers();              // a new user turn invalidates any pending auto-listen
+  const micBtn=document.getElementById('bbMicBtn'); if(micBtn) micBtn.classList.remove('ready');
+  if(BBC.recording){ bbConvStopRec(); return; }              // tap again = stop & send
+  if(typeof recordSupported==='function' && !recordSupported()){ bbMicPerm='unavailable'; bbSayLocal(t('bb_mic_none')); const i=document.getElementById('bbInput'); if(i) i.focus(); return; }
+  let stream;
+  try{ stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}); bbMicPerm='granted'; }
+  catch(err){ const n=(err&&err.name)||'';
+    if(n==='NotFoundError'||n==='NotReadableError'||n==='OverconstrainedError'){ bbMicPerm='unavailable'; bbSayLocal(t('bb_mic_none')); }
+    else { bbMicPerm='denied'; bbSayLocal(t('bb_mic_denied')); }
+    bbSetState('idle'); bbAkAuto(); const i=document.getElementById('bbInput'); if(i) i.focus(); return; }
   const mime=(typeof pickAudioMime==='function'?pickAudioMime():'');
-  try{ BBC.rec=new MediaRecorder(stream, mime?{mimeType:mime}:undefined); }catch(_){ try{ BBC.rec=new MediaRecorder(stream); }catch(__){ stream.getTracks().forEach(t=>t.stop()); return; } }
-  BBC.recChunks=[]; BBC.recording=true; BBC.cancelRec=false; bbSetState('listening'); bbAk('recording'); bbRecStart();
-  const mic=document.getElementById('bbMicBtn'); if(mic) mic.classList.add('rec');
+  try{ BBC.rec=new MediaRecorder(stream, mime?{mimeType:mime}:undefined); }catch(_){ try{ BBC.rec=new MediaRecorder(stream); }catch(__){ stream.getTracks().forEach(t=>t.stop()); bbSetState('idle'); bbAkAuto(); return; } }
+  BBC.recChunks=[]; BBC.recording=true; BBC.cancelRec=false; bbSetState('listening'); bbAk('recording'); bbRecStart(); bbHint(t('bb_listening_hint'));
+  if(micBtn) micBtn.classList.add('rec');
+  bbConvVADStart(stream);                       // jobsite-tolerant silence auto-stop + no-speech timeout
   BBC.rec.ondataavailable=e=>{ if(e.data&&e.data.size) BBC.recChunks.push(e.data); };
   BBC.rec.onstop=async()=>{
-    bbRecStop(); stream.getTracks().forEach(t=>t.stop()); const mic2=document.getElementById('bbMicBtn'); if(mic2) mic2.classList.remove('rec');
+    bbConvVADStop(); bbRecStop(); stream.getTracks().forEach(t=>t.stop()); if(micBtn) micBtn.classList.remove('rec');
+    const heardSpeech=bbCV.spoke;
     if(BBC.cancelRec){ BBC.cancelRec=false; BBC.recording=false; bbSetState('idle'); bbAkAuto(); return; }
     const blob=new Blob(BBC.recChunks,{type:mime||'audio/webm'}); BBC.recording=false;
-    if(blob.size<700){ bbSetState('idle'); bbAkAuto(); return; }
+    // Armed but nothing said (or too short) → stand down gently, never dead-end.
+    if(blob.size<700 || !heardSpeech){ bbSetState('idle'); bbAkAuto(); bbSayLocal(t('bb_gentle_nudge')); return; }
     bbSetState('thinking'); bbAk('thinking'); BBC.busy=true; bbConvRender();
     try{
       const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
       const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({audio:dataUrl, lang:(SETTINGS.from||'en')})});
       BBC.busy=false; const said=((r&&r.text)||'').trim();
-      if(said) bbConvSend(said); else { bbConvRender(); bbSetState('idle'); bbAkAuto(); }
+      if(said) bbConvSend(said); else { bbConvRender(); bbSetState('idle'); bbAkAuto(); bbSayLocal(t('bb_gentle_nudge')); }
     }catch(e){ BBC.busy=false; bbConvRender(); bbSetState('error'); bbAkAuto(); }
   };
-  try{ BBC.rec.start(); }catch(_){ BBC.recording=false; bbSetState('idle'); }
+  try{ BBC.rec.start(); }catch(_){ bbConvVADStop(); BBC.recording=false; bbSetState('idle'); bbAkAuto(); }
 }
 function bbConvStopRec(cancel){ try{ if(cancel) BBC.cancelRec=true; if(BBC.rec&&BBC.rec.state!=='inactive') BBC.rec.stop(); }catch(_){ } }
+/* ===== Conversation loop: speak → ready → listen → think → speak ===== *
+ * The pieces that turn the overlay from a recorder into a conversation.        */
+let bbMicPerm='unknown';                        // unknown|prompt|granted|denied|unavailable
+let bbTurn=0, bbReadyTimer=null, bbNudgeTimer=null;
+let bbCV={ ctx:null, raf:null, spoke:false, quietAt:0, t0:0 };
+function bbInitMicPerm(){ try{ if(navigator.permissions&&navigator.permissions.query){ navigator.permissions.query({name:'microphone'}).then(p=>{ bbMicPerm=p.state; p.onchange=()=>{ bbMicPerm=p.state; }; }).catch(()=>{}); } }catch(_){ } }
+function bbHandsFree(){ return localStorage.getItem('bt_handsfree')!=='off'; }   // default ON
+function setHandsFree(on){ localStorage.setItem('bt_handsfree', on?'on':'off'); }
+function bbMicReady(){ return (typeof recordSupported==='function'?recordSupported():true) && bbMicPerm==='granted'; }
+// Is the reply something a contractor would naturally answer out loud?
+function bbIsQuestion(s){ s=String(s||'').trim(); if(!s) return false; if(/\?\s*$/.test(s)) return true;
+  return /\b(want me to|should i|shall i|ok to|do you want|would you like|ready to|can i|let me know)\b/i.test(s); }
+function bbClearVoiceTimers(){ if(bbReadyTimer){ clearTimeout(bbReadyTimer); bbReadyTimer=null; } if(bbNudgeTimer){ clearTimeout(bbNudgeTimer); bbNudgeTimer=null; } }
+function bbPanelOpen(){ const p=document.getElementById('bbPanel'); return !!(p && p.style.display!=='none'); }
+// Become ready to listen: soft green glow + a clear "answer now" cue + chime/haptic.
+// If the mic is already trusted (autostart), open it after a beat; else wait for a tap.
+function bbEnterReady(autostart){
+  if(!bbPanelOpen()){ bbSetState('idle'); return; }
+  bbClearVoiceTimers();
+  bbSetState('ready'); bbAk('idle');
+  const mic=document.getElementById('bbMicBtn'); if(mic) mic.classList.add('ready');
+  bbHint(t('bb_ready_hint')); buzz(14); bbChime();
+  if(autostart){ bbReadyTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording && bbPanelOpen()) bbConvMic(); }, 440); }
+  // No answer after a while → stand down gracefully and invite the next step.
+  bbNudgeTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording){ const m=document.getElementById('bbMicBtn'); if(m) m.classList.remove('ready'); bbSetState('idle'); bbSayLocal(t('bb_gentle_nudge')); } }, 9000);
+}
+// Short generated "ready" chime — no asset to ship. Tied to TTS being on.
+function bbChime(){ if(!TTS_ON) return; try{ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; const c=new AC(); const o=c.createOscillator(), g=c.createGain(); o.type='sine'; o.frequency.setValueAtTime(620,c.currentTime); o.frequency.exponentialRampToValueAtTime(940,c.currentTime+0.10); g.gain.setValueAtTime(0.0001,c.currentTime); g.gain.exponentialRampToValueAtTime(0.10,c.currentTime+0.02); g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+0.20); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+0.22); setTimeout(()=>{ try{ c.close(); }catch(_){ } }, 400); }catch(_){ } }
+// Transient hint in the input placeholder (doesn't touch typed text).
+function bbHint(txt){ const i=document.getElementById('bbInput'); if(i && !i.value){ i.placeholder=txt; } }
+// Bid Brain says something locally — no API call — for permission/coaching lines.
+function bbSayLocal(msg){ if(!msg) return; BBC.thread.push({role:'assistant',content:msg}); bbThreadSave(); bbConvRender(); bbSpeak(msg); }
+// Lightweight, jobsite-tolerant silence detector for the overlay mic. Waits for the
+// user to actually speak, then for a clear pause, before auto-submitting — and never
+// cuts off too early. Manual stop (tapping the mic) always works.
+function bbConvVADStart(stream){
+  bbConvVADStop();
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC){ bbCV={ctx:null,raf:null,spoke:true,quietAt:0,t0:Date.now()}; return; }
+    const ctx=new AC(); const src=ctx.createMediaStreamSource(stream); const an=ctx.createAnalyser(); an.fftSize=1024; an.smoothingTimeConstant=0.7; src.connect(an);
+    const buf=new Uint8Array(an.fftSize); bbCV={ ctx, raf:null, spoke:false, quietAt:0, t0:Date.now() };
+    const SPEAK=0.022, TRAIL_MS=1500, NOSPEECH_MS=6000, MIN_MS=500;
+    const tick=()=>{
+      if(!BBC.recording){ return; }
+      an.getByteTimeDomainData(buf); let sum=0; for(let i=0;i<buf.length;i++){ const v=(buf[i]-128)/128; sum+=v*v; } const rms=Math.sqrt(sum/buf.length); const now=Date.now();
+      if(rms>SPEAK){ bbCV.spoke=true; bbCV.quietAt=0; }
+      else if(bbCV.spoke){ if(!bbCV.quietAt) bbCV.quietAt=now; else if(now-bbCV.quietAt>TRAIL_MS && now-bbCV.t0>MIN_MS){ buzz(10); bbConvStopRec(); return; } }
+      else if(now-bbCV.t0>NOSPEECH_MS){ bbConvStopRec(); return; }   // armed but silent → stand down
+      bbCV.raf=requestAnimationFrame(tick);
+    };
+    bbCV.raf=requestAnimationFrame(tick);
+  }catch(_){ bbCV={ctx:null,raf:null,spoke:true,quietAt:0,t0:Date.now()}; }
+}
+function bbConvVADStop(){ try{ if(bbCV.raf) cancelAnimationFrame(bbCV.raf); }catch(_){ } bbCV.raf=null; try{ if(bbCV.ctx) bbCV.ctx.close(); }catch(_){ } bbCV.ctx=null; }
+bbInitMicPerm();
 // Contextual placeholder — the field invites the next useful action instead of acting
 // like a generic chatbot, and gently rotates through prompts while it sits empty.
 const BB_PH=['bb_ph_0','bb_ph_1','bb_ph_2','bb_ph_3','bb_ph_4','bb_ph_5'];
@@ -3790,12 +3884,83 @@ async function runIntake(force){
 // The estimator "talks": speak the next question via the browser's built-in TTS, so it
 // feels like a back-and-forth. Muteable; never repeats the same line twice.
 let TTS_ON = localStorage.getItem('bt_tts')!=='off';
-let _ttsLast='';
-function speakQuestion(q){
-  if(!TTS_ON || !q || q===_ttsLast) return;
-  try{ if(!('speechSynthesis' in window)) return; _ttsLast=q; const u=new SpeechSynthesisUtterance(q); u.rate=1.02; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){}
+/* ===================== Bid Brain Voice ===================== *
+ * One controller for everything Bid Brain says out loud. A PROFILE describes
+ * HOW it sounds (provider, voice, speed, language, fallback); bbSpeak() is the
+ * single call site so we can swap the browser engine for a cloud voice later
+ * without touching the conversation code. Browser TTS today: free, instant,
+ * offline. Cloud (warmer voices) drops in behind selectProvider() when we want
+ * it — gated on cost, so we don't burn API calls on every spoken line.        */
+const VOICE_PROFILES = {
+  warm:        { label:'Warm',         provider:'browser', voiceId:'', rate:1.06, pitch:1.0,  lang:'en',   tone:'friendly, encouraging',  fallback:'professional' },
+  professional:{ label:'Professional', provider:'browser', voiceId:'', rate:1.05, pitch:0.98, lang:'en',   tone:'clear, businesslike',    fallback:'warm' },
+  confident:   { label:'Confident',    provider:'browser', voiceId:'', rate:1.08, pitch:0.96, lang:'en',   tone:'assured, steady',        fallback:'professional' },
+  jobsite:     { label:'Jobsite',      provider:'browser', voiceId:'', rate:1.03, pitch:0.97, lang:'en',   tone:'loud, plain, direct',    fallback:'confident' },
+  executive:   { label:'Executive',    provider:'browser', voiceId:'', rate:1.0,  pitch:0.95, lang:'en',   tone:'calm, authoritative',    fallback:'professional' },
+  coach:       { label:'Coach',        provider:'browser', voiceId:'', rate:1.06, pitch:1.03, lang:'en',   tone:'upbeat, motivating',     fallback:'warm' },
+  spanish:     { label:'Español',      provider:'browser', voiceId:'', rate:1.04, pitch:1.0,  lang:'es',   tone:'cálido, claro',          fallback:'warm' },
+  bilingual:   { label:'Bilingual',    provider:'browser', voiceId:'', rate:1.05, pitch:1.0,  lang:'auto', tone:'switches EN/ES per line',fallback:'warm' },
+};
+function bbVoiceKey(){ const k=localStorage.getItem('bt_voice'); if(k && VOICE_PROFILES[k]) return k; return (((SETTINGS&&SETTINGS.from)||LANG)==='es')?'spanish':'warm'; }
+function bbActiveProfile(){ return VOICE_PROFILES[bbVoiceKey()] || VOICE_PROFILES.warm; }
+function setVoiceProfile(k){ if(VOICE_PROFILES[k]) localStorage.setItem('bt_voice', k); }
+// Browser voice catalog (loads async on some platforms). Pick the most natural
+// local voice for the language — robotic defaults are the #1 reason TTS feels cheap.
+let _bbVoices=[];
+function bbLoadVoices(){ try{ _bbVoices=(window.speechSynthesis&&speechSynthesis.getVoices())||[]; }catch(_){ _bbVoices=[]; } }
+if('speechSynthesis' in window){ bbLoadVoices(); try{ speechSynthesis.onvoiceschanged=bbLoadVoices; }catch(_){ } }
+function bbPickVoice(lang){
+  if(!_bbVoices.length) bbLoadVoices();
+  const want=String(lang||'en').slice(0,2).toLowerCase();
+  const pool=_bbVoices.filter(v=>String(v.lang||'').toLowerCase().startsWith(want));
+  const PREF=[/samantha/i,/\baria\b/i,/\bjenny\b/i,/natural/i,/google (us |uk )?espa|google español/i,/google (us|uk)? ?english/i,/microsoft/i,/\bsiri\b/i,/\bava\b/i,/\bnora\b/i];
+  if(want==='es'){ const sp=pool.find(v=>/google español|mónica|paulina|microsoft|natural/i.test(v.name)); if(sp) return sp; }
+  for(const re of PREF){ const v=pool.find(v=>re.test(v.name)); if(v) return v; }
+  return pool.find(v=>v.localService) || pool[0] || null;
 }
-function toggleTts(){ TTS_ON=!TTS_ON; localStorage.setItem('bt_tts', TTS_ON?'on':'off'); if(!TTS_ON){ try{ speechSynthesis.cancel(); }catch(e){} } _ttsLast=''; if(state.view==='capture') renderIntakeRegions(); }
+// Speak a SHORT spoken summary — the question or first sentence — never a wall of
+// text. Details stay on screen; voice stays fast (cost + jobsite attention span).
+function bbSpokenSummary(text){
+  let s=String(text||'').replace(/\[\[[^\]]*\]\]/g,'').replace(/[*_`#>]/g,'').replace(/\s+/g,' ').trim();
+  if(!s) return '';
+  const q=s.indexOf('?');
+  if(q>=0 && q<200) return s.slice(0,q+1).trim();
+  const m=s.match(/^[^.!?]*[.!?]/);
+  if(m && m[0].trim().length<=200) return m[0].trim();
+  return s.slice(0,200).trim();
+}
+let _bbSpeaking=false, _bbSpokeLast='';
+function bbSpeaking(){ return _bbSpeaking; }
+function bbStopSpeaking(){ try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(_){ } _bbSpeaking=false; }
+// The one call site for spoken output. onEnd fires exactly once, AFTER speech
+// finishes (or immediately if muted/unsupported) — that's what lets the loop arm
+// the mic without recording Bid Brain's own voice.
+function bbSpeak(text, opts){
+  opts=opts||{};
+  const onEnd=typeof opts.onEnd==='function'?opts.onEnd:function(){};
+  if(!TTS_ON || !('speechSynthesis' in window)){ onEnd(); return; }
+  const say=bbSpokenSummary(text);
+  if(!say){ onEnd(); return; }
+  try{
+    speechSynthesis.cancel();
+    const prof=bbActiveProfile();
+    const lang = prof.lang==='auto' ? (/[áéíóúñ¿¡]/i.test(say)?'es':'en') : prof.lang;
+    const u=new SpeechSynthesisUtterance(say);
+    const v=bbPickVoice(lang); if(v){ u.voice=v; u.lang=v.lang; } else { u.lang = (lang==='es'?'es-ES':'en-US'); }
+    u.rate=prof.rate||1.05; u.pitch=prof.pitch||1.0; u.volume=1;
+    _bbSpeaking=true; _bbSpokeLast=say;
+    let done=false; const fin=()=>{ if(done) return; done=true; _bbSpeaking=false; clearTimeout(t2); onEnd(); };
+    u.onend=fin; u.onerror=fin;
+    // Safety net: some mobile engines never fire onend. Estimate generously so we
+    // never arm the mic mid-sentence; real onend almost always wins this race.
+    const t2=setTimeout(fin, Math.min(15000, 1800 + say.length*95));
+    speechSynthesis.speak(u);
+  }catch(_){ _bbSpeaking=false; onEnd(); }
+}
+// Estimator + any other caller route through the same engine for one consistent voice.
+let _ttsLast='';
+function speakQuestion(q){ if(!q || q===_ttsLast) return; _ttsLast=q; bbSpeak(q); }
+function toggleTts(){ TTS_ON=!TTS_ON; localStorage.setItem('bt_tts', TTS_ON?'on':'off'); if(!TTS_ON){ bbStopSpeaking(); } _ttsLast=''; _bbSpokeLast=''; if(state.view==='capture') renderIntakeRegions(); }
 // "I'm not sure": flag the current question for review and let the estimator move on —
 // never dead-end the conversation over one unknown.
 function capNotSure(){
