@@ -16,6 +16,14 @@
   simplify. Fix it — or propose a better solution — before the founder has to ask.
 - **Challenge readiness.** If a feature isn't ready, say so. We'd rather delay a
   release than ship something that weakens the product or trust.
+- **Ship to learn (cadence — the standing rule).** No large architectural expansion
+  ships before something meaningful reaches users. Every new design must state three
+  things before any code: **(1) the long-term vision, (2) the smallest shippable
+  version, (3) the first measurable customer outcome.** After each design we ask:
+  *what is the smallest piece we can ship this week that proves this idea?* We
+  optimize for learning from real contractors now. The Constitution is the guide;
+  shipping is the priority. (Born from the honest verdict: *we were over-designed and
+  under-built.*)
 
 ## Release Checklist (complete before every merge)
 - [ ] **No placeholder UI** — nothing reads as a missing asset or a dead control.
