@@ -1017,7 +1017,18 @@
   /* Empty: the briefing shows calmly, the mic is the hero. Conversation: transcript takes over. */
   .bb-panel:not(.has-convo) .bb-conv{flex:0 0 auto;max-height:30vh}
   .bb-panel.has-convo .bb-conv{flex:1 1 auto;max-height:52vh}
-  @media(prefers-reduced-motion:reduce){.bb-mic-hero,.bb-mic-hero .mh-glow{animation:none!important}}
+  /* The one-line "what do I do" hint — shown only in the calm ready state, never competing. */
+  .bb-taphint{font-size:.84rem;color:#8ea2c8;margin-top:-2px;transition:opacity .25s ease}
+  .bb-panel.has-convo .bb-taphint,.bb-input[data-state="listening"] .bb-taphint,.bb-input[data-state="thinking"] .bb-taphint,.bb-input[data-state="speaking"] .bb-taphint,.bb-input.recording .bb-taphint{opacity:0;pointer-events:none}
+  /* The opening greeting reads like a person saying hello — not a chat bubble. */
+  .bb-panel:not(.has-convo) .bb-msg.seed{justify-content:center;text-align:center}
+  .bb-panel:not(.has-convo) .bb-msg.seed .bb-av{display:none}
+  .bb-panel:not(.has-convo) .bb-msg.seed .bb-bub{background:none;border:none;padding:0;font-size:1.1rem;line-height:1.5;color:#e6eeff;max-width:32ch}
+  /* The conversation settles into place (fades upward) — the newest line, gently. */
+  @keyframes bbmsgin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+  .bb-conv .bb-msg:last-child{animation:bbmsgin .26s ease both}
+  .bb-mic-hero{transition:transform .12s ease,background .25s ease,box-shadow .25s ease,width .3s ease,height .3s ease}
+  @media(prefers-reduced-motion:reduce){.bb-mic-hero,.bb-mic-hero .mh-glow,.bb-conv .bb-msg:last-child{animation:none!important}}
   /* ===== Onboarding — the first 30 seconds. Premium, dark, warm. ===== */
   .onb{position:fixed;inset:0;z-index:50;overflow-y:auto;-webkit-overflow-scrolling:touch;
     background:radial-gradient(125% 115% at 70% 12%, #16263f 0%, #0c1626 46%, #080d17 100%);
@@ -1369,7 +1380,7 @@ const I18N = {
     bb_card_followups:"Today's Follow-ups",
     bb_remembers:"Bid Brain remembers:", bb_markup:"usual markup",
     bb_talk:"Talk", bb_type:"Type", bb_photos:"Analyze Photos", bb_attach:"Attach",
-    bb_state_ready:"Ready to listen", bb_state_listening:"Listening…", bb_state_thinking:"Thinking…", bb_state_responding:"Responding…", bb_type_instead:"Type instead", bb_type_ph:"Type your message…",
+    bb_state_ready:"Ready to listen", bb_state_listening:"Listening", bb_state_thinking:"Working on it…", bb_state_responding:"Here you go…", bb_state_done:"Done", bb_tap_hint:"Tap the mic and talk", bb_type_instead:"Type instead", bb_type_ph:"Type your message…",
     bb_ctx_estimate:"What should I add to this estimate?",
     bb_ctx_customer:"What do you need for this customer?",
     bb_ctx_schedule:"What are we scheduling?",
@@ -1456,7 +1467,7 @@ const I18N = {
     bb_card_followups:"Seguimientos de hoy",
     bb_remembers:"Bid Brain recuerda:", bb_markup:"margen habitual",
     bb_talk:"Hablar", bb_type:"Escribir", bb_photos:"Analizar fotos", bb_attach:"Adjuntar",
-    bb_state_ready:"Listo para escuchar", bb_state_listening:"Escuchando…", bb_state_thinking:"Pensando…", bb_state_responding:"Respondiendo…", bb_type_instead:"Escribir", bb_type_ph:"Escribe tu mensaje…",
+    bb_state_ready:"Listo para escuchar", bb_state_listening:"Escuchando", bb_state_thinking:"Trabajando en eso…", bb_state_responding:"Aquí tienes…", bb_state_done:"Listo", bb_tap_hint:"Toca el micrófono y habla", bb_type_instead:"Escribir", bb_type_ph:"Escribe tu mensaje…",
     bb_ctx_estimate:"¿Qué agrego a este presupuesto?",
     bb_ctx_customer:"¿Qué necesitas para este cliente?",
     bb_ctx_schedule:"¿Qué vamos a agendar?",
@@ -2332,7 +2343,8 @@ function bbSetState(s){ const d=document.getElementById('bbDock'); if(!d) return
 function bbStateText(s){
   if(s==='listening') return t('bb_state_listening');
   if(s==='thinking') return t('bb_state_thinking');
-  if(s==='speaking'||s==='success'||s==='working') return t('bb_state_responding');
+  if(s==='success') return t('bb_state_done');
+  if(s==='speaking'||s==='working') return t('bb_state_responding');
   return t('bb_state_ready');
 }
 
@@ -2487,13 +2499,14 @@ function bbOpenPanel(){
   p.innerHTML = `
     <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> Bid Brain <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
     <div class="bb-conv" id="bbConv"></div>
-    <div class="bb-input" id="bbInputBar" data-state="idle">
+    <div class="bb-input" id="bbInputBar" data-state="ready">
       <button class="bb-mic-hero" id="bbMicBtn" onclick="bbConvMic()" aria-label="${escAttr(t('bb_talk'))}">
         <span class="mh-glow" aria-hidden="true"></span>
         <span class="mh-ico">${icon('mic',30)}</span>
         <span class="bb-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
       </button>
       <div class="bb-state" id="bbStateLabel">${esc(t('bb_state_ready'))}</div>
+      <div class="bb-taphint" id="bbTapHint">${esc(t('bb_tap_hint'))}</div>
       <div class="bb-rectime" id="bbRecTime">0:00</div>
       <div class="bb-typewrap">
         <input id="bbInput" class="bb-in-field" type="text" autocomplete="off" enterkeyhint="send" placeholder="${escAttr(t('bb_type_ph'))}" onkeydown="if(event.key==='Enter'){event.preventDefault();bbConvSend();}">
@@ -2513,7 +2526,7 @@ function bbConvRender(){
   c.innerHTML = BBC.thread.map(m=>{
     if(m.role==='user') return `<div class="bb-msg you"><div class="bb-bub">${esc(m.content)}</div></div>`;
     if(m.role==='action') return `<div class="bb-msg brain act"><button class="bb-go" onclick="bbDoAction('${m.action}'${m.jobId?",'"+m.jobId+"'":''})">▶ ${esc(m.label)}</button></div>`;
-    return `<div class="bb-msg brain"><span class="bb-av">${bbMark(20)}</span><div class="bb-bub">${esc(m.content)}</div></div>`;
+    return `<div class="bb-msg brain${m.seed?' seed':''}"><span class="bb-av">${bbMark(20)}</span><div class="bb-bub">${esc(m.content)}</div></div>`;
   }).join('') + (BBC.busy?`<div class="bb-msg brain"><span class="bb-av">${bbMark(20)}</span><div class="bb-bub bb-typing"><i></i><i></i><i></i></div></div>`:'');
   c.scrollTop=c.scrollHeight;
   // Voice-first: the big mic is the hero until a real conversation exists; once the
