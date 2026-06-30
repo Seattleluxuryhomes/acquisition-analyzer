@@ -116,6 +116,31 @@ export function businessSnapshot(userId, user) {
   };
 }
 
+// ---- the morning briefing: what a smart employee would tell you, from REAL data ----
+// Every line here is grounded in the contractor's own records (payments, jobs,
+// statuses, contracted totals, customer names) — never a placeholder. This is the
+// initiative layer: "while you were away I checked everything."
+export function briefing(userId) {
+  const now = Date.now(), day = 86400000;
+  // Deposits actually collected in the last few days → "Jenny paid her deposit."
+  const paidRecently = db.prepare(
+    "SELECT client_name, amount_cents, paid_at FROM payment_request WHERE user_id=? AND status='paid' AND paid_at IS NOT NULL AND paid_at > ? ORDER BY paid_at DESC LIMIT 5"
+  ).all(userId, now - 4 * day).map((r) => ({ name: String(r.client_name || "").trim(), amount: Math.round((r.amount_cents || 0) / 100) }));
+  // Proposals sent and awaiting signature, with the real contracted $ at stake.
+  const sent = db.prepare("SELECT id, customer, lines, sent_at, updated_at FROM job WHERE user_id=? AND status='sent'").all(userId)
+    .map((j) => ({ id: j.id, name: String(j.customer || "").trim(), total: jobTotal(j.lines), ageDays: Math.floor((now - (j.sent_at || j.updated_at || now)) / day) }));
+  const awaiting = sent.filter((j) => j.total > 0 || j.name);
+  const followups = sent.filter((j) => j.ageDays >= 3); // matches the app's follow-up rule
+  return {
+    paidRecently,
+    awaiting: awaiting.slice(0, 6),
+    awaitingTotal: awaiting.reduce((s, j) => s + j.total, 0),
+    awaitingCount: awaiting.length,
+    followups: followups.slice(0, 6).map((j) => ({ id: j.id, name: j.name, ageDays: j.ageDays })),
+    followupsCount: followups.length,
+  };
+}
+
 // ---- the full Bid Brain snapshot for /api/brain ----
 export function brain(userId, user) {
   const mem = getMemory(userId);
@@ -126,6 +151,7 @@ export function brain(userId, user) {
   };
   return {
     greeting: greetingCounts(userId),
+    briefing: briefing(userId),
     memory: {
       preferred_language: lang,
       last_trade: mem.last_trade || null,

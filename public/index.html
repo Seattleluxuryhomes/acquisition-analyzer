@@ -896,7 +896,7 @@
   .bb-msg.brain{justify-content:flex-start}
   .bb-av{flex:0 0 auto;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
     background:radial-gradient(120% 120% at 34% 28%, rgba(40,52,78,.9), rgba(16,20,32,.95));border:1px solid rgba(120,170,255,.3)}
-  .bb-bub{padding:10px 13px;border-radius:16px;font-size:.95rem;line-height:1.38;max-width:76%;word-wrap:break-word}
+  .bb-bub{padding:10px 13px;border-radius:16px;font-size:.95rem;line-height:1.4;max-width:78%;word-wrap:break-word;white-space:pre-line}
   .bb-msg.brain .bb-bub{background:rgba(120,160,255,.11);border:1px solid rgba(140,180,255,.16);color:#eaf1ff;border-bottom-left-radius:5px}
   .bb-msg.you .bb-bub{background:radial-gradient(130% 130% at 30% 20%, #E8A23C 0%, var(--amber) 64%, #B86A12 100%);color:#1b1b1b;font-weight:600;border-bottom-right-radius:5px}
   .bb-msg.act{justify-content:flex-start;padding-left:34px}
@@ -907,10 +907,44 @@
   .bb-typing i:nth-child(2){animation-delay:.18s}.bb-typing i:nth-child(3){animation-delay:.36s}
   @keyframes bbtype{0%,100%{opacity:.35;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
   .bb-input{flex:0 0 auto;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid rgba(140,180,255,.2);border-radius:16px;padding:6px 6px 6px 8px}
-  .bb-in-mic,.bb-in-send{flex:0 0 auto;width:38px;height:38px;border-radius:12px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
-  .bb-in-mic{background:rgba(120,160,255,.12);color:#cfe0ff}
+  .bb-in-mic{flex:0 0 auto;width:38px;height:38px;border-radius:12px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;background:rgba(120,160,255,.12);color:#cfe0ff;transition:background .3s ease}
   .bb-in-mic.rec{background:radial-gradient(120% 120% at 30% 24%,#46e08a,#1faf63);color:#08210f;animation:bbpulse 1s ease-in-out infinite}
-  .bb-in-send{background:radial-gradient(120% 120% at 32% 24%, #E8A23C 0%, var(--amber) 64%, #B86A12 100%);color:#1b1b1b}
+  /* ===== The intelligent action key — one control that morphs to say "what's next" ===== */
+  .bb-ak{position:relative;flex:0 0 auto;width:40px;height:40px;border:none;border-radius:13px;cursor:default;overflow:visible;
+    display:flex;align-items:center;justify-content:center;font-family:inherit;-webkit-tap-highlight-color:transparent;
+    background:rgba(120,160,255,.10);box-shadow:inset 0 0 0 1px rgba(140,180,255,.14);
+    transition:background .32s ease, box-shadow .32s ease, transform .2s cubic-bezier(.3,1.5,.5,1)}
+  .bb-ak:active{transform:scale(.92)}
+  .bb-ak .ak{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.5);
+    transition:opacity .2s ease, transform .32s cubic-bezier(.3,1.5,.5,1);pointer-events:none}
+  .bb-ak .ak-orb .bb-brain{width:26px;height:26px;--bbc:120,170,255}
+  /* idle — calm orb, just presence (not a button you have to think about) */
+  .bb-ak.is-idle{pointer-events:none}
+  .bb-ak.is-idle .ak-orb{opacity:.9;transform:scale(1)}
+  .bb-ak.is-idle .ak-orb .bb-brain{animation:bbbreathe 4.6s ease-in-out infinite}
+  /* typing — confident Send, lit in brand amber */
+  .bb-ak.is-typing{pointer-events:auto;cursor:pointer;color:#1b1b1b;
+    background:radial-gradient(120% 120% at 32% 24%, #E8A23C 0%, var(--amber) 64%, #B86A12 100%);
+    box-shadow:0 5px 16px rgba(207,127,24,.42), inset 0 1px 0 rgba(255,255,255,.18)}
+  .bb-ak.is-typing .ak-send{opacity:1;transform:scale(1)}
+  /* recording — obvious, confident Stop */
+  .bb-ak.is-recording{pointer-events:auto;cursor:pointer;color:#fff;
+    background:radial-gradient(120% 120% at 32% 24%, #ff6f5f, #e0473a);
+    box-shadow:0 0 20px rgba(240,80,70,.5), inset 0 1px 0 rgba(255,255,255,.18);animation:bbpulse 1.05s ease-in-out infinite}
+  .bb-ak.is-recording .ak-stop{opacity:1;transform:scale(1)}
+  /* thinking — the living orb IS the progress indicator (no spinner) */
+  .bb-ak.is-thinking{pointer-events:none;background:rgba(120,160,255,.12)}
+  .bb-ak.is-thinking .ak-orb{opacity:1;transform:scale(1)}
+  .bb-ak.is-thinking .ak-orb .bb-brain{--bbc:111,123,255;animation:bbthink 1.4s ease-in-out infinite}
+  .bb-ak.is-thinking .ak-orb .bb-brain .bb-syn path{stroke:rgb(154,123,255);animation-duration:.9s}
+  @keyframes bbthink{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.08) rotate(8deg)}}
+  /* success — quick teal glow + ripple, then back to idle */
+  .bb-ak.is-success{pointer-events:none;color:#062018;
+    background:radial-gradient(120% 120% at 32% 24%, #5ce8c0, #1faf8f);box-shadow:0 0 22px rgba(45,212,191,.6)}
+  .bb-ak.is-success .ak-orb{opacity:1;transform:scale(1)}
+  .bb-ak.is-success .ak-orb .bb-brain{--bbc:255,255,255}
+  .bb-ak.is-success::after{content:"";position:absolute;inset:-2px;border-radius:15px;border:1.6px solid rgba(45,212,191,.75);animation:bbring .75s ease-out}
+  @media(prefers-reduced-motion:reduce){.bb-ak,.bb-ak *{animation:none!important;transition:opacity .2s ease!important}}
   .bb-in-field{flex:1 1 auto;min-width:0;background:none;border:none;outline:none;color:#eaf1ff;font-family:inherit;font-size:1rem;padding:0 4px}
   .bb-in-field::placeholder{color:#8ea2c8}
   .bb-tools{flex:0 0 auto;display:flex;gap:8px;margin-top:10px}
@@ -1204,6 +1238,15 @@ const I18N = {
     bb_pulse_active:(n)=>`You have ${n} active estimate${n>1?'s':''}.`,
     bb_pulse_follow:(n)=>`${n} follow-up${n>1?'s':''} need${n>1?'':'s'} attention.`,
     bb_pulse_await:(n)=>`${n} proposal${n>1?'s':''} awaiting signature.`,
+    bb_brief_checked:"While you were away I checked everything.",
+    bb_brief_paid:(name,amt)=>`${name} paid ${amt}.`,
+    bb_brief_fu:(n)=>`${n} customer${n>1?'s':''} still need${n>1?'':'s'} a follow-up.`,
+    bb_brief_await:(n)=>`${n} proposal${n>1?'s':''} ${n>1?'are':'is'} waiting for signature.`,
+    bb_brief_close:(amt,n)=>`Close ${n>1?'them':'it'} today and you'll add ${amt} in contracted work.`,
+    bb_brief_first:"What should we tackle first?",
+    bb_brief_allset:"I'm set up and watching your business. Let's get your first estimate out the door — tap the mic and walk me through a job.",
+    bb_sg_followwith:(name)=>`Follow up with ${name}`,
+    bb_sg_nudge:(name)=>`Nudge ${name} to sign`,
   },
   es: {
     auth_hero_h:"Solo habla. Nosotros escribimos el presupuesto.",
@@ -1260,6 +1303,15 @@ const I18N = {
     bb_pulse_active:(n)=>`Tienes ${n} presupuesto${n>1?'s':''} activo${n>1?'s':''}.`,
     bb_pulse_follow:(n)=>`${n} seguimiento${n>1?'s':''} necesita${n>1?'n':''} atención.`,
     bb_pulse_await:(n)=>`${n} propuesta${n>1?'s':''} esperando firma.`,
+    bb_brief_checked:"Mientras no estabas, revisé todo.",
+    bb_brief_paid:(name,amt)=>`${name} pagó ${amt}.`,
+    bb_brief_fu:(n)=>`${n} cliente${n>1?'s':''} todavía necesita${n>1?'n':''} seguimiento.`,
+    bb_brief_await:(n)=>`${n} propuesta${n>1?'s':''} ${n>1?'están':'está'} esperando firma.`,
+    bb_brief_close:(amt,n)=>`Ciérra${n>1?'las':'la'} hoy y sumarás ${amt} en trabajo contratado.`,
+    bb_brief_first:"¿Qué resolvemos primero?",
+    bb_brief_allset:"Estoy listo y vigilando tu negocio. Saquemos tu primer presupuesto — toca el micrófono y cuéntame el trabajo.",
+    bb_sg_followwith:(name)=>`Dar seguimiento a ${name}`,
+    bb_sg_nudge:(name)=>`Pídele la firma a ${name}`,
   },
 };
 function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); return v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); }
@@ -2186,35 +2238,64 @@ function bbContextPrompt(){
 let BBC = { thread:[], busy:false, rec:null, recChunks:[], recording:false, cancelRec:false };
 function bbThreadKey(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return 'bt_brain_thread_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate()); }
 function bbThreadLoad(){ try{ BBC.thread=JSON.parse(localStorage.getItem(bbThreadKey())||'[]'); }catch(_){ BBC.thread=[]; } if(!Array.isArray(BBC.thread)) BBC.thread=[]; }
-function bbThreadSave(){ try{ localStorage.setItem(bbThreadKey(), JSON.stringify(BBC.thread.slice(-40))); }catch(_){ } }
+function bbThreadSave(){ try{ localStorage.setItem(bbThreadKey(), JSON.stringify(BBC.thread.filter(m=>!m.seed).slice(-40))); }catch(_){ } }
 // Bid Brain's opening line: greeting + the live business pulse + an invitation.
+// The opening briefing — what a sharp employee would tell you when you walk in,
+// every line grounded in REAL data (deposits paid, follow-ups, contracted $ at stake).
 function bbGreetingText(){
-  const dd=bbGreetData(); const g=(BRAIN&&BRAIN.greeting)||{}; const parts=[`${dd.greet}${dd.first?', '+dd.first:''}.`];
-  if(g.activeEstimates>0) parts.push(t('bb_pulse_active')(g.activeEstimates));
-  if(g.followupsDue>0) parts.push(t('bb_pulse_follow')(g.followupsDue));
-  if(g.awaitingSignature>0) parts.push(t('bb_pulse_await')(g.awaitingSignature));
-  parts.push(t('bb_help_q'));
-  return parts.join(' ');
+  const dd=bbGreetData(); const b=(BRAIN&&BRAIN.briefing)||{};
+  const hi=`${dd.greet}${dd.first?', '+dd.first:''}.`;
+  const paid=(b.paidRecently||[]).filter(p=>p.amount>0);
+  const fu=b.followups||[]; const aw=b.awaiting||[];
+  if(!paid.length && !fu.length && !aw.length){ return `${hi} ${t('bb_brief_allset')}`; }
+  const L=[hi, t('bb_brief_checked')];
+  paid.forEach(p=> L.push('• '+t('bb_brief_paid')(bbFirst(p.name)||'A customer', money(p.amount))));
+  if(fu.length) L.push('• '+t('bb_brief_fu')(fu.length));
+  if(aw.length) L.push('• '+t('bb_brief_await')(aw.length));
+  if((b.awaitingTotal||0)>0 && aw.length) L.push(t('bb_brief_close')(money(b.awaitingTotal), aw.length));
+  L.push(t('bb_brief_first'));
+  return L.join('\n');
 }
+function bbFirst(n){ n=String(n||'').trim(); return n? (n.split(/\s+/)[0]) : ''; }
+// Live, data-driven suggestions — the next best actions pulled from real records,
+// not a static menu. Falls back to the core actions when there's no data yet.
+let BB_SUGGEST=[];
+function bbSuggestionsHTML(){
+  BB_SUGGEST=[]; const b=(BRAIN&&BRAIN.briefing)||{};
+  (b.followups||[]).slice(0,2).forEach(f=>{ if(f.name) BB_SUGGEST.push({label:t('bb_sg_followwith')(bbFirst(f.name)), kind:'job', id:f.id}); });
+  if((b.awaiting||[]).length){ const a=b.awaiting.find(x=>x.name); if(a) BB_SUGGEST.push({label:t('bb_sg_nudge')(bbFirst(a.name)), kind:'job', id:a.id}); }
+  BB_SUGGEST.push({label:t('bb_sg_create'), kind:'act', a:'create_estimate'});
+  BB_SUGGEST.push({label:t('bb_sg_schedule'), kind:'act', a:'schedule'});
+  BB_SUGGEST.push({label:t('bb_sg_customer'), kind:'act', a:'find_customer'});
+  BB_SUGGEST=BB_SUGGEST.slice(0,6);
+  return BB_SUGGEST.map((s,i)=>`<button onclick="bbSuggestPick(${i})">${esc(s.label)}</button>`).join('');
+}
+function bbSuggestPick(i){ const s=BB_SUGGEST[i]; if(!s) return; bbActivity(); if(s.kind==='job'){ bbClosePanel(); go('job',s.id); } else bbDoAction(s.a); }
 function bbOpenPanel(){
   const p=document.getElementById('bbPanel'), s=document.getElementById('bbScrim'); if(!p) return;
   bbActivity(); if(typeof loadBrain==='function') loadBrain();
   bbThreadLoad();
-  if(!BBC.thread.length){ BBC.thread.push({role:'assistant',content:bbGreetingText()}); bbThreadSave(); }
-  const sg=[['create','bb_sg_create'],['continue','bb_sg_continue'],['customer','bb_sg_customer'],['schedule','bb_sg_schedule'],['materials','bb_sg_materials'],['followup','bb_sg_followup']];
+  // The briefing is always fresh on open (it reflects what changed since you last
+  // looked) and is NOT persisted; the conversation below it is.
+  BBC.thread = BBC.thread.filter(m=>!m.seed);
+  BBC.thread.unshift({role:'assistant', seed:true, content:bbGreetingText()});
   p.innerHTML = `
     <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> Bid Brain <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
     <div class="bb-conv" id="bbConv"></div>
     <div class="bb-input">
       <button class="bb-in-mic" id="bbMicBtn" onclick="bbConvMic()" aria-label="${escAttr(t('bb_talk'))}">${icon('mic',20)}</button>
-      <input id="bbInput" class="bb-in-field" type="text" autocomplete="off" enterkeyhint="send" placeholder="${escAttr(t('bb_ask_ph'))}" onkeydown="if(event.key==='Enter'){event.preventDefault();bbConvSend();}">
-      <button class="bb-in-send" onclick="bbConvSend()" aria-label="Send">${icon('send',18)}</button>
+      <input id="bbInput" class="bb-in-field" type="text" autocomplete="off" enterkeyhint="send" placeholder="${escAttr(t('bb_ask_ph'))}" oninput="bbAkAuto()" onkeydown="if(event.key==='Enter'){event.preventDefault();bbConvSend();}">
+      <button class="bb-ak is-idle" id="bbActKey" onclick="bbActionTap()" aria-label="Bid Brain">
+        <span class="ak ak-orb"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg></span>
+        <span class="ak ak-send"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19.5V5.5"/><path d="M5.5 12l6.5-6.5 6.5 6.5"/></svg></span>
+        <span class="ak ak-stop"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="3" fill="currentColor"/></svg></span>
+      </button>
     </div>
     <div class="bb-tools">
       <button onclick="bbDoAction('photos')">📷 ${esc(t('bb_photos'))}</button>
       <button onclick="bbDoAction('attach')">📎 ${esc(t('bb_attach_files'))}</button>
     </div>
-    <div class="bb-suggest">${sg.map(([k,key])=>`<button onclick="bbSuggest('${k}')">${esc(t(key))}</button>`).join('')}</div>`;
+    <div class="bb-suggest">${bbSuggestionsHTML()}</div>`;
   s.style.display='block'; p.style.display='block';
   bbConvRender();
 }
@@ -2232,7 +2313,7 @@ async function bbConvSend(text){
   const msg=(text!=null?String(text):(inp?inp.value:'')).trim(); if(!msg||BBC.busy) return;
   if(inp) inp.value='';
   bbActivity(); BBC.thread.push({role:'user',content:msg}); bbThreadSave();
-  BBC.busy=true; bbConvRender(); bbSetState('thinking');
+  BBC.busy=true; bbConvRender(); bbSetState('thinking'); bbAk('thinking');
   try{
     const payload=BBC.thread.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role,content:m.content}));
     const r=await api('/api/brain/chat',{method:'POST', body:JSON.stringify({messages:payload, now:bbNow()})});
@@ -2247,9 +2328,10 @@ async function bbConvSend(text){
     else if(r&&r.action){ const label=bbActionLabel(r.action); if(label) BBC.thread.push({role:'action',action:(r.action==='open_job'?'job':r.action),jobId:(r.jobId||''),label}); }
     bbThreadSave(); bbConvRender();
     bbSetState(scheduled?'success':'speaking'); if(typeof speakQuestion==='function') speakQuestion(reply);
+    bbAk('success'); setTimeout(bbAkAuto, 1100);
     setTimeout(()=>{ if(!BBC.recording && (bbState==='speaking'||bbState==='success')) bbSetState('idle'); }, 2200);
   }catch(e){
-    BBC.busy=false; BBC.thread.push({role:'assistant',content:(e&&e.message)||t('bb_err_reply')}); bbThreadSave(); bbConvRender(); bbSetState('error');
+    BBC.busy=false; BBC.thread.push({role:'assistant',content:(e&&e.message)||t('bb_err_reply')}); bbThreadSave(); bbConvRender(); bbSetState('error'); bbAkAuto();
   }
 }
 function bbActionLabel(a){ return ({create_estimate:t('bb_go_estimate'),continue_estimate:t('bb_go_continue'),find_customer:t('bb_go_customer'),schedule:t('bb_go_schedule'),order_materials:t('bb_sg_materials'),followups:t('bb_go_followups'),open_job:t('bb_go_job')})[a]||''; }
@@ -2276,25 +2358,36 @@ async function bbConvMic(){
   let stream; try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(_){ if(typeof toast==='function') toast('Microphone access is needed to talk.','warn'); return; }
   const mime=(typeof pickAudioMime==='function'?pickAudioMime():'');
   try{ BBC.rec=new MediaRecorder(stream, mime?{mimeType:mime}:undefined); }catch(_){ try{ BBC.rec=new MediaRecorder(stream); }catch(__){ stream.getTracks().forEach(t=>t.stop()); return; } }
-  BBC.recChunks=[]; BBC.recording=true; BBC.cancelRec=false; bbSetState('listening');
+  BBC.recChunks=[]; BBC.recording=true; BBC.cancelRec=false; bbSetState('listening'); bbAk('recording');
   const mic=document.getElementById('bbMicBtn'); if(mic) mic.classList.add('rec');
   BBC.rec.ondataavailable=e=>{ if(e.data&&e.data.size) BBC.recChunks.push(e.data); };
   BBC.rec.onstop=async()=>{
     stream.getTracks().forEach(t=>t.stop()); const mic2=document.getElementById('bbMicBtn'); if(mic2) mic2.classList.remove('rec');
-    if(BBC.cancelRec){ BBC.cancelRec=false; BBC.recording=false; bbSetState('idle'); return; }
+    if(BBC.cancelRec){ BBC.cancelRec=false; BBC.recording=false; bbSetState('idle'); bbAkAuto(); return; }
     const blob=new Blob(BBC.recChunks,{type:mime||'audio/webm'}); BBC.recording=false;
-    if(blob.size<700){ bbSetState('idle'); return; }
-    bbSetState('thinking'); BBC.busy=true; bbConvRender();
+    if(blob.size<700){ bbSetState('idle'); bbAkAuto(); return; }
+    bbSetState('thinking'); bbAk('thinking'); BBC.busy=true; bbConvRender();
     try{
       const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
       const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({audio:dataUrl, lang:(SETTINGS.from||'en')})});
       BBC.busy=false; const said=((r&&r.text)||'').trim();
-      if(said) bbConvSend(said); else { bbConvRender(); bbSetState('idle'); }
-    }catch(e){ BBC.busy=false; bbConvRender(); bbSetState('error'); }
+      if(said) bbConvSend(said); else { bbConvRender(); bbSetState('idle'); bbAkAuto(); }
+    }catch(e){ BBC.busy=false; bbConvRender(); bbSetState('error'); bbAkAuto(); }
   };
   try{ BBC.rec.start(); }catch(_){ BBC.recording=false; bbSetState('idle'); }
 }
 function bbConvStopRec(cancel){ try{ if(cancel) BBC.cancelRec=true; if(BBC.rec&&BBC.rec.state!=='inactive') BBC.rec.stop(); }catch(_){ } }
+// ===== The intelligent action key: one control that morphs to communicate the next step.
+// idle (calm orb) → typing (Send) → recording (Stop) → thinking (living orb) → success (teal). =====
+const BB_AK_STATES=['is-idle','is-typing','is-recording','is-thinking','is-success'];
+const BB_AK_LABEL={idle:'Bid Brain',typing:'Send',recording:'Stop recording',thinking:'Working…',success:'Done'};
+function bbAk(state){ const k=document.getElementById('bbActKey'); if(!k) return;
+  k.classList.remove(...BB_AK_STATES); k.classList.add('is-'+state); k.setAttribute('aria-label', BB_AK_LABEL[state]||'Bid Brain'); }
+// Pick the resting state from what's actually happening (no manual bookkeeping).
+function bbAkAuto(){ if(BBC.recording) return bbAk('recording'); if(BBC.busy) return bbAk('thinking');
+  const inp=document.getElementById('bbInput'); bbAk(inp && inp.value.trim() ? 'typing' : 'idle'); }
+// One tap, context-aware: stop if recording, send if there's text, otherwise nothing.
+function bbActionTap(){ if(BBC.recording){ bbConvStopRec(); return; } const inp=document.getElementById('bbInput'); if(inp && inp.value.trim()) bbConvSend(); }
 // Local date/time context so Bid Brain can resolve "tomorrow", "Friday", "in two weeks".
 function bbNow(){ const d=new Date(); const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']; const p=n=>String(n).padStart(2,'0');
   let tz=''; try{ tz=Intl.DateTimeFormat().resolvedOptions().timeZone||''; }catch(_){ }
