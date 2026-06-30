@@ -218,6 +218,14 @@
   .kpi.hero .kpi-ic{width:46px;height:46px;background:rgba(62,125,90,.16);color:#6fce93}
   .kpi.hero .kpi-v{font-size:2.4rem}
   .kpi.rev .kpi-v{color:#6fce93}
+  /* Revenue hero split: Contracted | Collected, both real numbers. */
+  .rev-split{display:flex;align-items:stretch;gap:14px;margin-top:6px}
+  .rev-part{flex:1 1 0;min-width:0}
+  .rev-amt{font-family:"Archivo";font-weight:900;font-size:1.85rem;letter-spacing:-.025em;line-height:1.04;color:var(--text)}
+  .rev-amt.good{color:#6fce93}
+  .rev-sub{font-family:"IBM Plex Sans";font-size:.62rem;color:var(--muted);margin-top:4px;white-space:nowrap}
+  .rev-div{flex:0 0 1px;background:linear-gradient(180deg,transparent,rgba(140,180,255,.22),transparent)}
+  .kpi.rev-empty .kpi-v{color:var(--muted)}
   .kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
   .kpi-grid .kpi{padding:14px;min-width:0;overflow:hidden}
   .kpi.won .kpi-ic{color:#6fce93} .kpi.pend .kpi-ic,.kpi.close .kpi-ic{color:var(--amber)}
@@ -2623,6 +2631,37 @@ function leadCard(){
     <span class="lead-go">${icon('chevron',16)}</span>
   </button>`;
 }
+// The revenue hero. Two real numbers, never a placeholder:
+//   Contracted = signed/scheduled bids (work the contractor has won)
+//   Collected  = payments actually received (paid payment requests)
+// Both shown when both exist; one when only one does; a helpful $0 empty state
+// when there's truly no revenue yet.
+function revenueHero(k){
+  const contracted=k.wonValue||0, collected=k.collected||0;
+  const cCount=k.wonCount||0, pCount=k.payments||0;
+  if(!contracted && !collected){
+    return `<div class="kpi hero rev rev-empty">
+      <div class="kpi-ic">${icon('revenue',22)}</div>
+      <div class="kpi-txt"><div class="kpi-l">Revenue</div><div class="kpi-v">$0</div>
+        <div class="kpi-s">Sign a bid or collect a payment and your revenue shows up here.</div></div></div>`;
+  }
+  if(contracted>0 && collected>0){
+    return `<div class="kpi hero rev">
+      <div class="kpi-ic">${icon('revenue',22)}</div>
+      <div class="kpi-txt" style="width:100%"><div class="kpi-l">Revenue</div>
+        <div class="rev-split">
+          <div class="rev-part"><div class="rev-amt">${moneyShort(contracted)}</div><div class="rev-sub">Contracted · ${cCount} signed</div></div>
+          <div class="rev-div"></div>
+          <div class="rev-part"><div class="rev-amt good">${moneyShort(collected)}</div><div class="rev-sub">Collected · ${pCount} paid</div></div>
+        </div></div></div>`;
+  }
+  const isC=contracted>0;
+  return `<div class="kpi hero rev">
+    <div class="kpi-ic">${icon('revenue',22)}</div>
+    <div class="kpi-txt"><div class="kpi-l">${isC?'Contracted revenue':'Collected revenue'}</div>
+      <div class="kpi-v">${moneyShort(isC?contracted:collected)}</div>
+      <div class="kpi-s">${isC?(cCount+' signed job'+(cCount===1?'':'s')+' · collect payments to track cash'):(pCount+' payment'+(pCount===1?'':'s')+' received')}</div></div></div>`;
+}
 function kpiStrip(k){
   // A stat card. Pass onclick to make it tappable (jumps to those jobs) — a plain div otherwise.
   const card=(name,label,val,sub,cls,onclick)=>{
@@ -2632,11 +2671,7 @@ function kpiStrip(k){
       : `<div class="kpi ${cls||''}">${inner}</div>`;
   };
   return `<div class="kpis">
-    <div class="kpi hero rev">
-      <div class="kpi-ic">${icon('revenue',22)}</div>
-      <div class="kpi-txt"><div class="kpi-l">Revenue collected</div><div class="kpi-v">${moneyShort(k.collected)}</div>
-        <div class="kpi-s">${k.payments?(k.payments+' payment'+(k.payments===1?'':'s')+' received'):'No payments yet'}</div></div>
-    </div>
+    ${revenueHero(k)}
     <div class="kpi-grid">
       ${leadCard()}
       ${card('won','Won',moneyShort(k.wonValue),k.wonCount+' job'+(k.wonCount===1?'':'s'),'won')}
