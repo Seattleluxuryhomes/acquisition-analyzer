@@ -798,6 +798,11 @@
   /* working — golden, building/analyzing */
   .bb-dock.working{animation:bbbreathe 1.9s ease-in-out infinite;box-shadow:0 10px 30px rgba(10,16,30,.5),0 0 36px rgba(255,196,64,.68),inset 0 1px 0 rgba(255,255,255,.16);border-color:rgba(255,196,64,.55)}
   .bb-dock.working .bb-brain .bb-syn{animation-duration:1.3s}
+  /* learning — cyan, saving to memory */
+  .bb-dock.learning{animation:bbbreathe 2.2s ease-in-out infinite;box-shadow:0 10px 30px rgba(10,16,30,.5),0 0 34px rgba(58,220,212,.62),inset 0 1px 0 rgba(255,255,255,.15);border-color:rgba(58,220,212,.5)}
+  /* completed — green success pop, then back to idle */
+  .bb-dock.completed{box-shadow:0 10px 30px rgba(10,16,30,.5),0 0 40px rgba(58,214,122,.78),inset 0 1px 0 rgba(255,255,255,.16);border-color:rgba(58,214,122,.62);animation:bbpop .6s ease}
+  @keyframes bbpop{0%{transform:scale(1)}42%{transform:scale(1.18)}100%{transform:scale(1)}}
   /* error — brief red pulse + shake, then back to idle */
   .bb-dock.error{box-shadow:0 10px 30px rgba(10,16,30,.5),0 0 34px rgba(240,80,70,.72),inset 0 1px 0 rgba(255,255,255,.14);border-color:rgba(240,80,70,.6);animation:bbshake .5s ease}
   @keyframes bbshake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
@@ -1928,8 +1933,10 @@ const BB_SVG_INNER = `<g filter="url(#bbGlow)"><g class="bb-syn" stroke="url(#bb
 // brain personality state: idle(blue) listening(green) thinking(orange) speaking(purple) working(gold) error(red)
 let bbState='idle', bbErrTimer=null;
 function bbSetState(s){ const d=document.getElementById('bbDock'); if(!d) return; s=s||'idle'; bbState=s;
-  d.classList.remove('idle','listening','thinking','speaking','working','error'); d.classList.add(s);
-  clearTimeout(bbErrTimer); if(s==='error'){ bbErrTimer=setTimeout(()=>bbSetState('idle'), 900); }
+  d.classList.remove('idle','listening','thinking','speaking','working','learning','completed','error'); d.classList.add(s);
+  clearTimeout(bbErrTimer);
+  if(s==='error') bbErrTimer=setTimeout(()=>bbSetState('idle'), 900);
+  else if(s==='completed') bbErrTimer=setTimeout(()=>bbSetState('idle'), 1400);
 }
 
 let bbInited=false, bbDrag=null, bbLastTap=0, bbTapTimer=null, bbLpTimer=null, bbLpFired=false;
@@ -2017,32 +2024,80 @@ function bbContextPrompt(){
   if(v==='schedule') return t('bb_ctx_schedule');
   return t('bb_prompt');
 }
+// ===== Conversation-first overlay: talk to Bid Brain in place, never navigate =====
+let BBC = { thread:[], transcript:'', intake:null };
+let bbRec=null, bbChunks=[], bbRecStream=null, bbRecording=false;
 function bbOpenPanel(){
   const p=document.getElementById('bbPanel'), s=document.getElementById('bbScrim'); if(!p) return;
   bbActivity(); if(typeof loadBrain==='function') loadBrain();
-  const dd=bbGreetData();
-  p.innerHTML = `
-    <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> Bid Brain <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
-    <div class="bb-panel-hi">${esc(dd.greet)}${dd.first?', '+esc(dd.first):''}.</div>
-    ${dd.pulse.length?`<div class="bb-panel-pulse">${dd.pulse.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:`<div class="bb-panel-pulse empty">${esc(t('bb_firstrun'))}</div>`}
-    <div class="bb-panel-prompt">${esc(bbContextPrompt())}</div>
-    <div class="bb-acts">
-      <button class="bb-act primary" onclick="bbAct('talk')"><span class="bb-act-ic">🎤</span>${esc(t('bb_talk'))}</button>
-      <button class="bb-act" onclick="bbAct('type')"><span class="bb-act-ic">⌨️</span>${esc(t('bb_type'))}</button>
-      <button class="bb-act" onclick="bbAct('photos')"><span class="bb-act-ic">📷</span>${esc(t('bb_photos'))}</button>
-      <button class="bb-act" onclick="bbAct('attach')"><span class="bb-act-ic">📎</span>${esc(t('bb_attach'))}</button>
-    </div>
-    <div class="bb-quick">
-      <button onclick="bbq('continue')">📋 ${esc(t('bb_card_continue'))}</button>
-      <button onclick="bbq('customer')">👥 ${esc(t('bb_card_customer'))}</button>
-      <button onclick="bbq('followups')">📅 ${esc(t('bb_card_followups'))}</button>
-    </div>
-    ${dd.m.last_trade?`<div class="bb-mem2">🧠 ${esc(t('bb_remembers'))} ${esc(bbPrettyTrade(dd.m.last_trade))}${dd.m.typical_markup!=null?` · ${esc(t('bb_markup'))} ${dd.m.typical_markup}%`:''}</div>`:''}`;
-  s.style.display='block'; p.style.display='block';
+  if(!BBC.thread.length){ const dd=bbGreetData(); BBC.thread.push({who:'brain', text:`${dd.greet}${dd.first?', '+dd.first:''}. ${bbContextPrompt()}`}); }
+  bbConvRender(); s.style.display='block'; p.style.display='block';
+  const i=document.getElementById('bbConvInput'); if(i && !('ontouchstart' in window)) i.focus();
 }
-function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.getElementById('bbScrim'); if(p)p.style.display='none'; if(s)s.style.display='none'; }
-function bbAct(k){ bbClosePanel(); if(k==='talk') bbVoiceNow(); else if(k==='type'){ if(typeof brainStartVoice==='function') brainStartVoice(); } else { if(typeof brainPhotos==='function') brainPhotos(); } }
-function bbq(k){ bbClosePanel(); if(k==='continue') brainContinue(); else if(k==='customer') go('prospecting'); else if(k==='followups') showFollowups(); }
+function bbConvRender(){
+  const p=document.getElementById('bbPanel'); if(!p) return;
+  const cl=(BBC.intake&&Array.isArray(BBC.intake.checklist))?BBC.intake.checklist:[];
+  const captured=cl.filter(c=>c.status==='captured');
+  const feed=captured.length?`<div class="bb-feed">${captured.map(c=>`<span class="bb-feed-i">✓ ${esc(c.label)}${c.value?`: <b>${esc(c.value)}</b>`:''}</span>`).join('')}</div>`:'';
+  const ready=!!(BBC.intake&&BBC.intake.ready);
+  const bubbles=BBC.thread.map(m=>`<div class="bb-msg ${m.who}">${m.who==='brain'?'<span class="bb-msg-b"></span>':''}<div class="bb-bub">${esc(m.text)}</div></div>`).join('');
+  p.innerHTML=`
+    <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> Bid Brain <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
+    <div class="bb-thread" id="bbThread">${bubbles}${feed}${ready?`<button class="bb-openbid" onclick="bbConvOpenBid()">${esc(t('bb_open_bid'))} →</button>`:''}</div>
+    <div class="bb-input">
+      <input id="bbConvInput" class="bb-conv-in" placeholder="${escAttr(t('bb_conv_hint'))}" autocomplete="off" onkeydown="if(event.key==='Enter')bbConvType()"/>
+      <button class="bb-mic-btn ${bbRecording?'rec':''}" onclick="bbConvMic()" aria-label="${escAttr(t('bb_talk'))}">${icon('mic',20)}</button>
+      <button class="bb-send" onclick="bbConvType()" aria-label="Send">➤</button>
+    </div>
+    <div class="bb-more"><button onclick="bbq('photos')">📷 ${esc(t('bb_photos'))}</button><button onclick="bbq('continue')">📋 ${esc(t('bb_card_continue'))}</button><button onclick="bbq('followups')">📅 ${esc(t('bb_card_followups'))}</button></div>`;
+  const th=document.getElementById('bbThread'); if(th) th.scrollTop=th.scrollHeight;
+}
+function bbConvType(){ const i=document.getElementById('bbConvInput'); if(!i) return; const v=(i.value||'').trim(); if(!v) return; i.value=''; bbConvUserSaid(v); }
+// Every turn re-runs the existing estimator (assistIntake) over the running
+// transcript → updates the live ✓ feed + asks the next question. No navigation.
+function bbConvUserSaid(text){
+  BBC.thread.push({who:'you', text}); BBC.transcript=(BBC.transcript+' '+text).trim();
+  bbSetState('thinking'); bbConvRender();
+  api('/api/assist/intake',{method:'POST',body:JSON.stringify({text:BBC.transcript, trade:(BRAIN&&BRAIN.memory&&BRAIN.memory.last_trade)||''})})
+    .then(r=>{ const x=(r&&r.intake)||r||{}; BBC.intake=x;
+      const ready=!!x.ready; const msg=ready? t('bb_conv_ready') : (x.next_question||t('bb_conv_more'));
+      BBC.thread.push({who:'brain', text:msg}); bbSetState(ready?'completed':'speaking'); bbConvRender();
+      try{ if(typeof speakQuestion==='function') speakQuestion(msg); }catch(e){}
+      setTimeout(()=>{ if(bbState==='speaking') bbSetState('idle'); }, 1800);
+    }).catch(()=>{ bbSetState('error'); bbConvRender(); });
+}
+// In-overlay voice: tap mic to talk, tap again to send. Records here (never the
+// capture page), transcribes via Whisper, then runs the same conversation turn.
+async function bbConvMic(){
+  if(bbRecording){ try{ bbRec&&bbRec.state!=='inactive'&&bbRec.stop(); }catch(e){} return; }
+  if(!recordSupported()){ const i=document.getElementById('bbConvInput'); if(i) i.focus(); return; }
+  try{ bbRecStream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){ bbSetState('error'); bbConvRender(); return; }
+  bbChunks=[]; const mime=pickAudioMime();
+  try{ bbRec=new MediaRecorder(bbRecStream, mime?{mimeType:mime}:undefined); }catch(e){ try{ bbRec=new MediaRecorder(bbRecStream); }catch(_){ bbSetState('error'); return; } }
+  bbRec.ondataavailable=ev=>{ if(ev.data&&ev.data.size) bbChunks.push(ev.data); };
+  bbRec.onstop=async ()=>{ bbRecording=false; try{ bbRecStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+    bbSetState('thinking'); bbConvRender();
+    const blob=new Blob(bbChunks,{type:(bbRec&&bbRec.mimeType)||'audio/webm'});
+    if(blob.size<900){ bbSetState('idle'); bbConvRender(); return; }
+    const dataUrl=await new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(blob); });
+    try{ const r=await api('/api/assist/transcribe',{method:'POST',body:JSON.stringify({audio:dataUrl, lang:(SETTINGS.from||'es')})});
+      if(r&&r.text&&r.text.trim()) bbConvUserSaid(r.text.trim()); else { bbSetState('idle'); bbConvRender(); }
+    }catch(e){ bbSetState('error'); bbConvRender(); }
+  };
+  bbRec.start(); bbRecording=true; bbSetState('listening'); bbConvRender();
+}
+// The ONLY navigation: hand the finished conversation to the full editable bid.
+function bbConvOpenBid(){
+  bbClosePanel();
+  if(typeof freshCapture==='function') freshCapture();
+  CAP_DRAFT.text=BBC.transcript; CAP_DRAFT.trade=(BRAIN&&BRAIN.memory&&BRAIN.memory.last_trade)||CAP_DRAFT.trade||'';
+  if(BBC.intake) CAP_INTAKE=BBC.intake;
+  try{ localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT)); if(typeof persistIntake==='function') persistIntake(); }catch(e){}
+  BBC={thread:[],transcript:'',intake:null};
+  go('capture','new');
+}
+function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.getElementById('bbScrim'); if(p)p.style.display='none'; if(s)s.style.display='none'; if(bbState!=='idle' && !bbRecording) bbSetState('idle'); }
+function bbq(k){ bbClosePanel(); if(k==='photos'){ if(typeof brainPhotos==='function') brainPhotos(); } else if(k==='continue'){ if(typeof brainContinue==='function') brainContinue(); } else if(k==='customer') go('prospecting'); else if(k==='followups') showFollowups(); }
 
 // "Jobs" bottom-nav tab: the dashboard is the job list — land there and bring the
 // list into view.
