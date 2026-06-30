@@ -39,6 +39,10 @@
 - [ ] **Animations are smooth** (60fps; reduced-motion respected).
 - [ ] **Voice interactions work** end-to-end (record → transcribe → respond).
 - [ ] **Overall experience feels intentional and production-ready.**
+- [ ] **This release removes something** — a screen, a click, a question, a setting, a
+      duplicate workflow, or a confusing element. The product gets *simpler* over time.
+- [ ] **The final question:** *"If this were the only update a contractor received this
+      month, would they be excited to install it?"* If no, keep improving. If yes, ship.
 
 ## Standing audit backlog (quality debt to retire before the next big merge)
 - **System-emoji sweep — done for pictographs.** Every colorful system emoji in the
