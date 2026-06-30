@@ -173,6 +173,127 @@ product.
 
 ---
 
-*No code. Complete vision for review. The decision to make first: confirm we (a) retire the in-app
-brochure and move the value-story to marketing/onboarding, and (b) build this as the real Home,
-grounded in the Timeline spine — honest by construction, alive because the events are real.*
+---
+
+# PART II — Detailed design (the founder's "one job" principle)
+
+> **APPROVED:** retire the in-app brochure (value-story → website / welcome / interactive demo /
+> onboarding — the paid app never sells itself, it immediately helps); build the new Home as the
+> first real consumer of the Customer Timeline spine.
+
+## 11. The Home has ONE job
+
+Every morning the contractor opens BidVoice and immediately knows **"what only *I* need to do
+today."** Everything else, BidVoice quietly handles. The Home is **not** a dashboard, notifications,
+reports, analytics, or marketing. It is a **morning briefing from the contractor's AI employee** —
+the office manager saying: *"Good morning. I already took care of what I could. Here's what only
+you need to do."*
+
+This sharpens Part I: the Home is not a *feed of what happened* — it is a **filtered triage of what
+requires the human.** Everything on screen is either (a) something only the contractor can decide/
+do, or (b) honest reassurance that the rest is handled.
+
+## 12. The AI filters (restraint is the feature)
+
+- **Twenty things happened → surface the top three.** Ranked by **materiality** (dollars, deadlines,
+  risk to trust), not recency or count.
+- **Nothing important happened → say so, confidently:** *"Everything's on schedule. No customer
+  needs you today."* That confident "all clear" is a *feature*, not an empty state — it's the
+  feeling of a well-run office. (And it must be *true* — see §15.)
+- **Never a count, never a badge.** "3 things need you," not "🔴 17." The number the contractor
+  cares about is *how few* things need them — because the rest is handled.
+
+The triage source is what we already built: the **AI-PM `attention` feed** (deterministic,
+event-cited) + `project_state` health + the briefing — filtered to the vital few.
+
+## 13. The card contract (every card must justify its existence)
+
+A card may appear **only if it answers all three** — or it's removed:
+
+```
+WhyHere   — the real event/rule that surfaced it      (grounding; from the attention event)
+WhyNow    — why today, not yesterday or next week      (the trigger: overdue, arriving, signed)
+WhatToDo  — the single obvious action                  (one tap: Follow up · Approve · Schedule)
+```
+
+This is literally the `attention` event shape from the timeline spine: `reason` = WhyHere,
+the trigger condition = WhyNow, `action` (a `[[directive]]`) = WhatToDo, `eventId` = the citation.
+**If a candidate card can't fill all three from real data, it does not render.** No filler, ever.
+
+## 14. Designed to *reduce stress* (the anti-dashboard)
+
+Most business software manufactures anxiety: red badges, unread counts, charts, warning lists.
+We design the **opposite** — the contractor should feel *organized, in control, "my office is
+running."* Concrete rules:
+
+- **No red badges, no unread counts, no charts on the Home.** Calm dark canvas, generous space,
+  the orb, a few words.
+- **One focus at a time.** The top thing that needs them, large. The next one or two, quieter.
+  Nothing competes.
+- **Reassuring language over alarming language.** "Mrs. Smith hasn't signed — want me to follow
+  up?" not "⚠️ OVERDUE: 1 unsigned proposal."
+- **The orb is calm.** Soft breathing, not pulsing urgency. Urgency is reserved for genuine red
+  (a real `red` health item), and even then it *explains and offers the fix*.
+
+That calm is part of the product — the 6:30 AM feeling (§17) is a design requirement, not a vibe.
+
+## 15. The Home never lies (trust, applied to the morning)
+
+Grounded only in **timeline events · project_state · Company Brain · verified data.** If nothing
+happened, nothing happened — we say "all clear," we don't invent activity. Two honest limits to
+hold the line on:
+
+- **"I handled everything I could" only if we actually did.** Today BidVoice automates little, so
+  the honest early Home says *"Here's what needs you; the rest is on track,"* not *"I handled 17
+  things."* The "I handled X" line grows true as automation (reviews, follow-ups, the receptionist)
+  actually ships — and each claim cites the real action.
+- **"All clear" must be earned.** It renders only when the deterministic watchers find no open
+  material item — never as a default. A false "all clear" is the worst lie we could tell (it hides
+  a real problem), so the watchers that back it are the most important code, not the prettiest UI.
+
+## 16. The Home gets more valuable every month (the moat, on the home screen)
+
+Designed to deepen as the Company Brain evolves:
+
+- **Week 1 — useful.** It surfaces the few real things that need the contractor (from their
+  timeline) and confidently handles the "all clear." Immediately less to remember.
+- **Month 3 — personalized.** The Home *learns what matters to **this** contractor.* The filter is
+  not static: which "needs you" items they **act on vs. dismiss** tunes the ranking (the R&D/
+  Company-Brain loop applied to triage). It learns their hours, their priorities, which customers
+  they chase, what they ignore — and surfaces accordingly. It starts to prioritize like they do.
+- **Year 2 — impossible to leave.** The Home reflects an accumulated brain: every customer's
+  history, the owner's standards, years of patterns. The switching cost isn't the features — it's
+  that *BidVoice understands how they run their business,* and a competitor starts from zero.
+
+The mechanism is honest and owned: the Home's ranking is a function over the contractor's **own**
+timeline + their **own** act/dismiss behavior + the Company Brain. It personalizes from evidence
+they generated, not from guesses — so "BidVoice understands my business" is *earned*, never faked.
+
+## 17. The final test (the acceptance criteria)
+
+A contractor opens BidVoice at 6:30 AM before the first job. They should feel **calm, prepared,
+organized, confident, supported.** If the Home creates those five feelings, we succeeded. **If it
+feels like software, start over.** This is the literal pass/fail for the design — not engagement,
+not clicks, not time-in-app (which we'd actually want to be *low* — get them out the door informed).
+
+## 18. Revised MVP (triage-first)
+
+1. **"What needs you today"** — the top 1–3 open `attention` items from the spine, each satisfying
+   the card contract (WhyHere / WhyNow / WhatToDo), one-tap action, materiality-ranked. 2. The
+   **honest "all clear"** state when the watchers find nothing material. 3. The **orb** delivering
+   it (tap to talk — the unified Bid Brain interface). 4. **Calm design** — no badges, no counts, no
+   charts; one focus; reassuring language. 5. A quiet, real activity line ("on track") + a calm
+   revenue line, both grounded.
+
+Defer (each needs data/automation we don't have yet, and we won't fake them): the learned/
+personalized filter (needs act-vs-dismiss history), the "I handled N things" line (needs real
+automation), and the full cinematic demo. Build the honest, calm, filtered triage first — it
+already delivers the 6:30 AM feeling, truthfully.
+
+---
+
+*No code. The Home's job: surface what only the contractor must do today, handle/reassure the rest,
+never lie, and get smarter every month from their own data. The decision to confirm: build the
+triage-first MVP (§18) over the Timeline spine's `attentionFeed` + `project_state`, with the calm,
+restraint-first, anti-dashboard design as a hard requirement — measured by the five 6:30 AM
+feelings, not by engagement.*
