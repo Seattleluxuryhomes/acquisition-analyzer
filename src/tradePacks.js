@@ -3,33 +3,50 @@
 // trade from here — estimator, AI receptionist, website/SEO, Bid Brain, proposals,
 // follow-ups, marketing. One trade definition powers them all.
 //
-// Architectural principles (founder's call):
-//  • One source of truth — nothing hardcodes trade knowledge anywhere else.
-//  • Interface-agnostic — a pack returns DATA, never UI. The same intelligence can
-//    feed a web page, the phone receptionist, a voice assistant, or whatever device
-//    comes next. The interface changes; the intelligence does not.
-//  • Compose, don't duplicate — the estimating brain + labels + capture hints already
-//    live in trades.js; we read them through here rather than copy them.
-//  • Depth-first — roofing is the deep reference pack that proves the structure; other
-//    trades inherit sensible defaults (intake derived from their estimating fields)
-//    until each is filled to the same depth.
+// Architecture:
+//  • Registry + schema + overlay live here.
+//  • Each DEEP trade is its own module in ./packs/<trade>.js (so "deepen a trade" is a
+//    self-contained, reviewable unit — and the data can later move to a DB or JSON
+//    without touching consumers). Add a trade to DEEP_PACKS as it's filled.
+//  • Trades not yet deepened still work: they get their estimating fields from the base
+//    map below and a receptionist interview derived from those fields.
 //
-// Today this consolidates the estimating intake checklists (relocated here from
-// assist.js) and adds the receptionist / SEO / FAQ knowledge that had no home. The
-// remaining split — the client picker's copy of emoji/label/"bring" in
-// public/index.html — should migrate to read from a pack endpoint next.
+// Principles (founder's call):
+//  • One source of truth — nothing hardcodes trade knowledge elsewhere.
+//  • Interface-agnostic — a pack returns DATA, never UI. Same intelligence can power a
+//    web page, the phone receptionist, a voice assistant, or whatever device is next.
+//  • Compose, don't duplicate — label/emoji/capture-hints/estimating-brain come from
+//    trades.js; we read them through here.
+//  • Company Brain overlay — the generic pack is customized by the contractor's own
+//    standards (preferred brands, waste %, min job size, financing thresholds, voice)
+//    via applyCompanyOverlay(). The seam exists now; the Company Brain fills it later.
 
 import { TRADES, tradeBrain, tradeLabel, tradeList } from "./trades.js";
+import roofing from "./packs/roofing.js";
+import windows from "./packs/windows.js";
 
-// ---- Estimating intake checklists (one home now; was assist.js TRADE_FIELDS) ----
-// What the estimate needs captured, per trade. Drives the AI estimator's interview.
-export const ESTIMATING_FIELDS = {
+// Deep packs — one module per trade. Add here as each is filled to reference depth.
+const DEEP_PACKS = { roofing, windows };
+
+// ---- The pack schema: every field, with safe empty defaults ----
+// Consumers can rely on the shape whether or not a trade is deep yet.
+function emptyPack() {
+  return {
+    vocabulary: [], intakeQuestions: [], services: [], faqs: [], materials: [],
+    customerObjections: [], financingTriggers: [], upsells: [], safety: [],
+    suggestedPhotos: [], followUps: [],
+    warranty: "", proposalLanguage: "", marketingCopy: "", reviewRequest: "", referralMessage: "",
+  };
+}
+
+// ---- Estimating intake checklists for trades NOT yet deepened ----
+// Deep packs own their own estimatingFields (in their module); these cover the rest.
+export const GENERIC_FIELDS = ["Customer & address", "Scope of work", "Key measurements / quantities", "Materials & who supplies them", "Site access & staging", "Permits / inspections", "Timeline / start date"];
+const BASE_FIELDS = {
   fencing: ["Total linear feet", "Height", "Material (cedar, vinyl, chain-link…)", "Gates (count & width)", "Tear-out of existing fence?", "Post type & set (concrete-set?)", "Stain / finish or natural", "Grade / terrain", "Haul-off of debris"],
   painting: ["Interior or exterior", "Rooms / square footage", "Prep & prime (patch, sand, caulk)", "Who supplies the paint", "Sheen (flat, eggshell, satin…)", "Trim, doors & jambs", "Ceilings included?", "Number of coats"],
-  roofing: ["Roof system (architectural, 3-tab, metal, TPO…)", "Squares (or footprint + pitch)", "Existing layers / tear-off", "Decking condition", "Underlayment & ice-and-water", "Ventilation (ridge / soffit)", "Flashing & drip edge", "Gutters", "Disposal"],
   electrical: ["Service size (amps)", "Service upgrade or panel swap?", "New circuits / devices (count)", "Rough-in & trim-out scope", "AFCI / GFCI / tamper-resistant", "Permit & inspection", "Wire runs & access"],
   "excavation-demo": ["Scope (clear & grub, mass ex, trenching, grading, demo, haul)", "Volume — bank cubic yards (BCY)", "Cut / fill balance — export or import?", "Soil type (sand, clay, rock?)", "Spoils: haul-off or stockpile on-site", "Compaction spec & import fill", "Dewatering / groundwater?", "Equipment access & staging", "Utility locates (811)", "Erosion control / permits", "Haul distance / dump fees"],
-  windows: ["Opening count (windows & doors)", "Type per opening (single / double-hung, casement, slider, picture…)", "Sizes (W×H) or to-measure", "Retrofit / insert vs full-frame replacement", "Frame material (vinyl, wood, fiberglass, clad)", "Glass package (Low-E, dual / triple, tempered where required)", "Egress required (bedrooms / basements)?", "Interior & exterior trim / casing", "Flashing & waterproofing (full-frame)", "Removal & disposal of old units", "Lead-safe (pre-1978) & access / height"],
   concrete: ["Area (sq ft)", "Thickness / spec", "Type (slab, driveway, footings, flatwork)", "Reinforcement (rebar / mesh / fiber)", "Forming & sub-base", "Finish (broom, trowel, stamped, exposed)", "Demo & haul of existing?", "Control joints / sealer"],
   flooring: ["Material (LVP, tile, hardwood, carpet…)", "Area (sq ft)", "Subfloor prep / leveling", "Tear-out of existing", "Underlayment / moisture barrier", "Transitions & trim", "Rooms / layout"],
   decking: ["Deck size (sq ft)", "Decking material (cedar, composite, PT)", "Substructure & footings", "Railing system", "Stairs", "Tear-out of existing?", "Finish / stain"],
@@ -58,82 +75,81 @@ export const ESTIMATING_FIELDS = {
   geotech: ["Site location & size", "Number & depth of borings / test pits", "Structure type the report supports", "Deliverable (report, recommendations, bearing capacity)", "Lab testing scope", "Access for drill rig & utility clearance (811)", "Groundwater / known conditions", "Schedule / turnaround"],
   survey: ["Parcel size & location (address / APN)", "Survey type (boundary, topographic, ALTA/NSPS, as-built)", "Deliverable format (PDF, CAD, stamped plat)", "Monumentation / staking required?", "Existing records, deeds or prior surveys", "Site access & terrain", "Title commitment provided (ALTA)?", "Schedule / turnaround"],
 };
-export const GENERIC_FIELDS = ["Customer & address", "Scope of work", "Key measurements / quantities", "Materials & who supplies them", "Site access & staging", "Permits / inspections", "Timeline / start date"];
-export function tradeFields(key) { return ESTIMATING_FIELDS[key] || GENERIC_FIELDS; }
 
-// ---- PACK_EXT: receptionist + SEO + FAQ knowledge (no prior home) ----
-// Depth-first: ROOFING is the reference pack. Each `services` entry becomes a real
-// SEO page; `intakeQuestions` are what the receptionist asks a caller; `faqs` feed
-// both the site and the receptionist. Other trades fall back to generic defaults
-// until filled to this depth.
-const PACK_EXT = {
-  roofing: {
-    // SEO service pages (the engine will render one real page per entry).
-    services: [
-      { slug: "roof-replacement", name: "Roof Replacement", blurb: "Full tear-off and re-roof with a manufacturer-backed system." },
-      { slug: "roof-repair", name: "Roof Repair", blurb: "Fast leak repair and targeted fixes — honest repair-vs-replace advice." },
-      { slug: "storm-hail-damage", name: "Storm & Hail Damage", blurb: "Insurance-claim roofing — we document the damage and meet your adjuster." },
-      { slug: "metal-roofing", name: "Metal Roofing", blurb: "Standing-seam and metal systems built to last decades." },
-      { slug: "flat-roofing", name: "Flat & Low-Slope Roofing", blurb: "TPO and low-slope systems for additions and commercial roofs." },
-      { slug: "gutter-installation", name: "Gutter Installation", blurb: "Seamless gutters and guards to protect the roof you just paid for." },
-      { slug: "skylight-installation", name: "Skylight Installation", blurb: "Leak-free skylight install and re-flashing." },
-      { slug: "roof-inspection", name: "Roof Inspection", blurb: "Pre-sale and storm inspections with a clear written report." },
-    ],
-    // What a 20-year roofing office manager asks a caller — trade-aware, not generic.
-    intakeQuestions: [
-      "Is this a leak or repair, or are you looking at a full roof replacement?",
-      "Are you seeing an active leak or water stains on the ceiling right now?",
-      "Roughly how old is the roof, if you know?",
-      "Is this storm or hail damage — would you be filing an insurance claim?",
-      "Do you know the roof type — asphalt shingle, metal, or flat/TPO?",
-      "About how many stories is the home, and is the roof steep or walkable?",
-      "Could you send a couple of photos — the problem area plus a wide shot of the roof?",
-    ],
-    faqs: [
-      { q: "Do you handle insurance claims?", a: "Yes — we document the damage, meet your adjuster on site, and bill the approved scope so your out-of-pocket is just the deductible." },
-      { q: "How long does a roof replacement take?", a: "Most homes are a one-to-two-day tear-off and re-roof, weather permitting." },
-      { q: "Do you offer a warranty?", a: "Yes — a workmanship warranty on the installation plus the manufacturer's system warranty on the materials." },
-      { q: "Can you just repair a section instead of replacing the whole roof?", a: "Often, yes. We'll tell you honestly whether a repair or a full replacement is the better value for your situation." },
-    ],
-    upsells: ["Ridge-vent ventilation upgrade", "Ice-&-water shield at eaves and valleys", "Seamless gutter replacement", "Skylight re-flash"],
-    warranty: "Workmanship warranty on the installation, plus the manufacturer's material/system warranty.",
-  },
-};
+// Estimating fields for a trade: deep pack first, then base map, then generic.
+export function tradeFields(key) {
+  return (DEEP_PACKS[key] && DEEP_PACKS[key].estimatingFields) || BASE_FIELDS[key] || GENERIC_FIELDS;
+}
 
-// Receptionist intake — trade-aware where we have it, otherwise derived from the
-// estimating fields so EVERY trade has a usable interview from day one.
+// Receptionist interview: trade-aware where a deep pack provides it; otherwise derived
+// from the estimating fields so EVERY trade has a usable interview from day one.
 export function receptionistIntake(key) {
-  const ext = PACK_EXT[key];
-  if (ext && ext.intakeQuestions && ext.intakeQuestions.length) return ext.intakeQuestions;
+  const deep = DEEP_PACKS[key];
+  if (deep && deep.intakeQuestions && deep.intakeQuestions.length) return deep.intakeQuestions;
   return tradeFields(key).slice(0, 6);
 }
 
 // ---- The unified pack every consumer reads ----
-export function tradePack(key) {
+// companyProfile is optional today (null); the future Company Brain supplies it.
+export function tradePack(key, companyProfile = null) {
   const t = TRADES[key] || null;
-  const ext = PACK_EXT[key] || {};
-  return {
+  const deep = DEEP_PACKS[key] || {};
+  const base = {
     key,
     label: (t && t.label) || tradeLabel(key) || key,
     emoji: (t && t.emoji) || "",
-    captureHints: (t && t.inputs) || [],          // "what to bring / measure"
-    estimatingFields: tradeFields(key),            // estimator interview checklist
-    estimatingBrain: tradeBrain(key),              // system-prompt trade knowledge
-    services: ext.services || [],                  // SEO service pages
-    intakeQuestions: receptionistIntake(key),      // AI receptionist interview
-    faqs: ext.faqs || [],                          // site + receptionist FAQs
-    upsells: ext.upsells || [],
-    warranty: ext.warranty || "",
-    // Slots the next milestones fill (proposal language, follow-ups, locations,
-    // marketing copy, photo context) — present so consumers can rely on the shape.
-    proposalLanguage: ext.proposalLanguage || "",
-    followUps: ext.followUps || [],
-    depth: PACK_EXT[key] ? "deep" : "base",
+    captureHints: (t && t.inputs) || [],        // "what to bring / measure"
+    estimatingBrain: tradeBrain(key),            // system-prompt trade knowledge
+    ...emptyPack(),
+    ...deep,                                      // deep pack overrides the empty defaults
+    estimatingFields: tradeFields(key),          // always resolved (deep → base → generic)
+    intakeQuestions: receptionistIntake(key),    // always usable
+    depth: DEEP_PACKS[key] ? "deep" : "base",
   };
+  return companyProfile ? applyCompanyOverlay(base, companyProfile) : base;
+}
+
+// ---- Company Brain overlay: generic trade knowledge, customized by the contractor ----
+// THE moat. Generic pack in; the owner's standards layered on top so a new hire bids
+// like the owner. A pass-through today (companyProfile is null) with the merge semantics
+// defined now, so estimating / receptionist / website already read THROUGH the seam the
+// Company Brain will fill. Owner standards win on scalars; their lists lead (their
+// preferences first), and company-only knowledge rides along under `company`.
+export function applyCompanyOverlay(pack, company) {
+  if (!company) return pack;
+  const lead = (a, b) => dedup([...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]);
+  return {
+    ...pack,
+    warranty: company.warranty || pack.warranty,
+    proposalLanguage: company.proposalLanguage || pack.proposalLanguage,
+    marketingCopy: company.marketingCopy || pack.marketingCopy,
+    materials: lead(company.materials, pack.materials),         // preferred brands lead
+    upsells: lead(company.upsells, pack.upsells),
+    financingTriggers: lead(company.financingTriggers, pack.financingTriggers),
+    // Company-only knowledge the generic pack can't have (waste %, min job size,
+    // preferred suppliers, pricing habits, do/avoid rules) — learned by the Company Brain.
+    company: company.standards || {},
+    _customized: true,
+  };
+}
+
+function dedup(arr) {
+  const seen = new Set(), out = [];
+  for (const x of arr) { const k = typeof x === "string" ? x.toLowerCase() : JSON.stringify(x); if (!seen.has(k)) { seen.add(k); out.push(x); } }
+  return out;
 }
 
 // Ordered list for pickers / iteration (composed from trades.js, not duplicated).
 export function tradePackList() { return tradeList(); }
 
-// Is this trade filled to reference depth yet? (for "deep on roofing first")
-export function isDeepPack(key) { return !!PACK_EXT[key]; }
+// Compact client-picker payload — the canonical {key,label,emoji,bring} the browser
+// needs. Replaces the hardcoded client copy; served by GET /api/trades.
+export function tradePickList() {
+  return tradeList().map((t) => ({
+    key: t.key, label: t.label, emoji: t.emoji,
+    bring: Array.isArray(t.inputs) ? t.inputs.join("; ") : "",
+  }));
+}
+
+// Is this trade filled to reference depth yet? (for "deep on roofing/windows first")
+export function isDeepPack(key) { return !!DEEP_PACKS[key]; }

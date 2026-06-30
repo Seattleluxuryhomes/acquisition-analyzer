@@ -111,16 +111,26 @@ Receptionist** → **Phase 3 — premium SEO engine**. SEO without conversion is
 traffic; once the receptionist exists, every visitor is worth far more, and every SEO page
 is just another consumer of the same pack.
 
-**Phase 1 — started.** The seam is laid: `src/tradePacks.js` is now the single source of
-truth. The estimator's intake checklists were **relocated here from `assist.js`** (one
-home), the estimating brain / labels / capture hints are **composed from `trades.js`** (not
-duplicated), and `tradePack(key)` exposes the unified shape — with **roofing filled deep**
-as the reference pack (8 SEO services, 7 receptionist intake questions, FAQs, upsells,
-warranty). Behavior is preserved: the estimator gets the exact same fields it always did.
-- *Remaining consolidation:* the client picker's copy of emoji/label/"bring" in
-  `public/index.html` (`TRADE_PICK`) should migrate to read from a pack endpoint.
-- *Next pack fields (each a small milestone, roofing-first):* proposal language, follow-up
-  sequences, marketing/SEO copy, location copy, photo-recognition context.
+**Phase 1 — server foundation complete.** `src/tradePacks.js` is the single source of
+truth: registry + schema + Company Brain overlay seam. The estimator's intake checklists
+were relocated out of `assist.js`; estimating brain / labels / capture hints are composed
+from `trades.js` (not duplicated). Behavior is preserved — the estimator gets byte-identical
+fields.
+- **One file per trade.** Deep packs live in `src/packs/<trade>.js` (so "deepen a trade" is
+  a self-contained unit, and data can later move to a DB without touching consumers).
+  `roofing` and `windows` are both filled to reference depth: estimating fields, vocabulary,
+  receptionist intake, SEO services, FAQs, materials, customer objections, financing
+  triggers, upsells, warranty, proposal language, safety, suggested photos, marketing /
+  review / referral copy, follow-ups. Other trades keep a usable base (estimating fields +
+  derived intake) until filled.
+- **Company Brain overlay seam (`applyCompanyOverlay`).** The generic pack, customized by
+  the contractor's own standards (preferred brands, waste %, min job size, financing
+  thresholds, voice). A pass-through today (no profile yet) with merge semantics defined,
+  so every surface already reads *through* the seam the Company Brain will fill. THIS is the
+  moat — a new hire bids like the owner.
+- *Held for the migration plan (not yet done):* eliminating the client's duplicate
+  `TRADE_PICK` by having the browser consume `/api/trades` (served from the pack) with an
+  offline-safe cache + fallback. Server-only so far; no client/offline behavior touched.
 
 ## Two principles that outlive today's build
 
