@@ -954,6 +954,61 @@
   .bb-suggest button{background:rgba(120,160,255,.08);border:1px solid rgba(140,180,255,.18);color:#cdd9f2;border-radius:999px;padding:7px 12px;font-size:.8rem;font-weight:600;font-family:inherit;cursor:pointer}
   .bb-suggest button:active{transform:scale(.96);background:rgba(120,160,255,.16)}
   @media(prefers-reduced-motion:reduce){.bb-typing i,.bb-in-mic.rec{animation:none}}
+  /* ===== Onboarding — the first 30 seconds. Premium, dark, warm. ===== */
+  .onb{position:fixed;inset:0;z-index:50;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    background:radial-gradient(125% 115% at 70% 12%, #16263f 0%, #0c1626 46%, #080d17 100%);
+    color:#eaf1ff;font-family:'Archivo',system-ui,sans-serif;
+    padding:calc(34px + env(safe-area-inset-top,0)) 22px calc(30px + env(safe-area-inset-bottom,0));
+    display:flex;flex-direction:column;align-items:stretch;text-align:center;overflow-x:hidden;animation:onbIn .5s ease}
+  .onb>*{width:100%;max-width:380px;margin-left:auto;margin-right:auto;min-width:0}
+  @keyframes onbIn{from{opacity:0}to{opacity:1}}
+  .onb-orb{position:relative;display:flex;align-items:center;justify-content:center;margin:0 auto}
+  .onb-orb .bb-brain{width:64%;height:64%;--bbc:120,170,255;filter:drop-shadow(0 0 16px rgba(120,170,255,.5))}
+  .onb-orb .bb-brain .bb-net{animation:bbspin 14s linear infinite;transform-origin:50px 50px}
+  .onb-orb-glow{position:absolute;inset:-18%;border-radius:50%;background:radial-gradient(circle, rgba(207,127,24,.28) 0%, rgba(120,170,255,.16) 42%, transparent 68%);animation:onbBreath 4.6s ease-in-out infinite;filter:blur(4px)}
+  @keyframes onbBreath{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.12);opacity:1}}
+  .onb-hero{margin-top:6vh;width:100%}
+  .onb-h{font-size:1.55rem;font-weight:900;letter-spacing:-.02em;margin:22px auto 10px;line-height:1.12;max-width:100%;overflow-wrap:break-word;word-break:break-word}
+  .onb-sub{font-size:1.04rem;line-height:1.45;color:#aebdda;max-width:340px;margin:0 auto;font-weight:500}
+  .onb-lang{width:100%;max-width:min(380px,100%);margin:auto 0 0}
+  .onb-lang-q{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font-weight:700;font-size:1rem;margin:34px 0 16px;color:#dbe6ff}
+  .onb-25{font-family:'IBM Plex Sans';font-size:.72rem;font-weight:600;color:#9fb0d4;background:rgba(120,160,255,.12);border:1px solid rgba(140,180,255,.2);border-radius:999px;padding:3px 10px}
+  .onb-top{display:flex;flex-direction:column;gap:10px}
+  .onb-langbtn{display:flex;align-items:center;gap:13px;width:100%;cursor:pointer;font-family:inherit;text-align:left;
+    background:rgba(255,255,255,.05);border:1px solid rgba(140,180,255,.2);border-radius:16px;padding:15px 16px;color:#eaf1ff;
+    transition:transform .15s ease,border-color .2s ease,background .2s ease}
+  .onb-langbtn:active{transform:scale(.98)}
+  .onb-langbtn:hover{border-color:rgba(140,180,255,.45);background:rgba(120,160,255,.1)}
+  .onb-langbtn .fl{font-size:1.5rem;line-height:1}
+  .onb-langbtn .nm{font-weight:700;font-size:1.05rem}
+  .onb-langbtn.detected{border-color:rgba(207,127,24,.6);box-shadow:0 0 0 1px rgba(207,127,24,.3), 0 6px 18px rgba(207,127,24,.14)}
+  .onb-langbtn .det{margin-left:auto;font-family:'IBM Plex Sans';font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#E8A23C;background:rgba(207,127,24,.16);border-radius:999px;padding:3px 9px}
+  .onb-more-btn{display:block;width:100%;margin-top:14px;background:none;border:none;color:#9fb6e6;font-family:inherit;font-weight:600;font-size:.95rem;cursor:pointer;padding:10px}
+  .onb-more{margin-top:10px;text-align:left}
+  .onb-search{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(140,180,255,.22);border-radius:14px;padding:12px 14px;color:#eaf1ff;font-family:inherit;font-size:1rem;outline:none}
+  .onb-search::placeholder{color:#8ea2c8}
+  .onb-list{margin-top:10px;max-height:42vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px}
+  .onb-langrow{display:flex;align-items:center;gap:12px;width:100%;cursor:pointer;font-family:inherit;text-align:left;
+    background:rgba(255,255,255,.04);border:1px solid rgba(140,180,255,.14);border-radius:13px;padding:12px 14px;color:#eaf1ff}
+  .onb-langrow:active{transform:scale(.99)}
+  .onb-langrow .fl{font-size:1.3rem}.onb-langrow .nm{font-weight:600}
+  .onb-langrow .en2{margin-left:auto;font-family:'IBM Plex Sans';font-size:.75rem;color:#8ea2c8}
+  .onb-nomatch{color:#8ea2c8;padding:14px;text-align:center}
+  /* step 2 — greeting + value */
+  .onb-step2{justify-content:flex-start}
+  .onb-back{position:absolute;top:calc(20px + env(safe-area-inset-top,0));left:16px;width:40px;height:40px;border-radius:12px;border:1px solid rgba(140,180,255,.2);background:rgba(255,255,255,.05);color:#cdd9f2;display:flex;align-items:center;justify-content:center;cursor:pointer;transform:rotate(180deg)}
+  .onb-greet{display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:7vh}
+  .onb-bub{max-width:330px;background:rgba(120,160,255,.12);border:1px solid rgba(140,180,255,.2);border-radius:18px;border-top-left-radius:6px;padding:14px 17px;font-size:1.1rem;font-weight:600;line-height:1.4;color:#fff;animation:onbBub .5s .15s both cubic-bezier(.2,.9,.3,1)}
+  @keyframes onbBub{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .onb-value{width:100%;max-width:380px;display:flex;flex-direction:column;gap:11px;margin:30px 0 0}
+  .onb-vrow{display:flex;align-items:center;gap:14px;text-align:left;background:rgba(255,255,255,.045);border:1px solid rgba(140,180,255,.14);border-radius:15px;padding:13px 15px;animation:onbBub .5s both cubic-bezier(.2,.9,.3,1)}
+  .onb-vic{font-size:1.45rem;flex:0 0 auto;width:30px;text-align:center}
+  .onb-vtx{font-weight:600;font-size:1rem;color:#e8eefb}
+  .onb-cta-wrap{width:100%;max-width:380px;margin:auto 0 0;padding-top:24px}
+  .onb-cta{font-size:1.08rem;padding:16px;border-radius:16px}
+  .onb-haveacct{margin-top:16px;color:#9fb0d4;font-size:.92rem}
+  .onb-haveacct a{color:#cfe0ff;font-weight:700;cursor:pointer;text-decoration:underline}
+  @media(prefers-reduced-motion:reduce){.onb,.onb *{animation:none!important}}
 </style>
 </head>
 <body>
@@ -1141,6 +1196,38 @@ const LANGS = {
   gl:'Galician', ca:'Catalan', ps:'Pashto', so:'Somali', ha:'Hausa', yo:'Yoruba',
   ig:'Igbo', zu:'Zulu', xh:'Xhosa'
 };
+// Onboarding language picker: native name + flag, contractor-common first. The full
+// searchable list falls back to LANGS (English names) for the long tail.
+const LANG_NATIVE = {
+  en:['🇺🇸','English'], es:['🇲🇽','Español'], pt:['🇧🇷','Português'], ru:['🇷🇺','Русский'],
+  pl:['🇵🇱','Polski'], uk:['🇺🇦','Українська'], vi:['🇻🇳','Tiếng Việt'], tl:['🇵🇭','Tagalog'],
+  ko:['🇰🇷','한국어'], zh:['🇨🇳','中文'], hi:['🇮🇳','हिन्दी'], ar:['🇸🇦','العربية'],
+  fr:['🇫🇷','Français'], de:['🇩🇪','Deutsch'], it:['🇮🇹','Italiano'], fa:['🇮🇷','فارسی'],
+  ro:['🇷🇴','Română'], pa:['🇮🇳','ਪੰਜਾਬੀ'], bn:['🇧🇩','বাংলা'], ur:['🇵🇰','اردو'],
+  ja:['🇯🇵','日本語'], tr:['🇹🇷','Türkçe'], nl:['🇳🇱','Nederlands'], th:['🇹🇭','ไทย'],
+  id:['🇮🇩','Bahasa Indonesia'], el:['🇬🇷','Ελληνικά'], so:['🇸🇴','Soomaali'], am:['🇪🇹','አማርኛ'],
+  ht:['🇭🇹','Kreyòl'], sw:['🇰🇪','Kiswahili'], ne:['🇳🇵','नेपाली'], hy:['🇦🇲','Հայերեն'],
+};
+// The two most common, shown big up front; the rest live behind "More languages".
+const LANG_TOP = ['en','es'];
+// Bid Brain's first hello, in the contractor's language (short, hand-checked).
+const NATIVE_HELLO = {
+  en:"Welcome! I'm Bid Brain. I'll help you run your business.",
+  es:"¡Bienvenido! Soy Bid Brain. Te ayudaré a manejar tu negocio.",
+  pt:"Bem-vindo! Eu sou o Bid Brain. Vou te ajudar a tocar o seu negócio.",
+  ru:"Добро пожаловать! Я Bid Brain. Помогу вам вести бизнес.",
+  pl:"Witaj! Jestem Bid Brain. Pomogę Ci prowadzić firmę.",
+  uk:"Ласкаво просимо! Я Bid Brain. Допоможу вам вести бізнес.",
+  vi:"Chào mừng! Tôi là Bid Brain. Tôi sẽ giúp bạn điều hành công việc.",
+  tl:"Maligayang pagdating! Ako si Bid Brain. Tutulong akong patakbuhin ang negosyo mo.",
+  ko:"환영합니다! 저는 Bid Brain이에요. 사업 운영을 도와드릴게요.",
+  zh:"欢迎！我是 Bid Brain，我会帮你打理生意。",
+  hi:"स्वागत है! मैं Bid Brain हूँ। मैं आपका कारोबार चलाने में मदद करूँगा।",
+  ar:"أهلاً بك! أنا Bid Brain. سأساعدك في إدارة عملك.",
+  fr:"Bienvenue ! Je suis Bid Brain. Je vais vous aider à gérer votre entreprise.",
+  de:"Willkommen! Ich bin Bid Brain. Ich helfe dir, dein Geschäft zu führen.",
+  it:"Benvenuto! Sono Bid Brain. Ti aiuterò a gestire la tua attività.",
+};
 const SPEECH_LANG={
   en:'en-US', es:'es-ES', zh:'zh-CN', hi:'hi-IN', ar:'ar-SA', bn:'bn-BD',
   pt:'pt-BR', ru:'ru-RU', ja:'ja-JP', pa:'pa-IN', de:'de-DE', ko:'ko-KR',
@@ -1247,6 +1334,18 @@ const I18N = {
     bb_brief_allset:"I'm set up and watching your business. Let's get your first estimate out the door — tap the mic and walk me through a job.",
     bb_sg_followwith:(name)=>`Follow up with ${name}`,
     bb_sg_nudge:(name)=>`Nudge ${name} to sign`,
+    onb_welcome_h:"Welcome to Bid Brain",
+    onb_welcome_sub:"Your AI employee that helps you estimate, schedule, follow up, and grow your business.",
+    onb_choose:"Choose your language", onb_25:"25+ languages",
+    onb_more:"More languages", onb_search_ph:"Search languages…",
+    onb_nomatch:"No match — try another spelling.", onb_detected:"detected",
+    onb_get_started:"Get started",
+    onb_v_talk:"Talk naturally — in your language.",
+    onb_v_photo:"Snap a photo of the job.",
+    onb_v_estimate:"I'll build the estimate.",
+    onb_v_materials:"I'll prepare the material order.",
+    onb_v_schedule:"I'll schedule the job.",
+    onb_v_paid:"I'll help you get paid.",
   },
   es: {
     auth_hero_h:"Solo habla. Nosotros escribimos el presupuesto.",
@@ -1312,13 +1411,25 @@ const I18N = {
     bb_brief_allset:"Estoy listo y vigilando tu negocio. Saquemos tu primer presupuesto — toca el micrófono y cuéntame el trabajo.",
     bb_sg_followwith:(name)=>`Dar seguimiento a ${name}`,
     bb_sg_nudge:(name)=>`Pídele la firma a ${name}`,
+    onb_welcome_h:"Te damos la bienvenida a Bid Brain",
+    onb_welcome_sub:"Tu empleado con IA que te ayuda a presupuestar, agendar, dar seguimiento y hacer crecer tu negocio.",
+    onb_choose:"Elige tu idioma", onb_25:"Más de 25 idiomas",
+    onb_more:"Más idiomas", onb_search_ph:"Buscar idiomas…",
+    onb_nomatch:"Sin resultados — prueba otra forma.", onb_detected:"detectado",
+    onb_get_started:"Empezar",
+    onb_v_talk:"Habla con naturalidad — en tu idioma.",
+    onb_v_photo:"Toma una foto del trabajo.",
+    onb_v_estimate:"Yo armo el presupuesto.",
+    onb_v_materials:"Yo preparo el pedido de materiales.",
+    onb_v_schedule:"Yo agendo el trabajo.",
+    onb_v_paid:"Te ayudo a cobrar.",
   },
 };
 function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); return v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); }
 function setLang(l){ if(l!=='en'&&l!=='es') return; LANG=l; try{ localStorage.setItem('bt_lang',l); }catch(e){} try{ document.documentElement.lang=l; }catch(e){} render(); }
 try{ document.documentElement.lang = LANG; }catch(e){}
 
-const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:_returning?'signin':'signup', authError:'', authSent:false, booted:false };
+const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:_returning?'signin':'welcome', authError:'', authSent:false, booted:false, onbStep:0, onbLang:null, onbMore:false, onbQ:'' };
 let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
 let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'', tax_rate:0, region:'', autoTranslate:true, bidLang:'' };
@@ -2695,8 +2806,67 @@ async function notifyInterest(feature, btn){
 }
 
 /* ---------- AUTH ---------- */
+// ===== Onboarding — the first 30 seconds. A welcome experience, not a form. =====
+const ONB_ORB = (sz)=>`<div class="onb-orb" style="width:${sz}px;height:${sz}px"><span class="onb-orb-glow"></span><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg></div>`;
+function onbDetected(){ try{ const d=String(navigator.language||'en').toLowerCase().slice(0,2); return LANG_NATIVE[d]?d:'en'; }catch(e){ return 'en'; } }
+function onbTopCodes(){ const det=onbDetected(); const top=[...LANG_TOP]; if(!top.includes(det)) top.unshift(det); return top; }
+function onbLangBtn(code, big){ const n=LANG_NATIVE[code]||['🌐',LANGS[code]||code]; const det=onbDetected();
+  return `<button class="onb-langbtn${big?' big':''}${code===det?' detected':''}" onclick="onbPickLang('${code}')">
+    <span class="fl">${n[0]}</span><span class="nm">${esc(n[1])}</span>${code===det?`<span class="det">${esc(t('onb_detected'))}</span>`:''}</button>`; }
+function onbLangListHTML(){
+  const q=(state.onbQ||'').trim().toLowerCase();
+  const entries=Object.keys(LANGS).map(code=>{ const nat=LANG_NATIVE[code]; return {code, flag:nat?nat[0]:'🌐', name:nat?nat[1]:(LANGS[code]||code), en:LANGS[code]||code}; });
+  const f=entries.filter(e=> !q || e.name.toLowerCase().includes(q) || e.en.toLowerCase().includes(q) || e.code===q);
+  if(!f.length) return `<div class="onb-nomatch">${esc(t('onb_nomatch'))}</div>`;
+  return f.map(e=>`<button class="onb-langrow" onclick="onbPickLang('${e.code}')"><span class="fl">${e.flag}</span><span class="nm">${esc(e.name)}</span>${e.en!==e.name?`<span class="en2">${esc(e.en)}</span>`:''}</button>`).join('');
+}
+function onbValueRows(){
+  const rows=[['🎤','onb_v_talk'],['📸','onb_v_photo'],['📝','onb_v_estimate'],['📦','onb_v_materials'],['📅','onb_v_schedule'],['💰','onb_v_paid']];
+  return rows.map((r,i)=>`<div class="onb-vrow" style="animation-delay:${0.15+i*0.09}s"><span class="onb-vic">${r[0]}</span><span class="onb-vtx">${esc(t(r[1]))}</span></div>`).join('');
+}
+function viewWelcome(){
+  if(state.onbStep===1){
+    const hello = NATIVE_HELLO[state.onbLang] || NATIVE_HELLO.en;
+    return `<div class="onb onb-step2">
+      <button class="onb-back" onclick="onbBack()" aria-label="Back">${icon('chevron',20)}</button>
+      <div class="onb-greet">${ONB_ORB(76)}<div class="onb-bub">${esc(hello)}</div></div>
+      <div class="onb-value">${onbValueRows()}</div>
+      <div class="onb-cta-wrap">
+        <button class="btn full onb-cta" onclick="onbStart()">${esc(t('onb_get_started'))}</button>
+        <div class="onb-haveacct">${esc(t('auth_have_account'))} <a onclick="setAuthMode('signin')">${esc(t('auth_sign_in'))}</a></div>
+      </div>
+    </div>`;
+  }
+  return `<div class="onb">
+    <div class="onb-hero">${ONB_ORB(96)}
+      <h1 class="onb-h">${esc(t('onb_welcome_h'))}</h1>
+      <p class="onb-sub">${esc(t('onb_welcome_sub'))}</p>
+    </div>
+    <div class="onb-lang">
+      <div class="onb-lang-q">${esc(t('onb_choose'))} <span class="onb-25">🌎 ${esc(t('onb_25'))}</span></div>
+      <div class="onb-top">${onbTopCodes().map(c=>onbLangBtn(c,true)).join('')}</div>
+      <button class="onb-more-btn" onclick="onbToggleMore()">🌐 ${esc(t('onb_more'))}</button>
+      ${state.onbMore?`<div class="onb-more">
+        <input id="onbSearch" class="onb-search" type="text" autocomplete="off" placeholder="${escAttr(t('onb_search_ph'))}" oninput="onbSearch(this.value)" value="${escAttr(state.onbQ||'')}"/>
+        <div id="onbList" class="onb-list">${onbLangListHTML()}</div>
+      </div>`:''}
+    </div>
+  </div>`;
+}
+function onbPickLang(code){
+  state.onbLang=code;
+  if(code==='en'||code==='es'){ LANG=code; try{ localStorage.setItem('bt_lang',code); document.documentElement.lang=code; }catch(e){} }
+  try{ localStorage.setItem('bt_speak', code); }catch(e){}   // their primary language → presets bid translation later
+  state.onbStep=1; state.onbMore=false; render();
+}
+function onbToggleMore(){ state.onbMore=!state.onbMore; render(); if(state.onbMore){ setTimeout(()=>{ const s=document.getElementById('onbSearch'); if(s) s.focus(); }, 40); } }
+function onbSearch(q){ state.onbQ=q; const el=document.getElementById('onbList'); if(el) el.innerHTML=onbLangListHTML(); }
+function onbBack(){ state.onbStep=0; render(); }
+function onbStart(){ try{ localStorage.setItem('bt_returning','1'); }catch(e){} setAuthMode('signup'); }
+
 function viewAuth(){
   const m = state.authMode;
+  if(m==='welcome') return viewWelcome();
   const card = m==='forgot' ? authForgotCard() : m==='reset' ? authResetCard() : authSigninCard(m==='signup');
   return `<div class="auth">
     <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">translator</span></div>
