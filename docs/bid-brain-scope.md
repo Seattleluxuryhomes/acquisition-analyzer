@@ -1,7 +1,8 @@
 # Bid Brain — Milestone 1 Scope (for approval)
 
-> **Name:** Bid Brain — the contractor's AI that knows their business and gets
-> smarter every job. Also the marketing keyword ("comment Bid Brain").
+> **Product:** Bidtranslator (unchanged). **Feature name:** 🧠 Bid Brain — the
+> contractor's AI inside Bidtranslator that knows their business and gets smarter
+> every job. Also the marketing keyword ("comment Bid Brain").
 > **Success metric (unchanged):** a contractor completes and sends a real estimate.
 > Bid Brain is the on-ramp to that, not a parallel app.
 > **Status:** scope only. No code until approved.
