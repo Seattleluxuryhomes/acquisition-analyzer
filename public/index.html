@@ -964,7 +964,8 @@
   .bb-in-field::placeholder{color:#8ea2c8;transition:opacity .22s ease}
   .bb-in-field.phfade::placeholder{opacity:0}
   .bb-tools{flex:0 0 auto;display:flex;gap:8px;margin-top:10px}
-  .bb-tools button{flex:1 1 0;background:rgba(255,255,255,.05);border:1px solid rgba(140,180,255,.16);color:#cdd9f2;border-radius:12px;padding:9px 10px;font-size:.85rem;font-weight:600;font-family:inherit;cursor:pointer}
+  .bb-tools button{flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:7px;background:rgba(255,255,255,.05);border:1px solid rgba(140,180,255,.16);color:#cdd9f2;border-radius:12px;padding:9px 10px;font-size:.85rem;font-weight:600;font-family:inherit;cursor:pointer}
+  .bb-tools button .ico{color:#9fb6e6;flex:0 0 auto}
   .bb-tools button:active{transform:scale(.97)}
   .bb-suggest{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
   .bb-suggest button{background:rgba(120,160,255,.08);border:1px solid rgba(140,180,255,.18);color:#cdd9f2;border-radius:999px;padding:7px 12px;font-size:.8rem;font-weight:600;font-family:inherit;cursor:pointer}
@@ -988,7 +989,8 @@
   .onb-sub{font-size:1.04rem;line-height:1.45;color:#aebdda;max-width:340px;margin:0 auto;font-weight:500}
   .onb-lang{width:100%;max-width:min(380px,100%);margin:auto 0 0}
   .onb-lang-q{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;font-weight:700;font-size:1rem;margin:34px 0 16px;color:#dbe6ff}
-  .onb-25{font-family:'IBM Plex Sans';font-size:.72rem;font-weight:600;color:#9fb0d4;background:rgba(120,160,255,.12);border:1px solid rgba(140,180,255,.2);border-radius:999px;padding:3px 10px}
+  .onb-25{display:inline-flex;align-items:center;gap:5px;font-family:'IBM Plex Sans';font-size:.72rem;font-weight:600;color:#9fb0d4;background:rgba(120,160,255,.12);border:1px solid rgba(140,180,255,.2);border-radius:999px;padding:4px 11px}
+  .onb-25 .ico{color:#9fb6e6}
   .onb-top{display:flex;flex-direction:column;gap:10px}
   .onb-langbtn{display:flex;align-items:center;gap:13px;width:100%;cursor:pointer;font-family:inherit;text-align:left;
     background:rgba(255,255,255,.05);border:1px solid rgba(140,180,255,.2);border-radius:16px;padding:15px 16px;color:#eaf1ff;
@@ -999,7 +1001,7 @@
   .onb-langbtn .nm{font-weight:700;font-size:1.05rem}
   .onb-langbtn.detected{border-color:rgba(207,127,24,.6);box-shadow:0 0 0 1px rgba(207,127,24,.3), 0 6px 18px rgba(207,127,24,.14)}
   .onb-langbtn .det{margin-left:auto;font-family:'IBM Plex Sans';font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#E8A23C;background:rgba(207,127,24,.16);border-radius:999px;padding:3px 9px}
-  .onb-more-btn{display:block;width:100%;margin-top:14px;background:none;border:none;color:#9fb6e6;font-family:inherit;font-weight:600;font-size:.95rem;cursor:pointer;padding:10px}
+  .onb-more-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;margin-top:14px;background:none;border:none;color:#9fb6e6;font-family:inherit;font-weight:600;font-size:.95rem;cursor:pointer;padding:10px}
   .onb-more{margin-top:10px;text-align:left}
   .onb-search{width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(140,180,255,.22);border-radius:14px;padding:12px 14px;color:#eaf1ff;font-family:inherit;font-size:1rem;outline:none}
   .onb-search::placeholder{color:#8ea2c8}
@@ -1018,7 +1020,7 @@
   @keyframes onbBub{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
   .onb-value{width:100%;max-width:380px;display:flex;flex-direction:column;gap:11px;margin:30px 0 0}
   .onb-vrow{display:flex;align-items:center;gap:14px;text-align:left;background:rgba(255,255,255,.045);border:1px solid rgba(140,180,255,.14);border-radius:15px;padding:13px 15px;animation:onbBub .5s both cubic-bezier(.2,.9,.3,1)}
-  .onb-vic{font-size:1.45rem;flex:0 0 auto;width:30px;text-align:center}
+  .onb-vic{flex:0 0 auto;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:11px;color:#E8A23C;background:rgba(207,127,24,.13);border:1px solid rgba(207,127,24,.18)}
   .onb-vtx{font-weight:600;font-size:1rem;color:#e8eefb}
   .onb-cta-wrap{width:100%;max-width:380px;margin:auto 0 0;padding-top:24px}
   .onb-cta{font-size:1.08rem;padding:16px;border-radius:16px}
@@ -2427,8 +2429,8 @@ function bbOpenPanel(){
       </button>
     </div>
     <div class="bb-tools">
-      <button onclick="bbDoAction('photos')">📷 ${esc(t('bb_photos'))}</button>
-      <button onclick="bbDoAction('attach')">📎 ${esc(t('bb_attach_files'))}</button>
+      <button onclick="bbDoAction('photos')">${icon('camera',17)} ${esc(t('bb_photos'))}</button>
+      <button onclick="bbDoAction('attach')">${icon('paperclip',17)} ${esc(t('bb_attach_files'))}</button>
     </div>
     <div class="bb-suggest">${bbSuggestionsHTML()}</div>`;
   s.style.display='block'; p.style.display='block';
@@ -2861,8 +2863,8 @@ function onbLangListHTML(){
   return f.map(e=>`<button class="onb-langrow" onclick="onbPickLang('${e.code}')"><span class="fl">${e.flag}</span><span class="nm">${esc(e.name)}</span>${e.en!==e.name?`<span class="en2">${esc(e.en)}</span>`:''}</button>`).join('');
 }
 function onbValueRows(){
-  const rows=[['🎤','onb_v_talk'],['📸','onb_v_photo'],['📝','onb_v_estimate'],['📦','onb_v_materials'],['📅','onb_v_schedule'],['💰','onb_v_paid']];
-  return rows.map((r,i)=>`<div class="onb-vrow" style="animation-delay:${0.15+i*0.09}s"><span class="onb-vic">${r[0]}</span><span class="onb-vtx">${esc(t(r[1]))}</span></div>`).join('');
+  const rows=[['mic','onb_v_talk'],['camera','onb_v_photo'],['doc','onb_v_estimate'],['package','onb_v_materials'],['calendar','onb_v_schedule'],['revenue','onb_v_paid']];
+  return rows.map((r,i)=>`<div class="onb-vrow" style="animation-delay:${0.15+i*0.09}s"><span class="onb-vic">${icon(r[0],22)}</span><span class="onb-vtx">${esc(t(r[1]))}</span></div>`).join('');
 }
 function viewWelcome(){
   if(state.onbStep===1){
@@ -2883,9 +2885,9 @@ function viewWelcome(){
       <p class="onb-sub">${esc(t('onb_welcome_sub'))}</p>
     </div>
     <div class="onb-lang">
-      <div class="onb-lang-q">${esc(t('onb_choose'))} <span class="onb-25">🌎 ${esc(t('onb_25'))}</span></div>
+      <div class="onb-lang-q">${esc(t('onb_choose'))} <span class="onb-25">${icon('globe',13)} ${esc(t('onb_25'))}</span></div>
       <div class="onb-top">${onbTopCodes().map(c=>onbLangBtn(c,true)).join('')}</div>
-      <button class="onb-more-btn" onclick="onbToggleMore()">🌐 ${esc(t('onb_more'))}</button>
+      <button class="onb-more-btn" onclick="onbToggleMore()">${icon('globe',16)} ${esc(t('onb_more'))}</button>
       ${state.onbMore?`<div class="onb-more">
         <input id="onbSearch" class="onb-search" type="text" autocomplete="off" placeholder="${escAttr(t('onb_search_ph'))}" oninput="onbSearch(this.value)" value="${escAttr(state.onbQ||'')}"/>
         <div id="onbList" class="onb-list">${onbLangListHTML()}</div>
@@ -5513,6 +5515,12 @@ const ICONS={
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 13.4H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 6.6l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 4.6V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>',
   chart:'<path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/>',
   logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  camera:'<path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.4-2h7.2L17 7h2.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.4"/>',
+  paperclip:'<path d="M20.5 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.6 1.6 0 0 1-2.3-2.3l7.9-7.9"/>',
+  package:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  doc:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8.5 13h7M8.5 17h5"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/>',
+  send:'<path d="M12 19.5V5.5"/><path d="M5.5 12l6.5-6.5 6.5 6.5"/>',
 };
 function icon(name, size){ const s=size||18; return `<svg class="ico" viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||''}</svg>`; }
 
