@@ -280,8 +280,12 @@ app.post("/api/payments/refresh", requireAuth, wrap(async (req, res) => {
   res.json(await Payments.refreshConnectStatus(req.user));
 }));
 // Payment requests.
-app.get("/api/payments/requests", requireAuth, (req, res) =>
-  res.json({ requests: Payments.listPaymentRequests(req.user.id, req.query.job_id) }));
+app.get("/api/payments/requests", requireAuth, wrap(async (req, res) => {
+  // Dashboard load (no job filter) → first verify recent pending payments with Stripe,
+  // so collected revenue is correct even if a webhook was missed. Best-effort.
+  if (!req.query.job_id) { try { await Payments.reconcilePending(req.user); } catch { /* never block the list */ } }
+  res.json({ requests: Payments.listPaymentRequests(req.user.id, req.query.job_id) });
+}));
 app.post("/api/payments/requests", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
   const { amount, description, clientName, jobId } = req.body || {};
   if (jobId && !Jobs.ownsJob(req.user.id, jobId)) return res.status(404).json({ error: "Job not found." });
