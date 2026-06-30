@@ -734,6 +734,30 @@
     #printArea{display:block;position:absolute;left:0;top:0;width:100%}
     .client{border:none;border-radius:0}
   }
+  /* ===== Bid Brain — the AI entry point ===== */
+  .brain{max-width:560px;margin:0 auto;padding:14px 16px 96px}
+  .bb-greet{text-align:center;padding:14px 6px 4px}
+  .bb-hi{font-family:"Archivo";font-weight:800;font-size:1.7rem;letter-spacing:-.02em;color:var(--text);line-height:1.15}
+  .bb-pulse{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:12px}
+  .bb-dot{background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:5px 13px;font-size:.82rem;font-weight:600}
+  .bb-pulse.empty{color:var(--muted);font-size:.98rem;margin-top:12px}
+  .bb-prompt{margin-top:16px;font-size:1.08rem;color:var(--muted);font-weight:600}
+  .bb-mic{display:flex;flex-direction:column;align-items:center;gap:9px;margin:24px auto 4px;background:radial-gradient(120% 120% at 32% 24%, #E8A23C 0%, var(--amber) 60%, #B86A12 100%);border:none;border-radius:30px;width:172px;height:172px;justify-content:center;cursor:pointer;box-shadow:0 16px 40px rgba(207,127,24,.4);color:#1b1b1b;font-family:inherit;animation:recbreathe 2.6s ease-in-out infinite}
+  .bb-mic:active{transform:scale(.96)}
+  .bb-mic .ico{stroke:#1b1b1b}
+  .bb-mic-l{font-weight:800;font-size:1.02rem}
+  @media(prefers-reduced-motion:reduce){.bb-mic{animation:none}}
+  .bb-or{text-align:center;margin:13px 0 20px}
+  .bb-or a{color:var(--muted);font-size:.9rem;text-decoration:underline;cursor:pointer}
+  .bb-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+  .bb-card{display:flex;flex-direction:column;align-items:flex-start;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 15px;cursor:pointer;font-family:inherit;text-align:left;transition:transform .12s ease,border-color .12s ease}
+  .bb-card:active{transform:scale(.97)}
+  .bb-card:hover{border-color:var(--amber)}
+  .bb-card-ic{font-size:1.5rem}
+  .bb-card-l{font-weight:700;color:var(--text);font-size:.95rem;line-height:1.25}
+  .bb-mem{margin-top:18px;text-align:center;color:var(--muted);font-size:.85rem}
+  .brainfab{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0));z-index:850;width:54px;height:54px;border-radius:50%;border:none;background:radial-gradient(120% 120% at 32% 24%, #E8A23C 0%, var(--amber) 60%, #B86A12 100%);box-shadow:0 8px 22px rgba(207,127,24,.45);font-size:1.5rem;align-items:center;justify-content:center;cursor:pointer}
+  .brainfab:active{transform:scale(.92)}
 </style>
 </head>
 <body>
@@ -765,6 +789,7 @@
     <button class="bn" id="bnSched" onclick="go('schedule')"><span class="bi"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 9.5h18"/></svg></span><span class="bl">Schedule</span></button>
     <button class="bn" id="bnMore" onclick="openMore()"><span class="bi"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></span><span class="bl">More</span></button>
   </nav>
+  <button id="brainFab" class="brainfab" onclick="go('brain')" aria-label="Bid Brain" style="display:none">🧠</button>
 </div>
 <div id="createSheet" class="sheet-wrap" style="display:none" onclick="closeCreate()">
   <div class="sheet" onclick="event.stopPropagation()">
@@ -960,6 +985,16 @@ const I18N = {
     reset_for:(e)=>`For ${e}.`, reset_new_label:"New password",
     reset_confirm_label:"Confirm password", reset_confirm_ph:"Re-type it",
     reset_update:"Update password", reset_your_account:"your account",
+    bb_morning:"Good morning", bb_afternoon:"Good afternoon", bb_evening:"Good evening",
+    bb_active_one:"active estimate", bb_active_many:"active estimates",
+    bb_followups:"follow-ups due", bb_awaiting:"awaiting signature",
+    bb_firstrun:"Let's build your first estimate.",
+    bb_prompt:"What are we building today?",
+    bb_tap_talk:"Tap and talk", bb_or_type:"or type it instead",
+    bb_card_voice:"Start Voice Estimate", bb_card_photos:"Analyze Job Photos",
+    bb_card_continue:"Continue Last Estimate", bb_card_customer:"Find Customer",
+    bb_card_followups:"Today's Follow-ups",
+    bb_remembers:"Bid Brain remembers:", bb_markup:"usual markup",
   },
   es: {
     auth_hero_h:"Solo habla. Nosotros escribimos el presupuesto.",
@@ -985,13 +1020,23 @@ const I18N = {
     reset_for:(e)=>`Para ${e}.`, reset_new_label:"Nueva contraseña",
     reset_confirm_label:"Confirmar contraseña", reset_confirm_ph:"Escríbela de nuevo",
     reset_update:"Actualizar contraseña", reset_your_account:"tu cuenta",
+    bb_morning:"Buenos días", bb_afternoon:"Buenas tardes", bb_evening:"Buenas noches",
+    bb_active_one:"presupuesto activo", bb_active_many:"presupuestos activos",
+    bb_followups:"seguimientos pendientes", bb_awaiting:"esperando firma",
+    bb_firstrun:"Hagamos tu primer presupuesto.",
+    bb_prompt:"¿Qué vamos a construir hoy?",
+    bb_tap_talk:"Toca y habla", bb_or_type:"o escríbelo",
+    bb_card_voice:"Iniciar presupuesto por voz", bb_card_photos:"Analizar fotos del trabajo",
+    bb_card_continue:"Continuar último presupuesto", bb_card_customer:"Buscar cliente",
+    bb_card_followups:"Seguimientos de hoy",
+    bb_remembers:"Bid Brain recuerda:", bb_markup:"margen habitual",
   },
 };
 function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); return v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); }
 function setLang(l){ if(l!=='en'&&l!=='es') return; LANG=l; try{ localStorage.setItem('bt_lang',l); }catch(e){} try{ document.documentElement.lang=l; }catch(e){} render(); }
 try{ document.documentElement.lang = LANG; }catch(e){}
 
-const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:_returning?'signin':'signup', authError:'', authSent:false, booted:false };
+const state = { view:'brain', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:_returning?'signin':'signup', authError:'', authSent:false, booted:false };
 let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
 let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'', tax_rate:0, region:'', autoTranslate:true, bidLang:'' };
@@ -1443,6 +1488,13 @@ async function loadQuickbooks(){
   if(!TOKEN || !online) return;
   try{ QBO = await api('/api/quickbooks/status'); localStorage.setItem('bt_qbo', JSON.stringify(QBO)); if(state.view==='settings') render(); }catch(e){}
 }
+// ---- Bid Brain: the AI entry point's live snapshot {greeting, memory} ----
+let BRAIN = JSON.parse(localStorage.getItem('bt_brain')||'null');
+let BB_PREFILL = null; // pending {trade,from,to} applied to the next new estimate
+async function loadBrain(){
+  if(!TOKEN || !online) return;
+  try{ BRAIN = await api('/api/brain'); localStorage.setItem('bt_brain', JSON.stringify(BRAIN)); if(state.view==='brain') render(); }catch(e){}
+}
 async function connectQuickbooks(btn){
   if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
   try{ const r=await api('/api/quickbooks/connect',{method:'POST'}); window.location.href=r.url; }
@@ -1574,7 +1626,7 @@ async function doAuth(){
       logo:(r.user.logo!==undefined?r.user.logo:SETTINGS.logo)||'',
       site_logo:(r.user.site_logo!==undefined?r.user.site_logo:SETTINGS.site_logo)||''
     }); persistSettings(); }
-    state.view='home';
+    state.view='brain';
     render();
     await loadDashboardData();
     render();
@@ -1609,7 +1661,7 @@ function paintSync(){
 async function loadDashboardData(){
   await Promise.all([syncNow(true), loadMe(), loadBilling()]);
   await new Promise(r=>setTimeout(r,350));
-  await Promise.all([loadPayments(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth(), loadInbox()]);
+  await Promise.all([loadPayments(), loadNotifications(), loadCollected(), loadQuickbooks(), loadGrowth(), loadInbox(), loadBrain()]);
 }
 async function syncNow(force){
   if(!TOKEN || !online || syncing) { paintSync(); return; }
@@ -1701,13 +1753,67 @@ window.addEventListener('offline', ()=>{ online=false; paintSync(); });
 /* ============ routing ============ */
 function go(v, jobId){ state.view=v; if(jobId!==undefined) state.jobId=jobId; state.error=''; render(); window.scrollTo(0,0);
   track('page_view', {view:v}); if(v==='home') track('dashboard_viewed', {});
+  if(v==='brain') loadBrain(); // refresh greeting counts + memory on entry
   if(v==='job' && state.jobId && state.jobId!=='new') refreshJob(state.jobId); }
 // Start a brand-new bid with an EMPTY notepad. Clears the saved draft and blanks
 // the live textarea (the render() snapshot re-reads it, so we must wipe both) — this
 // is what stops a previous conversation from bleeding into, or being appended to, a
 // new one when dictating.
 function freshCapture(){ const ta=document.getElementById('capText'); if(ta) ta.value=''; clearCapDraft(); CAP_PHOTOS=[]; }
-function newJob(){ if(!entitled()){ go('paywall'); return; } freshCapture(); go('capture','new'); requestAnimationFrame(animateMicGrow); }
+function newJob(){ if(!entitled()){ go('paywall'); return; } freshCapture();
+  // Bid Brain pre-fills the next estimate from what it's learned (trade + language),
+  // so a returning contractor starts with their own defaults already selected.
+  if(BB_PREFILL){ if(BB_PREFILL.trade) CAP_DRAFT.trade=BB_PREFILL.trade; if(BB_PREFILL.from) CAP_DRAFT.from=BB_PREFILL.from; if(BB_PREFILL.to) CAP_DRAFT.to=BB_PREFILL.to;
+    try{ localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT)); }catch(e){} BB_PREFILL=null; }
+  go('capture','new'); requestAnimationFrame(animateMicGrow); }
+
+/* ============ Bid Brain — the AI entry point ============ */
+function bbPrettyTrade(key){ return tradeLbl(key) || String(key||'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
+// Apply Bid Brain's learned defaults to the next estimate, then start it.
+function brainPrefill(){ const m=(BRAIN&&BRAIN.memory)||{}; const lang=m.preferred_language||{};
+  BB_PREFILL={ trade:m.last_trade||'', from:lang.from||'', to:lang.to||'' }; }
+function brainStartVoice(){ brainPrefill(); newJob(); }
+function brainPhotos(){ brainPrefill(); newJob(); /* capture flow is where photos become bid lines */ }
+function brainContinue(){ const open=(JOBS||[]).filter(j=>!j._deleted).sort((a,b)=>(b.updated_at||0)-(a.updated_at||0));
+  if(open.length) go('job', open[0].id); else brainStartVoice(); }
+function viewBrain(){
+  const m=(BRAIN&&BRAIN.memory)||{}, g=(BRAIN&&BRAIN.greeting)||{activeEstimates:0,awaitingSignature:0,followupsDue:0};
+  // Never greet "Your" — ignore the placeholder company so it's a name or nothing.
+  const rawCo=(USER&&USER.company)||SETTINGS.company||'';
+  const co=(rawCo&&rawCo!=='Your Company')?rawCo:'';
+  const nm=String((USER&&USER.name)||SETTINGS.name||co||'').trim();
+  const first=nm.split(/\s+/)[0]||'';
+  const h=new Date().getHours();
+  const greet = h<12?t('bb_morning'):h<18?t('bb_afternoon'):t('bb_evening');
+  const pulse=[];
+  if(g.activeEstimates>0) pulse.push(g.activeEstimates+' '+(g.activeEstimates===1?t('bb_active_one'):t('bb_active_many')));
+  if(g.followupsDue>0) pulse.push(g.followupsDue+' '+t('bb_followups'));
+  if(g.awaitingSignature>0) pulse.push(g.awaitingSignature+' '+t('bb_awaiting'));
+  const cards=[
+    {ic:'🎤',l:t('bb_card_voice'),on:'brainStartVoice()'},
+    {ic:'📸',l:t('bb_card_photos'),on:'brainPhotos()'},
+    {ic:'📋',l:t('bb_card_continue'),on:'brainContinue()'},
+    {ic:'👥',l:t('bb_card_customer'),on:"go('prospecting')"},
+    {ic:'📅',l:t('bb_card_followups'),on:'showFollowups()'},
+  ];
+  const memLine = m.last_trade
+    ? `<div class="bb-mem">🧠 ${esc(t('bb_remembers'))} ${esc(bbPrettyTrade(m.last_trade))}${(m.typical_markup!=null)?` · ${esc(t('bb_markup'))} ${m.typical_markup}%`:''}</div>` : '';
+  return `<div class="brain">
+    <div class="bb-greet">
+      <div class="bb-hi">${esc(greet)}${first?', '+esc(first):''}.</div>
+      ${pulse.length ? `<div class="bb-pulse">${pulse.map(p=>`<span class="bb-dot">${esc(p)}</span>`).join('')}</div>`
+                     : `<div class="bb-pulse empty">${esc(t('bb_firstrun'))}</div>`}
+      <div class="bb-prompt">${esc(t('bb_prompt'))}</div>
+    </div>
+    <button class="bb-mic" onclick="brainStartVoice()" aria-label="${escAttr(t('bb_card_voice'))}">
+      <span class="bb-mic-ic">${icon('mic',38)}</span>
+      <span class="bb-mic-l">${esc(t('bb_tap_talk'))}</span>
+    </button>
+    <div class="bb-or"><a onclick="brainStartVoice()">${esc(t('bb_or_type'))}</a></div>
+    <div class="bb-cards">${cards.map(c=>`<button class="bb-card" onclick="${c.on}"><span class="bb-card-ic">${c.ic}</span><span class="bb-card-l">${esc(c.l)}</span></button>`).join('')}</div>
+    ${memLine}
+  </div>`;
+}
 // "Jobs" bottom-nav tab: the dashboard is the job list — land there and bring the
 // list into view.
 function goJobs(){ go('home'); requestAnimationFrame(()=>{ const el=document.querySelector('.fchips')||document.querySelector('.newbar'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }); }
@@ -1789,6 +1895,9 @@ function render(){
   const authed = !!TOKEN;
   document.getElementById('topbar').style.display = authed ? 'block' : 'none';
   document.getElementById('botnav').style.display = authed ? 'flex' : 'none';
+  // Floating Bid Brain button — on the main app screens, never on the Brain itself
+  // (you're already there) or the capture screen (the record button owns that spot).
+  const bf=document.getElementById('brainFab'); if(bf) bf.style.display = (authed && !['brain','capture'].includes(state.view)) ? 'flex' : 'none';
   const v = document.getElementById('view');
   if(!authed){ v.innerHTML = viewAuth(); paintSync(); return; }
   // Highlight the active bottom-nav item.
@@ -1801,7 +1910,8 @@ function render(){
   const fab=document.getElementById('bnAdd'); if(fab) fab.classList.toggle('pulse', JOBS.filter(j=>!j._deleted).length===0 && state.view==='home');
   paintFab();
   paintBell();
-  if(state.view==='home'){ v.innerHTML = viewHome(); markNotifsSeen(); if(!TEAM.loaded) loadTeam(); }
+  if(state.view==='brain'){ v.innerHTML = viewBrain(); if(!BRAIN) loadBrain(); }
+  else if(state.view==='home'){ v.innerHTML = viewHome(); markNotifsSeen(); if(!TEAM.loaded) loadTeam(); }
   else if(state.view==='schedule') v.innerHTML = viewSchedule();
   else if(state.view==='capture'){ v.innerHTML = viewCapture(); paintRecFab(); }
   else if(state.view==='job') v.innerHTML = viewJob();

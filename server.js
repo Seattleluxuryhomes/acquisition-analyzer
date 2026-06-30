@@ -43,6 +43,7 @@ import * as QuickBooks from "./src/quickbooks.js";
 import * as Signatures from "./src/signatures.js";
 import * as Notify from "./src/notify.js";
 import * as Analytics from "./src/analytics.js";
+import * as Memory from "./src/memory.js";
 const { track } = Analytics;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -779,8 +780,14 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
   // Feed the contractor's own price book in so the AI uses their real items + prices,
   // and the selected trade's estimating brain so quantities come back trade-accurate.
   const data = await assistBuild(req.user, { text, from_lang, to_lang, trade, skus: Skus.listSkus(req.user.id) });
+  // Bid Brain learns from every estimate the contractor builds — language + trade,
+  // so the next one comes pre-personalized. Fire-and-forget; never blocks the build.
+  Memory.learnFromEstimate(req.user.id, { trade, fromLang: from_lang, toLang: to_lang });
   res.json(data);
 }));
+// Bid Brain: the AI entry point's live snapshot — greeting counts (real data only)
+// + this contractor's learned memory. Per-account; never mixes contractors.
+app.get("/api/brain", requireAuth, (req, res) => res.json(Memory.brain(req.user.id, req.user)));
 // Voice-first intake: extract structured job fields from the spoken transcript as
 // the contractor talks (auto-fills the New Job screen).
 app.post("/api/assist/intake", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
