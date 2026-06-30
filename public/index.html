@@ -981,6 +981,7 @@
   /* ===== Bid Brain voice stage (voice is the hero, not a chat box) ===== */
   /* Override the old horizontal input bar: a centered voice stage. */
   .bb-input{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:10px;background:none;border:none;border-radius:0;padding:8px 6px 4px}
+  .bb-panel:not(.has-convo) .bb-input{padding:26px 6px 14px;gap:14px}
   .bb-input:focus-within{box-shadow:none}
   /* The big mic IS the interface — one obvious thing to do. */
   .bb-mic-hero{position:relative;width:84px;height:84px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -1015,7 +1016,7 @@
   .bb-panel.has-convo .bb-typewrap{flex-direction:row;flex:1;margin-top:0}
   .bb-panel.has-convo .bb-in-field.show{flex:1}
   /* Empty: the briefing shows calmly, the mic is the hero. Conversation: transcript takes over. */
-  .bb-panel:not(.has-convo) .bb-conv{flex:0 0 auto;max-height:30vh}
+  .bb-panel:not(.has-convo) .bb-conv{display:none}
   .bb-panel.has-convo .bb-conv{flex:1 1 auto;max-height:52vh}
   /* The one-line "what do I do" hint — shown only in the calm ready state, never competing. */
   .bb-taphint{font-size:.84rem;color:#8ea2c8;margin-top:-2px;transition:opacity .25s ease}
