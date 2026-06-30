@@ -31,6 +31,10 @@
    decision supports that.
 
 ## Final mission
+
+> **The defining line:** *Don't build the smartest AI in construction. Build the AI that
+> professionals trust with their reputation.* A contractor stakes their license, their margin,
+> and their name on these numbers — trust, not cleverness, is the product.
 Every line of code, screen, animation, conversation, and workflow reinforces one belief:
 **Bid Brain isn't another AI chatbot — it's the smartest employee in the company.**
 Build something contractors don't just use. Build something they *miss when they close it.*
