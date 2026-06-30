@@ -57,6 +57,15 @@ only compounds once there's data, i.e. once contractors *use* it. Order:
 - Duplicate Hyperlift instance still live (outage risk / confusion).
 - Secrets/feature-gating via env is fine, but mail/QBO/AI being silently "unconfigured" hides breakage.
 
+## 5b. Bugs (live / just fixed — verify before anything new)
+- **Silent lead loss** *(fixed, deployed — verify live)*: estimate form showed "Thanks!" on any outcome; failed/blocked POSTs lost the lead.
+- **In-app-browser mixed content** *(fixed — verify live)*: absolute `http://` POST blocked inside Facebook/Instagram, where the traffic is.
+- **Email may never send** *(open)*: `Mail.mailConfigured()` likely false in prod — lead + signed-PDF emails possibly never delivered. Verify via password-reset email.
+- **QuickBooks not connected** *(open, config)*: OAuth `redirect_uri` mismatch in Intuit dashboard; badge correctly shows "Not connected" because no token is stored.
+- **Migrations can crash boot** *(open)*: `ensureColumns` ALTER throws propagate; a bad migration could take prod down. Make fail-safe.
+- **Auth could drop to "Create account"** *(fixed)*: now defaults to Sign in once an account exists on the device.
+- **Duplicate Hyperlift instance** *(open, infra)*: live twin = outage/confusion risk (today's incident).
+
 ## 6. Performance
 - Generally fine (no build step, server-rendered public pages). AI calls are the latency cost — cache AI output per contractor, never regenerate per view.
 
@@ -76,8 +85,13 @@ only compounds once there's data, i.e. once contractors *use* it. Order:
 
 ## 10. Prioritized roadmap (traction-first)
 
-### Milestone 0 — Stabilize & prove (THIS WEEK)
-Objective: the core loop works, reliably, for one real contractor.
+### ⭐ RECOMMENDED MILESTONE #1 — Stabilize & prove (THIS WEEK)
+Objective: the core loop works, reliably, for ONE real contractor — and that
+contractor completes and sends one real bid. Scope flexes to *who* that
+contractor is (English pitch contractor vs. Spanish-only friend decides whether
+Spanish capture is in-scope now).
+Acceptance: a named contractor goes voice → bid → sent proposal, and a lead from
+their site lands in their dashboard + email. Nothing else ships until this is true.
 - Verify the lead hotfix live; confirm/repair prod email; connect QuickBooks.
 - Finish the in-app-browser "Open in Safari" nudge.
 - Run the Monday pitch; get **1 contractor** to complete one real bid and send it.
