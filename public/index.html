@@ -2459,9 +2459,10 @@ function bbContextPrompt(){
 // "remember that kitchen remodel?" actually works. Buttons are secondary;
 // conversation is the interface.
 let BBC = { thread:[], busy:false, rec:null, recChunks:[], recording:false, cancelRec:false };
-function bbThreadKey(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return 'bt_brain_thread_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate()); }
-function bbThreadLoad(){ try{ BBC.thread=JSON.parse(localStorage.getItem(bbThreadKey())||'[]'); }catch(_){ BBC.thread=[]; } if(!Array.isArray(BBC.thread)) BBC.thread=[]; }
-function bbThreadSave(){ try{ localStorage.setItem(bbThreadKey(), JSON.stringify(BBC.thread.filter(m=>!m.seed).slice(-40))); }catch(_){ } }
+// The conversation lives only in memory for the current session — it is never
+// persisted, so the panel always opens to a clean ready state. (bbThreadSave is
+// kept as a no-op so the in-session call sites stay simple.)
+function bbThreadSave(){}
 // Bid Brain's opening line: greeting + the live business pulse + an invitation.
 // The opening briefing — what a sharp employee would tell you when you walk in,
 // every line grounded in REAL data (deposits paid, follow-ups, contracted $ at stake).
@@ -2497,11 +2498,10 @@ function bbSuggestPick(i){ const s=BB_SUGGEST[i]; if(!s) return; bbActivity(); i
 function bbOpenPanel(){
   const p=document.getElementById('bbPanel'), s=document.getElementById('bbScrim'); if(!p) return;
   bbActivity(); if(typeof loadBrain==='function') loadBrain();
-  bbThreadLoad();
-  // The briefing is always fresh on open (it reflects what changed since you last
-  // looked) and is NOT persisted; the conversation below it is.
-  BBC.thread = BBC.thread.filter(m=>!m.seed);
-  BBC.thread.unshift({role:'assistant', seed:true, content:bbGreetingText()});
+  // Every open starts clean — the assistant greets you in the ready state and
+  // never reopens mid-transcript. The conversation is ephemeral to this session,
+  // like talking to a person: you walk up fresh, you don't resume a chat log.
+  BBC.thread = [{role:'assistant', seed:true, content:bbGreetingText()}];
   p.innerHTML = `
     <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> Bid Brain <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
     <div class="bb-conv" id="bbConv"></div>
