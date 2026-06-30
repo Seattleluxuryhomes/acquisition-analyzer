@@ -2,8 +2,9 @@
 // Strategy: network-first for page navigations (so a fresh deploy is never stuck
 // behind a stale cache), cache-first for static assets, and NEVER touch dynamic
 // routes (/api/*, /p/*) so data and private files always go to the network.
-const CACHE = 'bt-v1';
+const CACHE = 'bt-v2';   // bumped: new app icon — old cache is cleared on activate
 const SHELL = ['/', '/index.html', '/landing.html', '/manifest.json',
+  '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png',
   '/brand-tile.png', '/brand-white.png', '/brand-orange.png'];
 
 self.addEventListener('install', (e) => {

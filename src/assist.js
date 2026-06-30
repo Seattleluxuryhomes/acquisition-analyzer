@@ -735,6 +735,146 @@ function sanitizeIntake(d) {
     questions: list(d.questions),
   };
 }
+// ===========================================================================
+// Bid Brain Chat — the contractor's always-on AI operations manager.
+// A continuous, context-aware conversation grounded in THEIR business snapshot
+// (jobs, customers, statuses, markup) so it can recall specifics ("that kitchen
+// remodel" → "Maria Martinez on Main St, proposal still unsigned") and suggest
+// the next best action. Snapshot is the contractor's own data, scoped to their
+// user_id upstream. Never invents facts. If AI is down or capped, the route
+// falls back to localBrainReply so the companion still answers (rule #4).
+// ===========================================================================
+const BRAIN_ACTIONS = ["create_estimate", "continue_estimate", "find_customer", "schedule", "order_materials", "followups"];
+
+function snapshotText(s) {
+  s = s || {};
+  const c = s.counts || {};
+  const lines = [];
+  if (s.company) lines.push(`Contractor: ${s.company}`);
+  lines.push(`Right now: ${c.activeEstimates || 0} active estimate(s) being built, ${c.awaitingSignature || 0} sent and awaiting signature, ${c.followupsDue || 0} follow-up(s) due (sent >3 days ago).`);
+  if (s.typical_markup != null) lines.push(`Typical markup: ${s.typical_markup}%.`);
+  if (s.last_trade) lines.push(`Most recent trade: ${s.last_trade}.`);
+  if (Array.isArray(s.recent_customers) && s.recent_customers.length) lines.push(`Recent customers: ${s.recent_customers.join(", ")}.`);
+  if (Array.isArray(s.jobs) && s.jobs.length) {
+    lines.push("Recent jobs (most recent first):");
+    for (const j of s.jobs.slice(0, 12)) {
+      const bits = [
+        j.customer || "(no customer name)",
+        j.title ? `“${j.title}”` : "",
+        j.address ? `at ${j.address}` : "",
+        `status ${j.status}`,
+        j.total ? `~$${j.total.toLocaleString("en-US")}` : "",
+        j.scheduled ? `scheduled ${j.scheduled}` : "",
+        (j.status === "sent" && j.ageDays >= 0) ? `sent ${j.ageDays}d ago` : "",
+      ].filter(Boolean).join(" · ");
+      lines.push(`- [${j.id}] ${bits}`);
+    }
+  } else {
+    lines.push("No jobs yet — this contractor is just getting started.");
+  }
+  return lines.join("\n");
+}
+
+function brainChatSystemPrompt(snapshot, now) {
+  return (
+    "You are Bid Brain — the AI operations manager built into Bidtranslator for a residential contractor. " +
+    "You are not a generic chatbot; you are their sharp, friendly right hand who remembers their whole business " +
+    "and helps them win and run jobs. Speak in short, warm, plain sentences (1–4 sentences, no bullet dumps, no " +
+    "markdown). Be proactive: answer what they asked, recall the specific job/customer from the data when they " +
+    "refer to one, and when useful suggest the single next best action. " +
+    "STRICT GROUNDING: use ONLY the business data below. Never invent customers, jobs, addresses, prices, dates, " +
+    "or statuses. If you don't have something, say so plainly and offer to help capture it. Their markup and " +
+    "margins are private business numbers — fine to discuss with them, never to be put in front of a client. " +
+    "ACTIONS: if the contractor clearly wants the app to DO one of these, append it on its OWN final line as " +
+    "[[action:NAME]] — one of: create_estimate, continue_estimate, find_customer, order_materials, " +
+    "followups. To pull up a specific job, use [[job:ID]] with the bracketed id from the data. Add at most one " +
+    "action/job directive, only when intent is clear, and keep it out of the spoken sentence. No directive for ordinary chat.\n" +
+    "SCHEDULING — you can actually schedule, not just point at a calendar. When the contractor asks to schedule " +
+    "an appointment/estimate, block time, move an existing appointment, or set a reminder, append ONE directive on " +
+    "its own line: [[schedule:{...}]] with minified JSON fields: intent ('create' = a new appointment/estimate, " +
+    "'move' = reschedule an existing one, 'block' = hold time, 'reminder' = a task reminder), customer (name if " +
+    "given else \"\"), title (short: \"Estimate\", \"Roofing\", \"Order materials\"…), date (\"YYYY-MM-DD\", resolved " +
+    "from NOW), time (24-hour \"HH:MM\" or \"\"), address (only if they state one, else \"\"), trade (if clear, else " +
+    "\"\"), match (only for 'move' — a short hint identifying which appointment, e.g. \"3 PM\" or the customer name). " +
+    "Resolve relative dates (\"tomorrow\", \"Friday\", \"in two weeks\") against NOW. Your spoken sentence should " +
+    "confirm it naturally and concretely (e.g. \"Done — estimate with John tomorrow at 2 PM, saved to your schedule.\"). " +
+    "If you truly need a date/time and it wasn't given, do NOT emit the directive — ask for it in one short question. " +
+    "NOW: " + (now || "unknown") + ".\n\n" +
+    "BUSINESS DATA:\n" + snapshotText(snapshot)
+  );
+}
+
+function sanitizeSchedule(s) {
+  if (!s || typeof s !== "object") return null;
+  const intent = ["create", "move", "block", "reminder"].includes(s.intent) ? s.intent : "create";
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : "";
+  let time = String(s.time || "").trim();
+  time = /^\d{1,2}:\d{2}$/.test(time) ? (time.length === 4 ? "0" + time : time) : "";
+  return {
+    intent,
+    customer: String(s.customer || "").slice(0, 120),
+    title: String(s.title || "").slice(0, 120),
+    date, time,
+    address: String(s.address || "").slice(0, 200),
+    trade: String(s.trade || "").slice(0, 60),
+    match: String(s.match || "").slice(0, 80),
+  };
+}
+
+function parseBrainReply(txt, snapshot) {
+  let reply = String(txt || "").trim();
+  let action = null, jobId = null, schedule = null;
+  const sm = reply.match(/\[\[schedule:(\{[\s\S]*?\})\]\]/i);
+  if (sm) { try { schedule = sanitizeSchedule(JSON.parse(sm[1])); } catch { /* ignore malformed */ } }
+  const am = reply.match(/\[\[action:([a-z_]+)\]\]/i);
+  if (am && BRAIN_ACTIONS.includes(am[1].toLowerCase())) action = am[1].toLowerCase();
+  const jm = reply.match(/\[\[job:([^\]]+)\]\]/i);
+  if (jm) { const id = jm[1].trim(); if ((snapshot.jobs || []).some((j) => j.id === id)) { jobId = id; action = "open_job"; } }
+  reply = reply.replace(/\[\[(action|job):[^\]]+\]\]/gi, "").replace(/\[\[schedule:\{[\s\S]*?\}\]\]/gi, "").trim();
+  return { reply, action, jobId, schedule };
+}
+
+// Deterministic fallback so the companion always answers, even with no AI / cap hit.
+export function localBrainReply(snapshot, messages) {
+  const s = snapshot || {}, c = s.counts || {};
+  const last = [...(messages || [])].reverse().find((m) => m.role === "user");
+  const q = String((last && last.content) || "").toLowerCase();
+  const pending = [];
+  if (c.activeEstimates) pending.push(`${c.activeEstimates} active estimate${c.activeEstimates > 1 ? "s" : ""}`);
+  if (c.followupsDue) pending.push(`${c.followupsDue} follow-up${c.followupsDue > 1 ? "s" : ""} due`);
+  if (c.awaitingSignature) pending.push(`${c.awaitingSignature} awaiting signature`);
+  if (/follow|chase|nudge/.test(q)) return { reply: c.followupsDue ? `You have ${c.followupsDue} follow-up${c.followupsDue > 1 ? "s" : ""} that ${c.followupsDue > 1 ? "need" : "needs"} a nudge. Want me to pull ${c.followupsDue > 1 ? "them" : "it"} up?` : "Nothing’s overdue for a follow-up right now — nice and clean.", action: c.followupsDue ? "followups" : null };
+  if (/pending|status|what.*(left|open|going)|today/.test(q)) return { reply: pending.length ? `Here’s where things stand: ${pending.join(", ")}.` : "You’re all caught up — no estimates or follow-ups pending.", action: null };
+  if (/estimate|bid|quote|new job/.test(q)) return { reply: "Let’s build it. Tap the mic and walk me through the job, or I can start a blank estimate.", action: "create_estimate" };
+  if (/customer|client|find|who/.test(q)) return { reply: s.recent_customers && s.recent_customers.length ? `Recent customers: ${s.recent_customers.slice(0, 5).join(", ")}. Want me to open your customer list?` : "Let’s find them in your customer list.", action: "find_customer" };
+  return { reply: pending.length ? `I’ve got you. Right now: ${pending.join(", ")}. What do you want to tackle?` : "I’m here. Want to start an estimate, find a customer, or check your follow-ups?", action: null };
+}
+
+export async function bidBrainChat(user, { messages, snapshot, now }) {
+  if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
+  const msgs = (Array.isArray(messages) ? messages : [])
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && String(m.content || "").trim())
+    .slice(-12)
+    .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
+  if (!msgs.length || msgs[msgs.length - 1].role !== "user") { const e = new Error("Say something to Bid Brain first."); e.status = 400; throw e; }
+  if (!checkRate(user.id)) { const e = new Error("One moment — let’s not talk over each other."); e.status = 429; throw e; }
+  if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; e.code = "AI_CAPPED"; throw e; }
+  const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model, max_tokens: 500, system: brainChatSystemPrompt(snapshot || {}, now), messages: msgs }),
+    });
+  } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
+  const out = await res.json();
+  const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  const parsed = parseBrainReply(txt, snapshot || {});
+  return { reply: parsed.reply || "I’m here — what do you need?", action: parsed.action, jobId: parsed.jobId, schedule: parsed.schedule };
+}
+
 export async function assistIntake(user, { text, trade }) {
   if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
   const t = String(text || "").trim();
