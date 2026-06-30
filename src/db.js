@@ -123,6 +123,19 @@ CREATE INDEX IF NOT EXISTS event_name_idx ON event(name);
 CREATE INDEX IF NOT EXISTS event_user_idx ON event(user_id);
 CREATE INDEX IF NOT EXISTS event_time_idx ON event(created_at);
 
+-- Bid Brain memory: a per-contractor key/value store that makes the AI smarter
+-- every job. Scalable by design — new memory types (labor rates, suppliers,
+-- proposal style, voice prefs…) are just new keys, NO schema change. Strictly
+-- isolated by user_id (composite PK); never mixed between contractors.
+CREATE TABLE IF NOT EXISTS memory (
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  value TEXT DEFAULT '',          -- JSON-encoded value
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, key)
+);
+CREATE INDEX IF NOT EXISTS memory_user_idx ON memory(user_id);
+
 -- Customer signatures on accepted proposals. A lightweight contractor approval
 -- record (NOT a full legal e-sign platform): who signed, the inked signature
 -- image, when, from where, and the total they accepted. One job can be re-signed
