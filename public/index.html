@@ -648,9 +648,9 @@
 
   /* auth */
   .auth{max-width:380px;margin:6vh auto 0;padding:0 4px}
-  .auth-lang{display:flex;justify-content:center;gap:8px;margin-bottom:4px}
-  .auth-lang-b{background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 14px;font-size:.86rem;font-weight:700;cursor:pointer;font-family:inherit}
-  .auth-lang-b.on{background:var(--amber);border-color:var(--amber);color:#1b1b1b}
+  .auth-card{position:relative}
+  .auth-lang2{position:absolute;top:14px;right:14px;z-index:3}
+  .auth-lang2 select{background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:5px 11px;font-size:.78rem;font-weight:700;font-family:inherit;cursor:pointer;outline:none}
   .auth h1{font-family:"Archivo";font-weight:900;font-size:1.8rem;letter-spacing:-.02em;margin:10px 0 4px}
   .auth-card{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:22px;margin-top:18px}
   .agentwelcome{background:rgba(30,66,89,.1);border:1px solid var(--blue,#1E4259);border-radius:10px;padding:12px 13px;margin-bottom:16px;font-size:.92rem;line-height:1.45}
@@ -1585,6 +1585,9 @@ async function signOut(){
   try{ if(TOKEN) await api('/api/auth/signout',{method:'POST'}); }catch(e){}
   TOKEN=null; USER=null; BILLING=null; PAYMENTS=null; PAYREQS={};
   localStorage.removeItem('bt_billing'); localStorage.removeItem('bt_payments'); persistAuth();
+  // They clearly have an account now — never drop them back on "Create account".
+  try{ localStorage.setItem('bt_returning','1'); }catch(e){}
+  state.authMode='signin'; state.authError=''; state.authSent=false;
   state.view='home'; render();
 }
 
@@ -1965,10 +1968,6 @@ function viewAuth(){
   const m = state.authMode;
   const card = m==='forgot' ? authForgotCard() : m==='reset' ? authResetCard() : authSigninCard(m==='signup');
   return `<div class="auth">
-    <div class="auth-lang">
-      <button class="auth-lang-b ${LANG==='en'?'on':''}" onclick="setLang('en')">🇺🇸 English</button>
-      <button class="auth-lang-b ${LANG==='es'?'on':''}" onclick="setLang('es')">🇲🇽 Español</button>
-    </div>
     <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">translator</span></div>
     <div class="auth-hero">
       <div class="auth-mic">${icon('mic',34)}</div>
@@ -1979,9 +1978,18 @@ function viewAuth(){
     <div class="hint" style="text-align:center;margin-top:14px">${esc(t('auth_one_account'))}</div>
   </div>`;
 }
+// Compact language picker tucked into the top-right corner of the auth card —
+// out of the way, not the first ugly thing you see.
+function authLangPicker(){
+  return `<div class="auth-lang2"><select aria-label="Language" onchange="setLang(this.value)">`
+    + `<option value="en"${LANG==='en'?' selected':''}>🇺🇸 English</option>`
+    + `<option value="es"${LANG==='es'?' selected':''}>🇲🇽 Español</option>`
+    + `</select></div>`;
+}
 function authSigninCard(isUp){
   const agent = isUp && SIGNUP_ROLE==='agent';
   return `<div class="auth-card">
+      ${authLangPicker()}
       ${agent?`<div class="agentwelcome">🏡 ${esc(t('auth_agent_welcome'))}</div>`:''}
       <div class="h-eyebrow">${agent?esc(t('auth_agent_eyebrow')):(isUp?esc(t('auth_create_eyebrow')):esc(t('auth_welcome_eyebrow')))}</div>
       <h1>${isUp?esc(t('auth_get_started')):esc(t('auth_sign_in'))}</h1>

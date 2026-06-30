@@ -66,6 +66,7 @@ const T_STRINGS = {
     fName: "Your name", fPhone: "Phone", fAddress: "Address or neighborhood", fMessage: "What are you looking to do?",
     requestEstimate: "Request my free estimate →", sending: "Sending…",
     thanks: (c) => `✓ Thanks! ${c} got your request and will reach out shortly.`,
+    formError: "Couldn't send — please check your connection and try again.",
     getStarted: "Get started", requestAFree: "Request a free estimate",
     poweredBy: "Website & booking powered by", reviews: "Google reviews", titleFree: "Free Estimates",
   },
@@ -85,6 +86,7 @@ const T_STRINGS = {
     fName: "Tu nombre", fPhone: "Teléfono", fAddress: "Dirección o vecindario", fMessage: "¿Qué necesitas hacer?",
     requestEstimate: "Pedir mi presupuesto gratis →", sending: "Enviando…",
     thanks: (c) => `✓ ¡Gracias! ${c} recibió tu solicitud y se comunicará contigo pronto.`,
+    formError: "No se pudo enviar — revisa tu conexión e inténtalo de nuevo.",
     getStarted: "Empezar", requestAFree: "Pedir un presupuesto gratis",
     poweredBy: "Sitio web y reservas con tecnología de", reviews: "reseñas de Google", titleFree: "Presupuestos Gratis",
   },
@@ -323,6 +325,7 @@ ${(Array.isArray(opts.projects) && opts.projects.length) ? `<section class="wrap
     <button class="btn lg" type="submit" style="justify-content:center">${esc(T.requestEstimate)}</button>
   </form>
   <div id="estOk" class="ok" style="display:none;margin-top:14px">${T.thanks(company)}</div>
+  <div id="estErr" style="display:none;margin-top:14px;background:rgba(220,80,60,.18);border:1px solid rgba(255,160,140,.5);border-radius:12px;padding:14px;font-weight:600">${esc(T.formError)}</div>
 </div></section>
 
 <footer><div class="wrap"><div class="grid">
@@ -334,11 +337,16 @@ ${(Array.isArray(opts.projects) && opts.projects.length) ? `<section class="wrap
   var f=document.getElementById('estForm'), action=${JSON.stringify(leadAction)};
   f.addEventListener('submit',function(e){ e.preventDefault();
     var fd={ name:f.name.value, phone:f.phone.value, city:f.city.value, message:f.message.value, source:'Website', job_type:'' };
-    var btn=f.querySelector('button'); btn.disabled=true; btn.textContent=${JSON.stringify(T.sending)};
-    function done(){ f.style.display='none'; document.getElementById('estOk').style.display='block'; }
-    if(!action){ done(); return; }
+    var btn=f.querySelector('button'), orig=btn.textContent; btn.disabled=true; btn.textContent=${JSON.stringify(T.sending)};
+    var errEl=document.getElementById('estErr'); if(errEl) errEl.style.display='none';
+    // Only claim success on a real 2xx — otherwise a blocked/failed POST would
+    // tell the homeowner "Thanks!" while the lead silently vanishes.
+    function ok(){ f.style.display='none'; document.getElementById('estOk').style.display='block'; }
+    function fail(){ btn.disabled=false; btn.textContent=orig; if(errEl) errEl.style.display='block'; }
+    if(!action){ fail(); return; }
     fetch(action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(fd)})
-      .then(done).catch(function(){ done(); });
+      .then(function(r){ if(r&&r.ok){ ok(); } else { fail(); } })
+      .catch(fail);
   });
 </script>
 </body></html>`;
