@@ -54,6 +54,16 @@ the intelligence does not.
 up / ask for referrals / write estimates." When it feels like payroll, not software, we've
 won.
 
+**Trust is the spine (and the moat).** BidVoice is an *instrument, not an oracle* — the world's
+best AI estimating *assistant*, not "an AI estimator." The contractor stays the estimator /
+engineer of record / pilot in command; BidVoice advises, computes, and checks. Every number
+knows where it came from; confidence is earned, never asserted; AI-suggested is always visibly
+distinct from human-verified; uncertainty fails toward a flag, never a confident guess; the
+record is permanent; and quiet is earned as real data accrues. A contractor should never wonder
+"can I trust this?" — the answer (what's known, assumed, unverified, and why) is always on the
+screen. Full design: `docs/trust-architecture.md`. AI never fabricates certainty where certainty
+doesn't exist — measured against this is a launch gate for every consequential feature.
+
 **The test for every feature:** *Would this make a contractor's day easier tomorrow
 morning?* Yes -> right direction. No -> rethink it. (Our deepest moat is the
 **Trade Intelligence Pack** — Bid Brain knowing the trade before the conversation even
