@@ -407,6 +407,70 @@ CREATE TABLE IF NOT EXISTS document (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS document_job_idx ON document(job_id);
+
+-- ============ AI Project Management OS — the Customer → Job → Timeline spine ============
+-- customer: the durable entity that outlives projects (today the customer is embedded in
+-- job). Owner-scoped; matched by phone then email. Soft-delete only — never lose history.
+CREATE TABLE IF NOT EXISTS customer (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  name TEXT DEFAULT '',
+  phone TEXT DEFAULT '',            -- normalized for matching
+  email TEXT DEFAULT '',            -- lowercased for matching
+  address TEXT DEFAULT '',
+  lat REAL,
+  lng REAL,
+  source TEXT DEFAULT '',           -- Website | Receptionist | Referral | Manual | …
+  tags TEXT DEFAULT '[]',           -- JSON array
+  notes TEXT DEFAULT '',            -- PRIVATE: contractor-only, never customer-facing
+  first_seen INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  archived_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS customer_user_idx  ON customer(user_id);
+CREATE INDEX IF NOT EXISTS customer_phone_idx ON customer(user_id, phone);
+CREATE INDEX IF NOT EXISTS customer_email_idx ON customer(user_id, email);
+
+-- timeline_event: the append-only source of truth. NEVER updated or deleted — corrections
+-- are new events. Every surface writes; every intelligence reads. INTEGER PK for natural
+-- ordering + cheap pagination (the analytics event table is a separate concern).
+CREATE TABLE IF NOT EXISTS timeline_event (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+  customer_id TEXT,                 -- nullable until a lead becomes a customer
+  job_id TEXT,                      -- nullable (pre-job events: lead, inbound call)
+  ts INTEGER NOT NULL,              -- the event's logical time (epoch ms)
+  type TEXT NOT NULL,               -- canonical taxonomy
+  actor TEXT NOT NULL DEFAULT 'system', -- ai | owner | crew | customer | system
+  title TEXT DEFAULT '',
+  body TEXT DEFAULT '',
+  payload TEXT DEFAULT '{}',        -- JSON, type-specific
+  ref_table TEXT DEFAULT '',        -- the row this points at (payment_request, draw, …)
+  ref_id TEXT DEFAULT '',
+  visibility TEXT NOT NULL DEFAULT 'internal', -- internal | customer | crew
+  dedupe_key TEXT,                  -- idempotency for back-fill + watcher alerts
+  created_at INTEGER NOT NULL       -- write time (≈ ts, but distinct)
+);
+CREATE INDEX IF NOT EXISTS tl_job_idx       ON timeline_event(job_id, id);
+CREATE INDEX IF NOT EXISTS tl_customer_idx  ON timeline_event(customer_id, id);
+CREATE INDEX IF NOT EXISTS tl_user_type_idx ON timeline_event(user_id, type, id);
+CREATE UNIQUE INDEX IF NOT EXISTS tl_dedupe_idx ON timeline_event(user_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
+
+-- project_state: a PROJECTION (cache) over the log — never authoritative, always rebuildable.
+CREATE TABLE IF NOT EXISTS project_state (
+  job_id TEXT PRIMARY KEY REFERENCES job(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  health TEXT DEFAULT 'green',      -- green | yellow | red
+  health_reasons TEXT DEFAULT '[]', -- JSON: [{rule, severity, reason, event_id, action}]
+  percent_complete INTEGER DEFAULT 0,
+  expected_margin REAL,             -- PRIVATE
+  actual_margin REAL,               -- PRIVATE
+  next_action TEXT DEFAULT '{}',    -- JSON {label, directive}
+  stage TEXT DEFAULT 'lead',        -- lead | quoted | signed | in_progress | closing | won | lost | warranty
+  last_event_id INTEGER DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS pstate_user_idx ON project_state(user_id, health);
 `);
 
 // Migrate older databases that predate the billing columns.
@@ -546,5 +610,12 @@ ensureColumns("dispatch", [
   ["bid_amount", "INTEGER"],
   ["bid_note", "TEXT DEFAULT ''"],
 ]);
+// AI Project Management OS: link each job to the durable customer entity. Additive +
+// nullable — the embedded job.customer/customer_phone stay for back-compat; the timeline
+// back-fill creates customer rows and sets this. The index is created after the column.
+ensureColumns("job", [
+  ["customer_id", "TEXT"],
+]);
+db.exec("CREATE INDEX IF NOT EXISTS job_customer_idx ON job(customer_id)");
 
 export default db;

@@ -4,6 +4,15 @@
 > outlives projects; `timeline_event` is the append-only source of truth every surface
 > writes and every intelligence reads. `job` stays the project (no parallel Project table).
 > **Proposed DDL below is for review — nothing is applied to `src/db.js` until approved.**
+>
+> **STATUS — BUILT & VERIFIED (dormant).** Schema applied to `src/db.js` (three tables +
+> `job.customer_id` migration). Spine implemented in `src/timeline.js`: `recordEvent` write
+> chokepoint, customer dedup (phone→email, link-or-suggest-merge), read projections,
+> deterministic Health rules (each cites the event id), and an idempotent back-fill. Verified
+> against seeded real-shaped data: 18/18 checks (dedup, customer_id linking, populated
+> newest-first timelines, health citing the real signed event, idempotent re-run, recordEvent
+> dedupe, visibility mask). **No surface imports it yet** — flag-gated (`BT_TIMELINE`) and
+> verified before anything depends on it, per the founder's instruction.
 
 ## Grounding (how this fits what we already have)
 - Driver: `node:sqlite` `DatabaseSync`, WAL, `PRAGMA foreign_keys = ON`.
