@@ -1190,6 +1190,8 @@ const I18N = {
     bb_go_customer:"Open customers", bb_go_schedule:"Open schedule",
     bb_go_followups:"Show follow-ups", bb_go_job:"Open this job",
     bb_materials_soon:"Material ordering is coming soon — I'll prep your POs right here.",
+    bb_sched_when:"Sure — what day and time should I set it for?",
+    bb_sched_which:"Which appointment should I move? Tell me the day or who it's with.",
     bb_err_reply:"I couldn't reach my brain just now. Try again in a moment — your work is safe.",
     bb_pulse_active:(n)=>`You have ${n} active estimate${n>1?'s':''}.`,
     bb_pulse_follow:(n)=>`${n} follow-up${n>1?'s':''} need${n>1?'':'s'} attention.`,
@@ -1244,6 +1246,8 @@ const I18N = {
     bb_go_customer:"Abrir clientes", bb_go_schedule:"Abrir agenda",
     bb_go_followups:"Ver seguimientos", bb_go_job:"Abrir este trabajo",
     bb_materials_soon:"El pedido de materiales llega pronto — prepararé tus órdenes aquí mismo.",
+    bb_sched_when:"Claro — ¿para qué día y hora lo agendo?",
+    bb_sched_which:"¿Cuál cita muevo? Dime el día o con quién es.",
     bb_err_reply:"No pude conectar con mi cerebro ahora mismo. Inténtalo de nuevo en un momento — tu trabajo está a salvo.",
     bb_pulse_active:(n)=>`Tienes ${n} presupuesto${n>1?'s':''} activo${n>1?'s':''}.`,
     bb_pulse_follow:(n)=>`${n} seguimiento${n>1?'s':''} necesita${n>1?'n':''} atención.`,
@@ -2223,14 +2227,19 @@ async function bbConvSend(text){
   BBC.busy=true; bbConvRender(); bbSetState('thinking');
   try{
     const payload=BBC.thread.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role,content:m.content}));
-    const r=await api('/api/brain/chat',{method:'POST', body:JSON.stringify({messages:payload})});
+    const r=await api('/api/brain/chat',{method:'POST', body:JSON.stringify({messages:payload, now:bbNow()})});
     BBC.busy=false;
-    const reply=(r&&r.reply)||t('bb_err_reply');
+    let reply=(r&&r.reply)||t('bb_err_reply');
+    // Bid Brain *does* the work: if the reply carried a scheduling directive, write it
+    // straight into the contractor's jobs/schedule (offline-first) and confirm.
+    let scheduled=null;
+    if(r&&r.schedule){ const out=bbApplySchedule(r.schedule); if(out&&out.ok){ scheduled=out; bbSetState('working'); } else { reply=bbScheduleAsk(out&&out.reason); } }
     BBC.thread.push({role:'assistant',content:reply});
-    if(r&&r.action){ const label=bbActionLabel(r.action); if(label) BBC.thread.push({role:'action',action:(r.action==='open_job'?'job':r.action),jobId:(r.jobId||''),label}); }
+    if(scheduled){ BBC.thread.push({role:'action',action:'schedule',label:t('bb_go_schedule')}); }
+    else if(r&&r.action){ const label=bbActionLabel(r.action); if(label) BBC.thread.push({role:'action',action:(r.action==='open_job'?'job':r.action),jobId:(r.jobId||''),label}); }
     bbThreadSave(); bbConvRender();
-    bbSetState('speaking'); if(typeof speakQuestion==='function') speakQuestion(reply);
-    setTimeout(()=>{ if(!BBC.recording && bbState==='speaking') bbSetState('idle'); }, 2200);
+    bbSetState(scheduled?'success':'speaking'); if(typeof speakQuestion==='function') speakQuestion(reply);
+    setTimeout(()=>{ if(!BBC.recording && (bbState==='speaking'||bbState==='success')) bbSetState('idle'); }, 2200);
   }catch(e){
     BBC.busy=false; BBC.thread.push({role:'assistant',content:(e&&e.message)||t('bb_err_reply')}); bbThreadSave(); bbConvRender(); bbSetState('error');
   }
@@ -2278,6 +2287,52 @@ async function bbConvMic(){
   try{ BBC.rec.start(); }catch(_){ BBC.recording=false; bbSetState('idle'); }
 }
 function bbConvStopRec(cancel){ try{ if(cancel) BBC.cancelRec=true; if(BBC.rec&&BBC.rec.state!=='inactive') BBC.rec.stop(); }catch(_){ } }
+// Local date/time context so Bid Brain can resolve "tomorrow", "Friday", "in two weeks".
+function bbNow(){ const d=new Date(); const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']; const p=n=>String(n).padStart(2,'0');
+  let tz=''; try{ tz=Intl.DateTimeFormat().resolvedOptions().timeZone||''; }catch(_){ }
+  return `${days[d.getDay()]}, ${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}${tz?' ('+tz+')':''}`; }
+// ===== Bid Schedule v1 — Bid Brain writes scheduling straight into the jobs/schedule
+// store (reuses the exact same job objects + sync as everywhere else). No new screen. =====
+function bbApplySchedule(s){
+  if(!s||!s.intent) return {ok:false,reason:'bad'};
+  const date=/^\d{4}-\d{2}-\d{2}$/.test(s.date||'')?s.date:'';
+  const time=/^\d{1,2}:\d{2}$/.test(s.time||'')?(s.time.length===4?'0'+s.time:s.time):'';
+  if(s.intent==='move'){
+    const j=bbFindAppt(s.match, s.customer); if(!j) return {ok:false,reason:'no_match'};
+    if(!date && !time) return {ok:false,reason:'no_when'};
+    if(date) j.scheduled_date=date; if(time) j.scheduled_time=time; j.status='scheduled'; touch(j); saveJobs();
+    return {ok:true,job:j,moved:true};
+  }
+  if(!date) return {ok:false,reason:'no_date'};
+  const kind = s.intent==='reminder'?'Reminder':(s.intent==='block'?'Blocked time':'Estimate');
+  const title=(s.title||'').trim() || (kind + (s.customer?(' — '+s.customer):''));
+  const job=bbNewScheduledJob({title, customer:s.customer||'', address:s.address||'', trade:s.trade||'', date, time});
+  JOBS.unshift(job); saveJobs();
+  return {ok:true,job:job,created:true};
+}
+function bbNewScheduledJob(o){
+  const now=Date.now();
+  return { id:uid(), title:String(o.title||'Appointment').slice(0,120), created:now, updated_at:now,
+    from:(SETTINGS.from||'es'), to:(SETTINGS.to||'en'), trade:o.trade||'', transcript:'',
+    customer:String(o.customer||'').slice(0,120), address:String(o.address||'').slice(0,200),
+    lines:[], upgrades:[], assumptions:[], exclusions:[], brief:null, translation:'', summary:'',
+    notes:'', margin:20, tax_rate:(Number(SETTINGS.tax_rate)||0), photos:[],
+    status:'scheduled', scheduled_date:o.date, scheduled_time:o.time||'', _dirty:true };
+}
+// Find an existing scheduled appointment to move — by customer first, then by hour hint.
+function bbFindAppt(hint, customer){
+  const sched=JOBS.filter(j=>!j._deleted && j.scheduled_date && jobStatus(j)==='scheduled');
+  if(!sched.length) return null;
+  const cust=String(customer||'').trim().toLowerCase();
+  if(cust){ const m=sched.find(j=>(j.customer||'').toLowerCase().includes(cust)); if(m) return m; }
+  const h=String(hint||'').toLowerCase();
+  const tm=h.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  if(tm){ let hh=+tm[1]; if(tm[3]==='pm'&&hh<12) hh+=12; if(tm[3]==='am'&&hh===12) hh=0;
+    const m=sched.find(j=>j.scheduled_time && +j.scheduled_time.split(':')[0]===hh); if(m) return m; }
+  const hc=h.replace(/\d|am|pm|:|\s/g,''); if(hc){ const m=sched.find(j=>(j.customer||'').toLowerCase().includes(hc)||(j.title||'').toLowerCase().includes(hc)); if(m) return m; }
+  return null;
+}
+function bbScheduleAsk(reason){ return reason==='no_match'?t('bb_sched_which'):t('bb_sched_when'); }
 
 // "Jobs" bottom-nav tab: the dashboard is the job list — land there and bring the
 // list into view.

@@ -795,13 +795,14 @@ app.get("/api/brain", requireAuth, (req, res) => res.json(Memory.brain(req.user.
 // companion is never silent (rule #4). Returns {reply, action?, jobId?}.
 app.post("/api/brain/chat", requireAuth, wrap(async (req, res) => {
   const messages = (req.body && req.body.messages) || [];
+  const now = String((req.body && req.body.now) || "").slice(0, 80);   // client's local date/time for relative scheduling
   const snapshot = Memory.businessSnapshot(req.user.id, req.user);
   if (!aiConfigured() || !Billing.isEntitled(req.user)) {
     return res.json({ ...localBrainReply(snapshot, messages), source: "local" });
   }
   try {
-    const out = await bidBrainChat(req.user, { messages, snapshot });
-    track(req.user.id, "brain_chat", { action: out.action || "" });
+    const out = await bidBrainChat(req.user, { messages, snapshot, now });
+    track(req.user.id, "brain_chat", { action: out.action || (out.schedule ? "schedule:" + out.schedule.intent : "") });
     res.json({ ...out, source: "ai" });
   } catch (e) {
     if (e && (e.code === "AI_CAPPED" || e.status === 429)) throw e;     // surface the cap message

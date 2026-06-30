@@ -775,7 +775,7 @@ function snapshotText(s) {
   return lines.join("\n");
 }
 
-function brainChatSystemPrompt(snapshot) {
+function brainChatSystemPrompt(snapshot, now) {
   return (
     "You are Bid Brain — the AI operations manager built into Bidtranslator for a residential contractor. " +
     "You are not a generic chatbot; you are their sharp, friendly right hand who remembers their whole business " +
@@ -786,22 +786,52 @@ function brainChatSystemPrompt(snapshot) {
     "or statuses. If you don't have something, say so plainly and offer to help capture it. Their markup and " +
     "margins are private business numbers — fine to discuss with them, never to be put in front of a client. " +
     "ACTIONS: if the contractor clearly wants the app to DO one of these, append it on its OWN final line as " +
-    "[[action:NAME]] — one of: create_estimate, continue_estimate, find_customer, schedule, order_materials, " +
+    "[[action:NAME]] — one of: create_estimate, continue_estimate, find_customer, order_materials, " +
     "followups. To pull up a specific job, use [[job:ID]] with the bracketed id from the data. Add at most one " +
-    "directive, only when intent is clear, and keep it out of the spoken sentence. No directive for ordinary chat.\n\n" +
+    "action/job directive, only when intent is clear, and keep it out of the spoken sentence. No directive for ordinary chat.\n" +
+    "SCHEDULING — you can actually schedule, not just point at a calendar. When the contractor asks to schedule " +
+    "an appointment/estimate, block time, move an existing appointment, or set a reminder, append ONE directive on " +
+    "its own line: [[schedule:{...}]] with minified JSON fields: intent ('create' = a new appointment/estimate, " +
+    "'move' = reschedule an existing one, 'block' = hold time, 'reminder' = a task reminder), customer (name if " +
+    "given else \"\"), title (short: \"Estimate\", \"Roofing\", \"Order materials\"…), date (\"YYYY-MM-DD\", resolved " +
+    "from NOW), time (24-hour \"HH:MM\" or \"\"), address (only if they state one, else \"\"), trade (if clear, else " +
+    "\"\"), match (only for 'move' — a short hint identifying which appointment, e.g. \"3 PM\" or the customer name). " +
+    "Resolve relative dates (\"tomorrow\", \"Friday\", \"in two weeks\") against NOW. Your spoken sentence should " +
+    "confirm it naturally and concretely (e.g. \"Done — estimate with John tomorrow at 2 PM, saved to your schedule.\"). " +
+    "If you truly need a date/time and it wasn't given, do NOT emit the directive — ask for it in one short question. " +
+    "NOW: " + (now || "unknown") + ".\n\n" +
     "BUSINESS DATA:\n" + snapshotText(snapshot)
   );
 }
 
+function sanitizeSchedule(s) {
+  if (!s || typeof s !== "object") return null;
+  const intent = ["create", "move", "block", "reminder"].includes(s.intent) ? s.intent : "create";
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : "";
+  let time = String(s.time || "").trim();
+  time = /^\d{1,2}:\d{2}$/.test(time) ? (time.length === 4 ? "0" + time : time) : "";
+  return {
+    intent,
+    customer: String(s.customer || "").slice(0, 120),
+    title: String(s.title || "").slice(0, 120),
+    date, time,
+    address: String(s.address || "").slice(0, 200),
+    trade: String(s.trade || "").slice(0, 60),
+    match: String(s.match || "").slice(0, 80),
+  };
+}
+
 function parseBrainReply(txt, snapshot) {
   let reply = String(txt || "").trim();
-  let action = null, jobId = null;
+  let action = null, jobId = null, schedule = null;
+  const sm = reply.match(/\[\[schedule:(\{[\s\S]*?\})\]\]/i);
+  if (sm) { try { schedule = sanitizeSchedule(JSON.parse(sm[1])); } catch { /* ignore malformed */ } }
   const am = reply.match(/\[\[action:([a-z_]+)\]\]/i);
   if (am && BRAIN_ACTIONS.includes(am[1].toLowerCase())) action = am[1].toLowerCase();
   const jm = reply.match(/\[\[job:([^\]]+)\]\]/i);
   if (jm) { const id = jm[1].trim(); if ((snapshot.jobs || []).some((j) => j.id === id)) { jobId = id; action = "open_job"; } }
-  reply = reply.replace(/\[\[(action|job):[^\]]+\]\]/gi, "").trim();
-  return { reply, action, jobId };
+  reply = reply.replace(/\[\[(action|job):[^\]]+\]\]/gi, "").replace(/\[\[schedule:\{[\s\S]*?\}\]\]/gi, "").trim();
+  return { reply, action, jobId, schedule };
 }
 
 // Deterministic fallback so the companion always answers, even with no AI / cap hit.
@@ -820,7 +850,7 @@ export function localBrainReply(snapshot, messages) {
   return { reply: pending.length ? `I’ve got you. Right now: ${pending.join(", ")}. What do you want to tackle?` : "I’m here. Want to start an estimate, find a customer, or check your follow-ups?", action: null };
 }
 
-export async function bidBrainChat(user, { messages, snapshot }) {
+export async function bidBrainChat(user, { messages, snapshot, now }) {
   if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
   const msgs = (Array.isArray(messages) ? messages : [])
     .filter((m) => m && (m.role === "user" || m.role === "assistant") && String(m.content || "").trim())
@@ -835,14 +865,14 @@ export async function bidBrainChat(user, { messages, snapshot }) {
     res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: 500, system: brainChatSystemPrompt(snapshot || {}), messages: msgs }),
+      body: JSON.stringify({ model, max_tokens: 500, system: brainChatSystemPrompt(snapshot || {}, now), messages: msgs }),
     });
   } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
   if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
   const out = await res.json();
   const txt = (out.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
   const parsed = parseBrainReply(txt, snapshot || {});
-  return { reply: parsed.reply || "I’m here — what do you need?", action: parsed.action, jobId: parsed.jobId };
+  return { reply: parsed.reply || "I’m here — what do you need?", action: parsed.action, jobId: parsed.jobId, schedule: parsed.schedule };
 }
 
 export async function assistIntake(user, { text, trade }) {

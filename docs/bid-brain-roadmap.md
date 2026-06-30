@@ -20,21 +20,22 @@
     **schedule**, order_materials, followups, open_job). This is the hook every future
     "Bid Brain does it" capability plugs into.
 
+- **M2 v1 — Bid Schedule (conversational, in-app).** Bid Brain now *schedules* from
+  the conversation: "Schedule an estimate with John tomorrow at 2" → it resolves the
+  date against the client's local "now", writes a real scheduled job (customer, address,
+  date, time) straight into the existing jobs/schedule store (offline-first sync, no new
+  screen), and confirms: "Done — estimate with John tomorrow at 2 PM, saved to your
+  schedule." Also handles block-time, reminders, and move/reschedule (find by customer
+  or time). NLU on the server (`[[schedule:{…}]]` directive); the client does the write.
+  No Google Calendar yet — proving the in-app experience first.
+
 ## Next up
 
-### 📅 M2 — Bid Schedule (conversational scheduling)  ← immediate next
-Scheduling is a daily contractor task; doing it by voice is the clearest proof that
-Bid Brain is an employee, not an estimating tool. Lives **under Bid Brain**, not as a
-separate calendar app. Everything conversational:
-> You: "Schedule an estimate with John tomorrow at 2."
-> Bid Brain: "Done — it's on your schedule for tomorrow at 2, with John's address attached."
-
-- **v1 (in-app, no new integrations):** Bid Brain parses scheduling intent
-  ("schedule an estimate with John tomorrow at 2", "block Friday morning for roofing",
-  "follow up in two weeks", "move my 3 PM to Thursday") and writes to the job's existing
-  `scheduled_date`/`scheduled_time` (+ the schedule view we already have). Links to the
-  customer record, sets the address, and confirms in the conversation. New `schedule`
-  action on the chat endpoint resolves a customer/job + date/time server-side.
+### 📅 M2 — Bid Schedule — remaining
+Lives **under Bid Brain**, not as a separate calendar app. v1 (above) proves the
+in-app experience; from here we deepen and then sync out, one milestone at a time.
+- **v1.1 polish:** richer "move" matching, customer-record linking when a prospect
+  exists, conflict warnings surfaced conversationally.
 - **v2 (Google Calendar sync):** OAuth connect → create the event on Google Calendar,
   invite the customer (if email on file), attach the proposal PDF, add the address,
   set reminders, deep-link Google Maps when it's time to leave.
