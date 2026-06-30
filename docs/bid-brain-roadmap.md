@@ -73,3 +73,36 @@ action before the contractor asks.**
 
 **Success metric:** a contractor should feel they *hired a full-time employee*, not
 downloaded another estimating app.
+
+---
+
+## The bigger arc — AI Operating System for the trades
+
+Two named capabilities sit beyond the companion work. They are the *target*, not
+in-progress builds — recorded so today's design doesn't preclude them. Full strategy in
+`docs/trade-intelligence-packs.md`.
+
+### Trade Intelligence Packs (the moat) — architecture first
+One canonical, server-side pack per trade that **every** surface reads — estimator,
+receptionist, onboarding, SEO, marketing, follow-ups, proposal language. Bid Brain knows
+the trade before the conversation starts ("200-amp panel or a subpanel?" not "tell me
+more"). Today trade knowledge is *split* — `TRADE_FIELDS` (server, estimating) and
+`TRADE_PICK.bring` (client, capture hints). **First step (small, behavior-preserving):**
+consolidate behind `tradePack(key)` so nothing hardcodes trade knowledge twice. Then each
+pack field is its own additive milestone — proven **deep on one trade (roofing)** before
+going wide.
+
+### AI Receptionist (the next major capability) — built on the same engine
+The conversation loop, pointed at the phone instead of the orb. Answers every call (incl.
+after hours) in the trade's own voice, books appointments against the scheduler, and
+**creates the job before the contractor arrives** — so the estimate is already half done:
+> "Good morning, Mike. Mrs. Johnson called about a roof leak over the garage and uploaded
+> four photos. Let's finish the estimate."
+
+Reuses what's already here: the voice loop, `[[schedule]]`, jobs/customers, and the Trade
+Intelligence Pack for trade-aware intake. **Honest scope flag:** the *phone-answering*
+layer is net-new infrastructure (a number per contractor, always-on backend, live call
+handling, calendar sync) — heavier than the offline-first PWA. Sequence it *after* the
+knowledge pack, which pays off in estimating immediately and de-risks the receptionist.
+
+> Add-on positioning: "Every contractor gets their own AI employee." (~$49-99/mo, TBD.)

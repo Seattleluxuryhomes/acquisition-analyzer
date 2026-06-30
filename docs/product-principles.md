@@ -35,6 +35,20 @@ Every line of code, screen, animation, conversation, and workflow reinforces one
 **Bid Brain isn't another AI chatbot — it's the smartest employee in the company.**
 Build something contractors don't just use. Build something they *miss when they close it.*
 
+We are not building the best estimating software, or the best AI receptionist. We're
+building the **first AI Operating System for the trades.** Every capability — estimating,
+the receptionist, scheduler, CRM, marketing, payments, project management, future vision
+— should feel like the *same* trusted teammate. The contractor should never think "I'm
+opening another feature." They think *"I'm asking Bid Brain to take care of it."*
+
+> **The line:** *The contractor builds. BidVoice remembers, organizes, schedules,
+> answers, follows up, and runs the office.*
+
+**The test for every feature:** *Would this make a contractor's day easier tomorrow
+morning?* Yes -> right direction. No -> rethink it. (Our deepest moat is the
+**Trade Intelligence Pack** — Bid Brain knowing the trade before the conversation even
+starts; see `docs/trade-intelligence-packs.md`.)
+
 ---
 
 ## How we hold these (CTO operating notes)
