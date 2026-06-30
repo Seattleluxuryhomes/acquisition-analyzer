@@ -1585,6 +1585,9 @@ async function signOut(){
   try{ if(TOKEN) await api('/api/auth/signout',{method:'POST'}); }catch(e){}
   TOKEN=null; USER=null; BILLING=null; PAYMENTS=null; PAYREQS={};
   localStorage.removeItem('bt_billing'); localStorage.removeItem('bt_payments'); persistAuth();
+  // They clearly have an account now — never drop them back on "Create account".
+  try{ localStorage.setItem('bt_returning','1'); }catch(e){}
+  state.authMode='signin'; state.authError=''; state.authSent=false;
   state.view='home'; render();
 }
 

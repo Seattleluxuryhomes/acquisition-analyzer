@@ -1219,7 +1219,9 @@ app.get("/f/:id", (req, res) => {
   if (!u) return res.status(404).send("Page not found.");
   Funnels.bumpView(f.id);
   const token = Leads.getOrCreateToken(u.id);
-  const leadAction = `${baseUrl(req)}/api/inbound/leads?token=${encodeURIComponent(token)}&f=${encodeURIComponent(f.id)}`;
+  // Relative (same-origin) so the form POST always matches the page's protocol —
+  // an absolute http:// URL would be blocked as mixed content in in-app browsers.
+  const leadAction = `/api/inbound/leads?token=${encodeURIComponent(token)}&f=${encodeURIComponent(f.id)}`;
   const projects = SiteProjects.listPublished(u.id).slice(0, 6).map((p) => ({
     title: p.title, description: p.description, service: p.service, area: p.area,
     before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)), after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
@@ -1234,7 +1236,9 @@ app.get("/c/:id", (req, res) => {
   const u = db.prepare("SELECT * FROM user WHERE id=? OR site_slug=?").get(key, key);
   if (!u) return res.status(404).send("Site not found.");
   const token = Leads.getOrCreateToken(u.id);
-  const leadAction = `${baseUrl(req)}/api/inbound/leads?token=${encodeURIComponent(token)}`;
+  // Relative (same-origin) so the form POST always matches the page's protocol —
+  // an absolute http:// URL would be blocked as mixed content in in-app browsers.
+  const leadAction = `/api/inbound/leads?token=${encodeURIComponent(token)}`;
   // Published projects → a Before & After gallery, photos via the public route.
   const projects = SiteProjects.listPublished(u.id).slice(0, 12).map((p) => ({
     title: p.title, description: p.description, service: p.service, area: p.area,
