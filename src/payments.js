@@ -173,6 +173,44 @@ export async function createPaymentRequest(user, { amount, description, clientNa
   return rowToRequest(db.prepare("SELECT * FROM payment_request WHERE id=?").get(id));
 }
 
+// Mark a payment request paid + run the side effects ONCE. Shared by the Stripe
+// webhook and the read-time reconciler so both paths are identical and idempotent.
+function markPaid(row, paymentIntent) {
+  if (!row || row.status === "paid") return false;
+  db.prepare("UPDATE payment_request SET status='paid', stripe_payment_intent=COALESCE(?, stripe_payment_intent), paid_at=? WHERE id=?")
+    .run(paymentIntent || null, Date.now(), row.id);
+  track(row.user_id, "deposit_paid", { jobId: row.job_id || null, amount: (row.amount_cents || 0) / 100 });
+  // Sync into the contractor's QuickBooks (no-op unless connected). Fire-and-forget.
+  const owner = db.prepare("SELECT * FROM user WHERE id=?").get(row.user_id);
+  if (owner) QuickBooks.syncSale(owner, { amount: (row.amount_cents || 0) / 100, description: row.description, customer: row.client_name, date: Date.now() }).catch(() => {});
+  return true;
+}
+
+// Self-healing collected revenue: a payment is normally marked paid by Stripe's
+// `checkout.session.completed` webhook — but if that webhook isn't delivered (Connect
+// events not enabled, wrong endpoint/secret, transient miss), the request would sit
+// `pending` forever and the dashboard would under-report real money. So on read we
+// also VERIFY recent pending requests directly with Stripe and mark any that actually
+// paid. Bounded (recent + capped) and fully best-effort — never throws, never blocks.
+export async function reconcilePending(user) {
+  if (!paymentsConfigured() || !user || !user.stripe_connect_account_id) return 0;
+  const account = user.stripe_connect_account_id;
+  const cutoff = Date.now() - 35 * 86400000; // only recent sessions; older ones have expired
+  const rows = db.prepare(
+    "SELECT * FROM payment_request WHERE user_id=? AND status='pending' AND stripe_session_id IS NOT NULL AND created_at > ? ORDER BY created_at DESC LIMIT 25"
+  ).all(user.id, cutoff);
+  let updated = 0;
+  for (const row of rows) {
+    try {
+      const session = await stripe("checkout/sessions/" + row.stripe_session_id, { method: "GET", account });
+      if (session && (session.payment_status === "paid" || session.status === "complete")) {
+        if (markPaid(row, session.payment_intent || null)) updated++;
+      }
+    } catch { /* skip this one — the dashboard must still load */ }
+  }
+  return updated;
+}
+
 export function cancelPaymentRequest(userId, id) {
   const row = db.prepare("SELECT * FROM payment_request WHERE id=? AND user_id=?").get(id, userId);
   if (!row) return null;
@@ -193,15 +231,7 @@ export function handleEvent(event) {
       const row = reqId
         ? db.prepare("SELECT * FROM payment_request WHERE id=?").get(reqId)
         : db.prepare("SELECT * FROM payment_request WHERE stripe_session_id=?").get(obj.id);
-      if (row && row.status !== "paid") {
-        db.prepare("UPDATE payment_request SET status='paid', stripe_payment_intent=?, paid_at=? WHERE id=?")
-          .run(obj.payment_intent || null, Date.now(), row.id);
-        track(row.user_id, "deposit_paid", { jobId: row.job_id || null, amount: (row.amount_cents || 0) / 100 });
-        // Sync the collected payment into the contractor's QuickBooks (no-op unless
-        // they've connected it). Fire-and-forget — never blocks the webhook ack.
-        const owner = db.prepare("SELECT * FROM user WHERE id=?").get(row.user_id);
-        if (owner) QuickBooks.syncSale(owner, { amount: (row.amount_cents || 0) / 100, description: row.description, customer: row.client_name, date: Date.now() }).catch(() => {});
-      }
+      markPaid(row, obj.payment_intent || null);   // idempotent; shared with the reconciler
       break;
     }
     case "checkout.session.expired": {
