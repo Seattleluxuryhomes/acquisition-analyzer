@@ -769,7 +769,7 @@
   .bb-card{display:flex;flex-direction:column;align-items:flex-start;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 15px;cursor:pointer;font-family:inherit;text-align:left;transition:transform .12s ease,border-color .12s ease}
   .bb-card:active{transform:scale(.97)}
   .bb-card:hover{border-color:var(--amber)}
-  .bb-card-ic{font-size:1.5rem}
+  .bb-card-ic{display:flex;color:var(--amber)}
   .bb-card-l{font-weight:700;color:var(--text);font-size:.95rem;line-height:1.25}
   .bb-mem{margin-top:18px;text-align:center;color:var(--muted);font-size:.85rem}
   /* ===== Bid Brain Companion — the living neural mark. One CSS var (--bbc)
@@ -1149,13 +1149,13 @@
 </div>
 <div id="scanSheet" class="sheet-wrap" style="display:none" onclick="closeScan()">
   <div class="sheet" onclick="event.stopPropagation()">
-    <div class="sheet-h">📷 AI Material Scanner</div>
+    <div class="sheet-h">${icon('camera',17)} AI Material Scanner</div>
     <div id="scanBody"></div>
   </div>
 </div>
 <div id="pubProjSheet" class="sheet-wrap" style="display:none" onclick="closePubProj()">
   <div class="sheet" onclick="event.stopPropagation()">
-    <div class="sheet-h">🌐 Publish to your website</div>
+    <div class="sheet-h">${icon('globe',17)} Publish to your website</div>
     <div id="pubProjBody"></div>
   </div>
 </div>
@@ -1521,7 +1521,7 @@ function viewGrowth(){
   if(!GROWTH){ loadGrowth(); return `<div class="h-eyebrow">Growth</div><h1 class="page">Growth Score</h1><div class="hint">Loading…</div>`; }
   const g=GROWTH;
   const rowOf=(it)=>`<div class="grow-row ${it.done?'done':''}">
-    <span class="grow-ic">${it.done?'✅':(it.coming_soon?'🔒':'⚠️')}</span>
+    <span class="grow-ic">${it.done?icon('check',16):(it.coming_soon?icon('lock',16):icon('alert',16))}</span>
     <div style="flex:1;min-width:0"><div class="grow-t">${esc(it.title)}</div><div class="grow-m">${it.done?'Done':(it.coming_soon?'Coming soon':('Worth '+esc(it.impact)))}</div></div>
     ${(!it.done&&!it.coming_soon)?`<button class="btn sm" onclick="growthRoute(${jsAttr(it)})">${esc(it.cta||'Do it')}</button>`:(it.coming_soon?'<span class="grow-soon">soon</span>':'')}
   </div>`;
@@ -1598,7 +1598,7 @@ function funnelsBlock(){
   return items.map(f=>`<div class="funnelrow">
     <div style="flex:1;min-width:0"><div class="fn-t">🎯 ${esc(f.headline||f.offer||f.name)}</div>
       <div class="fn-s">${f.views} views · ${f.leads} leads · <b style="color:#2f6d4a">${f.conversion}%</b></div></div>
-    <button class="btn sm" onclick="copyFunnel('${f.id}')">📋 Link</button>
+    <button class="btn sm" onclick="copyFunnel('${f.id}')">${icon('link',14)} Link</button>
     <button class="x-btn" onclick="delFunnel('${f.id}')">✕</button>
   </div>`).join('');
 }
@@ -2211,11 +2211,11 @@ function viewBrain(){
   if(g.followupsDue>0) pulse.push(g.followupsDue+' '+t('bb_followups'));
   if(g.awaitingSignature>0) pulse.push(g.awaitingSignature+' '+t('bb_awaiting'));
   const cards=[
-    {ic:'🎤',l:t('bb_card_voice'),on:'brainStartVoice()'},
-    {ic:'📸',l:t('bb_card_photos'),on:'brainPhotos()'},
-    {ic:'📋',l:t('bb_card_continue'),on:'brainContinue()'},
-    {ic:'👥',l:t('bb_card_customer'),on:"go('prospecting')"},
-    {ic:'📅',l:t('bb_card_followups'),on:'showFollowups()'},
+    {ic:'mic',l:t('bb_card_voice'),on:'brainStartVoice()'},
+    {ic:'camera',l:t('bb_card_photos'),on:'brainPhotos()'},
+    {ic:'doc',l:t('bb_card_continue'),on:'brainContinue()'},
+    {ic:'users',l:t('bb_card_customer'),on:"go('prospecting')"},
+    {ic:'calendar',l:t('bb_card_followups'),on:'showFollowups()'},
   ];
   const memLine = m.last_trade
     ? `<div class="bb-mem">${bbMark(14)} ${esc(t('bb_remembers'))} ${esc(bbPrettyTrade(m.last_trade))}${(m.typical_markup!=null)?` · ${esc(t('bb_markup'))} ${m.typical_markup}%`:''}</div>` : '';
@@ -2231,7 +2231,7 @@ function viewBrain(){
       <span class="bb-mic-l">${esc(t('bb_tap_talk'))}</span>
     </button>
     <div class="bb-or"><a onclick="brainStartVoice()">${esc(t('bb_or_type'))}</a></div>
-    <div class="bb-cards">${cards.map(c=>`<button class="bb-card" onclick="${c.on}"><span class="bb-card-ic">${c.ic}</span><span class="bb-card-l">${esc(c.l)}</span></button>`).join('')}</div>
+    <div class="bb-cards">${cards.map(c=>`<button class="bb-card" onclick="${c.on}"><span class="bb-card-ic">${icon(c.ic,22)}</span><span class="bb-card-l">${esc(c.l)}</span></button>`).join('')}</div>
     ${memLine}
   </div>`;
 }
@@ -2735,7 +2735,7 @@ function referralLadderHTML(){
       ? `Your crew's got you — <b style="color:var(--paper)">$0/month</b> for as long as they stay subscribed${r.locked?', and your founder rate is locked in':''}. Keep adding crew — you stay free, and every contractor you bring grows your network.`
       : `$${r.base}/mo, and every contractor you bring on who subscribes takes <b style="color:var(--paper)">$${r.creditPerRef} off</b> — <b style="color:var(--paper)">${r.freeAt} paying subs and it's $0.</b> You're at ${r.payingReferrals} so far; bring <b style="color:var(--paper)">${r.remainingToFree}</b> more and it's free${r.locked?' (founder rate locked in)':''}.`}</div>
     <div class="ladder">${rungs.map(x=>`<div class="rung ${x.on?'on':''}"><span>${x.i}</span><b>${x.price===0?'Free':'$'+x.price}</b></div>`).join('')}</div>
-    <button class="btn ghost full" style="margin-top:12px" onclick="shareReferral()">📲 ${free?'Add more of your crew':'Invite your crew — get to free'}</button>
+    <button class="btn ghost full" style="margin-top:12px" onclick="shareReferral()">${icon('share',15)} ${free?'Add more of your crew':'Invite your crew — get to free'}</button>
   </div>`;
 }
 function openMySite(){ closeMore(); if(!USER||!USER.id){ toast('Sign in first.','warn'); return; } window.open('/c/'+USER.id, '_blank'); }
@@ -3142,20 +3142,20 @@ let greetWaved=false; // the hand waves once per dashboard session, then rests
 // A rotating pool of upbeat-but-professional lines — only used when there's no real
 // business signal to surface. Kept large so the same one rarely shows twice.
 const GREET_MOTIVATION=[
-  "🚀 Ready to send another estimate?",
-  "🎯 Every estimate gets you closer to your next job.",
-  "🏆 Small actions today build a bigger business tomorrow.",
-  "⚡ Ready to win another project?",
-  "💪 One good bid can change your whole week.",
-  "📈 Consistency wins jobs — keep it going.",
-  "🔨 Talk a job into a finished bid in 60 seconds.",
-  "🤝 Your next customer is one estimate away.",
-  "🎉 Welcome back — let's build something great today.",
-  "🌟 A little momentum today goes a long way.",
-  "💼 Let's make today a productive one.",
-  "🧱 Steady work, steady growth. Let's go.",
-  "📣 The contractors who follow up, win. That's you today.",
-  "🔑 One conversation today could be your next signed job.",
+  "Ready to send another estimate?",
+  "Every estimate gets you closer to your next job.",
+  "Small actions today build a bigger business tomorrow.",
+  "Ready to win another project?",
+  "One good bid can change your whole week.",
+  "Consistency wins jobs — keep it going.",
+  "Talk a job into a finished bid in 60 seconds.",
+  "Your next customer is one estimate away.",
+  "Welcome back — let's build something great today.",
+  "A little momentum today goes a long way.",
+  "Let's make today a productive one.",
+  "Steady work, steady growth. Let's go.",
+  "The contractors who follow up, win. That's you today.",
+  "One conversation today could be your next signed job.",
 ];
 function pickMotivation(){
   let last=-1; try{ last=+localStorage.getItem('bt_insightIdx'); }catch(e){}
@@ -3198,7 +3198,7 @@ function greetingHTML(){
   const e=greetEmoji(), isHand=(e==='👋');
   const waveCls=(isHand && !greetWaved)?' wave':''; greetWaved=true;
   return `<div class="dash-hello"><div class="h-eyebrow">${esc(SETTINGS.company)||'Your business'}</div>
-    <h1 class="page"><span class="greet-emoji${waveCls}">${e}</span> ${greetingWord()}${who?', '+esc(who):''}</h1>
+    <h1 class="page">${greetingWord()}${who?', '+esc(who):''}</h1>
     <div class="daily-insight">${esc(dailyInsight())}</div></div>`;
 }
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -3419,9 +3419,9 @@ function reachBlock(j){
   const p=(j.customer_phone||'').trim(); if(!p) return '';
   const t=telDigits(p), wa=waDigits(p);
   return `<div class="addrlinks">`
-    +`<a class="maplink" href="tel:${escAttr(t)}">📞 Call</a>`
+    +`<a class="maplink" href="tel:${escAttr(t)}">${icon('phone',13)} Call</a>`
     +`<a class="maplink" href="sms:${escAttr(t)}">💬 Text</a>`
-    +`<a class="maplink" href="https://wa.me/${escAttr(wa)}" target="_blank" rel="noopener">🟢 WhatsApp</a></div>`;
+    +`<a class="maplink" href="https://wa.me/${escAttr(wa)}" target="_blank" rel="noopener">WhatsApp</a></div>`;
 }
 // One source of truth for a job's location: the explicit address field, or — so
 // you never type it twice — the project name itself when that looks like an
@@ -3459,7 +3459,7 @@ function addrBlock(j){
   const sep=(j.address||'').trim();   // explicit, separate address
   const loc=jobLocation(j);           // the address actually used everywhere
   const links = loc ? (()=>{ const m=mapsLinks(loc); return `<div class="addrlinks">`
-    +`<a class="maplink" href="${m.map}" target="_blank" rel="noopener">📍 Map</a>`
+    +`<a class="maplink" href="${m.map}" target="_blank" rel="noopener">${icon('pin',13)} Map</a>`
     +`<a class="maplink" href="${m.dir}" target="_blank" rel="noopener">🧭 Directions</a>`
     +`<a class="maplink" href="${m.sv}" target="_blank" rel="noopener">👁 Street View</a></div>`; })() : '';
   // Project name IS the address (and no separate one): show it resolved — one field,
@@ -3928,7 +3928,7 @@ async function rebuildWithAI(id, btn){
     state.bidTab='build'; render(); window.scrollTo(0,0);
   }catch(e){
     if(e.status===402){ gate402(e); return; }
-    if(btn){ btn.disabled=false; btn.textContent=orig||'🪄 Build the bid from this text'; }
+    if(btn){ btn.disabled=false; btn.textContent=orig||'Build the bid from this text'; }
     alert(e.code==='AI_UNCONFIGURED'
       ? 'The AI build isn’t switched on yet — add your ANTHROPIC_API_KEY in the app settings to enable it.'
       : ('Could not build the draft: '+(e.message||'error')));
@@ -3973,7 +3973,7 @@ function viewJob(){
       <button class="btn ghost sm" onclick="deleteJob('${j.id}')" title="Delete job">Delete</button>
     </div>
     <div class="stagebar">${JOB_STAGES.map(([k,lab])=>`<button class="stbtn ${jobStatus(j)===k?'on':''}" onclick="setJobStatus('${j.id}','${k}')">${lab}</button>`).join('')}</div>
-    ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">📅 Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/><input type="time" class="schedinput" value="${escAttr(j.scheduled_time||'')}" onchange="setScheduleTime('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">📲 Add to Calendar</a>`:''}</div>${conflictNote(j)}`:''}
+    ${jobStatus(j)==='scheduled'?`<div class="schedrow"><span class="schedlbl">${icon('calendar',14)} Scheduled for</span><input type="date" class="schedinput" value="${escAttr(j.scheduled_date||'')}" onchange="setSchedule('${j.id}',this.value)"/><input type="time" class="schedinput" value="${escAttr(j.scheduled_time||'')}" onchange="setScheduleTime('${j.id}',this.value)"/>${j.scheduled_date?`<a class="btn ghost sm calbtn" href="${calLink(j)}" target="_blank" rel="noopener">${icon('calendar',13)} Add to Calendar</a>`:''}</div>${conflictNote(j)}`:''}
     <label class="fld">Customer</label>
     <div class="addrrow"><input id="custInput" class="addrinput" value="${escAttr(j.customer||'')}" onchange="setCustomer('${j.id}',this.value)" placeholder="👤 Customer name — shown on the proposal"/></div>
     <div class="addrrow"><input id="custPhoneInput" class="addrinput" type="tel" inputmode="tel" value="${escAttr(j.customer_phone||'')}" onchange="setCustomerPhone('${j.id}',this.value)" placeholder="📞 Customer phone — tap to call or text"/></div>
@@ -4176,7 +4176,7 @@ function tabBuild(j){
     </div>
 
     <div class="dispatchbox" style="margin-top:14px">
-      <button class="btn ghost full" onclick="openDispatch('${j.id}')">📤 Send this scope to a sub</button>
+      <button class="btn ghost full" onclick="openDispatch('${j.id}')">${icon('share',15)} Send this scope to a sub</button>
       <div class="hint" style="margin-top:6px">Your crew sees the work &amp; photos — never your prices. They tap to accept.</div>
       <div id="dispatchStatus">${dispatchStatusHTML(j.id)}</div>
     </div>
@@ -4196,7 +4196,7 @@ function tabBuild(j){
     </div>
 
     <div class="dispatchbox" style="margin-top:14px">
-      <button class="btn ghost full" onclick="openCO('${j.id}')">📝 New change order</button>
+      <button class="btn ghost full" onclick="openCO('${j.id}')">${icon('edit',15)} New change order</button>
       <div class="hint" style="margin-top:6px">Scope grew? Document the extra work and have the client e-sign${PAYMENTS&&PAYMENTS.charges_enabled?' &amp; pay':''} — so you never do it for free.</div>
       <div id="coStatus">${coStatusHTML(j.id)}</div>
     </div>
@@ -4226,9 +4226,9 @@ function tabClient(j){
     ${html}
     <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn" onclick="shareBid('text',this)">💬 Text</button>
-      <button class="btn" onclick="shareBid('whatsapp',this)">🟢 WhatsApp</button>
+      <button class="btn" onclick="shareBid('whatsapp',this)">WhatsApp</button>
       <button class="btn" onclick="shareBid('email',this)">✉️ Email</button>
-      <button class="btn ghost" onclick="shareBid('copy',this)">🔗 Copy link</button>
+      <button class="btn ghost" onclick="shareBid('copy',this)">${icon('link',15)} Copy link</button>
       <button class="btn ghost" onclick="shareBid('share',this)">Share…</button>
     </div>
     <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
@@ -4670,7 +4670,7 @@ function viewTeam(){
     const invited=(s.status==='invited'||s.status==='joined');
     const action=invited
       ? `<span class="subpill">✓ invited</span><button class="tlink" onclick="inviteSub('${s.id}')">resend</button>`
-      : `<button class="btn sm" onclick="inviteSub('${s.id}')">📲 Send invite</button><button class="tlink" onclick="inviteSub('${s.id}','sms')">text</button>`;
+      : `<button class="btn sm" onclick="inviteSub('${s.id}')">${icon('share',14)} Send invite</button><button class="tlink" onclick="inviteSub('${s.id}','sms')">text</button>`;
     return `<div class="act-item" style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div class="act-t">${esc(s.name)||esc(s.phone)||'Sub'}</div><div class="act-s">${esc(meta)||'—'}</div></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">${action}<button class="tlink danger" onclick="deleteSubRow('${s.id}')" title="Remove">✕</button></div></div>`;
   }).join('');
   const setupFirst = !companyReady()
@@ -4807,7 +4807,7 @@ async function sendDispatch(jobId){
       const msg=`Hey${first?' '+first:''}, it's ${me}. ${kind==='rfq'?"Here's a job — can you send me a bid?":"Here's the scope for a job — take a look and tap to accept:"} ${x.url}`;
       return { name:s.name||'Sub', phone:s.phone||'', msg };
     });
-    const rows=LAST_SENDS.map((s,i)=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="act-t">${esc(s.name)}</div><button class="btn sm" onclick="dispSend(${i})">📲 Send</button></div>`).join('');
+    const rows=LAST_SENDS.map((s,i)=>`<div class="act-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="act-t">${esc(s.name)}</div><button class="btn sm" onclick="dispSend(${i})">${icon('share',14)} Send</button></div>`).join('');
     const rr=document.getElementById('dispResult'); if(rr) rr.innerHTML=`<div class="hint" style="margin-top:12px">✓ ${kind==='rfq'?'Bid requests':'Scope'} created — tap to send each:</div>${rows}`;
     render();
     toast(kind==='rfq'?'Bid requests created.':'Scope created.','ok');
@@ -5521,6 +5521,18 @@ const ICONS={
   doc:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8.5 13h7M8.5 17h5"/>',
   globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/>',
   send:'<path d="M12 19.5V5.5"/><path d="M5.5 12l6.5-6.5 6.5 6.5"/>',
+  users:'<path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7.5" r="3.5"/><path d="M22 20v-1.5a4 4 0 0 0-3-3.8"/><path d="M16 4.2a3.5 3.5 0 0 1 0 6.6"/>',
+  image:'<rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5-9 8.5"/>',
+  phone:'<path d="M21 16.5v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 1 4.7 2 2 0 0 1 3 2.5h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L7.6 10.4a16 16 0 0 0 6 6l1.4-1.6a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/>',
+  share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  lock:'<rect x="4.5" y="11" width="15" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  star:'<path d="M12 3l2.6 5.6 6 .8-4.4 4.2 1.1 6L12 16.9 6.7 19.6l1.1-6L3.4 9.4l6-.8z"/>',
+  upload:'<path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M5 18v1.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V18"/>',
+  download:'<path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/>',
+  wand:'<path d="M5 21l11-11"/><path d="M14.5 5.5l4 4"/><path d="M18 3l.7 1.8L20.5 5.5l-1.8.7L18 8l-.7-1.8L15.5 5.5l1.8-.7z"/><path d="M5 13l.5 1.3L6.8 15l-1.3.5L5 17l-.5-1.5L3.2 15l1.3-.7z"/>',
 };
 function icon(name, size){ const s=size||18; return `<svg class="ico" viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||''}</svg>`; }
 
