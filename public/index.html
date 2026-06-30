@@ -987,7 +987,10 @@
   .bb-mic-hero{position:relative;width:84px;height:84px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
     background:radial-gradient(120% 120% at 32% 26%,#8db4ff,#3f6fd6);color:#fff;box-shadow:0 10px 30px rgba(63,111,214,.42),inset 0 2px 0 rgba(255,255,255,.35);transition:transform .12s ease,background .25s ease,box-shadow .25s ease}
   .bb-mic-hero:active{transform:scale(.94)}
-  .bb-mic-hero .mh-ico{position:relative;z-index:2;display:flex}
+  .bb-mic-hero .mh-ico{position:relative;z-index:2;display:flex;align-items:center;justify-content:center}
+  /* The hero IS Bid Brain — the neural orb, alive and breathing. The mic badge keeps "tap to talk" obvious. */
+  .bb-mic-hero .mh-ico .bb-brain{width:60px;height:60px;--bbc:236,243,255;filter:drop-shadow(0 0 11px rgba(150,190,255,.6))}
+  .bb-mic-hero .mh-mic{position:absolute;right:-3px;bottom:-3px;width:26px;height:26px;border-radius:50%;background:#fff;color:#3f6fd6;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 7px rgba(20,40,90,.32);z-index:3}
   .bb-mic-hero .mh-glow{position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(141,180,255,.5);opacity:0}
   .bb-mic-hero .bb-wave{display:none;position:absolute;inset:0;align-items:center;justify-content:center;z-index:2;height:auto}
   /* Ready: calm breathing blue. Listening: green, pulsing, waveform. Thinking/Responding: handled by the orb above. */
@@ -1010,7 +1013,9 @@
   .bb-typelink:active{color:#cfe0ff}
   /* Transcript becomes the focus only once a conversation exists; the stage shrinks. */
   .bb-panel.has-convo .bb-mic-hero{width:54px;height:54px}
-  .bb-panel.has-convo .bb-mic-hero .mh-ico svg{width:22px;height:22px}
+  .bb-panel.has-convo .bb-mic-hero .mh-ico .bb-brain{width:36px;height:36px}
+  .bb-panel.has-convo .bb-mic-hero .mh-mic{width:18px;height:18px;right:-2px;bottom:-2px}
+  .bb-panel.has-convo .bb-mic-hero .mh-mic svg{width:11px;height:11px}
   .bb-panel.has-convo .bb-state{font-size:.82rem;color:#8ea2c8;font-weight:500}
   .bb-panel.has-convo .bb-input{flex-direction:row;gap:10px;padding:6px 4px}
   .bb-panel.has-convo .bb-typewrap{flex-direction:row;flex:1;margin-top:0}
@@ -2503,7 +2508,7 @@ function bbOpenPanel(){
     <div class="bb-input" id="bbInputBar" data-state="ready">
       <button class="bb-mic-hero" id="bbMicBtn" onclick="bbConvMic()" aria-label="${escAttr(t('bb_talk'))}">
         <span class="mh-glow" aria-hidden="true"></span>
-        <span class="mh-ico">${icon('mic',30)}</span>
+        <span class="mh-ico"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg><span class="mh-mic" aria-hidden="true">${icon('mic',15)}</span></span>
         <span class="bb-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
       </button>
       <div class="bb-state" id="bbStateLabel">${esc(t('bb_state_ready'))}</div>
