@@ -128,9 +128,14 @@ fields.
   thresholds, voice). A pass-through today (no profile yet) with merge semantics defined,
   so every surface already reads *through* the seam the Company Brain will fill. THIS is the
   moat — a new hire bids like the owner.
-- *Held for the migration plan (not yet done):* eliminating the client's duplicate
-  `TRADE_PICK` by having the browser consume `/api/trades` (served from the pack) with an
-  offline-safe cache + fallback. Server-only so far; no client/offline behavior touched.
+- **Client duplication eliminated.** `GET /api/trades` is now public and serves the
+  canonical 36-trade taxonomy (`TRADE_TAXONOMY`, with a concise UI `bring` hint) from the
+  pack. The client fetches it on boot, caches it in `localStorage` (the service worker
+  never caches `/api/*`, so offline relies on localStorage), and re-renders. The old
+  hardcoded `TRADE_PICK` is now `TRADE_PICK_FALLBACK` — used only on first run, offline
+  with no cache, or if the fetch fails (current behavior preserved). Verified headless:
+  online refresh, offline-with-cache, offline-no-cache fallback, fetch-failure no-op, and
+  no vanished trades / empty states across every picker consumer.
 
 ## Two principles that outlive today's build
 

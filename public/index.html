@@ -3685,7 +3685,7 @@ async function onboardContractor(btn){
 // Trade picker (presentation only) — labels for the dropdown + a "what to capture"
 // hint. The real per-trade estimating brains live server-side in src/trades.js and
 // run inside /api/assist/build; this list just drives the UI and the trade we send.
-const TRADE_PICK = [
+const TRADE_PICK_FALLBACK = [
   { key:'general-contractor', emoji:'👷', label:'General Contractor (whole project)', bring:'the whole scope (which phases/trades), owner allowances or owner-supplied items, and who pulls permits' },
   { key:'windows', emoji:'🪟', label:'Windows & Doors', bring:'a photo of each side of the house, one reference size (a door ≈ 80″), and your window SKU list — or the plans' },
   { key:'roofing', emoji:'🏠', label:'Roofing', bring:'the footprint (length × width), the pitch (e.g. 6/12), and layers to tear off' },
@@ -3724,6 +3724,12 @@ const TRADE_PICK = [
   { key:'geotech', emoji:'⛰️', label:'Geotechnical', bring:'site location & size, number/depth of borings, and whether a report with recommendations is needed' },
   { key:'survey', emoji:'🧭', label:'Land Survey', bring:'parcel size & location, survey type (boundary, topo, ALTA), and the deliverable format' },
 ];
+// The canonical trade list comes from the server Trade Intelligence Pack (/api/trades),
+// cached in localStorage for offline-first. The hardcoded list above is the FALLBACK only
+// — used on first run, offline with no cache, or if the fetch fails (preserves behavior).
+let TRADE_PICK = (function(){ try{ const c=JSON.parse(localStorage.getItem('bt_trades')||'null'); return (Array.isArray(c)&&c.length)?c:TRADE_PICK_FALLBACK; }catch(_){ return TRADE_PICK_FALLBACK; } })();
+// Refresh from the pack when online; on any failure we keep the cached/fallback list.
+async function loadTrades(){ try{ const res=await fetch('/api/trades'); if(!res||!res.ok) return; const d=await res.json(); const list=d&&d.trades; if(Array.isArray(list)&&list.length){ TRADE_PICK=list; try{ localStorage.setItem('bt_trades', JSON.stringify(list)); }catch(_){ } if(typeof render==='function') render(); } }catch(_){ } }
 function tradeBringHint(){
   const t=TRADE_PICK.find(x=>x.key===CAP_DRAFT.trade); if(!t||!t.bring) return '';
   return `<div class="hint" style="margin-top:6px">${icon('ruler',15)} For an accurate ${esc(t.label)} bid, also capture: ${esc(t.bring)}.</div>`;
@@ -6156,6 +6162,7 @@ function confettiBurst(gold){
     state.authMode='reset'; state.authSent=false;
     history.replaceState({}, '', '/');
   }
+  loadTrades();   // refresh trade taxonomy from the Trade Intelligence Pack (offline-safe)
   render();
   if(TOKEN){
     await loadDashboardData();

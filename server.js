@@ -21,6 +21,7 @@ import * as Prospecting from "./src/prospecting.js";
 import * as Prospects from "./src/prospects.js";
 import * as Vendors from "./src/vendors.js";
 import { tradeList, sampleScope, tradeLabel } from "./src/trades.js";
+import { tradePickList } from "./src/tradePacks.js";
 import * as Skus from "./src/skus.js";
 import * as Leads from "./src/leads.js";
 import * as Team from "./src/team.js";
@@ -819,7 +820,13 @@ app.post("/api/assist/intake", requireAuth, Billing.requireEntitled, wrap(async 
   res.json({ intake: await assistIntake(req.user, { text: (req.body && req.body.text) || "", trade: (req.body && req.body.trade) || "" }) });
 }));
 // Trade estimator library: the list of trades (with what to bring) for the picker.
-app.get("/api/trades", requireAuth, (req, res) => res.json({ trades: tradeList() }));
+// Canonical trade taxonomy from the Trade Intelligence Pack (single source of truth).
+// Public + cache-friendly: generic taxonomy (no company data), the onboarding service
+// picker needs it pre-auth, and the client caches it in localStorage for offline-first.
+app.get("/api/trades", (req, res) => {
+  res.set("Cache-Control", "public, max-age=3600");
+  res.json({ trades: tradePickList() });
+});
 // "You're missing money": review a draft bid against the trade's standard scope.
 app.post("/api/assist/review", requireAuth, Billing.requireEntitled, wrap(async (req, res) => {
   const { trade, lines, text } = req.body || {};

@@ -142,14 +142,53 @@ function dedup(arr) {
 // Ordered list for pickers / iteration (composed from trades.js, not duplicated).
 export function tradePackList() { return tradeList(); }
 
-// Compact client-picker payload — the canonical {key,label,emoji,bring} the browser
-// needs. Replaces the hardcoded client copy; served by GET /api/trades.
-export function tradePickList() {
-  return tradeList().map((t) => ({
-    key: t.key, label: t.label, emoji: t.emoji,
-    bring: Array.isArray(t.inputs) ? t.inputs.join("; ") : "",
-  }));
-}
+// ---- Canonical trade taxonomy for the picker (THE source of truth) ----
+// key + emoji + label + a CONCISE, friendly `bring` hint for the UI. The deeper capture
+// guidance lives in each pack's captureHints / estimatingFields. Served by GET /api/trades
+// and consumed by the client (cached in localStorage for offline-first). This is the one
+// place the trade list is defined — the client's copy is a fallback only.
+export const TRADE_TAXONOMY = [
+  { key: "general-contractor", emoji: "👷", label: "General Contractor (whole project)", bring: "the whole scope (which phases/trades), owner allowances or owner-supplied items, and who pulls permits" },
+  { key: "windows", emoji: "🪟", label: "Windows & Doors", bring: "a photo of each side of the house, one reference size (a door ≈ 80″), and your window SKU list — or the plans" },
+  { key: "roofing", emoji: "🏠", label: "Roofing", bring: "the footprint (length × width), the pitch (e.g. 6/12), and layers to tear off" },
+  { key: "siding", emoji: "🧱", label: "Siding", bring: "wall measurements or footprint + height + stories, and corner/trim linear feet" },
+  { key: "gutters", emoji: "🌧️", label: "Gutters", bring: "linear feet of eave run, number of downspouts, and gutter size" },
+  { key: "painting", emoji: "🎨", label: "Painting", bring: "room sizes or wall sq ft, number of coats, and trim/door counts" },
+  { key: "flooring", emoji: "🪵", label: "Flooring", bring: "floor sq ft per room, the material, and whether the old floor is removed" },
+  { key: "concrete", emoji: "🧊", label: "Concrete (flatwork)", bring: "slab length × width, thickness, and finish type" },
+  { key: "fencing", emoji: "🚧", label: "Fencing", bring: "total linear feet, height, material, and number of gates" },
+  { key: "decking", emoji: "🪜", label: "Decking", bring: "deck size, height above grade, material, and railing linear feet" },
+  { key: "drywall", emoji: "🧱", label: "Drywall", bring: "wall & ceiling sq ft, new vs. patch, and texture type" },
+  { key: "doors", emoji: "🚪", label: "Interior/Exterior Doors", bring: "door count by type & size, and hardware needs" },
+  { key: "insulation", emoji: "🧯", label: "Insulation", bring: "area by location (attic/walls/crawl), type, and target R-value" },
+  { key: "kitchen-remodel", emoji: "🍳", label: "Kitchen Remodel", bring: "cabinet linear feet, countertop sq ft, and what stays vs. changes" },
+  { key: "bathroom-remodel", emoji: "🛁", label: "Bathroom Remodel", bring: "tile area (walls + floor), fixtures, and any layout change" },
+  { key: "landscaping", emoji: "🌳", label: "Landscaping & Hardscape", bring: "areas in sq ft (beds, sod, patio), plant counts, and hardscape dimensions" },
+  { key: "framing", emoji: "🪚", label: "Framing", bring: "wall linear feet & height, stud spacing, and openings for headers" },
+  { key: "electrical", emoji: "⚡", label: "Electrical", bring: "device/fixture counts, any panel/service upgrade, and new vs. remodel" },
+  { key: "plumbing", emoji: "🔧", label: "Plumbing", bring: "fixture count by type, new rough-in vs. swap, and water heater type" },
+  { key: "hvac", emoji: "❄️", label: "HVAC", bring: "conditioned sq ft, system type (and mini-split head count), and duct reuse" },
+  { key: "masonry", emoji: "🧱", label: "Masonry & Stucco", bring: "face area in sq ft, system/veneer type, and repair vs. new" },
+  { key: "garage-doors", emoji: "🚗", label: "Garage Doors", bring: "door count & sizes, material/insulation, and whether a new opener" },
+  { key: "excavation-demo", emoji: "🚜", label: "Dirt Work / Excavation & Grading", bring: "cut & fill volumes (or area + depths), soil type, haul distance, and whether the site balances" },
+  { key: "countertops", emoji: "🪨", label: "Countertops", bring: "counter sq ft or slab count, material, edge profile, and cutouts" },
+  { key: "tile", emoji: "🔲", label: "Tile", bring: "area per surface (floor/wall/shower), tile size & pattern, and wet areas" },
+  { key: "staging", emoji: "🛋️", label: "Home Staging", bring: "vacant or occupied, number of rooms, price tier, and the staging period in months" },
+  { key: "interior-design", emoji: "🪑", label: "Interior Design", bring: "rooms in scope, your pricing model (hourly/flat/%/cost-plus), and the furnishings budget" },
+  { key: "fire-alarm", emoji: "🚨", label: "Fire Alarm", bring: "device counts (pulls, smokes, horns/strobes), panel type, and new vs. tie-in to existing" },
+  { key: "low-voltage", emoji: "🔌", label: "Low Voltage / Structured Cabling", bring: "systems (data, AV, intercom, paging), drop/jack counts, cable type, and rack/headend needs" },
+  { key: "access-control", emoji: "🔐", label: "Access Control", bring: "door count, reader & lock type per door, new vs. existing panels, and credential type" },
+  { key: "security-cameras", emoji: "📹", label: "Security Cameras", bring: "camera count by type, NVR/storage & retention, indoor/outdoor, and cabling runs" },
+  { key: "mechanical", emoji: "⚙️", label: "Mechanical", bring: "system scope (HVAC, piping, process), tonnage or load, and ductwork/piping linear feet" },
+  { key: "elevator", emoji: "🛗", label: "Elevator / Lift", bring: "number of stops & floors, hoistway dimensions, capacity, and new install vs. modernization" },
+  { key: "engineering", emoji: "📐", label: "Engineering", bring: "discipline (structural, civil, MEP), plans or sketches, and the deliverable (stamped drawings, calcs)" },
+  { key: "geotech", emoji: "⛰️", label: "Geotechnical", bring: "site location & size, number/depth of borings, and whether a report with recommendations is needed" },
+  { key: "survey", emoji: "🧭", label: "Land Survey", bring: "parcel size & location, survey type (boundary, topo, ALTA), and the deliverable format" },
+];
+
+// Compact client-picker payload — served by GET /api/trades, consumed + cached by the
+// browser. THE canonical list (36 trades); the client's hardcoded copy is a fallback only.
+export function tradePickList() { return TRADE_TAXONOMY; }
 
 // Is this trade filled to reference depth yet? (for "deep on roofing/windows first")
 export function isDeepPack(key) { return !!DEEP_PACKS[key]; }
