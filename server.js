@@ -49,6 +49,19 @@ const { track } = Analytics;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uid = () => crypto.randomBytes(9).toString("base64url");
+
+// Build stamp — so anyone can confirm in one call whether the LIVE site is running the
+// latest code (GET /api/health → "build"). Prefer an explicit deploy env var; otherwise
+// read the checked-out git commit; fall back to "unknown".
+const BUILD = (() => {
+  if (process.env.BT_BUILD) return String(process.env.BT_BUILD).slice(0, 40);
+  try {
+    const head = fs.readFileSync(path.join(__dirname, ".git", "HEAD"), "utf8").trim();
+    const m = /^ref:\s*(.+)$/.exec(head);
+    if (m) return fs.readFileSync(path.join(__dirname, ".git", m[1]), "utf8").trim().slice(0, 12);
+    return head.slice(0, 12);                              // detached HEAD → raw sha
+  } catch { return "unknown"; }
+})();
 const app = express();
 app.set("trust proxy", true); // behind Spaceship/Hyperlift's edge proxy
 
@@ -190,7 +203,7 @@ function attachPhotos(userId, job) {
 }
 
 // ---- Health ----
-app.get("/api/health", (_req, res) => res.json({ ok: true, ai: aiConfigured(), billing: Billing.billingConfigured(), payments: Payments.paymentsConfigured() }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, build: BUILD, ai: aiConfigured(), billing: Billing.billingConfigured(), payments: Payments.paymentsConfigured() }));
 
 // ---- Auth ----
 app.post("/api/auth/signup", wrap((req, res) => {
