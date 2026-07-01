@@ -27,8 +27,8 @@
 <meta property="og:site_name" content="BidVoice" />
 <meta property="og:title" content="Meet Eden — your AI employee for contractors." />
 <meta property="og:description" content="BidVoice is the AI Construction Operating System built for contractors. Meet Eden, your AI employee who helps estimate jobs, manage projects, organize customers, and keep your business moving." />
-<meta property="og:image" content="https://bidvoice.ai/og.png?v=2" />
-<meta property="og:image:secure_url" content="https://bidvoice.ai/og.png?v=2" />
+<meta property="og:image" content="https://bidvoice.ai/og.png?v=3" />
+<meta property="og:image:secure_url" content="https://bidvoice.ai/og.png?v=3" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
@@ -38,7 +38,7 @@
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Meet Eden — your AI employee for contractors." />
 <meta name="twitter:description" content="BidVoice is the AI Construction Operating System built for contractors. Meet Eden, your AI employee who helps estimate jobs, manage projects, organize customers, and keep your business moving." />
-<meta name="twitter:image" content="https://bidvoice.ai/og.png?v=2" />
+<meta name="twitter:image" content="https://bidvoice.ai/og.png?v=3" />
 <meta name="twitter:image:alt" content="Meet Eden — your AI employee for contractors." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4205,7 +4205,7 @@ function questionsCard(){
       <div class="est-q-act"><button class="btn sm" onclick="micTap()">${icon('mic',15)} Answer</button><button class="btn ghost sm" onclick="capNotSure()">I'm not sure</button></div></div>`;
   }
   const tts=('speechSynthesis' in window) ? `<button class="est-tts" onclick="toggleTts()" title="${TTS_ON?'Mute the estimator':'Let the estimator speak'}">${TTS_ON?icon('speaker',16):icon('mute',16)}</button>` : '';
-  return `<div class="intake est-card"><div class="intake-h">${icon('activity',13)} AI Estimator${intakeRunning?' <span class="intake-load">thinking…</span>':''}${tts}</div>${clHTML}${action}</div>`;
+  return `<div class="intake est-card"><div class="intake-h">${icon('activity',13)} ${esc('Estimate with '+AI.name)}${intakeRunning?' <span class="intake-load">thinking…</span>':''}${tts}</div>${clHTML}${action}</div>`;
 }
 // Auto project name from client + work (or address, or scope) — no manual entry.
 function autoProjectName(){
