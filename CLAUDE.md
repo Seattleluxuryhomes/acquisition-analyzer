@@ -7,6 +7,17 @@ clean client proposal (PDF). First users are bilingual residential remodelers.
 This repo **is** the app (Node/Express + built-in `node:sqlite`, no build step).
 Start with `README.md` for how it's structured and `DEPLOY.md` to ship it.
 
+> **Ship discipline:** all dev stays on the feature branch until the founder
+> explicitly approves a merge — never merge to `main` without it. Run the
+> `docs/release-checklist.md` review before every merge, and own quality
+> continuously (audit + fix inconsistencies before being asked).
+>
+> **North star:** `docs/product-principles.md` governs every product decision —
+> Bid Brain isn't a chatbot, it's the smartest employee in the company. The test
+> for any feature: *would a contractor tell another contractor about this?* Trust
+> over cleverness (never fabricate); remove work, don't add it; conversation
+> absorbs complexity so the app gets *simpler* as it grows.
+
 ## Run
 
 ```bash

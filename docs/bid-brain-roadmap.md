@@ -43,6 +43,27 @@ in-app experience; from here we deepen and then sync out, one milestone at a tim
   > "You have a 2-hour opening tomorrow afternoon — want me to slot the Smith estimate there?"
   > "This appointment is 40 min from your next job — want me to reorder the day to cut drive time?"
 
+### 🌅 M3 — Daily Briefings & Interruptions (real initiative)  ← after this branch is polished
+The reframe (founder's call): these are **not "notifications."** They're an employee
+keeping you informed — Bid Brain quietly running the business in the background and
+speaking up only when it's *meaningful, timely, and true*. Every one fires from a
+**real event**, never fabricated intelligence.
+
+The cadence:
+- **🌅 Morning Briefing** — "Here's what happened overnight." (the briefing we just
+  built, delivered proactively instead of only on open)
+- **☀️ Midday Check-in** — "You have a gap at 2:30. Want me to fill it?"
+- **🎉 Celebrations** — "Proposal signed!" · "Jenny just paid a deposit."
+- **⚠️ Needs Attention** — "Smith hasn't responded in 7 days." · "A payment is overdue."
+- **🌙 End-of-Day Recap** — "Today you sent 3 estimates, collected $1,500, and have
+  2 follow-ups ready."
+
+Real triggers only (the guardrail): deposit paid · proposal signed · proposal
+unopened N days · customer replied · schedule gap tomorrow · payment overdue.
+Build order: in-app interruption cards first (no new infra), then push notifications
+once each is wired to a genuine event. **No fabricated intelligence — only meaningful,
+timely, real information.**
+
 ### Beyond (the operations-manager trajectory)
 As memory accrues, Bid Brain graduates from recall → action → anticipation:
 remember every customer & estimate · learn pricing habits & markup strategy · learn
@@ -52,3 +73,36 @@ action before the contractor asks.**
 
 **Success metric:** a contractor should feel they *hired a full-time employee*, not
 downloaded another estimating app.
+
+---
+
+## The bigger arc — AI Operating System for the trades
+
+Two named capabilities sit beyond the companion work. They are the *target*, not
+in-progress builds — recorded so today's design doesn't preclude them. Full strategy in
+`docs/trade-intelligence-packs.md`.
+
+### Trade Intelligence Packs (the moat) — architecture first
+One canonical, server-side pack per trade that **every** surface reads — estimator,
+receptionist, onboarding, SEO, marketing, follow-ups, proposal language. Bid Brain knows
+the trade before the conversation starts ("200-amp panel or a subpanel?" not "tell me
+more"). Today trade knowledge is *split* — `TRADE_FIELDS` (server, estimating) and
+`TRADE_PICK.bring` (client, capture hints). **First step (small, behavior-preserving):**
+consolidate behind `tradePack(key)` so nothing hardcodes trade knowledge twice. Then each
+pack field is its own additive milestone — proven **deep on one trade (roofing)** before
+going wide.
+
+### AI Receptionist (the next major capability) — built on the same engine
+The conversation loop, pointed at the phone instead of the orb. Answers every call (incl.
+after hours) in the trade's own voice, books appointments against the scheduler, and
+**creates the job before the contractor arrives** — so the estimate is already half done:
+> "Good morning, Mike. Mrs. Johnson called about a roof leak over the garage and uploaded
+> four photos. Let's finish the estimate."
+
+Reuses what's already here: the voice loop, `[[schedule]]`, jobs/customers, and the Trade
+Intelligence Pack for trade-aware intake. **Honest scope flag:** the *phone-answering*
+layer is net-new infrastructure (a number per contractor, always-on backend, live call
+handling, calendar sync) — heavier than the offline-first PWA. Sequence it *after* the
+knowledge pack, which pays off in estimating immediately and de-risks the receptionist.
+
+> Add-on positioning: "Every contractor gets their own AI employee." (~$49-99/mo, TBD.)
