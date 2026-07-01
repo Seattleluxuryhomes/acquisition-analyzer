@@ -865,6 +865,9 @@
   /* It notices a pause: one slow attentive lean, then back — like it looked up. */
   .bb-dock.attn .bb-brain{animation:bbattn 1.8s ease-in-out}
   @keyframes bbattn{0%,100%{transform:translate(0,0)}45%{transform:translate(-2px,-4px) scale(1.03)}}
+  /* Wordless acknowledgment — a quiet "got it" nod when you just did something. No words. */
+  .bb-dock.ackpulse .bb-brain{animation:bbackpop .62s cubic-bezier(.34,1.5,.5,1)}
+  @keyframes bbackpop{0%{transform:scale(1)}38%{transform:scale(1.12)}100%{transform:scale(1)}}
   @keyframes bbbreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
   /* ready — soft green glow: "your turn", before active recording */
   .bb-dock.ready{--bbc:54,214,122;animation:bbbreathe 2.4s ease-in-out infinite}
@@ -2495,6 +2498,13 @@ function bbLifeTick(){ if(!bbLifeOn) return;
 function bbLifeStart(){ if(bbLifeOn) return; bbLifeOn=true; clearTimeout(bbLifeTimer); bbLifeTimer=setTimeout(bbLifeTick, 700); }
 // One warm pulse after a job well done — acknowledgement, no words.
 function bbWarmPulse(){ const m=document.getElementById('bbMicBtn'); if(m){ m.classList.remove('bb-warm'); void m.offsetWidth; m.classList.add('bb-warm'); setTimeout(()=>m.classList.remove('bb-warm'), 1600); } }
+// A wordless "got it" — the orb acknowledges something you just did, without speaking.
+function bbAcknowledge(){ try{
+  if(typeof bbPanelOpen==='function' && bbPanelOpen()){ bbWarmPulse(); return; }
+  const d=document.getElementById('bbDock'); if(!d||d.style.display==='none'||(typeof bbReduce==='function'&&bbReduce())) return;
+  d.classList.remove('ackpulse'); void d.offsetWidth; d.classList.add('ackpulse');
+  setTimeout(()=>{ const el=document.getElementById('bbDock'); if(el) el.classList.remove('ackpulse'); }, 680);
+}catch(_){}}
 /* ===== The Chief-of-Staff briefing — she walks in and tells you what needs you =====
    Content is composed ONLY from real greeting counts (Trust: never invent activity).
    When there's nothing, she says so plainly instead of manufacturing urgency. */
@@ -2507,32 +2517,40 @@ function bbPick(arr,key){ return arr[bbRot(key,arr.length)]; }
 // lead with ONE thing + ONE question (never dump a list), and hand back the floor — grounded in real data.
 function bbSpokenBriefing(){
   try{
+    const es=(typeof LANG!=='undefined'&&LANG==='es');
     const dd=bbGreetData(); const g=dd.g||{}; const nm=dd.first?(', '+dd.first):'';
     const h=new Date().getHours();
     let away=Infinity; try{ const last=Number(localStorage.getItem('bt_bb_lastopen')||0); if(last) away=(Date.now()-last)/60000; }catch(_){}
     const openers = away<3
-      ? ['Back already'+nm+'.','That was quick'+nm+'.','Still here'+nm+'.']
-      : (h<12 ? ['Morning'+nm+'.',"Mornin'"+nm+'.','Hey'+nm+'.','Back at it'+nm+'.']
-        : h<18 ? ['Afternoon'+nm+'.','Hey'+nm+'.','Back at it'+nm+'.','Good to see you'+nm+'.']
-        : ['Evening'+nm+'.','Hey'+nm+'.','Good to see you'+nm+'.','Long day'+nm+'?']);
-    const open = bbPick(openers,'greet_open');
+      ? (es?['¿Ya de vuelta'+nm+'?','Qué rápido'+nm+'.','Aquí sigo'+nm+'.']:['Back already'+nm+'.','That was quick'+nm+'.','Still here'+nm+'.'])
+      : (h<12 ? (es?['Buenos días'+nm+'.','Hola'+nm+'.','A darle'+nm+'.']:['Morning'+nm+'.',"Mornin'"+nm+'.','Hey'+nm+'.','Back at it'+nm+'.'])
+        : h<18 ? (es?['Buenas tardes'+nm+'.','Hola'+nm+'.','A darle'+nm+'.']:['Afternoon'+nm+'.','Hey'+nm+'.','Back at it'+nm+'.','Good to see you'+nm+'.'])
+        : (es?['Buenas noches'+nm+'.','Hola'+nm+'.','Qué día'+nm+', ¿eh?']:['Evening'+nm+'.','Hey'+nm+'.','Good to see you'+nm+'.','Long day'+nm+'?']));
+    const open=bbPick(openers,'greet_open');
     const aw=g.awaitingSignature||0, fu=g.followupsDue||0;
     if(aw){
-      const line=bbPick([ (aw===1?"One estimate's still waiting on a signature.":aw+" estimates are still waiting on signatures."),
-        (aw===1?"You've got a bid sitting unsigned.":"You've got "+aw+" bids sitting unsigned."),
-        (aw===1?"A proposal hasn't been signed yet.":aw+" proposals haven't been signed yet.") ],'greet_aw');
-      return open+' '+line+' '+bbPick(["Want me to nudge them?","Want me to follow up?","Should I chase it?","Want to start there?"],'greet_awq');
+      const line=es
+        ? bbPick([ (aw===1?'Un presupuesto sigue esperando firma.':aw+' presupuestos siguen esperando firma.'), (aw===1?'Tienes una propuesta sin firmar.':'Tienes '+aw+' propuestas sin firmar.') ],'greet_aw')
+        : bbPick([ (aw===1?"One estimate's still waiting on a signature.":aw+" estimates are still waiting on signatures."), (aw===1?"You've got a bid sitting unsigned.":"You've got "+aw+" bids sitting unsigned."), (aw===1?"A proposal hasn't been signed yet.":aw+" proposals haven't been signed yet.") ],'greet_aw');
+      const q=es?bbPick(['¿Les doy un empujón?','¿Hago seguimiento?','¿Empezamos por ahí?'],'greet_awq'):bbPick(["Want me to nudge them?","Want me to follow up?","Should I chase it?","Want to start there?"],'greet_awq');
+      return open+' '+line+' '+q;
     }
     if(fu){
-      const line=bbPick([ (fu===1?"One customer's due for a follow-up.":fu+" customers are due for a follow-up."),
-        (fu===1?"There's a follow-up I'd make.":"There are "+fu+" follow-ups I'd make."),
-        (fu===1?"One person's worth a call today.":fu+" folks are worth a call today.") ],'greet_fu');
-      return open+' '+line+' '+bbPick(["Want the list?","Want me to line them up?","Should we start there?","Want to knock those out?"],'greet_fuq');
+      const line=es
+        ? bbPick([ (fu===1?'Un cliente toca para seguimiento.':fu+' clientes tocan para seguimiento.'), (fu===1?'Hay un seguimiento que yo haría.':'Hay '+fu+' seguimientos que yo haría.') ],'greet_fu')
+        : bbPick([ (fu===1?"One customer's due for a follow-up.":fu+" customers are due for a follow-up."), (fu===1?"There's a follow-up I'd make.":"There are "+fu+" follow-ups I'd make."), (fu===1?"One person's worth a call today.":fu+" folks are worth a call today.") ],'greet_fu');
+      const q=es?bbPick(['¿Te armo la lista?','¿Los preparo?','¿Empezamos por ahí?'],'greet_fuq'):bbPick(["Want the list?","Want me to line them up?","Should we start there?","Want to knock those out?"],'greet_fuq');
+      return open+' '+line+' '+q;
     }
-    const calm=bbPick(["Everything's quiet.","Nothing on fire.","You're in good shape.","All caught up.","Nothing needs you this minute."],'greet_calm');
-    return open+' '+calm+' '+bbPick(["What are we working on?","Where do you want to start?","What's first?","What do you need?"],'greet_ask');
-  }catch(_){ try{ const dd=bbGreetData(); return (dd.greet||'Hey')+(dd.first?', '+dd.first:'')+". What's first?"; }catch(e){ return ''; } }
+    const calm=es?bbPick(['Todo tranquilo.','Nada urgente.','Vas bien.','Todo al día.'],'greet_calm'):bbPick(["Everything's quiet.","Nothing on fire.","You're in good shape.","All caught up.","Nothing needs you this minute."],'greet_calm');
+    const ask=es?bbPick(['¿En qué trabajamos?','¿Por dónde empezamos?','¿Qué es primero?','¿Qué necesitas?'],'greet_ask'):bbPick(["What are we working on?","Where do you want to start?","What's first?","What do you need?"],'greet_ask');
+    return open+' '+calm+' '+ask;
+  }catch(_){ try{ const dd=bbGreetData(); return (dd.greet||'Hey')+(dd.first?', '+dd.first:'')+'.'; }catch(e){ return ''; } }
 }
+// Her stand-down line also varies — a teammate doesn't say the same thing every silence.
+function bbNudge(){ const es=(typeof LANG!=='undefined'&&LANG==='es');
+  return es ? bbPick(['Cuando quieras.','Aquí estoy.','Sin prisa, aquí sigo.','Tú dime.'],'nudge')
+            : bbPick(["I'm here when you need me.","Take your time.","Whenever you're ready.","No rush — I've got you.","Still here."],'nudge'); }
 // The opening line — always shown on open (even on mute), so the panel greets with context
 // instead of a passive "Standing by". On a job it speaks to THAT job; otherwise the briefing.
 function bbActiveJob(){ try{ return (state.view==='job'&&state.jobId&&state.jobId!=='new')?JOBS.find(j=>j.id===state.jobId&&!j._deleted):null; }catch(_){ return null; } }
@@ -2879,13 +2897,13 @@ async function bbConvMic(){
     if(BBC.cancelRec){ BBC.cancelRec=false; BBC.recording=false; bbSetState('idle'); bbAkAuto(); return; }
     const blob=new Blob(BBC.recChunks,{type:mime||'audio/webm'}); BBC.recording=false;
     // Armed but nothing said (or too short) → stand down gently, never dead-end.
-    if(blob.size<700 || !heardSpeech){ bbSetState('idle'); bbAkAuto(); bbSayLocal(t('bb_gentle_nudge')); return; }
+    if(blob.size<700 || !heardSpeech){ bbSetState('idle'); bbAkAuto(); bbSayLocal(bbNudge()); return; }
     bbThinkNote='Getting that down…'; bbSetState('thinking'); bbAk('thinking'); BBC.busy=true; bbConvRender();
     try{
       const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
       const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({audio:dataUrl, lang:(SETTINGS.from||'en')})});
       BBC.busy=false; const said=((r&&r.text)||'').trim();
-      if(said){ try{ localStorage.setItem('bt_bb_voicewins', String(Number(localStorage.getItem('bt_bb_voicewins')||0)+1)); }catch(_){}  bbConvSend(said); } else { bbConvRender(); bbSetState('idle'); bbAkAuto(); bbSayLocal(t('bb_gentle_nudge')); }
+      if(said){ try{ localStorage.setItem('bt_bb_voicewins', String(Number(localStorage.getItem('bt_bb_voicewins')||0)+1)); }catch(_){}  bbConvSend(said); } else { bbConvRender(); bbSetState('idle'); bbAkAuto(); bbSayLocal(bbNudge()); }
     }catch(e){ BBC.busy=false; bbConvRender(); bbSetState('error'); bbAkAuto(); }
   };
   try{ BBC.rec.start(); }catch(_){ bbConvVADStop(); BBC.recording=false; bbSetState('idle'); bbAkAuto(); }
@@ -2915,7 +2933,7 @@ function bbEnterReady(autostart){
   bbHint(t('bb_ready_hint')); buzz(14); bbChime();
   if(autostart){ bbReadyTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording && bbPanelOpen()) bbConvMic(); }, 440); }
   // No answer after a while → stand down gracefully and invite the next step.
-  bbNudgeTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording){ const m=document.getElementById('bbMicBtn'); if(m) m.classList.remove('ready'); bbSetState('idle'); bbSayLocal(t('bb_gentle_nudge')); } }, 9000);
+  bbNudgeTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording){ const m=document.getElementById('bbMicBtn'); if(m) m.classList.remove('ready'); bbSetState('idle'); bbSayLocal(bbNudge()); } }, 9000);
 }
 // Short generated "ready" chime — no asset to ship. Tied to TTS being on.
 function bbChime(){ if(!TTS_ON) return; try{ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; const c=new AC(); const o=c.createOscillator(), g=c.createGain(); o.type='sine'; o.frequency.setValueAtTime(620,c.currentTime); o.frequency.exponentialRampToValueAtTime(940,c.currentTime+0.10); g.gain.setValueAtTime(0.0001,c.currentTime); g.gain.exponentialRampToValueAtTime(0.10,c.currentTime+0.02); g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+0.20); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+0.22); setTimeout(()=>{ try{ c.close(); }catch(_){ } }, 400); }catch(_){ } }
@@ -6427,6 +6445,7 @@ async function delPhoto(i){
 async function togglePhotoBid(i){
   const j=currentJob(); if(!j)return; const p=j.photos[i]; if(!p) return;
   p.showOnBid=!p.showOnBid; touch(j); saveJobs(); render();
+  if(p.showOnBid && typeof bbAcknowledge==='function') bbAcknowledge();   // wordless "got it" when a photo joins the bid
   // A pending (offline) photo carries the flag when it uploads; a synced one PATCHes now.
   if(p.id && !p._pending && online && TOKEN){
     try{ await api('/api/jobs/'+j.id+'/photos/'+p.id,{method:'PATCH', body:JSON.stringify({showOnBid:!!p.showOnBid})}); }catch(e){}
@@ -6465,6 +6484,7 @@ applyTheme();
 function celebEnabled(){ return localStorage.getItem('bt_celebrate')!=='off'; }
 function setCelebrate(on){ localStorage.setItem('bt_celebrate', on?'on':'off'); if(state.view==='settings') render(); if(on) celebrate('won','Celebrations on','You’ll see a little fanfare on a win'); }
 function celebrate(kind, title, sub){
+  if(typeof bbAcknowledge==='function') bbAcknowledge();   // the orb nods to a win, even if confetti is off
   if(!celebEnabled()) return;
   const wrap=document.getElementById('celebrate'), card=document.getElementById('celebrateCard'); if(!wrap||!card) return;
   const ic = kind==='paid' ? icon('revenue',26) : icon('check',26);
