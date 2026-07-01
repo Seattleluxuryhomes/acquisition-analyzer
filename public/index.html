@@ -2500,18 +2500,38 @@ function bbWarmPulse(){ const m=document.getElementById('bbMicBtn'); if(m){ m.cl
    When there's nothing, she says so plainly instead of manufacturing urgency. */
 function bbBriefMode(){ const m=localStorage.getItem('bt_bb_brief'); return (m==='silent'||m==='always'||m==='exceptions')?m:'exceptions'; }
 function setBriefMode(m){ if(m==='silent'||m==='always'||m==='exceptions'){ localStorage.setItem('bt_bb_brief', m); if(state.view==='settings') render(); } }
+// Deterministic rotation — never repeats back-to-back, but stable (not random). Advances per open.
+function bbRot(key,n){ if(n<=1) return 0; try{ const k='bt_rot_'+key; let i=parseInt(localStorage.getItem(k)||'0',10); if(!Number.isFinite(i)) i=0; localStorage.setItem(k,String(i+1)); return ((i%n)+n)%n; }catch(_){ return 0; } }
+function bbPick(arr,key){ return arr[bbRot(key,arr.length)]; }
+// A human never greets you the same way twice. Vary the opener (time + how long you've been away),
+// lead with ONE thing + ONE question (never dump a list), and hand back the floor — grounded in real data.
 function bbSpokenBriefing(){
   try{
-    const dd=bbGreetData(); const g=dd.g||{};
-    const hi=dd.greet+(dd.first?(', '+dd.first):'')+'.';
-    const aw=g.awaitingSignature||0, fu=g.followupsDue||0, items=[];
-    if(aw) items.push(aw===1?'one estimate waiting on a signature':aw+' estimates waiting on signatures');
-    if(fu) items.push(fu===1?"one follow-up I'd recommend making":fu+" follow-ups I'd recommend making");
-    if(!items.length) return hi+" Everything's running smoothly today. What would you like to work on?";
-    const list = items.length===1 ? items[0] : items.slice(0,-1).join(', ')+' and '+items[items.length-1];
-    if(bbHealth()==='urgent') return hi+" Before we begin — "+list+". I'd start there.";
-    return hi+" Everything's looking good. You have "+list+". Which would you like to tackle first?";
-  }catch(_){ try{ const dd=bbGreetData(); return (dd.greet||'Hello')+(dd.first?', '+dd.first:'')+". What would you like to work on?"; }catch(e){ return ''; } }
+    const dd=bbGreetData(); const g=dd.g||{}; const nm=dd.first?(', '+dd.first):'';
+    const h=new Date().getHours();
+    let away=Infinity; try{ const last=Number(localStorage.getItem('bt_bb_lastopen')||0); if(last) away=(Date.now()-last)/60000; }catch(_){}
+    const openers = away<3
+      ? ['Back already'+nm+'.','That was quick'+nm+'.','Still here'+nm+'.']
+      : (h<12 ? ['Morning'+nm+'.',"Mornin'"+nm+'.','Hey'+nm+'.','Back at it'+nm+'.']
+        : h<18 ? ['Afternoon'+nm+'.','Hey'+nm+'.','Back at it'+nm+'.','Good to see you'+nm+'.']
+        : ['Evening'+nm+'.','Hey'+nm+'.','Good to see you'+nm+'.','Long day'+nm+'?']);
+    const open = bbPick(openers,'greet_open');
+    const aw=g.awaitingSignature||0, fu=g.followupsDue||0;
+    if(aw){
+      const line=bbPick([ (aw===1?"One estimate's still waiting on a signature.":aw+" estimates are still waiting on signatures."),
+        (aw===1?"You've got a bid sitting unsigned.":"You've got "+aw+" bids sitting unsigned."),
+        (aw===1?"A proposal hasn't been signed yet.":aw+" proposals haven't been signed yet.") ],'greet_aw');
+      return open+' '+line+' '+bbPick(["Want me to nudge them?","Want me to follow up?","Should I chase it?","Want to start there?"],'greet_awq');
+    }
+    if(fu){
+      const line=bbPick([ (fu===1?"One customer's due for a follow-up.":fu+" customers are due for a follow-up."),
+        (fu===1?"There's a follow-up I'd make.":"There are "+fu+" follow-ups I'd make."),
+        (fu===1?"One person's worth a call today.":fu+" folks are worth a call today.") ],'greet_fu');
+      return open+' '+line+' '+bbPick(["Want the list?","Want me to line them up?","Should we start there?","Want to knock those out?"],'greet_fuq');
+    }
+    const calm=bbPick(["Everything's quiet.","Nothing on fire.","You're in good shape.","All caught up.","Nothing needs you this minute."],'greet_calm');
+    return open+' '+calm+' '+bbPick(["What are we working on?","Where do you want to start?","What's first?","What do you need?"],'greet_ask');
+  }catch(_){ try{ const dd=bbGreetData(); return (dd.greet||'Hey')+(dd.first?', '+dd.first:'')+". What's first?"; }catch(e){ return ''; } }
 }
 // The opening line — always shown on open (even on mute), so the panel greets with context
 // instead of a passive "Standing by". On a job it speaks to THAT job; otherwise the briefing.
@@ -2533,7 +2553,7 @@ function bbMaybeBrief(){
     if(!('speechSynthesis' in window) || !TTS_ON) return;
     const mode=bbBriefMode(); if(mode==='silent') return;
     if(mode==='exceptions' && bbHealth()==='calm') return;
-    const say=bbOpeningLine(); if(!say) return;
+    const say=(BBC.thread[0]&&BBC.thread[0].seed&&BBC.thread[0].content)||bbOpeningLine(); if(!say) return;   // speak exactly what's shown
     setTimeout(()=>{ if(!bbPanelOpen() || BBC.recording) return;
       bbSetState('speaking');
       bbSpeak(say, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
