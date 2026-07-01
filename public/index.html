@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  BIDTRANSLATOR — Phase 1 front end. Same UI/flow/visual language as the prototype,
-  refactored onto the hosted backend:
+  BIDVOICE — the single-page front end (BidVoice platform · Eden, the AI employee).
+  Offline-first PWA on the hosted backend:
     - Accounts + sign-in (replaces local-only persistence).
     - Offline-first store: every capture/edit writes locally first (instant, works
       offline) and syncs to the server when a connection is available (last-write-wins).
@@ -1200,7 +1200,7 @@
     <button class="bn" id="bnSched" onclick="go('schedule')"><span class="bi"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 9.5h18"/></svg></span><span class="bl">Schedule</span></button>
     <button class="bn" id="bnMore" onclick="openMore()"><span class="bi"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></span><span class="bl">More</span></button>
   </nav>
-  <div id="bbDock" class="bb-dock idle" role="button" tabindex="0" aria-label="Bid Brain — tap to open, hold to talk" style="display:none">
+  <div id="bbDock" class="bb-dock idle" role="button" tabindex="0" aria-label="BidVoice — tap to open, hold to talk" style="display:none">
     <span class="bb-ring"></span><span class="bb-ring r2"></span><span class="bb-halo"></span><span class="bb-orbit-dot"></span>
     <svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">
       <defs>
@@ -1226,7 +1226,7 @@
       </g></svg>
   </div>
   <div id="bbScrim" class="bb-scrim" style="display:none" onclick="bbClosePanel()"></div>
-  <div id="bbPanel" class="bb-panel" style="display:none" role="dialog" aria-label="Bid Brain"></div>
+  <div id="bbPanel" class="bb-panel" style="display:none" role="dialog" aria-label="BidVoice"></div>
 </div>
 <div id="createSheet" class="sheet-wrap" style="display:none" onclick="closeCreate()">
   <div class="sheet" onclick="event.stopPropagation()">
@@ -1826,7 +1826,7 @@ async function prospectExportCsv(){
   try{ const res=await fetch(API+'/api/prospects/export',{headers:{'Authorization':'Bearer '+TOKEN}});
     if(!res.ok){ toast('Export failed.','bad'); return; }
     const blob=await res.blob(), url=URL.createObjectURL(blob), a=document.createElement('a');
-    a.href=url; a.download='bidtranslator-prospects.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    a.href=url; a.download='bidvoice-prospects.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     toast('✓ Exported '+PROSPECT.saved.length+' prospects','ok');
   }catch(e){ toast('Export failed.','bad'); }
 }

@@ -753,7 +753,7 @@ function snapshotText(s) {
 }
 
 function brainChatSystemPrompt(snapshot, now, ai) {
-  const name = (ai && ai.name) || "Bid Brain";
+  const name = (ai && ai.name) || "Eden";
   const gender = ai && ai.pronoun === "he" ? "man" : ai && ai.pronoun === "they" ? "person" : "woman";
   return (
     "You are " + name + " — the AI right hand built into the app for a residential contractor. " +
@@ -849,7 +849,7 @@ export async function bidBrainChat(user, { messages, snapshot, now, ai }) {
     .filter((m) => m && (m.role === "user" || m.role === "assistant") && String(m.content || "").trim())
     .slice(-12)
     .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
-  if (!msgs.length || msgs[msgs.length - 1].role !== "user") { const e = new Error("Say something to Bid Brain first."); e.status = 400; throw e; }
+  if (!msgs.length || msgs[msgs.length - 1].role !== "user") { const e = new Error("Say something first."); e.status = 400; throw e; }
   if (!checkRate(user.id)) { const e = new Error("One moment — let’s not talk over each other."); e.status = 429; throw e; }
   if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; e.code = "AI_CAPPED"; throw e; }
   const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";

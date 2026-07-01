@@ -56,7 +56,7 @@ app.set("trust proxy", true); // behind Spaceship/Hyperlift's edge proxy
 // plain HTTP, or on a non-canonical host (e.g. www vs the apex), redirect once to
 // https://<canonical><path>. This gives one URL to certify and link to. No effect
 // locally (X-Forwarded-Proto absent) or on the internal health check. Configure
-// the canonical host with BT_CANONICAL_HOST (e.g. "bidtranslator.com"); disable
+// the canonical host with BT_CANONICAL_HOST (e.g. "bidvoice.ai"); disable
 // the HTTPS push with BT_FORCE_HTTPS=0 while a cert is still provisioning. Sends
 // HSTS on secure responses so browsers stick to HTTPS afterward.
 const FORCE_HTTPS = !/^(0|false|off|no)$/i.test(process.env.BT_FORCE_HTTPS || "1");
@@ -466,7 +466,7 @@ app.get("/api/prospects/export", requireAuth, requireAdmin, (req, res) => {
   const cell = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
   const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\r\n");
   res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", 'attachment; filename="bidtranslator-prospects.csv"');
+  res.setHeader("Content-Disposition", 'attachment; filename="bidvoice-prospects.csv"');
   res.send(csv);
 });
 
@@ -804,7 +804,7 @@ app.post("/api/brain/chat", requireAuth, wrap(async (req, res) => {
   const messages = (req.body && req.body.messages) || [];
   const now = String((req.body && req.body.now) || "").slice(0, 80);   // client's local date/time for relative scheduling
   const rawAi = (req.body && req.body.ai) || {};                        // the active AI identity (Name Trial System)
-  const ai = { name: String(rawAi.name || "Bid Brain").slice(0, 40), pronoun: (rawAi.pronoun === "he" ? "he" : rawAi.pronoun === "they" ? "they" : "she") };
+  const ai = { name: String(rawAi.name || "Eden").slice(0, 40), pronoun: (rawAi.pronoun === "he" ? "he" : rawAi.pronoun === "they" ? "they" : "she") };
   const snapshot = Memory.businessSnapshot(req.user.id, req.user);
   if (!aiConfigured() || !Billing.isEntitled(req.user)) {
     return res.json({ ...localBrainReply(snapshot, messages), source: "local" });
