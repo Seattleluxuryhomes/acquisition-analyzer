@@ -2555,13 +2555,23 @@ function bbNudge(){ const es=(typeof LANG!=='undefined'&&LANG==='es');
 // instead of a passive "Standing by". On a job it speaks to THAT job; otherwise the briefing.
 function bbActiveJob(){ try{ return (state.view==='job'&&state.jobId&&state.jobId!=='new')?JOBS.find(j=>j.id===state.jobId&&!j._deleted):null; }catch(_){ return null; } }
 function bbJobOpeningLine(j){
-  const title=(j.title||'this job').trim(); const s=(typeof jobStatus==='function')?jobStatus(j):'draft';
-  const lead = s==='sent'?"That bid's been sent. " : s==='signed'?"This one's signed. " : s==='scheduled'?"This one's scheduled. " : "";
-  const opts = s==='sent' ? "Want me to follow up, review it, or schedule the next step?"
-    : s==='signed' ? "Want to schedule it, request the deposit, or add photos?"
-    : s==='scheduled' ? "Want to prep materials, add notes, or message the customer?"
-    : "Want to add photos, keep building the estimate, or ask me anything?";
-  return `We're on ${title}. ${lead}${opts}`;
+  const es=(typeof LANG!=='undefined'&&LANG==='es');
+  const title=(j.title||(es?'este trabajo':'this job')).trim();
+  const s=(typeof jobStatus==='function')?jobStatus(j):'draft';
+  const on = es ? bbPick(['Estamos en '+title+'.','De vuelta en '+title+'.','Viendo '+title+'.'],'job_on')
+                : bbPick(["We're on "+title+".","Back on "+title+".","Looking at "+title+".","On "+title+" now."],'job_on');
+  const lead = es ? (s==='sent'?'Ya se envió. ':s==='signed'?'Está firmado. ':s==='scheduled'?'Está agendado. ':'')
+                  : (s==='sent'?"That bid's out. ":s==='signed'?"It's signed. ":s==='scheduled'?"It's on the calendar. ":'');
+  const opts = es
+    ? (s==='sent'?'¿Hago seguimiento, lo reviso, o agendamos lo siguiente?'
+      : s==='signed'?'¿Lo agendo, pido el anticipo, o agrego fotos?'
+      : s==='scheduled'?'¿Preparo materiales, agrego notas, o le escribo al cliente?'
+      : '¿Agrego fotos, sigo con el presupuesto, o me preguntas algo?')
+    : (s==='sent'?bbPick(["Want me to follow up, review it, or line up the next step?","Chase the signature, give it a look, or schedule what's next?"],'job_sent')
+      : s==='signed'?bbPick(["Want to schedule it, request the deposit, or add photos?","Set a date, lock the deposit, or add photos?"],'job_signed')
+      : s==='scheduled'?bbPick(["Want to prep materials, add notes, or message the customer?","Prep materials, drop a note, or text the customer?"],'job_sched')
+      : bbPick(["Want to add photos, keep building the estimate, or ask me anything?","Add photos, keep building the bid, or ask me anything?"],'job_draft'));
+  return on+' '+lead+opts;
 }
 function bbOpeningLine(){ const j=bbActiveJob(); return j ? bbJobOpeningLine(j) : bbSpokenBriefing(); }
 // On open, she enters the room: a beat, then a spoken briefing — gated by the setting
