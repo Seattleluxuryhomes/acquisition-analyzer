@@ -1,0 +1,40 @@
+{
+  "$comment": "SINGLE SOURCE OF TRUTH for BidVoice brand assets. Edit masters in brand/masters/, then run `npm run brand-sync` to push them to every consuming surface. Never hand-edit the destination files — they are generated. See brand/BRAND.md.",
+  "brand": {
+    "platform": "BidVoice",
+    "assistant": "Eden",
+    "tagline": "Your AI employee for contractors.",
+    "positioning": "BidVoice is the AI Construction Operating System. Eden is your AI employee.",
+    "wordmark": "BidVoice",
+    "wordmarkNote": "One word, camelCase capital V: Bid + Voice. Never 'Bid Voice', 'BidVOICE', or 'Bidvoice'. Legacy 'BidTranslator' is retired everywhere."
+  },
+  "color": {
+    "amber": "#EE9B2E",
+    "amberDeep": "#CF7F18",
+    "ink": "#1F252C",
+    "paper": "#F1EEE7",
+    "themeColor": "#CF7F18",
+    "note": "amber = primary accent (the 'Voice' in the wordmark, CTAs). amberDeep = theme-color / darker amber. ink = dark surface + text. paper = light surface."
+  },
+  "typography": {
+    "display": { "family": "Archivo", "weights": [600, 700, 800, 900], "use": "wordmark, headlines" },
+    "body":    { "family": "IBM Plex Sans", "weights": [400, 500, 600], "use": "UI + body copy" },
+    "mono":    { "family": "IBM Plex Mono", "weights": [400, 500, 600], "use": "numbers, code, labels" },
+    "note": "Do not substitute fonts. The official logo lockup, if supplied as artwork, overrides the typographic wordmark."
+  },
+  "assets": [
+    { "slot": "app-icon-192",     "master": "masters/app-icon-192.png",     "destinations": ["public/icon-192.png"],          "surfaces": ["favicon", "PWA icon (192)"] },
+    { "slot": "app-icon-512",     "master": "masters/app-icon-512.png",     "destinations": ["public/icon-512.png"],          "surfaces": ["PWA icon (512)", "install / splash"] },
+    { "slot": "apple-touch-icon", "master": "masters/apple-touch-icon.png", "destinations": ["public/apple-touch-icon.png"],  "surfaces": ["iOS home-screen icon"] },
+    { "slot": "logo-on-dark",     "master": "masters/logo-mark-on-dark.png","destinations": ["public/brand-white.png"],       "surfaces": ["app header wordmark", "login splash", "landing footer"] },
+    { "slot": "logo-on-light",    "master": "masters/logo-mark-on-light.png","destinations": ["public/brand-orange.png"],     "surfaces": ["landing header favicon fallback", "light-background lockups"] },
+    { "slot": "social-tile",      "master": "masters/social-tile.png",      "destinations": ["public/brand-tile.png"],        "surfaces": ["misc social tile"] },
+    { "slot": "og-share",         "master": "masters/og-share.png",         "destinations": ["public/og.png"],                "surfaces": ["Open Graph (FB/LinkedIn)", "Twitter/X card"] },
+    { "slot": "og-share-2x",      "master": "masters/og-share@2x.png",      "destinations": ["public/og@2x.png"],             "surfaces": ["hi-dpi OG export"] },
+    { "slot": "app-icon-source",  "master": "masters/app-icon-source.png",  "destinations": ["docs/app-icon.png"],            "surfaces": ["docs / design reference"] }
+  ],
+  "pending": {
+    "officialLogo": true,
+    "note": "The masters currently hold the interim marks. Replace each master with the export from the OFFICIAL BidVoice logo (do NOT recreate/redraw), then run `npm run brand-sync`. Sizes must match destinations (no resizer in this environment): 192x192, 512x512, 180x180 (apple-touch), 1200x630 (og), 2400x1260 (og@2x)."
+  }
+}
