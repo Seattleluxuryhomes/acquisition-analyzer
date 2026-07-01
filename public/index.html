@@ -803,7 +803,29 @@
   .bb-brain .bb-core circle{animation:bbnode 3.2s ease-in-out infinite}
   .bb-brain .bb-orbit{opacity:0;transform-origin:50px 50px}
   .bb-brain .bb-orbit .orb{fill:#eaf2ff}
-  .bb-brain .bb-spark{opacity:0;fill:rgb(var(--bbc,90,160,255))}
+  .bb-brain .bb-spark{fill:rgb(var(--bbc,90,160,255))}
+  /* ===== Living neural core: nucleus heartbeat · orbiting electrons · light traveling the pathways ===== */
+  .bb-brain .bb-nuc-glow{fill:rgb(var(--bbc,90,160,255));opacity:.55;transform-box:view-box;transform-origin:50px 49px;animation:bbnuc 3.6s ease-in-out infinite}
+  .bb-brain .bb-nucleus{fill:#fff;transform-box:view-box;transform-origin:50px 49px;animation:bbnuc 3.6s ease-in-out infinite}
+  .bb-brain .bb-pulse path{stroke:#eaf3ff;stroke-linecap:round;stroke-dasharray:3 100;stroke-dashoffset:100;opacity:0;animation:bbpkt 2.9s linear infinite}
+  .bb-brain .bb-pulse path:nth-child(2){animation-delay:.6s}
+  .bb-brain .bb-pulse path:nth-child(3){animation-delay:1.15s}
+  .bb-brain .bb-pulse path:nth-child(4){animation-delay:1.7s}
+  .bb-brain .bb-pulse path:nth-child(5){animation-delay:2.3s}
+  .bb-brain .bb-elec .eplane{transform-box:view-box;transform-origin:50px 49px}
+  .bb-brain .bb-elec .ep1{transform:rotate(22deg) scale(1,.4)}
+  .bb-brain .bb-elec .ep2{transform:rotate(-56deg) scale(1,.4)}
+  .bb-brain .bb-elec .eo{fill:none;stroke:rgba(var(--bbc,90,160,255),.20);stroke-width:.7}
+  .bb-brain .bb-elec .espin{transform-box:view-box;transform-origin:50px 49px;animation:bbspin 7.5s linear infinite}
+  .bb-brain .bb-elec .s2{animation-duration:10s;animation-direction:reverse}
+  .bb-brain .bb-elec .el{fill:#f2f7ff;filter:drop-shadow(0 0 2.4px rgba(var(--bbc,90,160,255),.95))}
+  /* an almost-subconscious spark even at rest — the orb is never frozen */
+  .bb-brain .bb-spark path{opacity:0;transform-box:fill-box;transform-origin:center;animation:bbsparkrest 6.5s ease-in-out infinite}
+  .bb-brain .bb-spark path:nth-child(2){animation-delay:2.4s}
+  .bb-brain .bb-spark path:nth-child(3){animation-delay:4.3s}
+  @keyframes bbnuc{0%,100%{opacity:.8;transform:scale(.9)}50%{opacity:1;transform:scale(1.08)}}
+  @keyframes bbpkt{0%{stroke-dashoffset:100;opacity:0}10%{opacity:.95}90%{opacity:.95}100%{stroke-dashoffset:0;opacity:0}}
+  @keyframes bbsparkrest{0%,86%,100%{opacity:0;transform:scale(.4)}92%{opacity:.9;transform:scale(1)}}
   @keyframes bbflow{to{stroke-dashoffset:-28}}
   @keyframes bbnode{0%,100%{opacity:.6}50%{opacity:1}}
   @keyframes bbspin{to{transform:rotate(360deg)}}
@@ -823,6 +845,9 @@
   /* ============ STATES (color = --bbc · motion communicates intent) ============ */
   /* idle — slow breathing, soft blue */
   .bb-dock.idle{--bbc:90,160,255;animation:bbbreathe 4.8s ease-in-out infinite}
+  /* the orb tells you how the business is doing before a word is spoken (health = color at rest) */
+  .bb-dock.idle.bbh-attention{--bbc:255,176,64}
+  .bb-dock.idle.bbh-urgent{--bbc:240,90,80;animation-duration:2.6s}
   @keyframes bbbreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
   /* ready — soft green glow: "your turn", before active recording */
   .bb-dock.ready{--bbc:54,214,122;animation:bbbreathe 2.4s ease-in-out infinite}
@@ -867,6 +892,18 @@
   .bb-dock.flick .bb-ring:not(.r2){animation:bbring 1.25s ease-out}
   .bb-dock.flick .bb-brain{animation:bbblink 1.25s ease}
   @keyframes bbblink{0%,100%{transform:scale(1);filter:none}40%{transform:scale(1.08);filter:brightness(1.5)}}
+  /* living-core intensity per state — electrons race, light quickens, nucleus beats faster */
+  .bb-dock.ready .bb-brain .bb-elec .espin,.bb-dock.listening .bb-brain .bb-elec .espin{animation-duration:2.8s}
+  .bb-dock.listening .bb-brain .bb-pulse path{animation-duration:1.5s}
+  .bb-dock.thinking .bb-brain .bb-elec .espin{animation-duration:1.6s}
+  .bb-dock.thinking .bb-brain .bb-pulse path{animation-duration:1.1s}
+  .bb-dock.thinking .bb-brain .bb-nucleus{animation-duration:1.2s}
+  .bb-dock.working .bb-brain .bb-elec .espin{animation-duration:3s}
+  .bb-dock.speaking .bb-brain .bb-pulse path{animation-duration:1.8s}
+  .bb-dock.speaking .bb-brain .bb-nucleus{animation-duration:1s}
+  .bb-dock.learning .bb-brain .bb-spark path,.bb-dock.success .bb-brain .bb-spark path{opacity:1;animation:bbtwinkle 1.4s ease-in-out infinite}
+  .bb-dock.learning .bb-brain .bb-spark path:nth-child(2){animation-delay:.5s}
+  .bb-dock.learning .bb-brain .bb-spark path:nth-child(3){animation-delay:1s}
   /* performance — freeze everything when the tab/app is backgrounded */
   .bb-dock.paused, .bb-dock.paused *{animation-play-state:paused!important}
   @media(prefers-reduced-motion:reduce){.bb-dock,.bb-dock *{animation:none!important}.bb-dock{transition:box-shadow .4s ease,left .4s ease,top .4s ease!important}}
@@ -983,24 +1020,39 @@
   .bb-input{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:10px;background:none;border:none;border-radius:0;padding:8px 6px 4px}
   .bb-panel:not(.has-convo) .bb-input{padding:26px 6px 14px;gap:14px}
   .bb-input:focus-within{box-shadow:none}
-  /* The big mic IS the interface — one obvious thing to do. */
-  .bb-mic-hero{position:relative;width:84px;height:84px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
-    background:radial-gradient(120% 120% at 32% 26%,#8db4ff,#3f6fd6);color:#fff;box-shadow:0 10px 30px rgba(63,111,214,.42),inset 0 2px 0 rgba(255,255,255,.35);transition:transform .12s ease,background .25s ease,box-shadow .25s ease}
-  .bb-mic-hero:active{transform:scale(.94)}
+  /* The hero is not a button — it's a deep well with an intelligence awake inside it.
+     The dark core lets the neural orb glow like a living thing; color = state + business health (--bbc). */
+  .bb-mic-hero{position:relative;width:96px;height:96px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;--bbc:96,164,255;
+    background:radial-gradient(120% 120% at 50% 38%,#15263f 0%,#0b1422 58%,#060a13 100%);
+    box-shadow:0 14px 36px rgba(4,8,18,.55), inset 0 0 24px rgba(var(--bbc),.30), inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(var(--bbc),.20);
+    transition:transform .12s ease, box-shadow .5s ease, width .3s ease, height .3s ease}
+  .bb-mic-hero:active{transform:scale(.95)}
   .bb-mic-hero .mh-ico{position:relative;z-index:2;display:flex;align-items:center;justify-content:center}
-  /* The hero IS Bid Brain — the neural orb, alive and breathing. The mic badge keeps "tap to talk" obvious. */
-  .bb-mic-hero .mh-ico .bb-brain{width:60px;height:60px;--bbc:236,243,255;filter:drop-shadow(0 0 11px rgba(150,190,255,.6))}
-  .bb-mic-hero .mh-mic{position:absolute;right:-3px;bottom:-3px;width:26px;height:26px;border-radius:50%;background:#fff;color:#3f6fd6;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 7px rgba(20,40,90,.32);z-index:3}
-  .bb-mic-hero .mh-glow{position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(141,180,255,.5);opacity:0}
-  .bb-mic-hero .bb-wave{display:none;position:absolute;inset:0;align-items:center;justify-content:center;z-index:2;height:auto}
-  /* Ready: calm breathing blue. Listening: green, pulsing, waveform. Thinking/Responding: handled by the orb above. */
-  .bb-input[data-state="idle"] .bb-mic-hero,.bb-input[data-state="ready"] .bb-mic-hero{animation:bbbreathe 4.4s ease-in-out infinite}
-  .bb-input[data-state="ready"] .bb-mic-hero .mh-glow{opacity:1;animation:bbring 2.2s ease-out infinite}
-  .bb-input[data-state="listening"] .bb-mic-hero,.bb-input.recording .bb-mic-hero{background:radial-gradient(120% 120% at 30% 24%,#46e08a,#1faf63);color:#08210f;box-shadow:0 10px 30px rgba(54,214,122,.5);animation:bbpulse 1s ease-in-out infinite}
-  .bb-input[data-state="listening"] .bb-mic-hero .mh-ico,.bb-input.recording .bb-mic-hero .mh-ico{display:none}
-  .bb-input[data-state="listening"] .bb-mic-hero .bb-wave,.bb-input.recording .bb-mic-hero .bb-wave{display:flex}
-  .bb-input[data-state="thinking"] .bb-mic-hero{background:radial-gradient(120% 120% at 30% 24%,#9a8bff,#6f5ad6)}
-  .bb-input[data-state="speaking"] .bb-mic-hero{background:radial-gradient(120% 120% at 30% 24%,#ffc04a,#e7902a);color:#241400}
+  .bb-mic-hero .mh-ico .bb-brain{width:74px;height:74px;filter:drop-shadow(0 0 9px rgba(var(--bbc),.55))}
+  /* a quiet mic cue — an affordance, not the hero; it fades the moment she's engaged */
+  .bb-mic-hero .mh-mic{position:absolute;right:4px;bottom:4px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.14);color:#eaf3ff;display:flex;align-items:center;justify-content:center;z-index:3;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);transition:opacity .3s ease}
+  .bb-mic-hero .mh-glow{position:absolute;inset:-5px;border-radius:50%;border:1.5px solid rgba(var(--bbc),.55);opacity:0}
+  .bb-mic-hero .bb-wave{display:none}
+  /* READY / IDLE — the well breathes slowly; the orb carries its own quiet life; color = health. */
+  .bb-input[data-state="idle"] .bb-mic-hero,.bb-input[data-state="ready"] .bb-mic-hero{animation:bbbreathe 4.6s ease-in-out infinite}
+  .bb-input[data-state="ready"] .bb-mic-hero .mh-glow{opacity:1;animation:bbring 2.6s ease-out infinite}
+  /* LISTENING — green, the well pulses with your voice, the orb quickens, ripple outward. */
+  .bb-input[data-state="listening"] .bb-mic-hero,.bb-input.recording .bb-mic-hero{--bbc:54,214,122;animation:bbpulse 1.05s ease-in-out infinite}
+  .bb-input[data-state="listening"] .bb-mic-hero .mh-glow,.bb-input.recording .bb-mic-hero .mh-glow{opacity:1;animation:bbring 1.4s ease-out infinite}
+  .bb-input[data-state="listening"] .bb-mic-hero .bb-node circle,.bb-input.recording .bb-mic-hero .bb-node circle{animation-duration:1s}
+  .bb-input[data-state="listening"] .bb-mic-hero .bb-pulse path,.bb-input.recording .bb-mic-hero .bb-pulse path{animation-duration:1.5s}
+  .bb-input[data-state="listening"] .bb-mic-hero .mh-mic,.bb-input.recording .bb-mic-hero .mh-mic{opacity:0}
+  /* THINKING — purple, neurons fire fast, electrons race, light quickens across the brain. */
+  .bb-input[data-state="thinking"] .bb-mic-hero{--bbc:132,114,255;animation:bbbreathe 1.6s ease-in-out infinite}
+  .bb-input[data-state="thinking"] .bb-mic-hero .bb-node circle{animation-duration:.7s}
+  .bb-input[data-state="thinking"] .bb-mic-hero .espin{animation-duration:1.7s}
+  .bb-input[data-state="thinking"] .bb-mic-hero .bb-pulse path{animation-duration:1.1s}
+  .bb-input[data-state="thinking"] .bb-mic-hero .bb-nucleus{animation-duration:1.2s}
+  .bb-input[data-state="thinking"] .bb-mic-hero .mh-mic{opacity:0}
+  /* RESPONDING — warm amber, the activity settles as she speaks. */
+  .bb-input[data-state="speaking"] .bb-mic-hero{--bbc:255,168,66;animation:bbspeak 1.15s ease-in-out infinite}
+  .bb-input[data-state="speaking"] .bb-mic-hero .bb-pulse path{animation-duration:1.9s}
+  .bb-input[data-state="speaking"] .bb-mic-hero .mh-mic{opacity:0}
   /* The four-state label — big, plain, jobsite-readable. */
   .bb-state{font-family:"IBM Plex Sans";font-size:1.06rem;font-weight:600;color:#eaf1ff;letter-spacing:.01em;min-height:1.3em}
   .bb-input .bb-rectime{display:none;font-family:'IBM Plex Mono',monospace;font-size:.85rem;color:#5fe6a0;margin:0}
@@ -1012,8 +1064,8 @@
   .bb-typelink{background:none;border:none;color:#8ea2c8;font-family:inherit;font-size:.86rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;padding:4px}
   .bb-typelink:active{color:#cfe0ff}
   /* Transcript becomes the focus only once a conversation exists; the stage shrinks. */
-  .bb-panel.has-convo .bb-mic-hero{width:54px;height:54px}
-  .bb-panel.has-convo .bb-mic-hero .mh-ico .bb-brain{width:36px;height:36px}
+  .bb-panel.has-convo .bb-mic-hero{width:60px;height:60px}
+  .bb-panel.has-convo .bb-mic-hero .mh-ico .bb-brain{width:46px;height:46px}
   .bb-panel.has-convo .bb-mic-hero .mh-mic{width:18px;height:18px;right:-2px;bottom:-2px}
   .bb-panel.has-convo .bb-mic-hero .mh-mic svg{width:11px;height:11px}
   .bb-panel.has-convo .bb-state{font-size:.82rem;color:#8ea2c8;font-weight:500}
@@ -1034,7 +1086,7 @@
   @keyframes bbmsgin{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
   .bb-conv .bb-msg:last-child{animation:bbmsgin .26s ease both}
   .bb-mic-hero{transition:transform .12s ease,background .25s ease,box-shadow .25s ease,width .3s ease,height .3s ease}
-  @media(prefers-reduced-motion:reduce){.bb-mic-hero,.bb-mic-hero .mh-glow,.bb-conv .bb-msg:last-child{animation:none!important}}
+  @media(prefers-reduced-motion:reduce){.bb-mic-hero,.bb-mic-hero .mh-glow,.bb-conv .bb-msg:last-child,.bb-brain *{animation:none!important}}
   /* ===== Onboarding — the first 30 seconds. Premium, dark, warm. ===== */
   .onb{position:fixed;inset:0;z-index:50;overflow-y:auto;-webkit-overflow-scrolling:touch;
     background:radial-gradient(125% 115% at 70% 12%, #16263f 0%, #0c1626 46%, #080d17 100%);
@@ -2326,13 +2378,24 @@ function bbGreetData(){
   return {m,g,greet,first,pulse};
 }
 // The neural-brain inner markup, reused in the panel header (references the dock's gradient/filter defs).
-const BB_SVG_INNER = `<defs><radialGradient id="bbCore" cx="50%" cy="42%" r="62%"><stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#ffffff" stop-opacity=".55"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient><filter id="bbGlow2" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceGraphic" stdDeviation="2.4" result="w"/><feGaussianBlur in="SourceGraphic" stdDeviation="0.7" result="t"/><feMerge><feMergeNode in="w"/><feMergeNode in="t"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g class="bb-net" filter="url(#bbGlow2)"><g class="bb-syn" fill="none" stroke-width="1.35" stroke-linecap="round"><path d="M30 30 L24 42"/><path d="M24 42 L19 55"/><path d="M19 55 L27 66"/><path d="M24 42 L38 48"/><path d="M38 48 L50 36"/><path d="M30 30 L50 36"/><path d="M38 48 L42 60"/><path d="M27 66 L42 60"/><path d="M42 60 L50 62"/><path d="M70 30 L76 42"/><path d="M76 42 L81 55"/><path d="M81 55 L73 66"/><path d="M76 42 L62 48"/><path d="M62 48 L50 36"/><path d="M70 30 L50 36"/><path d="M62 48 L58 60"/><path d="M73 66 L58 60"/><path d="M58 60 L50 62"/><path d="M50 36 L50 62"/><path d="M42 60 L58 60"/></g><g class="bb-node"><circle cx="30" cy="30" r="3.4"/><circle cx="24" cy="42" r="3.5"/><circle cx="19" cy="55" r="3"/><circle cx="27" cy="66" r="3"/><circle cx="38" cy="48" r="3.2"/><circle cx="42" cy="60" r="3"/><circle cx="50" cy="36" r="4"/><circle cx="50" cy="62" r="3.3"/><circle cx="62" cy="48" r="3.2"/><circle cx="58" cy="60" r="3"/><circle cx="70" cy="30" r="3.4"/><circle cx="76" cy="42" r="3.5"/><circle cx="81" cy="55" r="3"/><circle cx="73" cy="66" r="3"/></g><g class="bb-core" fill="url(#bbCore)"><circle cx="30" cy="30" r="2.2"/><circle cx="24" cy="42" r="2.3"/><circle cx="19" cy="55" r="2"/><circle cx="27" cy="66" r="2"/><circle cx="38" cy="48" r="2.1"/><circle cx="42" cy="60" r="2"/><circle cx="50" cy="36" r="2.7"/><circle cx="50" cy="62" r="2.2"/><circle cx="62" cy="48" r="2.1"/><circle cx="58" cy="60" r="2"/><circle cx="70" cy="30" r="2.2"/><circle cx="76" cy="42" r="2.3"/><circle cx="81" cy="55" r="2"/><circle cx="73" cy="66" r="2"/></g></g>`;
+const BB_SVG_INNER = `<defs><radialGradient id="bbCore" cx="50%" cy="42%" r="62%"><stop offset="0%" stop-color="#ffffff"/><stop offset="55%" stop-color="#ffffff" stop-opacity=".55"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></radialGradient><radialGradient id="bbNuc" cx="50%" cy="45%" r="60%"><stop offset="0%" stop-color="#ffffff"/><stop offset="42%" stop-color="rgb(var(--bbc,90,160,255))" stop-opacity=".92"/><stop offset="100%" stop-color="rgb(var(--bbc,90,160,255))" stop-opacity="0"/></radialGradient><filter id="bbGlow2" x="-75%" y="-75%" width="250%" height="250%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceGraphic" stdDeviation="2.4" result="w"/><feGaussianBlur in="SourceGraphic" stdDeviation="0.7" result="t"/><feMerge><feMergeNode in="w"/><feMergeNode in="t"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g class="bb-net" filter="url(#bbGlow2)"><g class="bb-syn" fill="none" stroke-width="1.35" stroke-linecap="round"><path d="M30 30 L24 42"/><path d="M24 42 L19 55"/><path d="M19 55 L27 66"/><path d="M24 42 L38 48"/><path d="M38 48 L50 36"/><path d="M30 30 L50 36"/><path d="M38 48 L42 60"/><path d="M27 66 L42 60"/><path d="M42 60 L50 62"/><path d="M70 30 L76 42"/><path d="M76 42 L81 55"/><path d="M81 55 L73 66"/><path d="M76 42 L62 48"/><path d="M62 48 L50 36"/><path d="M70 30 L50 36"/><path d="M62 48 L58 60"/><path d="M73 66 L58 60"/><path d="M58 60 L50 62"/><path d="M50 36 L50 62"/><path d="M42 60 L58 60"/></g><g class="bb-pulse" fill="none" stroke-linecap="round" stroke-width="1.6"><path pathLength="100" d="M50 36 L50 62"/><path pathLength="100" d="M30 30 L50 36"/><path pathLength="100" d="M76 42 L62 48"/><path pathLength="100" d="M24 42 L38 48"/><path pathLength="100" d="M70 30 L50 36"/></g><g class="bb-node"><circle cx="30" cy="30" r="3.4"/><circle cx="24" cy="42" r="3.5"/><circle cx="19" cy="55" r="3"/><circle cx="27" cy="66" r="3"/><circle cx="38" cy="48" r="3.2"/><circle cx="42" cy="60" r="3"/><circle cx="50" cy="36" r="4"/><circle cx="50" cy="62" r="3.3"/><circle cx="62" cy="48" r="3.2"/><circle cx="58" cy="60" r="3"/><circle cx="70" cy="30" r="3.4"/><circle cx="76" cy="42" r="3.5"/><circle cx="81" cy="55" r="3"/><circle cx="73" cy="66" r="3"/></g><g class="bb-core" fill="url(#bbCore)"><circle cx="30" cy="30" r="2.2"/><circle cx="24" cy="42" r="2.3"/><circle cx="19" cy="55" r="2"/><circle cx="27" cy="66" r="2"/><circle cx="38" cy="48" r="2.1"/><circle cx="42" cy="60" r="2"/><circle cx="50" cy="36" r="2.7"/><circle cx="50" cy="62" r="2.2"/><circle cx="62" cy="48" r="2.1"/><circle cx="58" cy="60" r="2"/><circle cx="70" cy="30" r="2.2"/><circle cx="76" cy="42" r="2.3"/><circle cx="81" cy="55" r="2"/><circle cx="73" cy="66" r="2"/></g><circle class="bb-nuc-glow" cx="50" cy="49" r="7"/><circle class="bb-nucleus" cx="50" cy="49" r="3.1"/><g class="bb-elec"><g class="eplane ep1"><ellipse class="eo" cx="50" cy="49" rx="30" ry="30"/><g class="espin s1"><circle class="el" cx="80" cy="49" r="1.9"/></g></g><g class="eplane ep2"><ellipse class="eo" cx="50" cy="49" rx="30" ry="30"/><g class="espin s2"><circle class="el" cx="80" cy="49" r="1.7"/></g></g></g><g class="bb-spark"><path d="M30 26.6 L31.1 28.9 L33.4 30 L31.1 31.1 L30 33.4 L28.9 31.1 L26.6 30 L28.9 28.9 Z"/><path d="M70 26.6 L71.1 28.9 L73.4 30 L71.1 31.1 L70 33.4 L68.9 31.1 L66.6 30 L68.9 28.9 Z"/><path d="M50 58.6 L51.1 60.9 L53.4 62 L51.1 63.1 L50 65.4 L48.9 63.1 L46.6 62 L48.9 60.9 Z"/></g></g>`;
 // The Bid Brain mark as a small inline glyph — used in body text in place of any
 // generic 🧠 emoji, so our own neural identity is the ONLY brain symbol in the app.
 function bbMark(px){ px=px||15; return `<svg class="bb-brain bb-mark-mini" viewBox="0 0 100 100" width="${px}" height="${px}" aria-hidden="true" style="display:inline-block;vertical-align:-.18em">${BB_SVG_INNER}</svg>`; }
 // brain personality state: idle(blue) listening(green) thinking(blue→purple) speaking(orange) working(gold) learning(gold) success(white) error(red)
 let bbState='idle', bbErrTimer=null;
 const BB_STATES=['idle','ready','listening','thinking','speaking','working','learning','success','error'];
+// The orb's soul-color when at rest reflects the health of the business — honest, never invented:
+// calm blue = under control · amber = a few things need you · red = something urgent.
+function bbHealth(){ try{ const b=(window.BRAIN&&BRAIN.briefing)||{};
+  if((b.overdue&&b.overdue.length)||b.urgent) return 'urgent';
+  if((b.followups&&b.followups.length)||(b.awaiting&&b.awaiting.length)) return 'attention';
+  return 'calm'; }catch(_){ return 'calm'; } }
+const BB_HEALTH_RGB={calm:'96,164,255', attention:'255,176,64', urgent:'240,90,80'};
+function bbHealthRGB(){ return BB_HEALTH_RGB[bbHealth()]||BB_HEALTH_RGB.calm; }
+function bbApplyHealth(){ const mic=document.getElementById('bbMicBtn');
+  if(mic){ if(bbState==='ready'||bbState==='idle') mic.style.setProperty('--bbc', bbHealthRGB()); else mic.style.removeProperty('--bbc'); }
+  const d=document.getElementById('bbDock'); if(d){ d.classList.remove('bbh-attention','bbh-urgent'); const h=bbHealth(); if(h!=='calm') d.classList.add('bbh-'+h); } }
 function bbSetState(s){ const d=document.getElementById('bbDock'); if(!d) return; s=s||'idle';
   if(s==='completed'||s==='done') s='success';      // aliases
   if(BB_STATES.indexOf(s)<0) s='idle';
@@ -2340,6 +2403,7 @@ function bbSetState(s){ const d=document.getElementById('bbDock'); if(!d) return
   // Voice-first: the panel stage reflects the four states the contractor cares about.
   const lbl=document.getElementById('bbStateLabel'); if(lbl) lbl.textContent=bbStateText(s);
   const bar=document.getElementById('bbInputBar'); if(bar) bar.setAttribute('data-state', s);
+  bbApplyHealth();
   clearTimeout(bbErrTimer);
   // transient states return to calm on their own so callers can "fire and forget"
   if(s==='error') bbErrTimer=setTimeout(()=>bbSetState('idle'), 900);
@@ -2525,7 +2589,7 @@ function bbOpenPanel(){
     </div>
     <div class="bb-suggest">${bbSuggestionsHTML()}</div>`;
   s.style.display='block'; p.style.display='block';
-  bbConvRender(); bbPhStart();
+  bbConvRender(); bbApplyHealth(); bbPhStart();
 }
 function bbConvRender(){
   const c=document.getElementById('bbConv'); if(!c) return;
