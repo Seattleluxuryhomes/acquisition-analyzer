@@ -2573,17 +2573,65 @@ function bbJobOpeningLine(j){
   return on+' '+lead+opts;
 }
 function bbOpeningLine(){ const j=bbActiveJob(); return j ? bbJobOpeningLine(j) : bbSpokenBriefing(); }
-// On open, she enters the room: a beat, then a spoken briefing — gated by the setting
-// and the mute. Silent = never; Only-when-important = only if something needs you; Always = every time.
+/* ===== LAW XV — Awareness, not greetings ===============================================
+   Eden does not have greetings. Eden has awareness. On open she does not perform a script;
+   she notices what actually CHANGED since you were last here and, only if it's worth
+   looking up for, says one true thing about it. Otherwise she stays present and silent —
+   the orb is there, that's enough. Silence is a valid, honest response. The test for every
+   opening: would a trusted employee really say this, or would they just look up and keep
+   working? If you can predict what she'll say, we failed. Constitutional law — see
+   docs/bid-brain-interaction-constitution.md, Law XV. ==================================== */
+let bbOpenState=null;   // {t, speak} decided at open; bbMaybeBrief speaks it (or nothing)
+function _bbSeen(){ try{ return JSON.parse(localStorage.getItem('bt_bb_seen')||'{}')||{}; }catch(_){ return {}; } }
+function _bbSaveSeen(s){ try{ localStorage.setItem('bt_bb_seen', JSON.stringify(s||{})); }catch(_){} }
+function bbAwareOpening(){
+  try{
+    const es=(typeof LANG!=='undefined'&&LANG==='es');
+    const b=(window.BRAIN&&BRAIN.briefing)||{};
+    const raw=localStorage.getItem('bt_bb_seen');   // null the very first time we ever open
+    const seen=_bbSeen();
+    const paid=(b.paidRecently||[]).filter(p=>p&&p.amount>0);
+    const pk=p=>String((p.id!=null?p.id:p.name)||'')+'|'+p.amount;
+    const nl=(typeof LEADS_NEW!=='undefined'?LEADS_NEW:0)||0;
+    // First run ever: we can't know what's genuinely new, so we set the watermark
+    // silently and say nothing. Never announce old activity as if it just happened.
+    if(raw==null){ seen.paid=paid.map(pk); seen.leads=nl; _bbSaveSeen(seen); return {t:'', speak:false}; }
+    // 1) A real win — a deposit landed. Worth looking up for; she says it out loud.
+    const seenPaid=seen.paid||[];
+    const fresh=paid.filter(p=>seenPaid.indexOf(pk(p))<0);
+    if(fresh.length){
+      const p=fresh[0]; const who=bbFirst(p.name)||(es?'un cliente':'a customer'); const amt=money(p.amount);
+      seen.paid=paid.map(pk); _bbSaveSeen(seen);
+      const line=es?bbPick([who+' pagó el anticipo — '+amt+'.','Entró el anticipo de '+who+': '+amt+'.','Ya pagó '+who+' — '+amt+'.'],'aw_paid')
+                   :bbPick([who+"'s deposit came in — "+amt+'.',"That's "+amt+' in from '+who+'.',who+' paid the deposit — '+amt+'.'],'aw_paid');
+      return {t:line, speak:true};
+    }
+    // 2) A new lead since last time — real and time-sensitive.
+    if(nl>(seen.leads||0)){
+      const d=nl-(seen.leads||0); seen.leads=nl; _bbSaveSeen(seen);
+      const line=es?bbPick([(d===1?'Entró un prospecto nuevo.':'Entraron '+d+' prospectos nuevos.'),(d===1?'Tienes un lead nuevo esperando.':'Tienes '+d+' leads nuevos esperando.')],'aw_lead')
+                   :bbPick([(d===1?'New lead just came in.':d+' new leads just came in.'),(d===1?"There's a fresh lead waiting.":'There are '+d+' fresh leads waiting.')],'aw_lead');
+      return {t:line, speak:true};
+    }
+    if(nl<(seen.leads||0)){ seen.leads=nl; _bbSaveSeen(seen); }   // keep the watermark honest; never re-announce
+    // 3) A quick reopen — nothing changed in seconds. Mostly nothing; now and then a human beat.
+    let away=Infinity; try{ const last=Number(localStorage.getItem('bt_bb_lastopen')||0); if(last) away=(Date.now()-last)/1000; }catch(_){}
+    if(away<45){ return {t:(es?bbPick(['','','¿Ya de vuelta?'],'aw_quick'):bbPick(['','','Back already?'],'aw_quick')), speak:false}; }
+    // 4) On a job she just continues the work — present, not narrating it.
+    // 5) Nothing changed worth a word. Silence is the honest answer.
+    return {t:'', speak:false};
+  }catch(_){ return {t:'', speak:false}; }
+}
+// On open she speaks ONLY what awareness surfaced — and only when it's speech-worthy.
+// No manufactured greeting: if awareness is silent, she is silent, whatever the mode.
 function bbMaybeBrief(){
   try{
     if(!('speechSynthesis' in window) || !TTS_ON) return;
-    const mode=bbBriefMode(); if(mode==='silent') return;
-    if(mode==='exceptions' && bbHealth()==='calm') return;
-    const say=(BBC.thread[0]&&BBC.thread[0].seed&&BBC.thread[0].content)||bbOpeningLine(); if(!say) return;   // speak exactly what's shown
+    if(bbBriefMode()==='silent') return;            // the mute overrides everything
+    const op=bbOpenState; if(!op || !op.t || !op.speak) return;   // awareness said nothing to say
     setTimeout(()=>{ if(!bbPanelOpen() || BBC.recording) return;
       bbSetState('speaking');
-      bbSpeak(say, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
+      bbSpeak(op.t, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
     }, 500);
   }catch(_){}
 }
@@ -2778,10 +2826,12 @@ function bbOpenPanel(){
   const p=document.getElementById('bbPanel'), s=document.getElementById('bbScrim'); if(!p) return;
   bbActivity(); if(typeof loadBrain==='function') loadBrain();
   bbSessionStart=Date.now();   // start of this working session (feeds her energy/memory)
-  // Every open starts clean — the assistant greets you in the ready state and
-  // never reopens mid-transcript. The conversation is ephemeral to this session,
-  // like talking to a person: you walk up fresh, you don't resume a chat log.
-  BBC.thread = [{role:'assistant', seed:true, content:bbOpeningLine()}];
+  // Every open starts clean — never reopens mid-transcript. The conversation is
+  // ephemeral to this session, like talking to a person: you walk up fresh, you don't
+  // resume a chat log. Law XV: she opens with awareness, not a greeting — a real change
+  // worth a word, or nothing at all (an empty thread = she looked up and kept working).
+  bbOpenState = bbAwareOpening();
+  BBC.thread = bbOpenState.t ? [{role:'assistant', seed:true, content:bbOpenState.t}] : [];
   p.innerHTML = `
     <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> ${esc(AI.name)} <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
     <div class="bb-conv" id="bbConv"></div>
