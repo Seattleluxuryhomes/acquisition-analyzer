@@ -2584,7 +2584,7 @@ function bbMaybeBrief(){
     setTimeout(()=>{ if(!bbPanelOpen() || BBC.recording) return;
       bbSetState('speaking');
       bbSpeak(say, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
-    }, 850);
+    }, 500);
   }catch(_){}
 }
 // The spoken-state label: Ready → Listening → Thinking → Responding (jobsite-plain).
@@ -2826,15 +2826,24 @@ function bbShowType(){
   if(f){ f.classList.add('show'); f.focus(); }
   if(link) link.style.display='none';
 }
+// Interaction-time telemetry — from "you stopped talking" to "she answered". Goal: faster
+// conversations, not just faster speech. Watch the console; keeps a rolling average.
+let bbTurnStart=0, _bbTurns=[];
+function bbLogTurn(ms){ _bbTurns.push(ms); if(_bbTurns.length>20) _bbTurns.shift();
+  const avg=Math.round(_bbTurns.reduce((a,b)=>a+b,0)/_bbTurns.length);
+  try{ console.debug('[Eden] turn '+ms+'ms · avg '+avg+'ms ('+_bbTurns.length+')'); }catch(_){} }
 async function bbConvSend(text){
   const inp=document.getElementById('bbInput');
   const msg=(text!=null?String(text):(inp?inp.value:'')).trim(); if(!msg||BBC.busy) return;
   if(inp) inp.value='';
   bbActivity(); BBC.thread.push({role:'user',content:msg}); bbThreadSave();
   BBC.busy=true; bbConvRender(); bbStartThinking(msg); bbSetState('thinking'); bbAk('thinking');
+  const _turnT0=bbTurnStart||Date.now();   // measure the whole turn (you stop talking → she answers)
   try{
     const payload=BBC.thread.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role,content:m.content}));
     const r=await api('/api/brain/chat',{method:'POST', body:JSON.stringify({messages:payload, now:bbNow(), ai:{name:AI.name, pronoun:AI.pronoun}})});
+    try{ bbLogTurn(Date.now()-_turnT0); }catch(_){}    // interaction-time telemetry
+    bbTurnStart=0;
     BBC.busy=false;
     let reply=(r&&r.reply)||t('bb_err_reply');
     // Bid Brain *does* the work: if the reply carried a scheduling directive, write it
@@ -2907,6 +2916,7 @@ async function bbConvMic(){
     const blob=new Blob(BBC.recChunks,{type:mime||'audio/webm'}); BBC.recording=false;
     // Armed but nothing said (or too short) → stand down gently, never dead-end.
     if(blob.size<700 || !heardSpeech){ bbSetState('idle'); bbAkAuto(); bbSayLocal(bbNudge()); return; }
+    bbTurnStart=Date.now();   // clock starts the moment you stop talking
     bbThinkNote='Getting that down…'; bbSetState('thinking'); bbAk('thinking'); BBC.busy=true; bbConvRender();
     try{
       const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
@@ -2940,7 +2950,7 @@ function bbEnterReady(autostart){
   bbSetState('ready'); bbAk('idle');
   const mic=document.getElementById('bbMicBtn'); if(mic) mic.classList.add('ready');
   bbHint(t('bb_ready_hint')); buzz(14); bbChime();
-  if(autostart){ bbReadyTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording && bbPanelOpen()) bbConvMic(); }, 440); }
+  if(autostart){ bbReadyTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording && bbPanelOpen()) bbConvMic(); }, 300); }
   // No answer after a while → stand down gracefully and invite the next step.
   bbNudgeTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording){ const m=document.getElementById('bbMicBtn'); if(m) m.classList.remove('ready'); bbSetState('idle'); bbSayLocal(bbNudge()); } }, 9000);
 }
@@ -2959,7 +2969,7 @@ function bbConvVADStart(stream){
     const AC=window.AudioContext||window.webkitAudioContext; if(!AC){ bbCV={ctx:null,raf:null,spoke:true,quietAt:0,t0:Date.now()}; return; }
     const ctx=new AC(); const src=ctx.createMediaStreamSource(stream); const an=ctx.createAnalyser(); an.fftSize=1024; an.smoothingTimeConstant=0.7; src.connect(an);
     const buf=new Uint8Array(an.fftSize); bbCV={ ctx, raf:null, spoke:false, quietAt:0, t0:Date.now() };
-    const SPEAK=0.022, TRAIL_MS=1500, NOSPEECH_MS=6000, MIN_MS=500;
+    const SPEAK=0.022, TRAIL_MS=1050, NOSPEECH_MS=6000, MIN_MS=500;
     const tick=()=>{
       if(!BBC.recording){ return; }
       an.getByteTimeDomainData(buf); let sum=0; for(let i=0;i<buf.length;i++){ const v=(buf[i]-128)/128; sum+=v*v; } const rms=Math.sqrt(sum/buf.length); const now=Date.now();
@@ -4261,14 +4271,14 @@ let TTS_ON = localStorage.getItem('bt_tts')!=='off';
  * offline. Cloud (warmer voices) drops in behind selectProvider() when we want
  * it — gated on cost, so we don't burn API calls on every spoken line.        */
 const VOICE_PROFILES = {
-  warm:        { label:'Warm',         provider:'browser', voiceId:'', rate:1.06, pitch:1.0,  lang:'en',   tone:'friendly, encouraging',  fallback:'professional' },
-  professional:{ label:'Professional', provider:'browser', voiceId:'', rate:1.05, pitch:0.98, lang:'en',   tone:'clear, businesslike',    fallback:'warm' },
-  confident:   { label:'Confident',    provider:'browser', voiceId:'', rate:1.08, pitch:0.96, lang:'en',   tone:'assured, steady',        fallback:'professional' },
-  jobsite:     { label:'Jobsite',      provider:'browser', voiceId:'', rate:1.03, pitch:0.97, lang:'en',   tone:'loud, plain, direct',    fallback:'confident' },
-  executive:   { label:'Executive',    provider:'browser', voiceId:'', rate:1.0,  pitch:0.95, lang:'en',   tone:'calm, authoritative',    fallback:'professional' },
-  coach:       { label:'Coach',        provider:'browser', voiceId:'', rate:1.06, pitch:1.03, lang:'en',   tone:'upbeat, motivating',     fallback:'warm' },
-  spanish:     { label:'Español',      provider:'browser', voiceId:'', rate:1.04, pitch:1.0,  lang:'es',   tone:'cálido, claro',          fallback:'warm' },
-  bilingual:   { label:'Bilingual',    provider:'browser', voiceId:'', rate:1.05, pitch:1.0,  lang:'auto', tone:'switches EN/ES per line',fallback:'warm' },
+  warm:        { label:'Warm',         provider:'browser', voiceId:'', rate:1.32, pitch:1.0,  lang:'en',   tone:'friendly, encouraging',  fallback:'professional' },
+  professional:{ label:'Professional', provider:'browser', voiceId:'', rate:1.30, pitch:0.98, lang:'en',   tone:'clear, businesslike',    fallback:'warm' },
+  confident:   { label:'Confident',    provider:'browser', voiceId:'', rate:1.34, pitch:0.96, lang:'en',   tone:'assured, steady',        fallback:'professional' },
+  jobsite:     { label:'Jobsite',      provider:'browser', voiceId:'', rate:1.28, pitch:0.97, lang:'en',   tone:'loud, plain, direct',    fallback:'confident' },
+  executive:   { label:'Executive',    provider:'browser', voiceId:'', rate:1.25, pitch:0.95, lang:'en',   tone:'calm, authoritative',    fallback:'professional' },
+  coach:       { label:'Coach',        provider:'browser', voiceId:'', rate:1.33, pitch:1.03, lang:'en',   tone:'upbeat, motivating',     fallback:'warm' },
+  spanish:     { label:'Español',      provider:'browser', voiceId:'', rate:1.30, pitch:1.0,  lang:'es',   tone:'cálido, claro',          fallback:'warm' },
+  bilingual:   { label:'Bilingual',    provider:'browser', voiceId:'', rate:1.31, pitch:1.0,  lang:'auto', tone:'switches EN/ES per line',fallback:'warm' },
 };
 function bbVoiceKey(){ const k=localStorage.getItem('bt_voice'); if(k && VOICE_PROFILES[k]) return k; return (((SETTINGS&&SETTINGS.from)||LANG)==='es')?'spanish':'warm'; }
 function bbActiveProfile(){ return VOICE_PROFILES[bbVoiceKey()] || VOICE_PROFILES.warm; }
@@ -4331,7 +4341,7 @@ function bbSpeak(text, opts){
     const lang = prof.lang==='auto' ? (/[áéíóúñ¿¡]/i.test(say)?'es':'en') : prof.lang;
     const u=new SpeechSynthesisUtterance(say);
     const v=bbPickVoice(lang); if(v){ u.voice=v; u.lang=v.lang; } else { u.lang = (lang==='es'?'es-ES':'en-US'); }
-    u.rate=prof.rate||1.05; u.pitch=prof.pitch||1.0; u.volume=1;
+    u.rate=prof.rate||1.30; u.pitch=prof.pitch||1.0; u.volume=1;
     _bbSpeaking=true; _bbSpokeLast=say;
     let done=false; const fin=()=>{ if(done) return; done=true; _bbSpeaking=false; clearTimeout(t2); onEnd(); };
     u.onend=fin; u.onerror=fin;
