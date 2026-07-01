@@ -2396,9 +2396,9 @@ let bbState='idle', bbErrTimer=null;
 const BB_STATES=['idle','ready','listening','thinking','speaking','working','learning','success','error'];
 // The orb's soul-color when at rest reflects the health of the business — honest, never invented:
 // calm blue = under control · amber = a few things need you · red = something urgent.
-function bbHealth(){ try{ const b=(window.BRAIN&&BRAIN.briefing)||{};
+function bbHealth(){ try{ const b=(window.BRAIN&&BRAIN.briefing)||{}; const g=(window.BRAIN&&BRAIN.greeting)||{};
   if((b.overdue&&b.overdue.length)||b.urgent) return 'urgent';
-  if((b.followups&&b.followups.length)||(b.awaiting&&b.awaiting.length)) return 'attention';
+  if((g.awaitingSignature||0)>0 || (g.followupsDue||0)>0 || (b.followups&&b.followups.length)||(b.awaiting&&b.awaiting.length)) return 'attention';
   return 'calm'; }catch(_){ return 'calm'; } }
 const BB_HEALTH_RGB={calm:'96,164,255', attention:'255,176,64', urgent:'240,90,80'};
 function bbHealthRGB(){ return BB_HEALTH_RGB[bbHealth()]||BB_HEALTH_RGB.calm; }
@@ -2460,6 +2460,38 @@ function bbLifeTick(){ if(!bbLifeOn) return;
 function bbLifeStart(){ if(bbLifeOn) return; bbLifeOn=true; clearTimeout(bbLifeTimer); bbLifeTimer=setTimeout(bbLifeTick, 700); }
 // One warm pulse after a job well done — acknowledgement, no words.
 function bbWarmPulse(){ const m=document.getElementById('bbMicBtn'); if(m){ m.classList.remove('bb-warm'); void m.offsetWidth; m.classList.add('bb-warm'); setTimeout(()=>m.classList.remove('bb-warm'), 1600); } }
+/* ===== The Chief-of-Staff briefing — she walks in and tells you what needs you =====
+   Content is composed ONLY from real greeting counts (Trust: never invent activity).
+   When there's nothing, she says so plainly instead of manufacturing urgency. */
+function bbBriefMode(){ const m=localStorage.getItem('bt_bb_brief'); return (m==='silent'||m==='always'||m==='exceptions')?m:'exceptions'; }
+function setBriefMode(m){ if(m==='silent'||m==='always'||m==='exceptions'){ localStorage.setItem('bt_bb_brief', m); if(state.view==='settings') render(); } }
+function bbSpokenBriefing(){
+  try{
+    const dd=bbGreetData(); const g=dd.g||{};
+    const hi=dd.greet+(dd.first?(', '+dd.first):'')+'.';
+    const aw=g.awaitingSignature||0, fu=g.followupsDue||0, items=[];
+    if(aw) items.push(aw===1?'one estimate waiting on a signature':aw+' estimates waiting on signatures');
+    if(fu) items.push(fu===1?"one follow-up I'd recommend making":fu+" follow-ups I'd recommend making");
+    if(!items.length) return hi+" Everything's running smoothly today. What would you like to work on?";
+    const list = items.length===1 ? items[0] : items.slice(0,-1).join(', ')+' and '+items[items.length-1];
+    if(bbHealth()==='urgent') return hi+" Before we begin — "+list+". I'd start there.";
+    return hi+" Everything's looking good. You have "+list+". Which would you like to tackle first?";
+  }catch(_){ try{ const dd=bbGreetData(); return (dd.greet||'Hello')+(dd.first?', '+dd.first:'')+". What would you like to work on?"; }catch(e){ return ''; } }
+}
+// On open, she enters the room: a beat, then a spoken briefing — gated by the setting
+// and the mute. Silent = never; Only-when-important = only if something needs you; Always = every time.
+function bbMaybeBrief(){
+  try{
+    if(!('speechSynthesis' in window) || !TTS_ON) return;
+    const mode=bbBriefMode(); if(mode==='silent') return;
+    if(mode==='exceptions' && bbHealth()==='calm') return;
+    const say=bbSpokenBriefing(); if(!say) return;
+    setTimeout(()=>{ if(!bbPanelOpen() || BBC.recording) return;
+      bbSetState('speaking');
+      bbSpeak(say, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
+    }, 850);
+  }catch(_){}
+}
 // The spoken-state label: Ready → Listening → Thinking → Responding (jobsite-plain).
 function bbStateText(s){
   if(s==='listening') return t('bb_state_listening');
@@ -2645,6 +2677,7 @@ function bbOpenPanel(){
   bbConvRender(); bbApplyHealth(); bbPhStart();
   // The hint teaches, then disappears forever — once they've used their voice a few times.
   { const th=document.getElementById('bbTapHint'); if(th && Number(localStorage.getItem('bt_bb_voicewins')||0)>=3) th.style.display='none'; }
+  bbMaybeBrief();   // she walks in and briefs you (per the setting + mute)
 }
 function bbConvRender(){
   const c=document.getElementById('bbConv'); if(!c) return;
@@ -4154,7 +4187,9 @@ function bbSpeak(text, opts){
   opts=opts||{};
   const onEnd=typeof opts.onEnd==='function'?opts.onEnd:function(){};
   if(!TTS_ON || !('speechSynthesis' in window)){ onEnd(); return; }
-  const say=bbSpokenSummary(text);
+  // Normally we speak only the first sentence (fast, jobsite attention); a briefing
+  // speaks in full so she can actually brief you.
+  const say = opts.full ? String(text||'').replace(/\[\[[^\]]*\]\]/g,'').replace(/[*_`#>]/g,'').replace(/\s+/g,' ').trim() : bbSpokenSummary(text);
   if(!say){ onEnd(); return; }
   try{
     speechSynthesis.cancel();
@@ -4168,7 +4203,7 @@ function bbSpeak(text, opts){
     u.onend=fin; u.onerror=fin;
     // Safety net: some mobile engines never fire onend. Estimate generously so we
     // never arm the mic mid-sentence; real onend almost always wins this race.
-    const t2=setTimeout(fin, Math.min(15000, 1800 + say.length*95));
+    const t2=setTimeout(fin, opts.full ? Math.min(32000, 2200 + say.length*80) : Math.min(15000, 1800 + say.length*95));
     speechSynthesis.speak(u);
   }catch(_){ _bbSpeaking=false; onEnd(); }
 }
@@ -5579,6 +5614,16 @@ async function vizRender(){
   setTimeout(poll, 2500);
 }
 function closeVizResult(){ const el=document.getElementById('vizResult'); if(el) el.style.display='none'; if(state.view==='job') render(); }
+// How much Bid Brain says out loud when you open her — the contractor's call.
+function bbBriefSeg(){
+  const cur=(typeof bbBriefMode==='function')?bbBriefMode():'exceptions';
+  const opt=(v,lab)=>`<button class="segbtn ${cur===v?'on':''}" onclick="setBriefMode('${v}')">${lab}</button>`;
+  return `<div class="appearance">
+    <label class="fld" style="margin-top:16px">Bid Brain briefing</label>
+    <div class="seg">${opt('silent','Silent')}${opt('exceptions','When it matters')}${opt('always','Always')}</div>
+    <div class="hint">When you open Bid Brain, how much should she say out loud? <b>Silent</b> — never. <b>When it matters</b> — only when something needs you. <b>Always</b> — greets you with your daily briefing. She only ever speaks from real activity, never invented.</div>
+  </div>`;
+}
 function themeSeg(){
   const cur=themeChoice();
   const opt=(v,lab)=>`<button class="segbtn ${cur===v?'on':''}" onclick="setTheme('${v}')">${lab}</button>`;
@@ -5596,6 +5641,7 @@ function viewSettings(){
   return `<div class="h-eyebrow">Setup</div><h1 class="page">Your business</h1>
     <div class="sub">This appears on the proposals you send. Synced to your account.</div>
     ${themeSeg()}
+    ${bbBriefSeg()}
     <label class="fld">Company logo (shows on your bids &amp; PDF)</label>
     <div class="logo-row">
       ${SETTINGS.logo?`<img class="logo-preview" src="${SETTINGS.logo}" alt="logo"/>`:`<div class="logo-empty">No logo yet</div>`}
