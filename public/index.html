@@ -1178,7 +1178,7 @@
 <div class="app">
   <div class="top" id="topbar" style="display:none">
     <div class="top-in">
-      <div class="brand"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<b2>translator</b2></div>
+      <div class="brand"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<b2>Voice</b2></div>
       <div class="top-actions">
         <button class="trial-chip" id="trialChip" style="display:none" onclick="go('paywall')"></button>
         <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
@@ -3369,7 +3369,7 @@ function viewAuth(){
   if(m==='welcome') return viewWelcome();
   const card = m==='forgot' ? authForgotCard() : m==='reset' ? authResetCard() : authSigninCard(m==='signup');
   return `<div class="auth">
-    <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">translator</span></div>
+    <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">Voice</span></div>
     <div class="auth-hero">
       <div class="auth-mic">${icon('mic',34)}</div>
       <div class="auth-hero-h">${esc(t('auth_hero_h'))}</div>

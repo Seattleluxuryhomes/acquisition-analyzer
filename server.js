@@ -238,7 +238,7 @@ app.post("/api/auth/reset-confirm", wrap((req, res) => {
 }));
 function resetEmailHtml(link) {
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
-    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
+    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">Voice</span></div>
     <h2 style="margin:18px 0 8px">Reset your password</h2>
     <p style="color:#5a5240">Tap the button below to set a new password. This link expires in 1 hour.</p>
     <p style="margin:22px 0"><a href="${link}" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Set a new password</a></p>
@@ -250,7 +250,7 @@ function resetEmailHtml(link) {
 function leadEmailHtml(lead, appUrl) {
   const row = (k, v) => v ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68">${k}</td><td style="padding:4px 0;font-weight:600">${esc(v)}</td></tr>` : "";
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
-    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
+    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">Voice</span></div>
     <h2 style="margin:18px 0 6px">📥 New estimate request</h2>
     <p style="color:#5a5240">Someone just asked you for an estimate. Reach out while it's hot.</p>
     <table style="margin:14px 0;font-size:.96rem">${row("Name", lead.name)}${row("Phone", lead.phone)}${row("Email", lead.email)}${row("Project", lead.job_type)}${row("Area", lead.city)}${lead.message ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68;vertical-align:top">Details</td><td style="padding:4px 0">${esc(lead.message)}</td></tr>` : ""}</table>
@@ -550,7 +550,7 @@ app.post("/api/admin/onboard", requireAuth, requireAdmin, wrap(async (req, res) 
 function onboardEmailHtml(link, from, note) {
   const who = from && from.name ? escHtml(from.name) : (from && from.company && from.company !== "Your Company" ? escHtml(from.company) : "We");
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
-    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
+    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">Voice</span></div>
     <h2 style="margin:18px 0 8px">Your account is ready</h2>
     <p style="color:#5a5240">${who} set you up on BidVoice — talk a job out loud and it writes a clean, priced bid in your client's language. ${note ? escHtml(String(note)) : "Tap below to set your password and take a look."}</p>
     <p style="margin:22px 0"><a href="${link}" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Set your password &amp; get started</a></p>
