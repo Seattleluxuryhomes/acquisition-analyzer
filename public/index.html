@@ -2377,9 +2377,11 @@ function viewBrain(){
   const rawCo=(USER&&USER.company)||SETTINGS.company||'';
   const co=(rawCo&&rawCo!=='Your Company')?rawCo:'';
   const nm=String((USER&&USER.name)||SETTINGS.name||co||'').trim();
-  const first=nm.split(/\s+/)[0]||'';
-  const h=new Date().getHours();
-  const greet = h<12?t('bb_morning'):h<18?t('bb_afternoon'):t('bb_evening');
+  const es=(typeof LANG!=='undefined'&&LANG==='es');
+  // Law XV: no scripted "Good <time>, Name." headline. Lead with a short, non-repeating
+  // line; the real, honest counts live in the pulse row just below.
+  const head = bbPick(es?['¿Qué construimos?','Cuando quieras.','¿Por dónde empezamos?','¿Qué necesitas?']
+                        :['What are we building?','Ready when you are.','Where do you want to start?','What do you need?'],'bv_head');
   const pulse=[];
   if(g.activeEstimates>0) pulse.push(g.activeEstimates+' '+(g.activeEstimates===1?t('bb_active_one'):t('bb_active_many')));
   if(g.followupsDue>0) pulse.push(g.followupsDue+' '+t('bb_followups'));
@@ -2395,7 +2397,7 @@ function viewBrain(){
     ? `<div class="bb-mem">${bbMark(14)} ${esc(t('bb_remembers'))} ${esc(bbPrettyTrade(m.last_trade))}${(m.typical_markup!=null)?` · ${esc(t('bb_markup'))} ${m.typical_markup}%`:''}</div>` : '';
   return `<div class="brain">
     <div class="bb-greet">
-      <div class="bb-hi">${esc(greet)}${first?', '+esc(first):''}.</div>
+      <div class="bb-hi">${esc(head)}</div>
       ${pulse.length ? `<div class="bb-pulse">${pulse.map(p=>`<span class="bb-dot">${esc(p)}</span>`).join('')}</div>`
                      : `<div class="bb-pulse empty">${esc(t('bb_firstrun'))}</div>`}
       <div class="bb-prompt">${esc(t('bb_prompt'))}</div>
@@ -2614,12 +2616,24 @@ function bbAwareOpening(){
       return {t:line, speak:true};
     }
     if(nl<(seen.leads||0)){ seen.leads=nl; _bbSaveSeen(seen); }   // keep the watermark honest; never re-announce
-    // 3) A quick reopen — nothing changed in seconds. Mostly nothing; now and then a human beat.
+    // From here down there's no NEWS — so she never speaks unprompted (speak:false).
+    // She may show a short, contextual line, but never a time-of-day greeting with your name.
+    // 3) Inside a job — speak from the work, not a hello.
+    const j=bbActiveJob();
+    if(j){
+      const line=es?bbPick(['¿Seguimos con este presupuesto?','¿Necesitas fotos, notas o precios?','¿Le seguimos a este trabajo?'],'aw_job')
+                   :bbPick(['Want to keep building this estimate?','Need photos, notes, or pricing?','Want to pick this back up?'],'aw_job');
+      return {t:line, speak:false};
+    }
+    // 4) A quick reopen — she was just here. Light, brief.
     let away=Infinity; try{ const last=Number(localStorage.getItem('bt_bb_lastopen')||0); if(last) away=(Date.now()-last)/1000; }catch(_){}
-    if(away<45){ return {t:(es?bbPick(['','','¿Ya de vuelta?'],'aw_quick'):bbPick(['','','Back already?'],'aw_quick')), speak:false}; }
-    // 4) On a job she just continues the work — present, not narrating it.
-    // 5) Nothing changed worth a word. Silence is the honest answer.
-    return {t:'', speak:false};
+    if(away<120){
+      const line=es?bbPick(['De vuelta contigo.','Aquí sigo.',''],'aw_quick'):bbPick(['Back with you.','Still here.',''],'aw_quick');
+      return {t:line, speak:false};
+    }
+    // 5) Nothing changed — stay quiet, or a short presence line. NEVER a scripted greeting.
+    const line=es?bbPick(['','¿Qué sigue?','Lista.','Aquí estoy.',''],'aw_idle'):bbPick(['',"What's next?",'Ready.',"I'm here.",''],'aw_idle');
+    return {t:line, speak:false};
   }catch(_){ return {t:'', speak:false}; }
 }
 // On open she speaks ONLY what awareness surfaced — and only when it's speech-worthy.
@@ -4340,27 +4354,58 @@ function setVoiceProfile(k){ if(VOICE_PROFILES[k]) localStorage.setItem('bt_voic
 let _bbVoices=[];
 function bbLoadVoices(){ try{ _bbVoices=(window.speechSynthesis&&speechSynthesis.getVoices())||[]; }catch(_){ _bbVoices=[]; } }
 if('speechSynthesis' in window){ bbLoadVoices(); try{ speechSynthesis.onvoiceschanged=bbLoadVoices; }catch(_){ } }
+// Gender heuristics (name-based; system voices rarely tag gender).
+const BB_FEMALE_RE=/samantha|\baria\b|\bjenny\b|\bava\b|\bemma\b|allison|susan|\bzoe\b|\bkaren\b|moira|tessa|fiona|serena|sonia|michelle|\bnora\b|\bnancy\b|paulina|m[oó]nica|\bzira\b|\bcora\b|female|\bwoman\b/i;
+const BB_MALE_RE=/daniel|\balex\b|\bfred\b|aaron|arthur|gordon|rishi|ravi|\bdavid\b|\bmark\b|\bguy\b|reed|eddy|oliver|thomas|\bgeorge\b|\bjames\b|\bjohn\b|diego|carlos|jorge|\bjuan\b|\bmale\b/i;
+// Names that carry a strong Indian/South-Asian accent — off-brand for a clean American Eden.
+const BB_ACCENT_RE=/rishi|veena|lekha|heera|ravi|priya|neerja|kalpana|\bisha\b|aditi|hemant|rashida|\banjali\b/i;
+// Desirability of a voice's LOCALE for the target language. For English, a clean American
+// voice is the brand default; strong regional/international accents are pushed to the back.
+function bbLocaleScore(lang, vlang){
+  vlang=String(vlang||'').toLowerCase().replace(/_/g,'-');
+  if(lang==='en'){
+    if(vlang.startsWith('en-us')) return 100;
+    if(vlang.startsWith('en-ca')) return 55;
+    if(vlang.startsWith('en-gb')) return 42;
+    if(vlang.startsWith('en-au')) return 38;
+    if(vlang.startsWith('en-ie')) return 34;
+    if(/^en-(in|za|ng|ph|ke)/.test(vlang)) return 4;   // strong accent → last resort
+    if(vlang.startsWith('en')) return 22;
+    return -1;
+  }
+  if(lang==='es'){
+    if(/^es-(us|mx|419)/.test(vlang)) return 100;
+    if(vlang.startsWith('es')) return 55;
+    return -1;
+  }
+  return vlang.startsWith(lang)?50:-1;
+}
+function bbVoiceScore(v, lang, wantMale){
+  const name=String(v.name||'');
+  let s=bbLocaleScore(lang, v.lang);
+  if(s<0) return -1;                                    // wrong language entirely
+  if(/natural|neural|premium|enhanced|online/i.test(name)) s+=30;  // high-quality engines
+  if(v.localService) s+=6;
+  const fem=BB_FEMALE_RE.test(name), male=BB_MALE_RE.test(name);
+  if(wantMale){ if(male) s+=26; if(fem) s-=26; } else { if(fem) s+=26; if(male) s-=26; }
+  if(lang==='en' && /samantha|\baria\b|\bjenny\b|\bava\b|\bemma\b|\bmichelle\b|allison|google us english/i.test(name)) s+=22; // known clean en-US
+  if(lang==='en' && BB_ACCENT_RE.test(name)) s-=70;     // never pick an accented voice for Eden
+  return s;
+}
+// Pick the best available voice for the language: a clean, natural en-US voice matching
+// Eden's gender — never whatever the device happens to default to. A user override wins.
 function bbPickVoice(lang){
   if(!_bbVoices.length) bbLoadVoices();
   const want=String(lang||'en').slice(0,2).toLowerCase();
-  const pool=_bbVoices.filter(v=>String(v.lang||'').toLowerCase().startsWith(want));
-  if(!pool.length) return null;
-  // Pick a natural voice matching the ACTIVE identity's gender (config-driven). A robotic
-  // default is the #1 reason TTS feels cheap — prefer named voices, then anything natural.
-  const FEMALE=[/samantha/i,/\baria\b/i,/\bjenny\b/i,/\bava\b/i,/allison/i,/susan/i,/\bzoe\b/i,/\bkaren\b/i,
-    /moira/i,/tessa/i,/fiona/i,/serena/i,/sonia/i,/michelle/i,/\bnora\b/i,/paulina/i,/m[oó]nica/i,/\bzira\b/i,
-    /google (us |uk )?english/i,/google español/i];
-  const MALE_NAMES=[/daniel/i,/\balex\b/i,/\bfred\b/i,/aaron/i,/arthur/i,/gordon/i,/rishi/i,/\bdavid\b/i,/\bmark\b/i,
-    /\bguy\b/i,/reed/i,/eddy/i,/oliver/i,/thomas/i,/\bgeorge\b/i,/\bjames\b/i,/\bjohn\b/i,/diego/i,/carlos/i,/jorge/i,/\bjuan\b/i,/microsoft (guy|davis|tony|jason|christopher|eric)/i];
-  const FEMALE_RE=/samantha|\baria\b|\bjenny\b|\bava\b|allison|susan|\bzoe\b|\bkaren\b|moira|tessa|fiona|serena|sonia|michelle|\bnora\b|paulina|m[oó]nica|\bzira\b|female|\bwoman\b/i;
-  const MALE_RE=/daniel|\balex\b|\bfred\b|aaron|arthur|gordon|rishi|\bdavid\b|\bmark\b|\bguy\b|reed|eddy|oliver|thomas|\bgeorge\b|\bjames\b|\bjohn\b|diego|carlos|jorge|\bjuan\b|\bmale\b/i;
-  const wantMale = (typeof AI!=='undefined' && AI.voice==='male');
-  const PREF = wantMale ? MALE_NAMES : FEMALE;
-  const AVOID = wantMale ? FEMALE_RE : MALE_RE;
-  const natural=v=>/natural|enhanced|premium|neural/i.test(v.name);
-  for(const re of PREF){ const hit=pool.filter(v=>re.test(v.name)); if(hit.length) return hit.find(natural)||hit[0]; }
-  const nf=pool.filter(v=>natural(v) && !AVOID.test(v.name)); if(nf.length) return nf[0];
-  const nm=pool.filter(v=>!AVOID.test(v.name)); return nm.find(v=>v.localService) || nm[0] || pool[0];
+  const wantMale=(typeof AI!=='undefined' && AI.voice==='male');
+  // Explicit user choice from Settings — honored whenever it matches the spoken language.
+  try{ const chosen=localStorage.getItem('bt_voice_dev');
+    if(chosen){ const v=_bbVoices.find(x=>x.voiceURI===chosen||x.name===chosen);
+      if(v && String(v.lang||'').toLowerCase().replace(/_/g,'-').startsWith(want)) return v; }
+  }catch(_){}
+  let best=null, bs=-1;
+  for(const v of _bbVoices){ const sc=bbVoiceScore(v, want, wantMale); if(sc>bs){ bs=sc; best=v; } }
+  return best;   // null only if there are truly no voices for this language
 }
 // Speak a SHORT spoken summary — the question or first sentence — never a wall of
 // text. Details stay on screen; voice stays fast (cost + jobsite attention span).
@@ -5820,6 +5865,26 @@ function aiIdentitySeg(){
     <div class="hint">Live with a name + voice for a few days before committing — switching reloads the app. The platform stays <b>BidVoice</b>; only the assistant's identity changes. Now: <b>${esc(AI.name)}</b> · ${esc(AI.voice)} voice.</div>
   </div>`;
 }
+// Device-voice picker — the brand default is a clean, natural American English voice,
+// but the contractor can override if their device's pick sounds off (accented/robotic).
+function bbVoiceSeg(){
+  try{ if(typeof bbLoadVoices==='function') bbLoadVoices(); }catch(_){}
+  const want=(((SETTINGS&&SETTINGS.from)||LANG)==='es')?'es':'en';
+  const wantMale=(typeof AI!=='undefined'&&AI.voice==='male');
+  const list=(_bbVoices||[]).map(v=>({v,s:bbVoiceScore(v,want,wantMale)})).filter(o=>o.s>=0).sort((a,b)=>b.s-a.s);
+  let cur=''; try{ cur=localStorage.getItem('bt_voice_dev')||''; }catch(_){}
+  const auto=(typeof bbPickVoice==='function')?bbPickVoice(want):null;
+  const opts=['<option value="">Auto — best available'+(auto?(' ('+esc(auto.name)+')'):'')+'</option>']
+    .concat(list.map(o=>{ const id=o.v.voiceURI||o.v.name; return `<option value="${escAttr(id)}" ${id===cur?'selected':''}>${esc(o.v.name)} · ${esc(o.v.lang)}</option>`; }));
+  return `<div class="appearance">
+    <label class="fld" style="margin-top:16px">${esc(AI.name)}'s voice</label>
+    <select class="input" onchange="setBbVoice(this.value)">${opts.join('')}</select>
+    <div class="seg" style="margin-top:8px"><button class="segbtn" onclick="bbTestVoice()">▶ Hear ${esc(AI.name)}</button></div>
+    <div class="hint">A clean, natural American English voice by default. If your device's voice sounds off or accented, pick another here. Voices are provided by your device/browser${list.length?'':' — none detected yet; reopen this screen to load them'}.</div>
+  </div>`;
+}
+function setBbVoice(v){ try{ if(v) localStorage.setItem('bt_voice_dev', v); else localStorage.removeItem('bt_voice_dev'); }catch(_){} if(typeof bbTestVoice==='function') bbTestVoice(); if(state.view==='settings') render(); }
+function bbTestVoice(){ try{ const es=(((SETTINGS&&SETTINGS.from)||LANG)==='es'); bbSpeak(es?('Hola, soy '+AI.name+'. Aquí estoy cuando quieras.'):("Hi, I'm "+AI.name+". I'm ready when you are."), {full:true}); }catch(_){} }
 // How much the assistant says out loud when you open it — the contractor's call.
 function bbBriefSeg(){
   const cur=(typeof bbBriefMode==='function')?bbBriefMode():'exceptions';
@@ -5827,7 +5892,7 @@ function bbBriefSeg(){
   return `<div class="appearance">
     <label class="fld" style="margin-top:16px">Bid Brain briefing</label>
     <div class="seg">${opt('silent','Silent')}${opt('exceptions','When it matters')}${opt('always','Always')}</div>
-    <div class="hint">When you open Bid Brain, how much should she say out loud? <b>Silent</b> — never. <b>When it matters</b> — only when something needs you. <b>Always</b> — greets you with your daily briefing. She only ever speaks from real activity, never invented.</div>
+    <div class="hint">When you open ${esc(AI.name)}, how much should she say out loud? <b>Silent</b> — never speaks. <b>When it matters</b> / <b>Always</b> — she speaks only when something real changed (a deposit landed, a new lead). She never performs a greeting and never invents activity — if nothing changed, she stays quiet.</div>
   </div>`;
 }
 function themeSeg(){
@@ -5849,6 +5914,7 @@ function viewSettings(){
     ${themeSeg()}
     ${bbBriefSeg()}
     ${aiIdentitySeg()}
+    ${bbVoiceSeg()}
     <label class="fld">Company logo (shows on your bids &amp; PDF)</label>
     <div class="logo-row">
       ${SETTINGS.logo?`<img class="logo-preview" src="${SETTINGS.logo}" alt="logo"/>`:`<div class="logo-empty">No logo yet</div>`}
