@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-// Brand guardrail — fails if retired branding resurfaces in user-facing files.
-// Canonical rules: docs/brand-standard.md. Run: `npm run brand-check`.
+// Brand audit — the automated half of Brand Stewardship (see docs/brand-steward.md).
+// Fails CI when the customer-facing brand regresses. High-precision by design: every rule
+// here is unambiguous, so a red result always means a real problem, never noise.
 //
-// Bans (user-visible): "Bidtranslator"/"BidTranslator" (the old brand name) and
-// "bidtranslator.com" (the old domain), anywhere in shipped code/assets.
-// Allowlist: functional internals that are NEVER shown to a user and must not change —
-// the SQLite filename, the dev signing-secret seeds, and the FollowUpBoss X-System key.
+// Rules:
+//   1. Retired brand name/domain ("BidTranslator" / "bidtranslator.com") reaching a user.
+//   2. Wordmark misspelling: "Bid Voice" (space) or "BidVOICE" (caps) — it is one word: BidVoice.
+// Canonical rules: docs/brand-standard.md + brand/BRAND.md. Run: `npm run brand-check`.
+//
+// NOT banned: "Bid Brain" — the identity system renders it as the active name (Eden) at
+// runtime, so it can't reach a user; lowercase "bidvoice" — legit in domains/emails/ids.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
 
@@ -14,16 +18,16 @@ const SCAN_DIRS = ["public", "src"];
 const SCAN_ROOT_FILES = ["server.js"];
 const EXTS = new Set([".js", ".mjs", ".html", ".json", ".xml", ".txt", ".css"]);
 
-// Retired terms that must never reach a user (case-insensitive).
-// (Note: "Bid Brain" is NOT banned here — the identity system always renders it as the active
-//  name (Eden) at runtime, so it can't reach a user; banning it would false-flag that anchor.)
-const BANNED = [/bidtranslator\.com/i, /bid\s*translator/i];
-
-// Exact substrings that are allowed (preserved functional internals — see brand-standard.md).
+// Preserved functional internals that are NEVER shown to a user and must not change.
 const ALLOW = [
   "bidtranslator.db",        // SQLite filename — renaming = data loss
   "bidtranslator-dev-",      // dev signing-secret seed
   '"bidtranslator"',         // FollowUpBoss X-System-Key default
+];
+
+const RULES = [
+  { id: "retired-brand", label: "Retired brand name/domain", res: [/bidtranslator\.com/i, /bid\s*translator/i] },
+  { id: "wordmark",      label: "Wordmark misspelling (it's one word: BidVoice)", res: [/bid\s+voice/i, /BidVOICE/] },
 ];
 
 function files(dir) {
@@ -42,23 +46,28 @@ const targets = [
   ...SCAN_ROOT_FILES.map((f) => join(ROOT, f)),
 ];
 
-let hits = 0;
+const found = new Map(RULES.map((r) => [r.id, []]));
 for (const file of targets) {
   const lines = readFileSync(file, "utf8").split("\n");
   lines.forEach((line, i) => {
-    if (ALLOW.some((a) => line.includes(a))) return;             // preserved internal — skip
-    for (const re of BANNED) {
-      if (re.test(line)) {
-        console.error(`  ${file.replace(ROOT, "")}:${i + 1}  ${line.trim().slice(0, 100)}`);
-        hits++;
-        break;
+    if (ALLOW.some((a) => line.includes(a))) return;
+    for (const rule of RULES) {
+      if (rule.res.some((re) => re.test(line))) {
+        found.get(rule.id).push(`  ${file.replace(ROOT, "")}:${i + 1}  ${line.trim().slice(0, 100)}`);
       }
     }
   });
 }
 
-if (hits) {
-  console.error(`\n✗ brand-check: ${hits} retired-brand reference(s) found. Fix them (see docs/brand-standard.md).`);
+let total = 0;
+for (const rule of RULES) {
+  const hits = found.get(rule.id);
+  total += hits.length;
+  if (hits.length) { console.error(`✗ ${rule.label} (${hits.length}):`); hits.forEach((h) => console.error(h)); }
+}
+
+if (total) {
+  console.error(`\n✗ brand-check: ${total} brand issue(s). Fix them (see docs/brand-steward.md).`);
   process.exit(1);
 }
-console.log("✓ brand-check: clean — no retired branding in user-facing files.");
+console.log(`✓ brand-check: clean — ${RULES.length} rules passed across ${targets.length} user-facing files.`);
