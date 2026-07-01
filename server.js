@@ -725,7 +725,9 @@ app.get("/api/jobs/:id/photos/:pid", (req, res) => {
   if (!row) return res.status(404).send("Not found");
   res.type(row.mime);
   res.setHeader("Cache-Control", "private, max-age=3600");
-  fs.createReadStream(path.join(PHOTO_DIR, row.filename)).pipe(res);
+  const stream = fs.createReadStream(path.join(PHOTO_DIR, row.filename));
+  stream.on("error", () => { if (!res.headersSent) res.status(404).send("Photo file missing"); });
+  stream.pipe(res);
 });
 
 app.delete("/api/jobs/:id/photos/:pid", requireAuth, wrap((req, res) => {
