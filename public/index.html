@@ -4000,10 +4000,17 @@ function bbPickVoice(lang){
   if(!_bbVoices.length) bbLoadVoices();
   const want=String(lang||'en').slice(0,2).toLowerCase();
   const pool=_bbVoices.filter(v=>String(v.lang||'').toLowerCase().startsWith(want));
-  const PREF=[/samantha/i,/\baria\b/i,/\bjenny\b/i,/natural/i,/google (us |uk )?espa|google español/i,/google (us|uk)? ?english/i,/microsoft/i,/\bsiri\b/i,/\bava\b/i,/\bnora\b/i];
-  if(want==='es'){ const sp=pool.find(v=>/google español|mónica|paulina|microsoft|natural/i.test(v.name)); if(sp) return sp; }
-  for(const re of PREF){ const v=pool.find(v=>re.test(v.name)); if(v) return v; }
-  return pool.find(v=>v.localService) || pool[0] || null;
+  if(!pool.length) return null;
+  // Prefer a natural, FEMALE voice. A robotic or male default is the #1 reason TTS
+  // feels cheap — pick named women first, then anything natural, never a known male.
+  const FEMALE=[/samantha/i,/\baria\b/i,/\bjenny\b/i,/\bava\b/i,/allison/i,/susan/i,/\bzoe\b/i,/\bkaren\b/i,
+    /moira/i,/tessa/i,/fiona/i,/serena/i,/sonia/i,/michelle/i,/\bnora\b/i,/paulina/i,/m[oó]nica/i,/\bzira\b/i,
+    /google (us |uk )?english/i,/google español/i];
+  const MALE=/daniel|\balex\b|\bfred\b|aaron|arthur|gordon|rishi|\bdavid\b|\bmark\b|\bguy\b|reed|eddy|\bmale\b/i;
+  const natural=v=>/natural|enhanced|premium|neural/i.test(v.name);
+  for(const re of FEMALE){ const hit=pool.filter(v=>re.test(v.name)); if(hit.length) return hit.find(natural)||hit[0]; }
+  const nf=pool.filter(v=>natural(v) && !MALE.test(v.name)); if(nf.length) return nf[0];
+  const nm=pool.filter(v=>!MALE.test(v.name)); return nm.find(v=>v.localService) || nm[0] || pool[0];
 }
 // Speak a SHORT spoken summary — the question or first sentence — never a wall of
 // text. Details stay on screen; voice stays fast (cost + jobsite attention span).
