@@ -4321,14 +4321,16 @@ let TTS_ON = localStorage.getItem('bt_tts')!=='off';
  * offline. Cloud (warmer voices) drops in behind selectProvider() when we want
  * it — gated on cost, so we don't burn API calls on every spoken line.        */
 const VOICE_PROFILES = {
-  warm:        { label:'Warm',         provider:'browser', voiceId:'', rate:1.32, pitch:1.0,  lang:'en',   tone:'friendly, encouraging',  fallback:'professional' },
-  professional:{ label:'Professional', provider:'browser', voiceId:'', rate:1.30, pitch:0.98, lang:'en',   tone:'clear, businesslike',    fallback:'warm' },
-  confident:   { label:'Confident',    provider:'browser', voiceId:'', rate:1.34, pitch:0.96, lang:'en',   tone:'assured, steady',        fallback:'professional' },
-  jobsite:     { label:'Jobsite',      provider:'browser', voiceId:'', rate:1.28, pitch:0.97, lang:'en',   tone:'loud, plain, direct',    fallback:'confident' },
-  executive:   { label:'Executive',    provider:'browser', voiceId:'', rate:1.25, pitch:0.95, lang:'en',   tone:'calm, authoritative',    fallback:'professional' },
-  coach:       { label:'Coach',        provider:'browser', voiceId:'', rate:1.33, pitch:1.03, lang:'en',   tone:'upbeat, motivating',     fallback:'warm' },
-  spanish:     { label:'Español',      provider:'browser', voiceId:'', rate:1.30, pitch:1.0,  lang:'es',   tone:'cálido, claro',          fallback:'warm' },
-  bilingual:   { label:'Bilingual',    provider:'browser', voiceId:'', rate:1.31, pitch:1.0,  lang:'auto', tone:'switches EN/ES per line',fallback:'warm' },
+  // Calm, capable, efficient — a sharp PM who respects your time, never speed-reading.
+  // Slightly quicker than a flat baseline, but measured; back it off if it ever sounds hurried.
+  warm:        { label:'Warm',         provider:'browser', voiceId:'', rate:1.15, pitch:1.0,  lang:'en',   tone:'friendly, encouraging',  fallback:'professional' },
+  professional:{ label:'Professional', provider:'browser', voiceId:'', rate:1.14, pitch:0.98, lang:'en',   tone:'clear, businesslike',    fallback:'warm' },
+  confident:   { label:'Confident',    provider:'browser', voiceId:'', rate:1.16, pitch:0.96, lang:'en',   tone:'assured, steady',        fallback:'professional' },
+  jobsite:     { label:'Jobsite',      provider:'browser', voiceId:'', rate:1.13, pitch:0.97, lang:'en',   tone:'loud, plain, direct',    fallback:'confident' },
+  executive:   { label:'Executive',    provider:'browser', voiceId:'', rate:1.10, pitch:0.95, lang:'en',   tone:'calm, authoritative',    fallback:'professional' },
+  coach:       { label:'Coach',        provider:'browser', voiceId:'', rate:1.17, pitch:1.03, lang:'en',   tone:'upbeat, motivating',     fallback:'warm' },
+  spanish:     { label:'Español',      provider:'browser', voiceId:'', rate:1.14, pitch:1.0,  lang:'es',   tone:'cálido, claro',          fallback:'warm' },
+  bilingual:   { label:'Bilingual',    provider:'browser', voiceId:'', rate:1.15, pitch:1.0,  lang:'auto', tone:'switches EN/ES per line',fallback:'warm' },
 };
 function bbVoiceKey(){ const k=localStorage.getItem('bt_voice'); if(k && VOICE_PROFILES[k]) return k; return (((SETTINGS&&SETTINGS.from)||LANG)==='es')?'spanish':'warm'; }
 function bbActiveProfile(){ return VOICE_PROFILES[bbVoiceKey()] || VOICE_PROFILES.warm; }
@@ -4391,7 +4393,7 @@ function bbSpeak(text, opts){
     const lang = prof.lang==='auto' ? (/[áéíóúñ¿¡]/i.test(say)?'es':'en') : prof.lang;
     const u=new SpeechSynthesisUtterance(say);
     const v=bbPickVoice(lang); if(v){ u.voice=v; u.lang=v.lang; } else { u.lang = (lang==='es'?'es-ES':'en-US'); }
-    u.rate=prof.rate||1.30; u.pitch=prof.pitch||1.0; u.volume=1;
+    u.rate=prof.rate||1.15; u.pitch=prof.pitch||1.0; u.volume=1;
     _bbSpeaking=true; _bbSpokeLast=say;
     let done=false; const fin=()=>{ if(done) return; done=true; _bbSpeaking=false; clearTimeout(t2); onEnd(); };
     u.onend=fin; u.onerror=fin;
