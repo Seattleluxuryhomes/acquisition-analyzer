@@ -803,12 +803,14 @@ app.get("/api/brain", requireAuth, (req, res) => res.json(Memory.brain(req.user.
 app.post("/api/brain/chat", requireAuth, wrap(async (req, res) => {
   const messages = (req.body && req.body.messages) || [];
   const now = String((req.body && req.body.now) || "").slice(0, 80);   // client's local date/time for relative scheduling
+  const rawAi = (req.body && req.body.ai) || {};                        // the active AI identity (Name Trial System)
+  const ai = { name: String(rawAi.name || "Bid Brain").slice(0, 40), pronoun: (rawAi.pronoun === "he" ? "he" : rawAi.pronoun === "they" ? "they" : "she") };
   const snapshot = Memory.businessSnapshot(req.user.id, req.user);
   if (!aiConfigured() || !Billing.isEntitled(req.user)) {
     return res.json({ ...localBrainReply(snapshot, messages), source: "local" });
   }
   try {
-    const out = await bidBrainChat(req.user, { messages, snapshot, now });
+    const out = await bidBrainChat(req.user, { messages, snapshot, now, ai });
     track(req.user.id, "brain_chat", { action: out.action || (out.schedule ? "schedule:" + out.schedule.intent : "") });
     res.json({ ...out, source: "ai" });
   } catch (e) {

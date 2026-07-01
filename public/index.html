@@ -1602,7 +1602,25 @@ const I18N = {
     onb_v_paid:"Te ayudo a cobrar.",
   },
 };
-function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); return v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); }
+/* ===== AI Identity — a permanent Name Trial System =====
+   The platform is BidVoice; the AI employee's identity (name + voice + pronoun) is
+   configurable so we can live with Eden, then Silas, then Vera… by changing ONE thing —
+   never a rename. Switch the default below, or flip it live in Settings (dev). Every
+   piece of copy that said "Bid Brain" now renders the active name automatically. */
+const AI_IDENTITIES = {
+  eden:  { name:'Eden',  voice:'female', pronoun:'she' },
+  silas: { name:'Silas', voice:'male',   pronoun:'he'  },
+  vera:  { name:'Vera',  voice:'female', pronoun:'she' },
+  nora:  { name:'Nora',  voice:'female', pronoun:'she' },
+  dion:  { name:'Dion',  voice:'male',   pronoun:'he'  },
+};
+const AI_DEFAULT = 'eden';                         // ← the single config change to switch identity
+function aiKey(){ try{ const k=localStorage.getItem('bt_ai_id'); return (k&&AI_IDENTITIES[k])?k:AI_DEFAULT; }catch(_){ return AI_DEFAULT; } }
+const AI = AI_IDENTITIES[aiKey()] || AI_IDENTITIES[AI_DEFAULT];
+function setAiIdentity(k){ if(AI_IDENTITIES[k]){ try{ localStorage.setItem('bt_ai_id', k); }catch(_){} location.reload(); } }
+// Swap the legacy label for the active name in any displayed string (fast no-op when unchanged).
+function aiText(s){ return (typeof s==='string' && AI.name!=='Bid Brain' && s.indexOf('Bid Brain')>=0) ? s.split('Bid Brain').join(AI.name) : s; }
+function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); const r = v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); return (typeof r==='string') ? aiText(r) : r; }
 function setLang(l){ if(l!=='en'&&l!=='es') return; LANG=l; try{ localStorage.setItem('bt_lang',l); }catch(e){} try{ document.documentElement.lang=l; }catch(e){} render(); }
 try{ document.documentElement.lang = LANG; }catch(e){}
 
@@ -2565,6 +2583,7 @@ let bbIdleSince=Date.now(), bbDriftTimer=null;
 function bbActivity(){ bbIdleSince=Date.now(); }
 function bbInit(){
   const d=document.getElementById('bbDock'); if(!d||bbInited) return; bbInited=true;
+  try{ d.setAttribute('aria-label', AI.name+' — tap to open, hold to talk'); const p=document.getElementById('bbPanel'); if(p) p.setAttribute('aria-label', AI.name); }catch(_){}
   let pos=null; try{ pos=JSON.parse(localStorage.getItem('bb_pos')||'null'); }catch(e){}
   bbPlace(pos);
   window.addEventListener('resize', ()=>bbPlace(bbGetPos()));
@@ -2717,7 +2736,7 @@ function bbOpenPanel(){
   // like talking to a person: you walk up fresh, you don't resume a chat log.
   BBC.thread = [{role:'assistant', seed:true, content:bbOpeningLine()}];
   p.innerHTML = `
-    <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> Bid Brain <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
+    <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> ${esc(AI.name)} <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
     <div class="bb-conv" id="bbConv"></div>
     <div class="bb-input" id="bbInputBar" data-state="ready">
       <button class="bb-mic-hero" id="bbMicBtn" onclick="bbConvMic()" aria-label="${escAttr(t('bb_talk'))}">
@@ -2768,7 +2787,7 @@ async function bbConvSend(text){
   BBC.busy=true; bbConvRender(); bbStartThinking(msg); bbSetState('thinking'); bbAk('thinking');
   try{
     const payload=BBC.thread.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role,content:m.content}));
-    const r=await api('/api/brain/chat',{method:'POST', body:JSON.stringify({messages:payload, now:bbNow()})});
+    const r=await api('/api/brain/chat',{method:'POST', body:JSON.stringify({messages:payload, now:bbNow(), ai:{name:AI.name, pronoun:AI.pronoun}})});
     BBC.busy=false;
     let reply=(r&&r.reply)||t('bb_err_reply');
     // Bid Brain *does* the work: if the reply carried a scheduling directive, write it
@@ -3260,7 +3279,7 @@ function onbValueRows(){
 }
 function viewWelcome(){
   if(state.onbStep===1){
-    const hello = NATIVE_HELLO[state.onbLang] || NATIVE_HELLO.en;
+    const hello = aiText(NATIVE_HELLO[state.onbLang] || NATIVE_HELLO.en);
     return `<div class="onb onb-step2">
       <button class="onb-back" onclick="onbBack()" aria-label="Back">${icon('chevron',20)}</button>
       <div class="onb-greet">${ONB_ORB(76)}<div class="onb-bub">${esc(hello)}</div></div>
@@ -4217,16 +4236,22 @@ function bbPickVoice(lang){
   const want=String(lang||'en').slice(0,2).toLowerCase();
   const pool=_bbVoices.filter(v=>String(v.lang||'').toLowerCase().startsWith(want));
   if(!pool.length) return null;
-  // Prefer a natural, FEMALE voice. A robotic or male default is the #1 reason TTS
-  // feels cheap — pick named women first, then anything natural, never a known male.
+  // Pick a natural voice matching the ACTIVE identity's gender (config-driven). A robotic
+  // default is the #1 reason TTS feels cheap — prefer named voices, then anything natural.
   const FEMALE=[/samantha/i,/\baria\b/i,/\bjenny\b/i,/\bava\b/i,/allison/i,/susan/i,/\bzoe\b/i,/\bkaren\b/i,
     /moira/i,/tessa/i,/fiona/i,/serena/i,/sonia/i,/michelle/i,/\bnora\b/i,/paulina/i,/m[oó]nica/i,/\bzira\b/i,
     /google (us |uk )?english/i,/google español/i];
-  const MALE=/daniel|\balex\b|\bfred\b|aaron|arthur|gordon|rishi|\bdavid\b|\bmark\b|\bguy\b|reed|eddy|\bmale\b/i;
+  const MALE_NAMES=[/daniel/i,/\balex\b/i,/\bfred\b/i,/aaron/i,/arthur/i,/gordon/i,/rishi/i,/\bdavid\b/i,/\bmark\b/i,
+    /\bguy\b/i,/reed/i,/eddy/i,/oliver/i,/thomas/i,/\bgeorge\b/i,/\bjames\b/i,/\bjohn\b/i,/diego/i,/carlos/i,/jorge/i,/\bjuan\b/i,/microsoft (guy|davis|tony|jason|christopher|eric)/i];
+  const FEMALE_RE=/samantha|\baria\b|\bjenny\b|\bava\b|allison|susan|\bzoe\b|\bkaren\b|moira|tessa|fiona|serena|sonia|michelle|\bnora\b|paulina|m[oó]nica|\bzira\b|female|\bwoman\b/i;
+  const MALE_RE=/daniel|\balex\b|\bfred\b|aaron|arthur|gordon|rishi|\bdavid\b|\bmark\b|\bguy\b|reed|eddy|oliver|thomas|\bgeorge\b|\bjames\b|\bjohn\b|diego|carlos|jorge|\bjuan\b|\bmale\b/i;
+  const wantMale = (typeof AI!=='undefined' && AI.voice==='male');
+  const PREF = wantMale ? MALE_NAMES : FEMALE;
+  const AVOID = wantMale ? FEMALE_RE : MALE_RE;
   const natural=v=>/natural|enhanced|premium|neural/i.test(v.name);
-  for(const re of FEMALE){ const hit=pool.filter(v=>re.test(v.name)); if(hit.length) return hit.find(natural)||hit[0]; }
-  const nf=pool.filter(v=>natural(v) && !MALE.test(v.name)); if(nf.length) return nf[0];
-  const nm=pool.filter(v=>!MALE.test(v.name)); return nm.find(v=>v.localService) || nm[0] || pool[0];
+  for(const re of PREF){ const hit=pool.filter(v=>re.test(v.name)); if(hit.length) return hit.find(natural)||hit[0]; }
+  const nf=pool.filter(v=>natural(v) && !AVOID.test(v.name)); if(nf.length) return nf[0];
+  const nm=pool.filter(v=>!AVOID.test(v.name)); return nm.find(v=>v.localService) || nm[0] || pool[0];
 }
 // Speak a SHORT spoken summary — the question or first sentence — never a wall of
 // text. Details stay on screen; voice stays fast (cost + jobsite attention span).
@@ -5676,7 +5701,17 @@ async function vizRender(){
   setTimeout(poll, 2500);
 }
 function closeVizResult(){ const el=document.getElementById('vizResult'); if(el) el.style.display='none'; if(state.view==='job') render(); }
-// How much Bid Brain says out loud when you open her — the contractor's call.
+// Name Trial System — flip the AI's identity (name + voice) live to live with each for a few days.
+function aiIdentitySeg(){
+  const cur=aiKey();
+  const opt=(k)=>`<button class="segbtn ${cur===k?'on':''}" onclick="setAiIdentity('${k}')">${esc(AI_IDENTITIES[k].name)}</button>`;
+  return `<div class="appearance">
+    <label class="fld" style="margin-top:16px">AI identity <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(name trial)</span></label>
+    <div class="seg">${Object.keys(AI_IDENTITIES).map(opt).join('')}</div>
+    <div class="hint">Live with a name + voice for a few days before committing — switching reloads the app. The platform stays <b>BidVoice</b>; only the assistant's identity changes. Now: <b>${esc(AI.name)}</b> · ${esc(AI.voice)} voice.</div>
+  </div>`;
+}
+// How much the assistant says out loud when you open it — the contractor's call.
 function bbBriefSeg(){
   const cur=(typeof bbBriefMode==='function')?bbBriefMode():'exceptions';
   const opt=(v,lab)=>`<button class="segbtn ${cur===v?'on':''}" onclick="setBriefMode('${v}')">${lab}</button>`;
@@ -5704,6 +5739,7 @@ function viewSettings(){
     <div class="sub">This appears on the proposals you send. Synced to your account.</div>
     ${themeSeg()}
     ${bbBriefSeg()}
+    ${aiIdentitySeg()}
     <label class="fld">Company logo (shows on your bids &amp; PDF)</label>
     <div class="logo-row">
       ${SETTINGS.logo?`<img class="logo-preview" src="${SETTINGS.logo}" alt="logo"/>`:`<div class="logo-empty">No logo yet</div>`}
