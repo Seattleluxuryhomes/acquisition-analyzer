@@ -332,7 +332,7 @@ ${(Array.isArray(opts.projects) && opts.projects.length) ? `<section class="wrap
   <div><b>${company}</b>${area ? `<br>${esc(area)}` : ""}${phone ? `<br>📞 ${esc(phone)}` : ""}${email ? ` · ${email}` : ""}</div>
   <div><b>${T.getStarted}</b><br><a href="#estimate" style="color:var(--accent);font-weight:700">${esc(T.requestAFree)}</a></div>
   ${license ? `<div><b>${T.licensed}</b><br>${license}<br>${T.freeEstimates}</div>` : ""}
-</div><div class="powered">${T.poweredBy} <a href="https://bidtranslator.com">Bidtranslator</a></div></div></footer>
+</div><div class="powered">${T.poweredBy} <a href="https://bidvoice.ai">BidVoice</a></div></div></footer>
 <script>
   var f=document.getElementById('estForm'), action=${JSON.stringify(leadAction)};
   f.addEventListener('submit',function(e){ e.preventDefault();
