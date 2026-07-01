@@ -777,7 +777,7 @@
        drives the whole identity; each state just swaps the color + motion.
        Glow is layered (tight core + mid + wide), not a single blur, and the
        glass body has its own top highlight + bottom rim for real depth. ===== */
-  .bb-dock{position:fixed;z-index:1200;width:62px;height:62px;border-radius:50%;cursor:grab;touch-action:none;
+  .bb-dock{position:fixed;z-index:1200;width:62px;height:62px;border-radius:50%;cursor:grab;touch-action:none;-webkit-tap-highlight-color:transparent;
     --bbc:90,160,255; --bbc2:154,123,255;            /* default: idle blue (RGB triplets) */
     display:flex;align-items:center;justify-content:center;isolation:isolate;
     background:radial-gradient(125% 125% at 33% 26%, rgba(46,60,92,.78) 0%, rgba(20,26,42,.86) 62%, rgba(12,16,28,.92) 100%);
@@ -823,6 +823,9 @@
   .bb-brain .bb-spark path{opacity:0;transform-box:fill-box;transform-origin:center;animation:bbsparkrest 6.5s ease-in-out infinite}
   .bb-brain .bb-spark path:nth-child(2){animation-delay:2.4s}
   .bb-brain .bb-spark path:nth-child(3){animation-delay:4.3s}
+  /* procedural neuron firing — a single neuron briefly swells & brightens (driven by JS at random times/places) */
+  .bb-brain .bb-node circle.fire{transform-box:fill-box;transform-origin:center;animation:bbfire .52s ease-out}
+  @keyframes bbfire{0%{opacity:.8;transform:scale(1)}22%{opacity:1;transform:scale(1.75)}100%{opacity:.72;transform:scale(1)}}
   @keyframes bbnuc{0%,100%{opacity:.8;transform:scale(.9)}50%{opacity:1;transform:scale(1.08)}}
   @keyframes bbpkt{0%{stroke-dashoffset:100;opacity:0}10%{opacity:.95}90%{opacity:.95}100%{stroke-dashoffset:0;opacity:0}}
   @keyframes bbsparkrest{0%,86%,100%{opacity:0;transform:scale(.4)}92%{opacity:.9;transform:scale(1)}}
@@ -899,7 +902,7 @@
   .bb-dock.thinking .bb-brain .bb-pulse path{animation-duration:1.1s}
   .bb-dock.thinking .bb-brain .bb-nucleus{animation-duration:1.2s}
   .bb-dock.working .bb-brain .bb-elec .espin{animation-duration:3s}
-  .bb-dock.speaking .bb-brain .bb-pulse path{animation-duration:1.8s}
+  .bb-dock.speaking .bb-brain .bb-pulse path{animation-duration:1.8s;animation-direction:reverse}
   .bb-dock.speaking .bb-brain .bb-nucleus{animation-duration:1s}
   .bb-dock.learning .bb-brain .bb-spark path,.bb-dock.success .bb-brain .bb-spark path{opacity:1;animation:bbtwinkle 1.4s ease-in-out infinite}
   .bb-dock.learning .bb-brain .bb-spark path:nth-child(2){animation-delay:.5s}
@@ -1022,11 +1025,13 @@
   .bb-input:focus-within{box-shadow:none}
   /* The hero is not a button — it's a deep well with an intelligence awake inside it.
      The dark core lets the neural orb glow like a living thing; color = state + business health (--bbc). */
-  .bb-mic-hero{position:relative;width:96px;height:96px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;--bbc:96,164,255;
+  .bb-mic-hero{position:relative;flex:0 0 auto;width:96px;height:96px;aspect-ratio:1/1;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;--bbc:96,164,255;
+    -webkit-tap-highlight-color:transparent;outline:none;-webkit-user-select:none;user-select:none;-webkit-appearance:none;appearance:none;
     background:radial-gradient(120% 120% at 50% 38%,#15263f 0%,#0b1422 58%,#060a13 100%);
     box-shadow:0 14px 36px rgba(4,8,18,.55), inset 0 0 24px rgba(var(--bbc),.30), inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(var(--bbc),.20);
     transition:transform .12s ease, box-shadow .5s ease, width .3s ease, height .3s ease}
   .bb-mic-hero:active{transform:scale(.95)}
+  .bb-mic-hero:focus-visible{box-shadow:0 14px 36px rgba(4,8,18,.55),inset 0 0 24px rgba(var(--bbc),.30),0 0 0 3px rgba(var(--bbc),.6)}
   .bb-mic-hero .mh-ico{position:relative;z-index:2;display:flex;align-items:center;justify-content:center}
   .bb-mic-hero .mh-ico .bb-brain{width:74px;height:74px;filter:drop-shadow(0 0 9px rgba(var(--bbc),.55))}
   /* a quiet mic cue — an affordance, not the hero; it fades the moment she's engaged */
@@ -1051,8 +1056,12 @@
   .bb-input[data-state="thinking"] .bb-mic-hero .mh-mic{opacity:0}
   /* RESPONDING — warm amber, the activity settles as she speaks. */
   .bb-input[data-state="speaking"] .bb-mic-hero{--bbc:255,168,66;animation:bbspeak 1.15s ease-in-out infinite}
-  .bb-input[data-state="speaking"] .bb-mic-hero .bb-pulse path{animation-duration:1.9s}
-  .bb-input[data-state="speaking"] .bb-mic-hero .mh-mic{opacity:0}
+  /* responding: energy flows OUTWARD from the core — giving knowledge back */
+  .bb-input[data-state="speaking"] .bb-mic-hero .bb-pulse path{animation-duration:1.9s;animation-direction:reverse}
+  /* one warm pulse after a job well done — acknowledgement, no words */
+  .bb-mic-hero.bb-warm{animation:bbwarm 1.5s ease-out}
+  @keyframes bbwarm{0%,100%{box-shadow:0 14px 36px rgba(4,8,18,.55),inset 0 0 24px rgba(var(--bbc),.30),inset 0 1px 0 rgba(255,255,255,.06),0 0 0 1px rgba(var(--bbc),.20)}
+    35%{box-shadow:0 16px 44px rgba(255,176,74,.5),inset 0 0 34px rgba(255,196,110,.5),inset 0 1px 0 rgba(255,255,255,.12),0 0 0 2px rgba(255,190,90,.55)}}
   /* The four-state label — big, plain, jobsite-readable. */
   .bb-state{font-family:"IBM Plex Sans";font-size:1.06rem;font-weight:600;color:#eaf1ff;letter-spacing:.01em;min-height:1.3em}
   .bb-input .bb-rectime{display:none;font-family:'IBM Plex Mono',monospace;font-size:.85rem;color:#5fe6a0;margin:0}
@@ -2407,8 +2416,50 @@ function bbSetState(s){ const d=document.getElementById('bbDock'); if(!d) return
   clearTimeout(bbErrTimer);
   // transient states return to calm on their own so callers can "fire and forget"
   if(s==='error') bbErrTimer=setTimeout(()=>bbSetState('idle'), 900);
-  else if(s==='success') bbErrTimer=setTimeout(()=>bbSetState('idle'), 1300);
+  else if(s==='success'){ bbWarmPulse(); bbErrTimer=setTimeout(()=>bbSetState('idle'), 1300); }
 }
+/* ===== Bid Brain's life — procedural, never a loop. She fires neurons at random
+   times and places, and her energy remembers you (livelier the longer you talk,
+   calmer after days away). Subtle by design: it must never distract someone who
+   opens the app forty times a day. ===== */
+let bbLifeTimer=null, bbLifeOn=false, bbSessionStart=0;
+function bbReduce(){ try{ return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(_){ return false; } }
+function bbActiveOrb(){                                  // the orb the contractor is actually looking at
+  if(typeof bbPanelOpen==='function' && bbPanelOpen()){ const m=document.getElementById('bbMicBtn'); const s=m&&m.querySelector('.bb-brain'); if(s) return s; }
+  const d=document.getElementById('bbDock'); return d? d.querySelector('.bb-brain') : null;
+}
+// Energy 0..1 — the "memory". Calmer if you've been away; livelier the longer this session runs.
+function bbEnergy(){ let e=0.5;
+  try{
+    const last=Number(localStorage.getItem('bt_bb_lastopen')||0);
+    if(last){ const days=(Date.now()-last)/86400000; if(days>=3) e-=0.22; else if(days>=1) e-=0.10; }
+    if(bbSessionStart){ const min=(Date.now()-bbSessionStart)/60000; e+=Math.min(0.35, min*0.014); }   // ~+.35 by ~25 min
+    const turns=(typeof BBC!=='undefined'&&BBC.thread)?BBC.thread.filter(m=>m.role==='user').length:0; e+=Math.min(0.2, turns*0.03);
+  }catch(_){}
+  return Math.max(0.25, Math.min(1, e));
+}
+// Fire a few neurons. THINKING organizes (a quick converging sequence = "searching");
+// otherwise sparse, subconscious flickers at random spots. No two passes alike.
+function bbFireNeurons(orb, st){ if(!orb) return; const nodes=orb.querySelectorAll('.bb-node circle'); if(!nodes.length) return;
+  const arr=[...nodes];
+  const n = st==='thinking' ? 3 : st==='listening' ? 2 : (Math.random()<0.55?1:2);
+  let picks;
+  if(st==='thinking'){ picks=arr.map(c=>({c,d:Math.abs((+c.getAttribute('cx'))-50)+Math.abs((+c.getAttribute('cy'))-49)})).sort((a,b)=>b.d-a.d).slice(0,n).map(o=>o.c); } // outer→in: a search converging on the core
+  else { picks=[]; const pool=arr.slice(); for(let i=0;i<n&&pool.length;i++){ picks.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]); } }
+  picks.forEach((c,i)=>{ setTimeout(()=>{ if(!c.isConnected) return; c.classList.add('fire'); setTimeout(()=>c.classList.remove('fire'), 520); }, i*(st==='thinking'?110:60)); });
+}
+function bbLifeTick(){ if(!bbLifeOn) return;
+  const hidden=document.hidden;
+  if(!hidden && !bbReduce()) bbFireNeurons(bbActiveOrb(), bbState);
+  const energy=bbEnergy();
+  let base = bbState==='thinking' ? 520 : bbState==='listening' ? 900 : bbState==='speaking' ? 1400 : 2200;
+  base = base * (1.4 - energy*0.6);                      // more energy → firings come sooner
+  const delay = hidden ? 4000 : Math.max(280, Math.round(base * (0.5 + Math.random())));  // heavy jitter: never a loop
+  bbLifeTimer=setTimeout(bbLifeTick, delay);
+}
+function bbLifeStart(){ if(bbLifeOn) return; bbLifeOn=true; clearTimeout(bbLifeTimer); bbLifeTimer=setTimeout(bbLifeTick, 700); }
+// One warm pulse after a job well done — acknowledgement, no words.
+function bbWarmPulse(){ const m=document.getElementById('bbMicBtn'); if(m){ m.classList.remove('bb-warm'); void m.offsetWidth; m.classList.add('bb-warm'); setTimeout(()=>m.classList.remove('bb-warm'), 1600); } }
 // The spoken-state label: Ready → Listening → Thinking → Responding (jobsite-plain).
 function bbStateText(s){
   if(s==='listening') return t('bb_state_listening');
@@ -2431,6 +2482,8 @@ function bbInit(){
   d.addEventListener('pointerdown', bbDown);
   document.addEventListener('visibilitychange', bbVisibility);  // pause animation when backgrounded
   bbScheduleDrift();
+  bbApplyHealth();   // the floating orb shows business health before it's ever opened
+  bbLifeStart();     // procedural life begins — she's awake
 }
 // Backgrounded tab/app → freeze every animation (battery); foreground → resume + reset calm timer.
 function bbVisibility(){ const d=document.getElementById('bbDock'); if(!d) return;
@@ -2562,6 +2615,7 @@ function bbSuggestPick(i){ const s=BB_SUGGEST[i]; if(!s) return; bbActivity(); i
 function bbOpenPanel(){
   const p=document.getElementById('bbPanel'), s=document.getElementById('bbScrim'); if(!p) return;
   bbActivity(); if(typeof loadBrain==='function') loadBrain();
+  bbSessionStart=Date.now();   // start of this working session (feeds her energy/memory)
   // Every open starts clean — the assistant greets you in the ready state and
   // never reopens mid-transcript. The conversation is ephemeral to this session,
   // like talking to a person: you walk up fresh, you don't resume a chat log.
@@ -2572,8 +2626,7 @@ function bbOpenPanel(){
     <div class="bb-input" id="bbInputBar" data-state="ready">
       <button class="bb-mic-hero" id="bbMicBtn" onclick="bbConvMic()" aria-label="${escAttr(t('bb_talk'))}">
         <span class="mh-glow" aria-hidden="true"></span>
-        <span class="mh-ico"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg><span class="mh-mic" aria-hidden="true">${icon('mic',15)}</span></span>
-        <span class="bb-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="mh-ico"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg></span>
       </button>
       <div class="bb-state" id="bbStateLabel">${esc(t('bb_state_ready'))}</div>
       <div class="bb-taphint" id="bbTapHint">${esc(t('bb_tap_hint'))}</div>
@@ -2590,6 +2643,8 @@ function bbOpenPanel(){
     <div class="bb-suggest">${bbSuggestionsHTML()}</div>`;
   s.style.display='block'; p.style.display='block';
   bbConvRender(); bbApplyHealth(); bbPhStart();
+  // The hint teaches, then disappears forever — once they've used their voice a few times.
+  { const th=document.getElementById('bbTapHint'); if(th && Number(localStorage.getItem('bt_bb_voicewins')||0)>=3) th.style.display='none'; }
 }
 function bbConvRender(){
   const c=document.getElementById('bbConv'); if(!c) return;
@@ -2662,7 +2717,9 @@ function bbDoAction(a, jobId){
     case 'order_materials': if(typeof toast==='function') toast(t('bb_materials_soon'),'ok'); break;
   }
 }
-function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.getElementById('bbScrim'); if(p)p.style.display='none'; if(s)s.style.display='none'; bbPhStop(); bbClearVoiceTimers(); bbStopSpeaking(); bbTurn++; if(BBC.recording) bbConvStopRec(true); bbConvVADStop(); bbRecStop(); const m=document.getElementById('bbMicBtn'); if(m) m.classList.remove('ready'); if(bbState!=='idle') bbSetState('idle'); }
+function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.getElementById('bbScrim'); if(p)p.style.display='none'; if(s)s.style.display='none'; bbPhStop(); bbClearVoiceTimers(); bbStopSpeaking(); bbTurn++; if(BBC.recording) bbConvStopRec(true); bbConvVADStop(); bbRecStop(); const m=document.getElementById('bbMicBtn'); if(m) m.classList.remove('ready'); if(bbState!=='idle') bbSetState('idle');
+  try{ localStorage.setItem('bt_bb_lastopen', String(Date.now())); }catch(_){}   // remember when we last talked
+  bbSessionStart=0; }
 // In-overlay voice: (barge-in) → record → silence auto-stop → transcribe → send.
 async function bbConvMic(){
   if(bbSpeaking()) bbStopSpeaking();           // barge-in: stop Bid Brain so it can listen
@@ -2694,7 +2751,7 @@ async function bbConvMic(){
       const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
       const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({audio:dataUrl, lang:(SETTINGS.from||'en')})});
       BBC.busy=false; const said=((r&&r.text)||'').trim();
-      if(said) bbConvSend(said); else { bbConvRender(); bbSetState('idle'); bbAkAuto(); bbSayLocal(t('bb_gentle_nudge')); }
+      if(said){ try{ localStorage.setItem('bt_bb_voicewins', String(Number(localStorage.getItem('bt_bb_voicewins')||0)+1)); }catch(_){}  bbConvSend(said); } else { bbConvRender(); bbSetState('idle'); bbAkAuto(); bbSayLocal(t('bb_gentle_nudge')); }
     }catch(e){ BBC.busy=false; bbConvRender(); bbSetState('error'); bbAkAuto(); }
   };
   try{ BBC.rec.start(); }catch(_){ bbConvVADStop(); BBC.recording=false; bbSetState('idle'); bbAkAuto(); }
