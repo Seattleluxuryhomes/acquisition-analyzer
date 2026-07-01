@@ -340,7 +340,7 @@ CREATE TABLE IF NOT EXISTS funnel (
 CREATE INDEX IF NOT EXISTS funnel_user_idx ON funnel(user_id);
 
 -- Outbound prospecting CRM (Gojiberry integration). A prospect is a home-service
--- business we're recruiting TO Bidtranslator (separate from inbound homeowner
+-- business we're recruiting TO BidVoice (separate from inbound homeowner
 -- leads). Sourced from a provider (gojiberry/…) or added by hand, then worked
 -- through the pipeline. Provider-agnostic: 'source' records where it came from.
 CREATE TABLE IF NOT EXISTS prospect (

@@ -3,4 +3,4 @@ Allow: /
 Disallow: /api/
 Disallow: /p/
 
-Sitemap: https://bidtranslator.com/sitemap.xml
+Sitemap: https://bidvoice.ai/sitemap.xml

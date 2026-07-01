@@ -6,7 +6,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "brand-check": "node scripts/brand-check.mjs",
+    "brand-sync": "node scripts/sync-brand-assets.mjs",
+    "brand-verify": "node scripts/brand-check.mjs && node scripts/sync-brand-assets.mjs --check"
   },
   "dependencies": {
     "express": "^4.19.2",

@@ -3,25 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bidtranslator — Maneja todo tu negocio de contratista por voz.</title>
-<meta name="description" content="Maneja todo tu negocio de contratista por voz: crea presupuestos, agenda trabajos, cobra pagos, administra clientes y crece — todo desde una sola app. Habla tu idioma y recibe un presupuesto profesional en menos de 60 segundos. Gratis para empezar, sin tarjeta de crédito." />
-<link rel="icon" type="image/png" href="/brand-orange.png" />
+<title>BidVoice | Sistema Operativo de Construcción con IA</title>
+<meta name="description" content="BidVoice es el Sistema Operativo de Construcción con IA para contratistas. Conoce a Eden, tu empleada de IA que presupuesta trabajos, gestiona proyectos, organiza clientes y mantiene tu negocio en marcha." />
+<link rel="icon" type="image/png" href="/icon-192.png?v=2" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
 <meta name="theme-color" content="#CF7F18" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="Bidtranslator" />
-<meta property="og:title" content="Bidtranslator — Habla el trabajo. Envía el presupuesto." />
-<meta property="og:description" content="Presupuestos por voz para contratistas. Di el trabajo en voz alta y recibe una propuesta con precios y profesional — en el idioma de tu cliente." />
-<meta property="og:image" content="https://bidtranslator.com/og.png" />
-<meta property="og:url" content="https://bidtranslator.com/landing-es.html" />
+<meta property="og:site_name" content="BidVoice" />
+<meta property="og:title" content="Conoce a Eden — tu empleada de IA para contratistas." />
+<meta property="og:description" content="BidVoice es el Sistema Operativo de Construcción con IA para contratistas. Conoce a Eden, tu empleada de IA que presupuesta trabajos, gestiona proyectos, organiza clientes y mantiene tu negocio en marcha." />
+<meta property="og:image" content="https://bidvoice.ai/og.png?v=3" />
+<meta property="og:url" content="https://bidvoice.ai/landing-es.html" />
 <meta property="og:locale" content="es_US" />
 <meta property="og:locale:alternate" content="en_US" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Bidtranslator — Habla el trabajo. Envía el presupuesto." />
-<meta name="twitter:description" content="Presupuestos por voz para contratistas. Di el trabajo en voz alta y recibe una propuesta con precios y profesional — en el idioma de tu cliente." />
-<meta name="twitter:image" content="https://bidtranslator.com/og.png" />
-<link rel="alternate" hreflang="en" href="https://bidtranslator.com/landing.html" />
-<link rel="alternate" hreflang="es" href="https://bidtranslator.com/landing-es.html" />
-<link rel="alternate" hreflang="x-default" href="https://bidtranslator.com/landing.html" />
+<meta name="twitter:title" content="Conoce a Eden — tu empleada de IA para contratistas." />
+<meta name="twitter:description" content="BidVoice es el Sistema Operativo de Construcción con IA para contratistas. Conoce a Eden, tu empleada de IA que presupuesta trabajos, gestiona proyectos, organiza clientes y mantiene tu negocio en marcha." />
+<meta name="twitter:image" content="https://bidvoice.ai/og.png?v=3" />
+<link rel="alternate" hreflang="en" href="https://bidvoice.ai/landing.html" />
+<link rel="alternate" hreflang="es" href="https://bidvoice.ai/landing-es.html" />
+<link rel="alternate" hreflang="x-default" href="https://bidvoice.ai/landing.html" />
 <style>
   :root{--ink:#1F252C;--paper:#F3EEE3;--amber:#CF7F18;--blue:#1E4259;--muted:#6B6F5C;--rule:#e2dac9;--card:#fff}
   *{box-sizing:border-box}
@@ -48,30 +49,40 @@
   /* hero */
   .hero{text-align:center;padding:34px 0 18px}
   .badge{display:inline-block;background:#fff;border:1px solid var(--rule);border-radius:999px;padding:6px 14px;color:var(--blue);font-weight:700;font-size:.82rem;margin-bottom:22px}
-  .mic{width:96px;height:96px;border-radius:50%;background:var(--amber);color:#1F252C;display:flex;align-items:center;justify-content:center;margin:0 auto 22px;box-shadow:0 14px 36px rgba(207,127,24,.4);position:relative}
-  .mic::after{content:"";position:absolute;inset:-10px;border-radius:50%;border:2px solid rgba(207,127,24,.3)}
+  .mic{width:96px;height:96px;border-radius:24px;background:var(--amber);color:#1F252C;display:flex;align-items:center;justify-content:center;margin:0 auto 22px;box-shadow:0 14px 36px rgba(207,127,24,.4);position:relative}
+  .brand .wm{display:inline-flex;white-space:nowrap}
+  .mic::after{content:"";position:absolute;inset:-10px;border-radius:32px;border:2px solid rgba(207,127,24,.3)}
   h1{font-family:"Archivo",sans-serif;font-weight:800;font-size:2.7rem;line-height:1.08;margin:0 auto;max-width:14ch}
   .sub{color:var(--muted);font-size:1.18rem;max-width:33ch;margin:16px auto 26px;line-height:1.5}
   .cta-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
   .reassure{color:var(--muted);font-size:.86rem;margin-top:14px}
 
   /* spoken-line demo */
-  .demo{max-width:620px;margin:34px auto 0;background:var(--card);border:1px solid var(--rule);border-radius:16px;padding:22px;box-shadow:0 18px 50px rgba(31,37,44,.08);text-align:left}
-  .demo-try{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px dashed var(--rule)}
-  .trymic{display:inline-flex;align-items:center;gap:8px;background:var(--amber);color:#1F252C;border:none;border-radius:10px;padding:11px 16px;font-weight:800;font-size:.95rem;cursor:pointer;box-shadow:0 6px 16px rgba(207,127,24,.25)}
+  /* Marco de producto del hero — una superficie real de la app BidVoice (oscura, como la app)
+     que muestra a Eden convirtiendo un trabajo dicho en voz alta en un presupuesto con precios. */
+  .demo{max-width:560px;margin:28px auto 0;background:var(--ink);color:#F1EEE7;border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:18px 20px 20px;box-shadow:0 26px 64px rgba(31,37,44,.30);text-align:left}
+  .demo-app{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.10)}
+  .demo-orb{width:30px;height:30px;border-radius:9px;background:var(--amber);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .demo-orb img{width:18px;height:18px}
+  .demo-eden{font-weight:800;font-size:1rem;color:#fff;letter-spacing:.01em}
+  .demo-status{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:.78rem;color:rgba(241,238,231,.62)}
+  .demo-status i{width:7px;height:7px;border-radius:50%;background:#5fd08a;box-shadow:0 0 0 3px rgba(95,208,138,.18)}
+  .demo-try{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:15px;padding-bottom:15px;border-bottom:1px dashed rgba(255,255,255,.14)}
+  .trymic{display:inline-flex;align-items:center;gap:8px;background:var(--amber);color:#1F252C;border:none;border-radius:10px;padding:11px 16px;font-weight:800;font-size:.95rem;cursor:pointer;box-shadow:0 6px 16px rgba(207,127,24,.28)}
+  .trymic-ic{display:inline-flex}
   .trymic:hover{filter:brightness(1.05)}
   .trymic.live{background:#b5341f;color:#fff;animation:trypulse 1.2s infinite}
-  .trymic.disabled{background:#ece5d6;color:#8a7f68;box-shadow:none;cursor:default}
+  .trymic.disabled{background:#3a4048;color:#a9b0b8;box-shadow:none;cursor:default}
   @keyframes trypulse{0%,100%{box-shadow:0 0 0 0 rgba(181,52,31,.5)}50%{box-shadow:0 0 0 9px rgba(181,52,31,0)}}
-  .demo-hint{color:var(--muted);font-size:.85rem}
-  .demo-pitch{color:var(--ink);font-size:.96rem;margin:0 0 16px;line-height:1.5}
-  .demo .said{color:var(--muted);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
-  .demo .quote{font-size:1.08rem;color:var(--ink);font-style:italic;border-left:3px solid var(--amber);padding-left:14px;margin-bottom:18px}
+  .demo-hint{color:rgba(241,238,231,.6);font-size:.85rem}
+  .demo-pitch{color:#F1EEE7;font-size:.96rem;margin:0 0 16px;line-height:1.5}
+  .demo .said{color:rgba(241,238,231,.55);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+  .demo .quote{font-size:1.06rem;color:#fff;font-style:italic;border-left:3px solid var(--amber);padding-left:14px;margin-bottom:18px}
   .demo .arrow{text-align:center;color:var(--amber);font-weight:800;margin:6px 0 14px}
-  .demo .bidrow{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #efe9dc;font-size:.96rem}
-  .demo .bidrow b{font-weight:700}
-  .demo .total{display:flex;justify-content:space-between;padding-top:12px;margin-top:6px;border-top:2px solid var(--ink);font-weight:800}
-  .demo .total .v{color:var(--blue);font-size:1.3rem;font-weight:900}
+  .demo .bidrow{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.10);font-size:.96rem}
+  .demo .bidrow b{font-weight:700;color:#fff}
+  .demo .total{display:flex;justify-content:space-between;padding-top:12px;margin-top:6px;border-top:2px solid rgba(255,255,255,.28);font-weight:800}
+  .demo .total .v{color:var(--amber);font-size:1.3rem;font-weight:900}
 
   /* sections */
   section{padding:56px 0}
@@ -118,30 +129,35 @@
 <body>
 
 <nav>
-  <div class="brand"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span class="amber">translator</span></div>
+  <div class="brand"><span class="mark"><img src="/brand-white.png" alt="" /></span><span class="wm">Bid<span class="amber">Voice</span></span></div>
   <div class="nav-cta"><a class="lang" href="/landing.html">EN</a><a class="signin" href="https://wa.me/12067142694" target="_blank" rel="noopener">💬 WhatsApp</a><a class="signin" href="/">Iniciar sesión</a><a class="btn" href="/">Empieza gratis</a></div>
 </nav>
 
 <header class="hero wrap">
   <div class="badge">🇲🇽 Español ⇄ Inglés 🇺🇸 · hecho para remodeladores</div>
   <div class="mic">
-    <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21.5"/></svg>
+    <img src="/brand-white.png" alt="BidVoice" width="54" height="54" />
   </div>
-  <h1>Maneja todo tu negocio de contratista por voz.</h1>
-  <div class="sub">Crea presupuestos, agenda trabajos, cobra pagos, administra clientes y crece tu negocio — todo desde una sola app. Habla tu idioma y recibe un presupuesto profesional en menos de 60 segundos, y luego maneja todo el trabajo desde el mismo lugar.</div>
+  <h1>Conoce a Eden.<br>Tu empleada de IA para contratistas.</h1>
+  <div class="sub">Describe un trabajo en voz alta. Eden escribe el presupuesto, envía la propuesta en el idioma de tu cliente y cobra el anticipo — en minutos.</div>
   <div class="cta-row">
-    <a class="btn lg" href="/">🎤 Empieza un presupuesto con tu voz</a>
-    <a class="btn ghost lg" href="#how">Ve cómo funciona</a>
+    <a class="btn lg" href="/">Contrata a Eden</a>
+    <a class="btn ghost lg" href="#how">Conoce a Eden</a>
   </div>
-  <div class="reassure">Gratis para empezar · Sin tarjeta de crédito · Un presupuesto profesional en menos de 60 segundos</div>
+  <div class="reassure">Gratis para empezar · Sin tarjeta de crédito · Lista en 60 segundos</div>
 
   <div class="demo">
+    <div class="demo-app">
+      <span class="demo-orb"><img src="/brand-white.png" alt="" /></span>
+      <span class="demo-eden">Eden</span>
+      <span class="demo-status"><i></i> Preparando tu presupuesto</span>
+    </div>
     <div class="demo-try">
       <button type="button" id="tryMic" class="trymic">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21.5"/></svg>
-        <span id="tryLabel">Toca y describe un trabajo</span>
+        <img class="trymic-ic" src="/brand-white.png" alt="" width="16" height="16" />
+        <span id="tryLabel">Habla con Eden</span>
       </button>
-      <span class="demo-hint" id="demoHint">Pruébalo gratis — di un trabajo real en voz alta</span>
+      <span class="demo-hint" id="demoHint">Gratis — di un trabajo real en voz alta</span>
     </div>
     <div class="said" id="demoSaid">Ejemplo — lo que dices</div>
     <div class="quote" id="demoQuote">"Remodelación de cocina para la familia Reyes. Quitar los gabinetes viejos, instalar gabinetes nuevos estilo shaker y encimeras de cuarzo, fregadero y llave nuevos, pintura, y llevarse los escombros."</div>
@@ -206,7 +222,7 @@
 </section>
 
 <footer>
-  <div class="wrap">Bidtranslator · Habla el trabajo. Envía el presupuesto. · <a href="/landing.html" style="color:var(--amber);font-weight:600">English</a> · <a href="/" style="color:var(--amber);font-weight:600">Iniciar sesión</a></div>
+  <div class="wrap">BidVoice · Tu empleada de IA para contratistas. · <a href="/landing.html" style="color:var(--amber);font-weight:600">English</a> · <a href="/" style="color:var(--amber);font-weight:600">Iniciar sesión</a><br><span style="opacity:.6;font-size:.85em">© BidVoice AI</span></div>
 </footer>
 
 <script>
@@ -233,11 +249,11 @@
       said.textContent='Lo que dices'; quote.textContent='Escuchando… describe el trabajo en voz alta.'; };
     rec.onresult=function(e){ var t=''; for(var i=0;i<e.results.length;i++) t+=e.results[i][0].transcript;
       heard=t.trim(); quote.textContent=heard?('“'+heard+'”'):'Escuchando…'; };
-    rec.onerror=function(){ stopUI('Toca y describe un trabajo');
+    rec.onerror=function(){ stopUI('Habla con Eden');
       if(!heard){ said.textContent='Ejemplo — lo que dices';
         quote.textContent='“Remodelación de cocina para la familia Reyes. Quitar los gabinetes viejos, instalar gabinetes nuevos estilo shaker y encimeras de cuarzo, fregadero y llave nuevos, pintura, y llevarse los escombros.”';
         ex.style.display=''; if(hint) hint.textContent='Permite el micrófono e intenta de nuevo, o toca “Empieza gratis.”'; } };
-    rec.onend=function(){ stopUI(heard?'Intenta de nuevo':'Toca y describe un trabajo');
+    rec.onend=function(){ stopUI(heard?'Intenta de nuevo':'Habla con Eden');
       if(heard){ res.style.display=''; ex.style.display='none'; }
       else { ex.style.display=''; said.textContent='Ejemplo — lo que dices'; } };
     try{ rec.start(); }catch(e){}

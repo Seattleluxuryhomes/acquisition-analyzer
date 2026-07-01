@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
-  BIDTRANSLATOR — Phase 1 front end. Same UI/flow/visual language as the prototype,
-  refactored onto the hosted backend:
+  BIDVOICE — the single-page front end (BidVoice platform · Eden, the AI employee).
+  Offline-first PWA on the hosted backend:
     - Accounts + sign-in (replaces local-only persistence).
     - Offline-first store: every capture/edit writes locally first (instant, works
       offline) and syncs to the server when a connection is available (last-write-wins).
@@ -13,7 +13,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Bidtranslator</title>
+<title>BidVoice | AI Construction Operating System</title>
 <link rel="icon" type="image/png" href="/icon-192.png?v=2" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
 <meta name="theme-color" content="#CF7F18" />
@@ -21,26 +21,25 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Bidtranslator" />
-<meta name="description" content="Run your entire contracting business by voice: create estimates, schedule jobs, collect payments, manage customers, and grow — all from one app. A professional estimate in under 60 seconds, in your language. Free to start." />
+<meta name="apple-mobile-web-app-title" content="BidVoice" />
+<meta name="description" content="BidVoice is the AI Construction Operating System built for contractors. Meet Eden, your AI employee who helps estimate jobs, manage projects, organize customers, and keep your business moving." />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="Bidtranslator" />
-<meta property="og:title" content="Meet Bid Brain™ — your AI employee for contractors." />
-<meta property="og:description" content="Talk. Scan. Bid. Build. Bid Brain runs your contracting business by voice — estimates, scheduling, payments, customers, and growth, all from one app. A professional estimate in under 60 seconds, in your language." />
-<meta property="og:image" content="https://bidtranslator.com/og.png?v=2" />
-<meta property="og:image:secure_url" content="https://bidtranslator.com/og.png?v=2" />
+<meta property="og:site_name" content="BidVoice" />
+<meta property="og:title" content="Meet Eden — your AI employee for contractors." />
+<meta property="og:description" content="BidVoice is the AI Construction Operating System built for contractors. Meet Eden, your AI employee who helps estimate jobs, manage projects, organize customers, and keep your business moving." />
+<meta property="og:image" content="https://bidvoice.ai/og.png?v=3" />
+<meta property="og:image:secure_url" content="https://bidvoice.ai/og.png?v=3" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="Meet Bid Brain — your AI employee for contractors. Talk. Scan. Bid. Build." />
-<meta property="og:url" content="https://bidtranslator.com/" />
+<meta property="og:image:alt" content="Meet Eden — your AI employee for contractors." />
+<meta property="og:url" content="https://bidvoice.ai/" />
 <meta property="og:locale" content="en_US" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:site" content="@bidtranslator" />
-<meta name="twitter:title" content="Meet Bid Brain™ — your AI employee for contractors." />
-<meta name="twitter:description" content="Talk. Scan. Bid. Build. Bid Brain runs your contracting business by voice — a professional estimate in under 60 seconds, in your language." />
-<meta name="twitter:image" content="https://bidtranslator.com/og.png?v=2" />
-<meta name="twitter:image:alt" content="Meet Bid Brain — your AI employee for contractors. Talk. Scan. Bid. Build." />
+<meta name="twitter:title" content="Meet Eden — your AI employee for contractors." />
+<meta name="twitter:description" content="BidVoice is the AI Construction Operating System built for contractors. Meet Eden, your AI employee who helps estimate jobs, manage projects, organize customers, and keep your business moving." />
+<meta name="twitter:image" content="https://bidvoice.ai/og.png?v=3" />
+<meta name="twitter:image:alt" content="Meet Eden — your AI employee for contractors." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -800,18 +799,18 @@
   .bb-brain{width:48px;height:48px;display:block;overflow:visible;position:relative;z-index:1}
   .bb-brain .bb-syn path{stroke:rgb(var(--bbc,90,160,255));stroke-width:1.6;stroke-dasharray:3 4;animation:bbflow 3.6s linear infinite;opacity:1}
   .bb-brain .bb-core{transform:scale(.82);transform-origin:50px 50px;transform-box:view-box}
-  .bb-brain .bb-node circle{fill:rgb(var(--bbc,90,160,255));transform-box:fill-box;transform-origin:center;animation:bbnode 3.2s ease-in-out infinite}
+  .bb-brain .bb-node circle{fill:rgb(var(--bbc,90,160,255));transform-box:fill-box;transform-origin:center;animation:bbnode 2.3s ease-in-out infinite}
   .bb-brain .bb-node circle:nth-child(2n){animation-delay:.5s}
   .bb-brain .bb-node circle:nth-child(3n){animation-delay:1s}
   .bb-brain .bb-node circle:nth-child(4n){animation-delay:1.6s}
-  .bb-brain .bb-core circle{animation:bbnode 3.2s ease-in-out infinite}
+  .bb-brain .bb-core circle{animation:bbnode 2.3s ease-in-out infinite}
   .bb-brain .bb-orbit{opacity:0;transform-origin:50px 50px}
   .bb-brain .bb-orbit .orb{fill:#eaf2ff}
   .bb-brain .bb-spark{fill:rgb(var(--bbc,90,160,255))}
   /* ===== Living neural core: nucleus heartbeat · orbiting electrons · light traveling the pathways ===== */
-  .bb-brain .bb-nuc-glow{fill:rgb(var(--bbc,90,160,255));opacity:.55;transform-box:view-box;transform-origin:50px 49px;animation:bbnuc 3.6s ease-in-out infinite}
-  .bb-brain .bb-nucleus{fill:#fff;transform-box:view-box;transform-origin:50px 49px;animation:bbnuc 3.6s ease-in-out infinite}
-  .bb-brain .bb-pulse path{stroke:#eaf3ff;stroke-linecap:round;stroke-dasharray:3 100;stroke-dashoffset:100;opacity:0;animation:bbpkt 2.9s linear infinite}
+  .bb-brain .bb-nuc-glow{fill:rgb(var(--bbc,90,160,255));opacity:.55;transform-box:view-box;transform-origin:50px 49px;animation:bbnuc 2.8s ease-in-out infinite}
+  .bb-brain .bb-nucleus{fill:#fff;transform-box:view-box;transform-origin:50px 49px;animation:bbnuc 2.8s ease-in-out infinite}
+  .bb-brain .bb-pulse path{stroke:#eaf3ff;stroke-linecap:round;stroke-dasharray:3 100;stroke-dashoffset:100;opacity:0;animation:bbpkt 1.8s linear infinite}
   .bb-brain .bb-pulse path:nth-child(2){animation-delay:.6s}
   .bb-brain .bb-pulse path:nth-child(3){animation-delay:1.15s}
   .bb-brain .bb-pulse path:nth-child(4){animation-delay:1.7s}
@@ -820,8 +819,8 @@
   .bb-brain .bb-elec .ep1{transform:rotate(22deg) scale(1,.4)}
   .bb-brain .bb-elec .ep2{transform:rotate(-56deg) scale(1,.4)}
   .bb-brain .bb-elec .eo{fill:none;stroke:rgba(var(--bbc,90,160,255),.20);stroke-width:.7}
-  .bb-brain .bb-elec .espin{transform-box:view-box;transform-origin:50px 49px;animation:bbspin 7.5s linear infinite}
-  .bb-brain .bb-elec .s2{animation-duration:10s;animation-direction:reverse}
+  .bb-brain .bb-elec .espin{transform-box:view-box;transform-origin:50px 49px;animation:bbspin 5.2s linear infinite}
+  .bb-brain .bb-elec .s2{animation-duration:7s;animation-direction:reverse}
   .bb-brain .bb-elec .el{fill:#f2f7ff;filter:drop-shadow(0 0 2.4px rgba(var(--bbc,90,160,255),.95))}
   /* an almost-subconscious spark even at rest — the orb is never frozen */
   .bb-brain .bb-spark path{opacity:0;transform-box:fill-box;transform-origin:center;animation:bbsparkrest 6.5s ease-in-out infinite}
@@ -855,6 +854,19 @@
   /* the orb tells you how the business is doing before a word is spoken (health = color at rest) */
   .bb-dock.idle.bbh-attention{--bbc:255,176,64}
   .bb-dock.idle.bbh-urgent{--bbc:240,90,80;animation-duration:2.6s}
+  /* Presence, not a pinned logo: the orb drifts a few px like it's alive in the room —
+     long and eased so it never reads as a loop. (Frozen under reduced-motion below.) */
+  .bb-dock .bb-brain{animation:bbdrift 19s ease-in-out infinite}
+  @keyframes bbdrift{0%,100%{transform:translate(0,0)}20%{transform:translate(2px,-3px)}45%{transform:translate(-3px,-1px)}68%{transform:translate(2px,3px)}85%{transform:translate(-1px,1px)}}
+  /* It acknowledges the work: a gentle lean-in toward the job, then settles — "I see this job." */
+  .bb-dock.ack .bb-brain{animation:bback .95s cubic-bezier(.34,1.3,.5,1)}
+  @keyframes bback{0%{transform:translate(0,0) scale(1)}42%{transform:translate(-3px,-5px) scale(1.06)}100%{transform:translate(0,0) scale(1)}}
+  /* It notices a pause: one slow attentive lean, then back — like it looked up. */
+  .bb-dock.attn .bb-brain{animation:bbattn 1.8s ease-in-out}
+  @keyframes bbattn{0%,100%{transform:translate(0,0)}45%{transform:translate(-2px,-4px) scale(1.03)}}
+  /* Wordless acknowledgment — a quiet "got it" nod when you just did something. No words. */
+  .bb-dock.ackpulse .bb-brain{animation:bbackpop .62s cubic-bezier(.34,1.5,.5,1)}
+  @keyframes bbackpop{0%{transform:scale(1)}38%{transform:scale(1.12)}100%{transform:scale(1)}}
   @keyframes bbbreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
   /* ready — soft green glow: "your turn", before active recording */
   .bb-dock.ready{--bbc:54,214,122;animation:bbbreathe 2.4s ease-in-out infinite}
@@ -1079,9 +1091,16 @@
   .bb-panel.has-convo .bb-input{flex-direction:row;gap:10px;padding:6px 4px}
   .bb-panel.has-convo .bb-typewrap{flex-direction:row;flex:1;margin-top:0}
   .bb-panel.has-convo .bb-in-field.show{flex:1}
-  /* Empty: the briefing shows calmly, the mic is the hero. Conversation: transcript takes over. */
-  .bb-panel:not(.has-convo) .bb-conv{display:none}
+  /* On open she GREETS with context (never a passive "Standing by"): the greeting shows above the
+     orb even on mute. The orb then listens. Conversation: transcript takes over. */
+  .bb-panel:not(.has-convo) .bb-conv{display:block;flex:0 0 auto;max-height:34vh;overflow-y:auto;margin-bottom:2px}
   .bb-panel.has-convo .bb-conv{flex:1 1 auto;max-height:52vh}
+  /* The greeting itself carries the invitation, so the passive label/hint step aside on open. */
+  .bb-panel:not(.has-convo) .bb-input[data-state="ready"] .bb-state,.bb-panel:not(.has-convo) .bb-input[data-state="idle"] .bb-state,
+  .bb-panel:not(.has-convo) .bb-input[data-state="ready"] .bb-taphint,.bb-panel:not(.has-convo) .bb-input[data-state="idle"] .bb-taphint{display:none}
+  /* She looks at you for a beat, then the greeting arrives. */
+  @keyframes bbgreetin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .bb-panel:not(.has-convo) .bb-msg.seed{animation:bbgreetin .5s .35s both}
   /* The one-line "what do I do" hint — shown only in the calm ready state, never competing. */
   .bb-taphint{font-size:.84rem;color:#8ea2c8;margin-top:-2px;transition:opacity .25s ease}
   .bb-panel.has-convo .bb-taphint,.bb-input[data-state="listening"] .bb-taphint,.bb-input[data-state="thinking"] .bb-taphint,.bb-input[data-state="speaking"] .bb-taphint,.bb-input.recording .bb-taphint{opacity:0;pointer-events:none}
@@ -1159,7 +1178,7 @@
 <div class="app">
   <div class="top" id="topbar" style="display:none">
     <div class="top-in">
-      <div class="brand"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<b2>translator</b2></div>
+      <div class="brand"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<b2>Voice</b2></div>
       <div class="top-actions">
         <button class="trial-chip" id="trialChip" style="display:none" onclick="go('paywall')"></button>
         <span class="sync" id="syncBadge"><span class="dot"></span><span class="lbl">·</span></span>
@@ -1181,7 +1200,7 @@
     <button class="bn" id="bnSched" onclick="go('schedule')"><span class="bi"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 9.5h18"/></svg></span><span class="bl">Schedule</span></button>
     <button class="bn" id="bnMore" onclick="openMore()"><span class="bi"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></span><span class="bl">More</span></button>
   </nav>
-  <div id="bbDock" class="bb-dock idle" role="button" tabindex="0" aria-label="Bid Brain — tap to open, hold to talk" style="display:none">
+  <div id="bbDock" class="bb-dock idle" role="button" tabindex="0" aria-label="BidVoice — tap to open, hold to talk" style="display:none">
     <span class="bb-ring"></span><span class="bb-ring r2"></span><span class="bb-halo"></span><span class="bb-orbit-dot"></span>
     <svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">
       <defs>
@@ -1207,7 +1226,7 @@
       </g></svg>
   </div>
   <div id="bbScrim" class="bb-scrim" style="display:none" onclick="bbClosePanel()"></div>
-  <div id="bbPanel" class="bb-panel" style="display:none" role="dialog" aria-label="Bid Brain"></div>
+  <div id="bbPanel" class="bb-panel" style="display:none" role="dialog" aria-label="BidVoice"></div>
 </div>
 <div id="createSheet" class="sheet-wrap" style="display:none" onclick="closeCreate()">
   <div class="sheet" onclick="event.stopPropagation()">
@@ -1412,7 +1431,7 @@ let LANG = (function(){ try{ const s=localStorage.getItem('bt_lang'); if(s==='en
 const I18N = {
   en: {
     auth_hero_h:"Just talk. We write the bid.",
-    auth_hero_sub:"Say the job out loud — in English or Spanish — and Bidtranslator turns it into a clean, priced proposal you can send from your phone.",
+    auth_hero_sub:"Say the job out loud — in English or Spanish — and BidVoice turns it into a clean, priced proposal you can send from your phone.",
     auth_one_account:"One account = your jobs, synced across your devices.",
     auth_create_eyebrow:"Create your account", auth_welcome_eyebrow:"Welcome back",
     auth_get_started:"Get started", auth_sign_in:"Sign in",
@@ -1445,7 +1464,7 @@ const I18N = {
     bb_card_followups:"Today's Follow-ups",
     bb_remembers:"Bid Brain remembers:", bb_markup:"usual markup",
     bb_talk:"Talk", bb_type:"Type", bb_photos:"Analyze Photos", bb_attach:"Attach",
-    bb_state_ready:"Standing by", bb_state_listening:"Listening", bb_state_thinking:"Working on it…", bb_state_responding:"Here you go…", bb_state_done:"Done", bb_tap_hint:"What are we working on today?", bb_type_instead:"Type instead", bb_type_ph:"Type your message…",
+    bb_state_ready:"Ready when you are", bb_state_listening:"Listening", bb_state_thinking:"Working on it…", bb_state_responding:"Here you go…", bb_state_done:"Done", bb_tap_hint:"What are we working on today?", bb_type_instead:"Type instead", bb_type_ph:"Type your message…",
     bb_ctx_estimate:"What should I add to this estimate?",
     bb_ctx_customer:"What do you need for this customer?",
     bb_ctx_schedule:"What are we scheduling?",
@@ -1499,7 +1518,7 @@ const I18N = {
   },
   es: {
     auth_hero_h:"Solo habla. Nosotros escribimos el presupuesto.",
-    auth_hero_sub:"Di el trabajo en voz alta — en inglés o español — y Bidtranslator lo convierte en una propuesta clara y con precio que puedes enviar desde tu teléfono.",
+    auth_hero_sub:"Di el trabajo en voz alta — en inglés o español — y BidVoice lo convierte en una propuesta clara y con precio que puedes enviar desde tu teléfono.",
     auth_one_account:"Una cuenta = tus trabajos, sincronizados en todos tus dispositivos.",
     auth_create_eyebrow:"Crea tu cuenta", auth_welcome_eyebrow:"Bienvenido de nuevo",
     auth_get_started:"Empezar", auth_sign_in:"Iniciar sesión",
@@ -1585,7 +1604,25 @@ const I18N = {
     onb_v_paid:"Te ayudo a cobrar.",
   },
 };
-function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); return v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); }
+/* ===== AI Identity — a permanent Name Trial System =====
+   The platform is BidVoice; the AI employee's identity (name + voice + pronoun) is
+   configurable so we can live with Eden, then Silas, then Vera… by changing ONE thing —
+   never a rename. Switch the default below, or flip it live in Settings (dev). Every
+   piece of copy that said "Bid Brain" now renders the active name automatically. */
+const AI_IDENTITIES = {
+  eden:  { name:'Eden',  voice:'female', pronoun:'she' },
+  silas: { name:'Silas', voice:'male',   pronoun:'he'  },
+  vera:  { name:'Vera',  voice:'female', pronoun:'she' },
+  nora:  { name:'Nora',  voice:'female', pronoun:'she' },
+  dion:  { name:'Dion',  voice:'male',   pronoun:'he'  },
+};
+const AI_DEFAULT = 'eden';                         // ← the single config change to switch identity
+function aiKey(){ try{ const k=localStorage.getItem('bt_ai_id'); return (k&&AI_IDENTITIES[k])?k:AI_DEFAULT; }catch(_){ return AI_DEFAULT; } }
+const AI = AI_IDENTITIES[aiKey()] || AI_IDENTITIES[AI_DEFAULT];
+function setAiIdentity(k){ if(AI_IDENTITIES[k]){ try{ localStorage.setItem('bt_ai_id', k); }catch(_){} location.reload(); } }
+// Swap the legacy label for the active name in any displayed string (fast no-op when unchanged).
+function aiText(s){ return (typeof s==='string' && AI.name!=='Bid Brain' && s.indexOf('Bid Brain')>=0) ? s.split('Bid Brain').join(AI.name) : s; }
+function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); const r = v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); return (typeof r==='string') ? aiText(r) : r; }
 function setLang(l){ if(l!=='en'&&l!=='es') return; LANG=l; try{ localStorage.setItem('bt_lang',l); }catch(e){} try{ document.documentElement.lang=l; }catch(e){} render(); }
 try{ document.documentElement.lang = LANG; }catch(e){}
 
@@ -1789,7 +1826,7 @@ async function prospectExportCsv(){
   try{ const res=await fetch(API+'/api/prospects/export',{headers:{'Authorization':'Bearer '+TOKEN}});
     if(!res.ok){ toast('Export failed.','bad'); return; }
     const blob=await res.blob(), url=URL.createObjectURL(blob), a=document.createElement('a');
-    a.href=url; a.download='bidtranslator-prospects.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    a.href=url; a.download='bidvoice-prospects.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     toast('✓ Exported '+PROSPECT.saved.length+' prospects','ok');
   }catch(e){ toast('Export failed.','bad'); }
 }
@@ -1844,7 +1881,7 @@ function viewProspecting(){
       <textarea class="input sm ps-note" placeholder="Notes…" onchange="prospectNote('${p.id}',this.value)">${esc(p.notes||'')}</textarea></div>`;
   }).join(''):'<div class="hint">No prospects yet — search above, or save them as you go.</div>');
   return `<div class="h-eyebrow">Growth · outbound</div><h1 class="page">Prospecting</h1>
-    <div class="sub">Find &amp; qualify contractors, vendors, stagers, designers &amp; other home-service businesses — and work them into Bidtranslator.</div>
+    <div class="sub">Find &amp; qualify contractors, vendors, stagers, designers &amp; other home-service businesses — and work them into BidVoice.</div>
     ${connect}${form}${results}${crm}`;
 }
 
@@ -2311,7 +2348,8 @@ function go(v, jobId){ state.view=v; if(jobId!==undefined) state.jobId=jobId; st
   track('page_view', {view:v}); if(v==='home') track('dashboard_viewed', {});
   if(v==='brain') loadBrain(); // refresh greeting counts + memory on entry
   if(typeof bbReposition==='function') bbReposition(); // brain finds a better spot on nav change
-  if(v==='job' && state.jobId && state.jobId!=='new') refreshJob(state.jobId); }
+  if(v==='job' && state.jobId && state.jobId!=='new') refreshJob(state.jobId);
+  if(v==='job' && state.jobId){ if(typeof bbAcknowledgeJob==='function') bbAcknowledgeJob(); } else { bbAckedJob=null; } }
 // Start a brand-new bid with an EMPTY notepad. Clears the saved draft and blanks
 // the live textarea (the render() snapshot re-reads it, so we must wipe both) — this
 // is what stops a previous conversation from bleeding into, or being appended to, a
@@ -2339,9 +2377,11 @@ function viewBrain(){
   const rawCo=(USER&&USER.company)||SETTINGS.company||'';
   const co=(rawCo&&rawCo!=='Your Company')?rawCo:'';
   const nm=String((USER&&USER.name)||SETTINGS.name||co||'').trim();
-  const first=nm.split(/\s+/)[0]||'';
-  const h=new Date().getHours();
-  const greet = h<12?t('bb_morning'):h<18?t('bb_afternoon'):t('bb_evening');
+  const es=(typeof LANG!=='undefined'&&LANG==='es');
+  // Law XV: no scripted "Good <time>, Name." headline. Lead with a short, non-repeating
+  // line; the real, honest counts live in the pulse row just below.
+  const head = bbPick(es?['¿Qué construimos?','Cuando quieras.','¿Por dónde empezamos?','¿Qué necesitas?']
+                        :['What are we building?','Ready when you are.','Where do you want to start?','What do you need?'],'bv_head');
   const pulse=[];
   if(g.activeEstimates>0) pulse.push(g.activeEstimates+' '+(g.activeEstimates===1?t('bb_active_one'):t('bb_active_many')));
   if(g.followupsDue>0) pulse.push(g.followupsDue+' '+t('bb_followups'));
@@ -2357,7 +2397,7 @@ function viewBrain(){
     ? `<div class="bb-mem">${bbMark(14)} ${esc(t('bb_remembers'))} ${esc(bbPrettyTrade(m.last_trade))}${(m.typical_markup!=null)?` · ${esc(t('bb_markup'))} ${m.typical_markup}%`:''}</div>` : '';
   return `<div class="brain">
     <div class="bb-greet">
-      <div class="bb-hi">${esc(greet)}${first?', '+esc(first):''}.</div>
+      <div class="bb-hi">${esc(head)}</div>
       ${pulse.length ? `<div class="bb-pulse">${pulse.map(p=>`<span class="bb-dot">${esc(p)}</span>`).join('')}</div>`
                      : `<div class="bb-pulse empty">${esc(t('bb_firstrun'))}</div>`}
       <div class="bb-prompt">${esc(t('bb_prompt'))}</div>
@@ -2406,6 +2446,7 @@ function bbApplyHealth(){ const mic=document.getElementById('bbMicBtn');
 function bbSetState(s){ const d=document.getElementById('bbDock'); if(!d) return; s=s||'idle';
   if(s==='completed'||s==='done') s='success';      // aliases
   if(BB_STATES.indexOf(s)<0) s='idle';
+  if(s!=='thinking'){ clearTimeout(bbThinkTimer); bbThinkTimer=null; bbThinkNote=''; }   // drop the progress phrase when work ends
   bbState=s; d.classList.remove(...BB_STATES,'flick'); d.classList.add(s);
   // Voice-first: the panel stage reflects the four states the contractor cares about.
   const lbl=document.getElementById('bbStateLabel'); if(lbl) lbl.textContent=bbStateText(s);
@@ -2450,7 +2491,7 @@ function bbLifeTick(){ if(!bbLifeOn) return;
   const hidden=document.hidden;
   if(!hidden && !bbReduce()) bbFireNeurons(bbActiveOrb(), bbState);
   const energy=bbEnergy();
-  let base = bbState==='thinking' ? 520 : bbState==='listening' ? 900 : bbState==='speaking' ? 1400 : 2200;
+  let base = bbState==='thinking' ? 430 : bbState==='listening' ? 780 : bbState==='speaking' ? 1200 : 1500;
   base = base * (1.4 - energy*0.6);                      // more energy → firings come sooner
   const delay = hidden ? 4000 : Math.max(280, Math.round(base * (0.5 + Math.random())));  // heavy jitter: never a loop
   bbLifeTimer=setTimeout(bbLifeTick, delay);
@@ -2458,46 +2499,192 @@ function bbLifeTick(){ if(!bbLifeOn) return;
 function bbLifeStart(){ if(bbLifeOn) return; bbLifeOn=true; clearTimeout(bbLifeTimer); bbLifeTimer=setTimeout(bbLifeTick, 700); }
 // One warm pulse after a job well done — acknowledgement, no words.
 function bbWarmPulse(){ const m=document.getElementById('bbMicBtn'); if(m){ m.classList.remove('bb-warm'); void m.offsetWidth; m.classList.add('bb-warm'); setTimeout(()=>m.classList.remove('bb-warm'), 1600); } }
+// A wordless "got it" — the orb acknowledges something you just did, without speaking.
+function bbAcknowledge(){ try{
+  if(typeof bbPanelOpen==='function' && bbPanelOpen()){ bbWarmPulse(); return; }
+  const d=document.getElementById('bbDock'); if(!d||d.style.display==='none'||(typeof bbReduce==='function'&&bbReduce())) return;
+  d.classList.remove('ackpulse'); void d.offsetWidth; d.classList.add('ackpulse');
+  setTimeout(()=>{ const el=document.getElementById('bbDock'); if(el) el.classList.remove('ackpulse'); }, 680);
+}catch(_){}}
 /* ===== The Chief-of-Staff briefing — she walks in and tells you what needs you =====
    Content is composed ONLY from real greeting counts (Trust: never invent activity).
    When there's nothing, she says so plainly instead of manufacturing urgency. */
 function bbBriefMode(){ const m=localStorage.getItem('bt_bb_brief'); return (m==='silent'||m==='always'||m==='exceptions')?m:'exceptions'; }
 function setBriefMode(m){ if(m==='silent'||m==='always'||m==='exceptions'){ localStorage.setItem('bt_bb_brief', m); if(state.view==='settings') render(); } }
+// Deterministic rotation — never repeats back-to-back, but stable (not random). Advances per open.
+function bbRot(key,n){ if(n<=1) return 0; try{ const k='bt_rot_'+key; let i=parseInt(localStorage.getItem(k)||'0',10); if(!Number.isFinite(i)) i=0; localStorage.setItem(k,String(i+1)); return ((i%n)+n)%n; }catch(_){ return 0; } }
+function bbPick(arr,key){ return arr[bbRot(key,arr.length)]; }
+// A human never greets you the same way twice. Vary the opener (time + how long you've been away),
+// lead with ONE thing + ONE question (never dump a list), and hand back the floor — grounded in real data.
 function bbSpokenBriefing(){
   try{
-    const dd=bbGreetData(); const g=dd.g||{};
-    const hi=dd.greet+(dd.first?(', '+dd.first):'')+'.';
-    const aw=g.awaitingSignature||0, fu=g.followupsDue||0, items=[];
-    if(aw) items.push(aw===1?'one estimate waiting on a signature':aw+' estimates waiting on signatures');
-    if(fu) items.push(fu===1?"one follow-up I'd recommend making":fu+" follow-ups I'd recommend making");
-    if(!items.length) return hi+" Everything's running smoothly today. What would you like to work on?";
-    const list = items.length===1 ? items[0] : items.slice(0,-1).join(', ')+' and '+items[items.length-1];
-    if(bbHealth()==='urgent') return hi+" Before we begin — "+list+". I'd start there.";
-    return hi+" Everything's looking good. You have "+list+". Which would you like to tackle first?";
-  }catch(_){ try{ const dd=bbGreetData(); return (dd.greet||'Hello')+(dd.first?', '+dd.first:'')+". What would you like to work on?"; }catch(e){ return ''; } }
+    const es=(typeof LANG!=='undefined'&&LANG==='es');
+    const dd=bbGreetData(); const g=dd.g||{}; const nm=dd.first?(', '+dd.first):'';
+    const h=new Date().getHours();
+    let away=Infinity; try{ const last=Number(localStorage.getItem('bt_bb_lastopen')||0); if(last) away=(Date.now()-last)/60000; }catch(_){}
+    const openers = away<3
+      ? (es?['¿Ya de vuelta'+nm+'?','Qué rápido'+nm+'.','Aquí sigo'+nm+'.']:['Back already'+nm+'.','That was quick'+nm+'.','Still here'+nm+'.'])
+      : (h<12 ? (es?['Buenos días'+nm+'.','Hola'+nm+'.','A darle'+nm+'.']:['Morning'+nm+'.',"Mornin'"+nm+'.','Hey'+nm+'.','Back at it'+nm+'.'])
+        : h<18 ? (es?['Buenas tardes'+nm+'.','Hola'+nm+'.','A darle'+nm+'.']:['Afternoon'+nm+'.','Hey'+nm+'.','Back at it'+nm+'.','Good to see you'+nm+'.'])
+        : (es?['Buenas noches'+nm+'.','Hola'+nm+'.','Qué día'+nm+', ¿eh?']:['Evening'+nm+'.','Hey'+nm+'.','Good to see you'+nm+'.','Long day'+nm+'?']));
+    const open=bbPick(openers,'greet_open');
+    const aw=g.awaitingSignature||0, fu=g.followupsDue||0;
+    if(aw){
+      const line=es
+        ? bbPick([ (aw===1?'Un presupuesto sigue esperando firma.':aw+' presupuestos siguen esperando firma.'), (aw===1?'Tienes una propuesta sin firmar.':'Tienes '+aw+' propuestas sin firmar.') ],'greet_aw')
+        : bbPick([ (aw===1?"One estimate's still waiting on a signature.":aw+" estimates are still waiting on signatures."), (aw===1?"You've got a bid sitting unsigned.":"You've got "+aw+" bids sitting unsigned."), (aw===1?"A proposal hasn't been signed yet.":aw+" proposals haven't been signed yet.") ],'greet_aw');
+      const q=es?bbPick(['¿Les doy un empujón?','¿Hago seguimiento?','¿Empezamos por ahí?'],'greet_awq'):bbPick(["Want me to nudge them?","Want me to follow up?","Should I chase it?","Want to start there?"],'greet_awq');
+      return open+' '+line+' '+q;
+    }
+    if(fu){
+      const line=es
+        ? bbPick([ (fu===1?'Un cliente toca para seguimiento.':fu+' clientes tocan para seguimiento.'), (fu===1?'Hay un seguimiento que yo haría.':'Hay '+fu+' seguimientos que yo haría.') ],'greet_fu')
+        : bbPick([ (fu===1?"One customer's due for a follow-up.":fu+" customers are due for a follow-up."), (fu===1?"There's a follow-up I'd make.":"There are "+fu+" follow-ups I'd make."), (fu===1?"One person's worth a call today.":fu+" folks are worth a call today.") ],'greet_fu');
+      const q=es?bbPick(['¿Te armo la lista?','¿Los preparo?','¿Empezamos por ahí?'],'greet_fuq'):bbPick(["Want the list?","Want me to line them up?","Should we start there?","Want to knock those out?"],'greet_fuq');
+      return open+' '+line+' '+q;
+    }
+    const calm=es?bbPick(['Todo tranquilo.','Nada urgente.','Vas bien.','Todo al día.'],'greet_calm'):bbPick(["Everything's quiet.","Nothing on fire.","You're in good shape.","All caught up.","Nothing needs you this minute."],'greet_calm');
+    const ask=es?bbPick(['¿En qué trabajamos?','¿Por dónde empezamos?','¿Qué es primero?','¿Qué necesitas?'],'greet_ask'):bbPick(["What are we working on?","Where do you want to start?","What's first?","What do you need?"],'greet_ask');
+    return open+' '+calm+' '+ask;
+  }catch(_){ try{ const dd=bbGreetData(); return (dd.greet||'Hey')+(dd.first?', '+dd.first:'')+'.'; }catch(e){ return ''; } }
 }
-// On open, she enters the room: a beat, then a spoken briefing — gated by the setting
-// and the mute. Silent = never; Only-when-important = only if something needs you; Always = every time.
+// Her stand-down line also varies — a teammate doesn't say the same thing every silence.
+function bbNudge(){ const es=(typeof LANG!=='undefined'&&LANG==='es');
+  return es ? bbPick(['Cuando quieras.','Aquí estoy.','Sin prisa, aquí sigo.','Tú dime.'],'nudge')
+            : bbPick(["I'm here when you need me.","Take your time.","Whenever you're ready.","No rush — I've got you.","Still here."],'nudge'); }
+// The opening line — always shown on open (even on mute), so the panel greets with context
+// instead of a passive "Standing by". On a job it speaks to THAT job; otherwise the briefing.
+function bbActiveJob(){ try{ return (state.view==='job'&&state.jobId&&state.jobId!=='new')?JOBS.find(j=>j.id===state.jobId&&!j._deleted):null; }catch(_){ return null; } }
+function bbJobOpeningLine(j){
+  const es=(typeof LANG!=='undefined'&&LANG==='es');
+  const title=(j.title||(es?'este trabajo':'this job')).trim();
+  const s=(typeof jobStatus==='function')?jobStatus(j):'draft';
+  const on = es ? bbPick(['Estamos en '+title+'.','De vuelta en '+title+'.','Viendo '+title+'.'],'job_on')
+                : bbPick(["We're on "+title+".","Back on "+title+".","Looking at "+title+".","On "+title+" now."],'job_on');
+  const lead = es ? (s==='sent'?'Ya se envió. ':s==='signed'?'Está firmado. ':s==='scheduled'?'Está agendado. ':'')
+                  : (s==='sent'?"That bid's out. ":s==='signed'?"It's signed. ":s==='scheduled'?"It's on the calendar. ":'');
+  const opts = es
+    ? (s==='sent'?'¿Hago seguimiento, lo reviso, o agendamos lo siguiente?'
+      : s==='signed'?'¿Lo agendo, pido el anticipo, o agrego fotos?'
+      : s==='scheduled'?'¿Preparo materiales, agrego notas, o le escribo al cliente?'
+      : '¿Agrego fotos, sigo con el presupuesto, o me preguntas algo?')
+    : (s==='sent'?bbPick(["Want me to follow up, review it, or line up the next step?","Chase the signature, give it a look, or schedule what's next?"],'job_sent')
+      : s==='signed'?bbPick(["Want to schedule it, request the deposit, or add photos?","Set a date, lock the deposit, or add photos?"],'job_signed')
+      : s==='scheduled'?bbPick(["Want to prep materials, add notes, or message the customer?","Prep materials, drop a note, or text the customer?"],'job_sched')
+      : bbPick(["Want to add photos, keep building the estimate, or ask me anything?","Add photos, keep building the bid, or ask me anything?"],'job_draft'));
+  return on+' '+lead+opts;
+}
+function bbOpeningLine(){ const j=bbActiveJob(); return j ? bbJobOpeningLine(j) : bbSpokenBriefing(); }
+/* ===== LAW XV — Awareness, not greetings ===============================================
+   Eden does not have greetings. Eden has awareness. On open she does not perform a script;
+   she notices what actually CHANGED since you were last here and, only if it's worth
+   looking up for, says one true thing about it. Otherwise she stays present and silent —
+   the orb is there, that's enough. Silence is a valid, honest response. The test for every
+   opening: would a trusted employee really say this, or would they just look up and keep
+   working? If you can predict what she'll say, we failed. Constitutional law — see
+   docs/bid-brain-interaction-constitution.md, Law XV. ==================================== */
+let bbOpenState=null;   // {t, speak} decided at open; bbMaybeBrief speaks it (or nothing)
+function _bbSeen(){ try{ return JSON.parse(localStorage.getItem('bt_bb_seen')||'{}')||{}; }catch(_){ return {}; } }
+function _bbSaveSeen(s){ try{ localStorage.setItem('bt_bb_seen', JSON.stringify(s||{})); }catch(_){} }
+function bbAwareOpening(){
+  try{
+    const es=(typeof LANG!=='undefined'&&LANG==='es');
+    const b=(window.BRAIN&&BRAIN.briefing)||{};
+    const raw=localStorage.getItem('bt_bb_seen');   // null the very first time we ever open
+    const seen=_bbSeen();
+    const paid=(b.paidRecently||[]).filter(p=>p&&p.amount>0);
+    const pk=p=>String((p.id!=null?p.id:p.name)||'')+'|'+p.amount;
+    const nl=(typeof LEADS_NEW!=='undefined'?LEADS_NEW:0)||0;
+    // First run ever: we can't know what's genuinely new, so we set the watermark
+    // silently and say nothing. Never announce old activity as if it just happened.
+    if(raw==null){ seen.paid=paid.map(pk); seen.leads=nl; _bbSaveSeen(seen); return {t:'', speak:false}; }
+    // 1) A real win — a deposit landed. Worth looking up for; she says it out loud.
+    const seenPaid=seen.paid||[];
+    const fresh=paid.filter(p=>seenPaid.indexOf(pk(p))<0);
+    if(fresh.length){
+      const p=fresh[0]; const who=bbFirst(p.name)||(es?'un cliente':'a customer'); const amt=money(p.amount);
+      seen.paid=paid.map(pk); _bbSaveSeen(seen);
+      const line=es?bbPick([who+' pagó el anticipo — '+amt+'.','Entró el anticipo de '+who+': '+amt+'.','Ya pagó '+who+' — '+amt+'.'],'aw_paid')
+                   :bbPick([who+"'s deposit came in — "+amt+'.',"That's "+amt+' in from '+who+'.',who+' paid the deposit — '+amt+'.'],'aw_paid');
+      return {t:line, speak:true};
+    }
+    // 2) A new lead since last time — real and time-sensitive.
+    if(nl>(seen.leads||0)){
+      const d=nl-(seen.leads||0); seen.leads=nl; _bbSaveSeen(seen);
+      const line=es?bbPick([(d===1?'Entró un prospecto nuevo.':'Entraron '+d+' prospectos nuevos.'),(d===1?'Tienes un lead nuevo esperando.':'Tienes '+d+' leads nuevos esperando.')],'aw_lead')
+                   :bbPick([(d===1?'New lead just came in.':d+' new leads just came in.'),(d===1?"There's a fresh lead waiting.":'There are '+d+' fresh leads waiting.')],'aw_lead');
+      return {t:line, speak:true};
+    }
+    if(nl<(seen.leads||0)){ seen.leads=nl; _bbSaveSeen(seen); }   // keep the watermark honest; never re-announce
+    // From here down there's no NEWS — so she never speaks unprompted (speak:false).
+    // She may show a short, contextual line, but never a time-of-day greeting with your name.
+    // 3) Inside a job — speak from the work, not a hello.
+    const j=bbActiveJob();
+    if(j){
+      const line=es?bbPick(['¿Seguimos con este presupuesto?','¿Necesitas fotos, notas o precios?','¿Le seguimos a este trabajo?'],'aw_job')
+                   :bbPick(['Want to keep building this estimate?','Need photos, notes, or pricing?','Want to pick this back up?'],'aw_job');
+      return {t:line, speak:false};
+    }
+    // 4) A quick reopen — she was just here. Light, brief.
+    let away=Infinity; try{ const last=Number(localStorage.getItem('bt_bb_lastopen')||0); if(last) away=(Date.now()-last)/1000; }catch(_){}
+    if(away<120){
+      const line=es?bbPick(['De vuelta contigo.','Aquí sigo.',''],'aw_quick'):bbPick(['Back with you.','Still here.',''],'aw_quick');
+      return {t:line, speak:false};
+    }
+    // 5) Nothing changed — stay quiet, or a short presence line. NEVER a scripted greeting.
+    const line=es?bbPick(['','¿Qué sigue?','Lista.','Aquí estoy.',''],'aw_idle'):bbPick(['',"What's next?",'Ready.',"I'm here.",''],'aw_idle');
+    return {t:line, speak:false};
+  }catch(_){ return {t:'', speak:false}; }
+}
+// On open she speaks ONLY what awareness surfaced — and only when it's speech-worthy.
+// No manufactured greeting: if awareness is silent, she is silent, whatever the mode.
 function bbMaybeBrief(){
   try{
     if(!('speechSynthesis' in window) || !TTS_ON) return;
-    const mode=bbBriefMode(); if(mode==='silent') return;
-    if(mode==='exceptions' && bbHealth()==='calm') return;
-    const say=bbSpokenBriefing(); if(!say) return;
+    if(bbBriefMode()==='silent') return;            // the mute overrides everything
+    const op=bbOpenState; if(!op || !op.t || !op.speak) return;   // awareness said nothing to say
     setTimeout(()=>{ if(!bbPanelOpen() || BBC.recording) return;
       bbSetState('speaking');
-      bbSpeak(say, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
-    }, 850);
+      bbSpeak(op.t, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
+    }, 500);
   }catch(_){}
 }
 // The spoken-state label: Ready → Listening → Thinking → Responding (jobsite-plain).
 function bbStateText(s){
   if(s==='listening') return t('bb_state_listening');
-  if(s==='thinking') return t('bb_state_thinking');
+  if(s==='thinking') return bbThinkNote || t('bb_state_thinking');
   if(s==='success') return t('bb_state_done');
   if(s==='speaking'||s==='working') return t('bb_state_responding');
   return t('bb_state_ready');
 }
+// ===== Visible work: honest progress phrases during Thinking (Interaction Constitution IV) =====
+// Every phrase maps to the REAL task the contractor asked about — never simulated work. Phrases
+// rotate per category so they feel familiar, not random, and vary naturally over time.
+const BB_THINK = {
+  customer:['Finding the customer…','Reviewing their history…'],
+  schedule:['Looking at your schedule…',"Checking what's coming up…"],
+  estimate:['Pulling the job details…','Reviewing the estimate…'],
+  followup:["Checking what's overdue…",'Preparing the follow-up…'],
+  photos:['Organizing the photos…','Looking at the photos…'],
+  money:["Checking what's been paid…",'Reviewing the numbers…'],
+  generic:['Checking that now…','Pulling that up…','Looking into it…'],
+};
+function bbThinkCategory(txt){ txt=String(txt||'').toLowerCase();
+  if(/\b(customer|client|who|contact|homeowner|lead)\b/.test(txt)) return 'customer';
+  if(/\b(schedul|calendar|tomorrow|today|appoint|book|monday|tuesday|wednesday|thursday|friday)\b/.test(txt)) return 'schedule';
+  if(/\b(estimat|bid|quote|proposal|price|job|scope)\b/.test(txt)) return 'estimate';
+  if(/\b(follow|chase|nudge|remind|call ?back|overdue)\b/.test(txt)) return 'followup';
+  if(/\b(photo|picture|image|pic)\b/.test(txt)) return 'photos';
+  if(/\b(paid|payment|invoice|owe|deposit|money|balance)\b/.test(txt)) return 'money';
+  return 'generic';
+}
+let _bbThinkRot={}, bbThinkNote='', bbThinkTimer=null;
+function bbThinkStages(txt){ const cat=bbThinkCategory(txt); const arr=BB_THINK[cat]||BB_THINK.generic;
+  const i=(_bbThinkRot[cat]||0); _bbThinkRot[cat]=i+1; return [arr[i%arr.length], arr[(i+1)%arr.length]]; }
+// Show the first honest phrase now; if the real work runs long, advance to the next stage line
+// (never a fake extra step). The panel's state label is the surface.
+function bbStartThinking(txt){ const st=bbThinkStages(txt); bbThinkNote=st[0]; clearTimeout(bbThinkTimer);
+  bbThinkTimer=setTimeout(()=>{ if(bbState==='thinking'){ bbThinkNote=st[1]||bbThinkNote; const l=document.getElementById('bbStateLabel'); if(l) l.textContent=bbThinkNote; } }, 2600); }
 
 let bbInited=false, bbDrag=null, bbLastTap=0, bbTapTimer=null, bbLpTimer=null, bbLpFired=false;
 let bbIdleSince=Date.now(), bbDriftTimer=null;
@@ -2505,6 +2692,7 @@ let bbIdleSince=Date.now(), bbDriftTimer=null;
 function bbActivity(){ bbIdleSince=Date.now(); }
 function bbInit(){
   const d=document.getElementById('bbDock'); if(!d||bbInited) return; bbInited=true;
+  try{ d.setAttribute('aria-label', AI.name+' — tap to open, hold to talk'); const p=document.getElementById('bbPanel'); if(p) p.setAttribute('aria-label', AI.name); }catch(_){}
   let pos=null; try{ pos=JSON.parse(localStorage.getItem('bb_pos')||'null'); }catch(e){}
   bbPlace(pos);
   window.addEventListener('resize', ()=>bbPlace(bbGetPos()));
@@ -2532,11 +2720,17 @@ function bbAwakeCue(){
   const p=document.getElementById('bbPanel'); if(p&&p.style.display==='block') return;
   if(typeof recording!=='undefined' && recording) return;
   if((Date.now()-bbIdleSince) < 6000) return;            // only when genuinely idle
-  d.classList.add('flick');
-  setTimeout(()=>{ const el=document.getElementById('bbDock'); if(el) el.classList.remove('flick'); }, 1300);
+  d.classList.add('attn');                               // a slow attentive lean — "I noticed you paused"
+  setTimeout(()=>{ const el=document.getElementById('bbDock'); if(el) el.classList.remove('attn'); }, 1900);
 }
 function bbScheduleDrift(){ clearTimeout(bbDriftTimer);
   bbDriftTimer=setTimeout(()=>{ bbAwakeCue(); bbScheduleDrift(); }, 15000+Math.random()*6000); }
+// Working memory: when a job opens, the orb leans in to acknowledge it — once per visit.
+let bbAckedJob=null;
+function bbAcknowledgeJob(){ const d=document.getElementById('bbDock'); if(!d||d.style.display==='none'||bbReduce()) return;
+  if(bbAckedJob===state.jobId) return; bbAckedJob=state.jobId;
+  d.classList.remove('attn'); d.classList.add('ack');
+  setTimeout(()=>{ const el=document.getElementById('bbDock'); if(el) el.classList.remove('ack'); }, 1000); }
 // Navigation/modal change → if the brain is stranded mid-screen, spring it to the nearest edge.
 function bbReposition(){ bbActivity(); const d=document.getElementById('bbDock'); if(!d||d.style.display==='none') return;
   const r=d.getBoundingClientRect(), W=window.innerWidth, S=d.offsetWidth||62, m=14;
@@ -2646,12 +2840,14 @@ function bbOpenPanel(){
   const p=document.getElementById('bbPanel'), s=document.getElementById('bbScrim'); if(!p) return;
   bbActivity(); if(typeof loadBrain==='function') loadBrain();
   bbSessionStart=Date.now();   // start of this working session (feeds her energy/memory)
-  // Every open starts clean — the assistant greets you in the ready state and
-  // never reopens mid-transcript. The conversation is ephemeral to this session,
-  // like talking to a person: you walk up fresh, you don't resume a chat log.
-  BBC.thread = [{role:'assistant', seed:true, content:bbGreetingText()}];
+  // Every open starts clean — never reopens mid-transcript. The conversation is
+  // ephemeral to this session, like talking to a person: you walk up fresh, you don't
+  // resume a chat log. Law XV: she opens with awareness, not a greeting — a real change
+  // worth a word, or nothing at all (an empty thread = she looked up and kept working).
+  bbOpenState = bbAwareOpening();
+  BBC.thread = bbOpenState.t ? [{role:'assistant', seed:true, content:bbOpenState.t}] : [];
   p.innerHTML = `
-    <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> Bid Brain <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
+    <div class="bb-panel-h"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg> ${esc(AI.name)} <button class="bb-panel-x" onclick="bbClosePanel()" aria-label="Close">×</button></div>
     <div class="bb-conv" id="bbConv"></div>
     <div class="bb-input" id="bbInputBar" data-state="ready">
       <button class="bb-mic-hero" id="bbMicBtn" onclick="bbConvMic()" aria-label="${escAttr(t('bb_talk'))}">
@@ -2694,15 +2890,24 @@ function bbShowType(){
   if(f){ f.classList.add('show'); f.focus(); }
   if(link) link.style.display='none';
 }
+// Interaction-time telemetry — from "you stopped talking" to "she answered". Goal: faster
+// conversations, not just faster speech. Watch the console; keeps a rolling average.
+let bbTurnStart=0, _bbTurns=[];
+function bbLogTurn(ms){ _bbTurns.push(ms); if(_bbTurns.length>20) _bbTurns.shift();
+  const avg=Math.round(_bbTurns.reduce((a,b)=>a+b,0)/_bbTurns.length);
+  try{ console.debug('[Eden] turn '+ms+'ms · avg '+avg+'ms ('+_bbTurns.length+')'); }catch(_){} }
 async function bbConvSend(text){
   const inp=document.getElementById('bbInput');
   const msg=(text!=null?String(text):(inp?inp.value:'')).trim(); if(!msg||BBC.busy) return;
   if(inp) inp.value='';
   bbActivity(); BBC.thread.push({role:'user',content:msg}); bbThreadSave();
-  BBC.busy=true; bbConvRender(); bbSetState('thinking'); bbAk('thinking');
+  BBC.busy=true; bbConvRender(); bbStartThinking(msg); bbSetState('thinking'); bbAk('thinking');
+  const _turnT0=bbTurnStart||Date.now();   // measure the whole turn (you stop talking → she answers)
   try{
     const payload=BBC.thread.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role,content:m.content}));
-    const r=await api('/api/brain/chat',{method:'POST', body:JSON.stringify({messages:payload, now:bbNow()})});
+    const r=await api('/api/brain/chat',{method:'POST', body:JSON.stringify({messages:payload, now:bbNow(), ai:{name:AI.name, pronoun:AI.pronoun}})});
+    try{ bbLogTurn(Date.now()-_turnT0); }catch(_){}    // interaction-time telemetry
+    bbTurnStart=0;
     BBC.busy=false;
     let reply=(r&&r.reply)||t('bb_err_reply');
     // Bid Brain *does* the work: if the reply carried a scheduling directive, write it
@@ -2774,13 +2979,14 @@ async function bbConvMic(){
     if(BBC.cancelRec){ BBC.cancelRec=false; BBC.recording=false; bbSetState('idle'); bbAkAuto(); return; }
     const blob=new Blob(BBC.recChunks,{type:mime||'audio/webm'}); BBC.recording=false;
     // Armed but nothing said (or too short) → stand down gently, never dead-end.
-    if(blob.size<700 || !heardSpeech){ bbSetState('idle'); bbAkAuto(); bbSayLocal(t('bb_gentle_nudge')); return; }
-    bbSetState('thinking'); bbAk('thinking'); BBC.busy=true; bbConvRender();
+    if(blob.size<700 || !heardSpeech){ bbSetState('idle'); bbAkAuto(); bbSayLocal(bbNudge()); return; }
+    bbTurnStart=Date.now();   // clock starts the moment you stop talking
+    bbThinkNote='Getting that down…'; bbSetState('thinking'); bbAk('thinking'); BBC.busy=true; bbConvRender();
     try{
       const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
       const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({audio:dataUrl, lang:(SETTINGS.from||'en')})});
       BBC.busy=false; const said=((r&&r.text)||'').trim();
-      if(said){ try{ localStorage.setItem('bt_bb_voicewins', String(Number(localStorage.getItem('bt_bb_voicewins')||0)+1)); }catch(_){}  bbConvSend(said); } else { bbConvRender(); bbSetState('idle'); bbAkAuto(); bbSayLocal(t('bb_gentle_nudge')); }
+      if(said){ try{ localStorage.setItem('bt_bb_voicewins', String(Number(localStorage.getItem('bt_bb_voicewins')||0)+1)); }catch(_){}  bbConvSend(said); } else { bbConvRender(); bbSetState('idle'); bbAkAuto(); bbSayLocal(bbNudge()); }
     }catch(e){ BBC.busy=false; bbConvRender(); bbSetState('error'); bbAkAuto(); }
   };
   try{ BBC.rec.start(); }catch(_){ bbConvVADStop(); BBC.recording=false; bbSetState('idle'); bbAkAuto(); }
@@ -2808,9 +3014,9 @@ function bbEnterReady(autostart){
   bbSetState('ready'); bbAk('idle');
   const mic=document.getElementById('bbMicBtn'); if(mic) mic.classList.add('ready');
   bbHint(t('bb_ready_hint')); buzz(14); bbChime();
-  if(autostart){ bbReadyTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording && bbPanelOpen()) bbConvMic(); }, 440); }
+  if(autostart){ bbReadyTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording && bbPanelOpen()) bbConvMic(); }, 300); }
   // No answer after a while → stand down gracefully and invite the next step.
-  bbNudgeTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording){ const m=document.getElementById('bbMicBtn'); if(m) m.classList.remove('ready'); bbSetState('idle'); bbSayLocal(t('bb_gentle_nudge')); } }, 9000);
+  bbNudgeTimer=setTimeout(()=>{ if(bbState==='ready' && !BBC.recording){ const m=document.getElementById('bbMicBtn'); if(m) m.classList.remove('ready'); bbSetState('idle'); bbSayLocal(bbNudge()); } }, 9000);
 }
 // Short generated "ready" chime — no asset to ship. Tied to TTS being on.
 function bbChime(){ if(!TTS_ON) return; try{ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return; const c=new AC(); const o=c.createOscillator(), g=c.createGain(); o.type='sine'; o.frequency.setValueAtTime(620,c.currentTime); o.frequency.exponentialRampToValueAtTime(940,c.currentTime+0.10); g.gain.setValueAtTime(0.0001,c.currentTime); g.gain.exponentialRampToValueAtTime(0.10,c.currentTime+0.02); g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+0.20); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+0.22); setTimeout(()=>{ try{ c.close(); }catch(_){ } }, 400); }catch(_){ } }
@@ -2827,7 +3033,7 @@ function bbConvVADStart(stream){
     const AC=window.AudioContext||window.webkitAudioContext; if(!AC){ bbCV={ctx:null,raf:null,spoke:true,quietAt:0,t0:Date.now()}; return; }
     const ctx=new AC(); const src=ctx.createMediaStreamSource(stream); const an=ctx.createAnalyser(); an.fftSize=1024; an.smoothingTimeConstant=0.7; src.connect(an);
     const buf=new Uint8Array(an.fftSize); bbCV={ ctx, raf:null, spoke:false, quietAt:0, t0:Date.now() };
-    const SPEAK=0.022, TRAIL_MS=1500, NOSPEECH_MS=6000, MIN_MS=500;
+    const SPEAK=0.022, TRAIL_MS=1050, NOSPEECH_MS=6000, MIN_MS=500;
     const tick=()=>{
       if(!BBC.recording){ return; }
       an.getByteTimeDomainData(buf); let sum=0; for(let i=0;i<buf.length;i++){ const v=(buf[i]-128)/128; sum+=v*v; } const rms=Math.sqrt(sum/buf.length); const now=Date.now();
@@ -2928,11 +3134,11 @@ window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferr
 function isStandalone(){ try{ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }catch(e){ return false; } }
 function installApp(){
   closeMore();
-  if(isStandalone()){ toast('Bidtranslator is already on your home screen.','ok'); return; }
+  if(isStandalone()){ toast('BidVoice is already on your home screen.','ok'); return; }
   if(deferredInstall){ deferredInstall.prompt(); deferredInstall.userChoice.then(()=>{ deferredInstall=null; }).catch(()=>{}); return; }
   const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  if(ios){ alert('Add Bidtranslator to your home screen:\n\n1.  Tap the Share button at the bottom of Safari\n2.  Scroll down and tap "Add to Home Screen"\n3.  Tap "Add"'); }
-  else { alert('Add Bidtranslator to your home screen:\n\nOpen your browser menu and choose "Install app" or "Add to Home screen."'); }
+  if(ios){ alert('Add BidVoice to your home screen:\n\n1.  Tap the Share button at the bottom of Safari\n2.  Scroll down and tap "Add to Home Screen"\n3.  Tap "Add"'); }
+  else { alert('Add BidVoice to your home screen:\n\nOpen your browser menu and choose "Install app" or "Add to Home screen."'); }
 }
 // Register the service worker (installability + offline launch). Best-effort.
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
@@ -3110,15 +3316,15 @@ function toggleService(key){
 }
 function shareReferral(){
   const url=refLink();
-  const msg=`I'm using Bidtranslator to bid jobs by voice — try it free: ${url}`;
-  if(navigator.share){ navigator.share({title:'Bidtranslator',text:msg,url}).catch(()=>{}); }
+  const msg=`I'm using BidVoice to bid jobs by voice — try it free: ${url}`;
+  if(navigator.share){ navigator.share({title:'BidVoice',text:msg,url}).catch(()=>{}); }
   else { copyText(url).then(ok=>toast(ok?'✓ Your invite link is copied — paste it anywhere.':url, ok?'ok':'warn', ok?2600:7000)); }
 }
 function viewPaywall(){
   const expired = BILLING && !BILLING.entitled;
   const days = trialDaysLeft();
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
-    <div class="h-eyebrow">${expired?'Trial ended':'Bidtranslator Pro'}</div>
+    <div class="h-eyebrow">${expired?'Trial ended':'BidVoice Pro'}</div>
     <h1 class="page">${expired?'Subscribe to keep building bids':'Go unlimited'}</h1>
     <div class="sub">${expired
       ? 'Your free trial is over. Your saved jobs are still here — subscribe to create and send new bids.'
@@ -3194,7 +3400,7 @@ function onbValueRows(){
 }
 function viewWelcome(){
   if(state.onbStep===1){
-    const hello = NATIVE_HELLO[state.onbLang] || NATIVE_HELLO.en;
+    const hello = aiText(NATIVE_HELLO[state.onbLang] || NATIVE_HELLO.en);
     return `<div class="onb onb-step2">
       <button class="onb-back" onclick="onbBack()" aria-label="Back">${icon('chevron',20)}</button>
       <div class="onb-greet">${ONB_ORB(76)}<div class="onb-bub">${esc(hello)}</div></div>
@@ -3237,7 +3443,7 @@ function viewAuth(){
   if(m==='welcome') return viewWelcome();
   const card = m==='forgot' ? authForgotCard() : m==='reset' ? authResetCard() : authSigninCard(m==='signup');
   return `<div class="auth">
-    <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">translator</span></div>
+    <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">Voice</span></div>
     <div class="auth-hero">
       <div class="auth-mic">${icon('mic',34)}</div>
       <div class="auth-hero-h">${esc(t('auth_hero_h'))}</div>
@@ -3773,10 +3979,10 @@ function calLink(j){
   }
   const note=(j.notes||'').trim();
   return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
-    +'&text='+encodeURIComponent((j.title||'Job')+' — '+(SETTINGS.company||'Bidtranslator'))
+    +'&text='+encodeURIComponent((j.title||'Job')+' — '+(SETTINGS.company||'BidVoice'))
     +'&dates='+dates
     +(jobLocation(j)?'&location='+encodeURIComponent(jobLocation(j)):'')
-    +'&details='+encodeURIComponent('Scheduled via Bidtranslator · '+money(bidPrice(j))+(note?'\n\nNotes: '+note:''));
+    +'&details='+encodeURIComponent('Scheduled via BidVoice · '+money(bidPrice(j))+(note?'\n\nNotes: '+note:''));
 }
 function setTitle(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.title=v||''; touch(j); saveJobs(); refreshAddrBlock(); }
 let REVEAL_ADDR=null; // jobId for which the user chose to add a separate address
@@ -4073,7 +4279,7 @@ function questionsCard(){
       <div class="est-q-act"><button class="btn sm" onclick="micTap()">${icon('mic',15)} Answer</button><button class="btn ghost sm" onclick="capNotSure()">I'm not sure</button></div></div>`;
   }
   const tts=('speechSynthesis' in window) ? `<button class="est-tts" onclick="toggleTts()" title="${TTS_ON?'Mute the estimator':'Let the estimator speak'}">${TTS_ON?icon('speaker',16):icon('mute',16)}</button>` : '';
-  return `<div class="intake est-card"><div class="intake-h">${icon('activity',13)} AI Estimator${intakeRunning?' <span class="intake-load">thinking…</span>':''}${tts}</div>${clHTML}${action}</div>`;
+  return `<div class="intake est-card"><div class="intake-h">${icon('activity',13)} ${esc('Estimate with '+AI.name)}${intakeRunning?' <span class="intake-load">thinking…</span>':''}${tts}</div>${clHTML}${action}</div>`;
 }
 // Auto project name from client + work (or address, or scope) — no manual entry.
 function autoProjectName(){
@@ -4129,14 +4335,16 @@ let TTS_ON = localStorage.getItem('bt_tts')!=='off';
  * offline. Cloud (warmer voices) drops in behind selectProvider() when we want
  * it — gated on cost, so we don't burn API calls on every spoken line.        */
 const VOICE_PROFILES = {
-  warm:        { label:'Warm',         provider:'browser', voiceId:'', rate:1.06, pitch:1.0,  lang:'en',   tone:'friendly, encouraging',  fallback:'professional' },
-  professional:{ label:'Professional', provider:'browser', voiceId:'', rate:1.05, pitch:0.98, lang:'en',   tone:'clear, businesslike',    fallback:'warm' },
-  confident:   { label:'Confident',    provider:'browser', voiceId:'', rate:1.08, pitch:0.96, lang:'en',   tone:'assured, steady',        fallback:'professional' },
-  jobsite:     { label:'Jobsite',      provider:'browser', voiceId:'', rate:1.03, pitch:0.97, lang:'en',   tone:'loud, plain, direct',    fallback:'confident' },
-  executive:   { label:'Executive',    provider:'browser', voiceId:'', rate:1.0,  pitch:0.95, lang:'en',   tone:'calm, authoritative',    fallback:'professional' },
-  coach:       { label:'Coach',        provider:'browser', voiceId:'', rate:1.06, pitch:1.03, lang:'en',   tone:'upbeat, motivating',     fallback:'warm' },
-  spanish:     { label:'Español',      provider:'browser', voiceId:'', rate:1.04, pitch:1.0,  lang:'es',   tone:'cálido, claro',          fallback:'warm' },
-  bilingual:   { label:'Bilingual',    provider:'browser', voiceId:'', rate:1.05, pitch:1.0,  lang:'auto', tone:'switches EN/ES per line',fallback:'warm' },
+  // Calm, capable, efficient — a sharp PM who respects your time, never speed-reading.
+  // Slightly quicker than a flat baseline, but measured; back it off if it ever sounds hurried.
+  warm:        { label:'Warm',         provider:'browser', voiceId:'', rate:1.15, pitch:1.0,  lang:'en',   tone:'friendly, encouraging',  fallback:'professional' },
+  professional:{ label:'Professional', provider:'browser', voiceId:'', rate:1.14, pitch:0.98, lang:'en',   tone:'clear, businesslike',    fallback:'warm' },
+  confident:   { label:'Confident',    provider:'browser', voiceId:'', rate:1.16, pitch:0.96, lang:'en',   tone:'assured, steady',        fallback:'professional' },
+  jobsite:     { label:'Jobsite',      provider:'browser', voiceId:'', rate:1.13, pitch:0.97, lang:'en',   tone:'loud, plain, direct',    fallback:'confident' },
+  executive:   { label:'Executive',    provider:'browser', voiceId:'', rate:1.10, pitch:0.95, lang:'en',   tone:'calm, authoritative',    fallback:'professional' },
+  coach:       { label:'Coach',        provider:'browser', voiceId:'', rate:1.17, pitch:1.03, lang:'en',   tone:'upbeat, motivating',     fallback:'warm' },
+  spanish:     { label:'Español',      provider:'browser', voiceId:'', rate:1.14, pitch:1.0,  lang:'es',   tone:'cálido, claro',          fallback:'warm' },
+  bilingual:   { label:'Bilingual',    provider:'browser', voiceId:'', rate:1.15, pitch:1.0,  lang:'auto', tone:'switches EN/ES per line',fallback:'warm' },
 };
 function bbVoiceKey(){ const k=localStorage.getItem('bt_voice'); if(k && VOICE_PROFILES[k]) return k; return (((SETTINGS&&SETTINGS.from)||LANG)==='es')?'spanish':'warm'; }
 function bbActiveProfile(){ return VOICE_PROFILES[bbVoiceKey()] || VOICE_PROFILES.warm; }
@@ -4146,21 +4354,58 @@ function setVoiceProfile(k){ if(VOICE_PROFILES[k]) localStorage.setItem('bt_voic
 let _bbVoices=[];
 function bbLoadVoices(){ try{ _bbVoices=(window.speechSynthesis&&speechSynthesis.getVoices())||[]; }catch(_){ _bbVoices=[]; } }
 if('speechSynthesis' in window){ bbLoadVoices(); try{ speechSynthesis.onvoiceschanged=bbLoadVoices; }catch(_){ } }
+// Gender heuristics (name-based; system voices rarely tag gender).
+const BB_FEMALE_RE=/samantha|\baria\b|\bjenny\b|\bava\b|\bemma\b|allison|susan|\bzoe\b|\bkaren\b|moira|tessa|fiona|serena|sonia|michelle|\bnora\b|\bnancy\b|paulina|m[oó]nica|\bzira\b|\bcora\b|female|\bwoman\b/i;
+const BB_MALE_RE=/daniel|\balex\b|\bfred\b|aaron|arthur|gordon|rishi|ravi|\bdavid\b|\bmark\b|\bguy\b|reed|eddy|oliver|thomas|\bgeorge\b|\bjames\b|\bjohn\b|diego|carlos|jorge|\bjuan\b|\bmale\b/i;
+// Names that carry a strong Indian/South-Asian accent — off-brand for a clean American Eden.
+const BB_ACCENT_RE=/rishi|veena|lekha|heera|ravi|priya|neerja|kalpana|\bisha\b|aditi|hemant|rashida|\banjali\b/i;
+// Desirability of a voice's LOCALE for the target language. For English, a clean American
+// voice is the brand default; strong regional/international accents are pushed to the back.
+function bbLocaleScore(lang, vlang){
+  vlang=String(vlang||'').toLowerCase().replace(/_/g,'-');
+  if(lang==='en'){
+    if(vlang.startsWith('en-us')) return 100;
+    if(vlang.startsWith('en-ca')) return 55;
+    if(vlang.startsWith('en-gb')) return 42;
+    if(vlang.startsWith('en-au')) return 38;
+    if(vlang.startsWith('en-ie')) return 34;
+    if(/^en-(in|za|ng|ph|ke)/.test(vlang)) return 4;   // strong accent → last resort
+    if(vlang.startsWith('en')) return 22;
+    return -1;
+  }
+  if(lang==='es'){
+    if(/^es-(us|mx|419)/.test(vlang)) return 100;
+    if(vlang.startsWith('es')) return 55;
+    return -1;
+  }
+  return vlang.startsWith(lang)?50:-1;
+}
+function bbVoiceScore(v, lang, wantMale){
+  const name=String(v.name||'');
+  let s=bbLocaleScore(lang, v.lang);
+  if(s<0) return -1;                                    // wrong language entirely
+  if(/natural|neural|premium|enhanced|online/i.test(name)) s+=30;  // high-quality engines
+  if(v.localService) s+=6;
+  const fem=BB_FEMALE_RE.test(name), male=BB_MALE_RE.test(name);
+  if(wantMale){ if(male) s+=26; if(fem) s-=26; } else { if(fem) s+=26; if(male) s-=26; }
+  if(lang==='en' && /samantha|\baria\b|\bjenny\b|\bava\b|\bemma\b|\bmichelle\b|allison|google us english/i.test(name)) s+=22; // known clean en-US
+  if(lang==='en' && BB_ACCENT_RE.test(name)) s-=70;     // never pick an accented voice for Eden
+  return s;
+}
+// Pick the best available voice for the language: a clean, natural en-US voice matching
+// Eden's gender — never whatever the device happens to default to. A user override wins.
 function bbPickVoice(lang){
   if(!_bbVoices.length) bbLoadVoices();
   const want=String(lang||'en').slice(0,2).toLowerCase();
-  const pool=_bbVoices.filter(v=>String(v.lang||'').toLowerCase().startsWith(want));
-  if(!pool.length) return null;
-  // Prefer a natural, FEMALE voice. A robotic or male default is the #1 reason TTS
-  // feels cheap — pick named women first, then anything natural, never a known male.
-  const FEMALE=[/samantha/i,/\baria\b/i,/\bjenny\b/i,/\bava\b/i,/allison/i,/susan/i,/\bzoe\b/i,/\bkaren\b/i,
-    /moira/i,/tessa/i,/fiona/i,/serena/i,/sonia/i,/michelle/i,/\bnora\b/i,/paulina/i,/m[oó]nica/i,/\bzira\b/i,
-    /google (us |uk )?english/i,/google español/i];
-  const MALE=/daniel|\balex\b|\bfred\b|aaron|arthur|gordon|rishi|\bdavid\b|\bmark\b|\bguy\b|reed|eddy|\bmale\b/i;
-  const natural=v=>/natural|enhanced|premium|neural/i.test(v.name);
-  for(const re of FEMALE){ const hit=pool.filter(v=>re.test(v.name)); if(hit.length) return hit.find(natural)||hit[0]; }
-  const nf=pool.filter(v=>natural(v) && !MALE.test(v.name)); if(nf.length) return nf[0];
-  const nm=pool.filter(v=>!MALE.test(v.name)); return nm.find(v=>v.localService) || nm[0] || pool[0];
+  const wantMale=(typeof AI!=='undefined' && AI.voice==='male');
+  // Explicit user choice from Settings — honored whenever it matches the spoken language.
+  try{ const chosen=localStorage.getItem('bt_voice_dev');
+    if(chosen){ const v=_bbVoices.find(x=>x.voiceURI===chosen||x.name===chosen);
+      if(v && String(v.lang||'').toLowerCase().replace(/_/g,'-').startsWith(want)) return v; }
+  }catch(_){}
+  let best=null, bs=-1;
+  for(const v of _bbVoices){ const sc=bbVoiceScore(v, want, wantMale); if(sc>bs){ bs=sc; best=v; } }
+  return best;   // null only if there are truly no voices for this language
 }
 // Speak a SHORT spoken summary — the question or first sentence — never a wall of
 // text. Details stay on screen; voice stays fast (cost + jobsite attention span).
@@ -4193,7 +4438,7 @@ function bbSpeak(text, opts){
     const lang = prof.lang==='auto' ? (/[áéíóúñ¿¡]/i.test(say)?'es':'en') : prof.lang;
     const u=new SpeechSynthesisUtterance(say);
     const v=bbPickVoice(lang); if(v){ u.voice=v; u.lang=v.lang; } else { u.lang = (lang==='es'?'es-ES':'en-US'); }
-    u.rate=prof.rate||1.05; u.pitch=prof.pitch||1.0; u.volume=1;
+    u.rate=prof.rate||1.15; u.pitch=prof.pitch||1.0; u.volume=1;
     _bbSpeaking=true; _bbSpokeLast=say;
     let done=false; const fin=()=>{ if(done) return; done=true; _bbSpeaking=false; clearTimeout(t2); onEnd(); };
     u.onend=fin; u.onerror=fin;
@@ -4228,7 +4473,7 @@ function loadSample(){
 // Demo project lives in More now, not the primary workflow. Loads the sample into
 // a fresh New Job screen.
 function demoProject(){ closeMore(); go('capture'); loadSample(); }
-// "Why Bidtranslator" — the value story, every benefit framed as time/energy saved.
+// "Why BidVoice" — the value story, every benefit framed as time/energy saved.
 
 function newJobFromForm(){
   const text=((document.getElementById('capText')||{}).value||CAP_DRAFT.text||'').trim();
@@ -5114,7 +5359,7 @@ async function inviteSub(id, mode){
   const company=(SETTINGS.company||'').trim(), name=(SETTINGS.name||'').trim();
   const me = name ? (company ? `${name} at ${company}` : name) : company;
   const first=((s.name||'').trim().split(/\s+/)[0]||'');
-  const msg=`Hey${first?' '+first:''}, it's ${me}. I'm using Bidtranslator to send job scope and bids — it's free, take a look: ${appUrl}`;
+  const msg=`Hey${first?' '+first:''}, it's ${me}. I'm using BidVoice to send job scope and bids — it's free, take a look: ${appUrl}`;
   const digits=(s.phone||'').replace(/\D/g,'');
   if(mode==='sms'){ location.href='sms:'+(s.phone||'')+'?&body='+encodeURIComponent(msg); }
   else { window.open('https://wa.me/'+(digits?(digits.length===10?'1'+digits:digits):'')+'?text='+encodeURIComponent(msg),'_blank'); }
@@ -5137,7 +5382,7 @@ function teamNudge(){
   if(c.invited>=target) return '';
   const left=target-c.invited;
   return `<div class="teamnudge"><h3>${icon('hardhat',16)} Build your team — send it to ${left} more sub${left===1?'':'s'}</h3>
-    <p>Add your crew and send them Bidtranslator. They get it free to receive your scope in their language — and you're building the network you bid through.</p>
+    <p>Add your crew and send them BidVoice. They get it free to receive your scope in their language — and you're building the network you bid through.</p>
     <button class="btn full" onclick="go('team')">${c.invited>0?`Add more of your crew (${c.invited}/${target})`:'Add your subs'}</button></div>`;
 }
 
@@ -5610,14 +5855,44 @@ async function vizRender(){
   setTimeout(poll, 2500);
 }
 function closeVizResult(){ const el=document.getElementById('vizResult'); if(el) el.style.display='none'; if(state.view==='job') render(); }
-// How much Bid Brain says out loud when you open her — the contractor's call.
+// Name Trial System — flip the AI's identity (name + voice) live to live with each for a few days.
+function aiIdentitySeg(){
+  const cur=aiKey();
+  const opt=(k)=>`<button class="segbtn ${cur===k?'on':''}" onclick="setAiIdentity('${k}')">${esc(AI_IDENTITIES[k].name)}</button>`;
+  return `<div class="appearance">
+    <label class="fld" style="margin-top:16px">AI identity <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(name trial)</span></label>
+    <div class="seg">${Object.keys(AI_IDENTITIES).map(opt).join('')}</div>
+    <div class="hint">Live with a name + voice for a few days before committing — switching reloads the app. The platform stays <b>BidVoice</b>; only the assistant's identity changes. Now: <b>${esc(AI.name)}</b> · ${esc(AI.voice)} voice.</div>
+  </div>`;
+}
+// Device-voice picker — the brand default is a clean, natural American English voice,
+// but the contractor can override if their device's pick sounds off (accented/robotic).
+function bbVoiceSeg(){
+  try{ if(typeof bbLoadVoices==='function') bbLoadVoices(); }catch(_){}
+  const want=(((SETTINGS&&SETTINGS.from)||LANG)==='es')?'es':'en';
+  const wantMale=(typeof AI!=='undefined'&&AI.voice==='male');
+  const list=(_bbVoices||[]).map(v=>({v,s:bbVoiceScore(v,want,wantMale)})).filter(o=>o.s>=0).sort((a,b)=>b.s-a.s);
+  let cur=''; try{ cur=localStorage.getItem('bt_voice_dev')||''; }catch(_){}
+  const auto=(typeof bbPickVoice==='function')?bbPickVoice(want):null;
+  const opts=['<option value="">Auto — best available'+(auto?(' ('+esc(auto.name)+')'):'')+'</option>']
+    .concat(list.map(o=>{ const id=o.v.voiceURI||o.v.name; return `<option value="${escAttr(id)}" ${id===cur?'selected':''}>${esc(o.v.name)} · ${esc(o.v.lang)}</option>`; }));
+  return `<div class="appearance">
+    <label class="fld" style="margin-top:16px">${esc(AI.name)}'s voice</label>
+    <select class="input" onchange="setBbVoice(this.value)">${opts.join('')}</select>
+    <div class="seg" style="margin-top:8px"><button class="segbtn" onclick="bbTestVoice()">▶ Hear ${esc(AI.name)}</button></div>
+    <div class="hint">A clean, natural American English voice by default. If your device's voice sounds off or accented, pick another here. Voices are provided by your device/browser${list.length?'':' — none detected yet; reopen this screen to load them'}.</div>
+  </div>`;
+}
+function setBbVoice(v){ try{ if(v) localStorage.setItem('bt_voice_dev', v); else localStorage.removeItem('bt_voice_dev'); }catch(_){} if(typeof bbTestVoice==='function') bbTestVoice(); if(state.view==='settings') render(); }
+function bbTestVoice(){ try{ const es=(((SETTINGS&&SETTINGS.from)||LANG)==='es'); bbSpeak(es?('Hola, soy '+AI.name+'. Aquí estoy cuando quieras.'):("Hi, I'm "+AI.name+". I'm ready when you are."), {full:true}); }catch(_){} }
+// How much the assistant says out loud when you open it — the contractor's call.
 function bbBriefSeg(){
   const cur=(typeof bbBriefMode==='function')?bbBriefMode():'exceptions';
   const opt=(v,lab)=>`<button class="segbtn ${cur===v?'on':''}" onclick="setBriefMode('${v}')">${lab}</button>`;
   return `<div class="appearance">
     <label class="fld" style="margin-top:16px">Bid Brain briefing</label>
     <div class="seg">${opt('silent','Silent')}${opt('exceptions','When it matters')}${opt('always','Always')}</div>
-    <div class="hint">When you open Bid Brain, how much should she say out loud? <b>Silent</b> — never. <b>When it matters</b> — only when something needs you. <b>Always</b> — greets you with your daily briefing. She only ever speaks from real activity, never invented.</div>
+    <div class="hint">When you open ${esc(AI.name)}, how much should she say out loud? <b>Silent</b> — never speaks. <b>When it matters</b> / <b>Always</b> — she speaks only when something real changed (a deposit landed, a new lead). She never performs a greeting and never invents activity — if nothing changed, she stays quiet.</div>
   </div>`;
 }
 function themeSeg(){
@@ -5638,6 +5913,8 @@ function viewSettings(){
     <div class="sub">This appears on the proposals you send. Synced to your account.</div>
     ${themeSeg()}
     ${bbBriefSeg()}
+    ${aiIdentitySeg()}
+    ${bbVoiceSeg()}
     <label class="fld">Company logo (shows on your bids &amp; PDF)</label>
     <div class="logo-row">
       ${SETTINGS.logo?`<img class="logo-preview" src="${SETTINGS.logo}" alt="logo"/>`:`<div class="logo-empty">No logo yet</div>`}
@@ -5739,7 +6016,7 @@ function viewSettings(){
     </div>
     <div class="legalbox">
       <h3>Terms &amp; privacy (placeholder)</h3>
-      <p>Conversations, transcripts, photos, and bids you create belong to you. They're stored for your use, and you can delete them at any time. Bidtranslator is a tool for preparing estimates — bids you send are agreements between you and your client, not us.</p>
+      <p>Conversations, transcripts, photos, and bids you create belong to you. They're stored for your use, and you can delete them at any time. BidVoice is a tool for preparing estimates — bids you send are agreements between you and your client, not us.</p>
       <p>Where your area requires it, let the other party know when a conversation is being captured.</p>
       <label style="display:flex;gap:10px;align-items:flex-start;font-size:.86rem;color:#cdc7bb;cursor:pointer;margin-top:6px">
         <input type="checkbox" id="setTerms" style="margin-top:3px;width:17px;height:17px;accent-color:var(--amber);flex-shrink:0"/>
@@ -6305,6 +6582,7 @@ async function delPhoto(i){
 async function togglePhotoBid(i){
   const j=currentJob(); if(!j)return; const p=j.photos[i]; if(!p) return;
   p.showOnBid=!p.showOnBid; touch(j); saveJobs(); render();
+  if(p.showOnBid && typeof bbAcknowledge==='function') bbAcknowledge();   // wordless "got it" when a photo joins the bid
   // A pending (offline) photo carries the flag when it uploads; a synced one PATCHes now.
   if(p.id && !p._pending && online && TOKEN){
     try{ await api('/api/jobs/'+j.id+'/photos/'+p.id,{method:'PATCH', body:JSON.stringify({showOnBid:!!p.showOnBid})}); }catch(e){}
@@ -6343,6 +6621,7 @@ applyTheme();
 function celebEnabled(){ return localStorage.getItem('bt_celebrate')!=='off'; }
 function setCelebrate(on){ localStorage.setItem('bt_celebrate', on?'on':'off'); if(state.view==='settings') render(); if(on) celebrate('won','Celebrations on','You’ll see a little fanfare on a win'); }
 function celebrate(kind, title, sub){
+  if(typeof bbAcknowledge==='function') bbAcknowledge();   // the orb nods to a win, even if confetti is off
   if(!celebEnabled()) return;
   const wrap=document.getElementById('celebrate'), card=document.getElementById('celebrateCard'); if(!wrap||!card) return;
   const ic = kind==='paid' ? icon('revenue',26) : icon('check',26);

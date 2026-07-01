@@ -1,7 +1,7 @@
 {
-  "name": "Bidtranslator",
-  "short_name": "Bidtranslator",
-  "description": "Talk the job. Send the bid. Voice-first bids for contractors — priced, professional, in your client's language.",
+  "name": "BidVoice",
+  "short_name": "BidVoice",
+  "description": "Meet Eden, your AI employee for contractors — she estimates jobs, manages projects, organizes customers, and keeps your business moving.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

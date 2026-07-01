@@ -3,9 +3,9 @@
 // optionally BT_MAIL_FROM) to turn it on. Without a key, mailConfigured() is
 // false and callers degrade gracefully — nothing breaks if email isn't wired.
 const KEY = () => process.env.RESEND_API_KEY || "";
-// Use your own verified domain in prod, e.g. "Bidtranslator <bids@yourdomain.com>".
+// Use your own verified domain in prod, e.g. "BidVoice <bids@yourdomain.com>".
 // resend.dev works out of the box for testing.
-const FROM = () => process.env.BT_MAIL_FROM || "Bidtranslator <onboarding@resend.dev>";
+const FROM = () => process.env.BT_MAIL_FROM || "BidVoice <onboarding@resend.dev>";
 
 export function mailConfigured() { return !!KEY(); }
 

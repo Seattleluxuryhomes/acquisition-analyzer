@@ -7,7 +7,10 @@ const SECRET = process.env.BT_SIGNING_SECRET ||
   // Fallback for local/dev: stable within a process run. Set BT_SIGNING_SECRET in prod.
   crypto.createHash("sha256").update("bidtranslator-dev-" + (process.env.HOSTNAME || "local")).digest("hex");
 
-const DEFAULT_TTL = 60 * 60 * 1000; // 1 hour
+// 30 days: a proposal (and the photos embedded in it) must stay viewable for its whole
+// validity window — a client opens the link days after you send it. Still HMAC-signed and
+// expiring (hard rule #6); one hour was far too short and broke proposal/photo images.
+const DEFAULT_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export function signPhotoUrl(jobId, photoId, ttl = DEFAULT_TTL) {
   const exp = Date.now() + ttl;

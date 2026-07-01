@@ -1,6 +1,6 @@
 // Follow Up Boss CRM — the FOUNDER's contact list of every contractor who signs
-// up for Bidtranslator (platform-level, one FUB account via FOLLOWUPBOSS_API_KEY).
-// On signup we create the contractor as a person, sourced/tagged "Bidtranslator"
+// up for BidVoice (platform-level, one FUB account via FOLLOWUPBOSS_API_KEY).
+// On signup we create the contractor as a person, sourced/tagged "BidVoice"
 // so they stay separate from the founder's real-estate pipeline; key lifecycle
 // moments are added as notes so the founder knows who to follow up with.
 //
@@ -10,8 +10,8 @@ import db from "./db.js";
 
 const BASE = () => (process.env.FOLLOWUPBOSS_BASE_URL || "https://api.followupboss.com/v1").replace(/\/+$/, "");
 const KEY = () => process.env.FOLLOWUPBOSS_API_KEY || "";
-const SOURCE = () => process.env.FOLLOWUPBOSS_SOURCE || "Bidtranslator";
-const TAG = () => process.env.FOLLOWUPBOSS_TAG || "Bidtranslator Contractor";
+const SOURCE = () => process.env.FOLLOWUPBOSS_SOURCE || "BidVoice";
+const TAG = () => process.env.FOLLOWUPBOSS_TAG || "BidVoice Contractor";
 
 export function fubConfigured() { return !!KEY(); }
 
@@ -21,7 +21,7 @@ function headers() {
     Authorization: "Basic " + Buffer.from(KEY() + ":").toString("base64"),
     "Content-Type": "application/json",
     Accept: "application/json",
-    "X-System": "Bidtranslator",
+    "X-System": "BidVoice",
     "X-System-Key": process.env.FOLLOWUPBOSS_SYSTEM_KEY || "bidtranslator",
   };
 }
@@ -74,7 +74,7 @@ export async function upsertContractor(user) {
     if (id) {
       db.prepare("UPDATE user SET fub_person_id=? WHERE id=?").run(id, user.id);
       const summary = [user.company && user.company !== "Your Company" && `Company: ${user.company}`, user.email && `Email: ${user.email}`, user.phone && `Phone: ${user.phone}`].filter(Boolean).join("\n");
-      await addNote(id, "New Bidtranslator contractor", summary || "Signed up for Bidtranslator.").catch(() => {});
+      await addNote(id, "New BidVoice contractor", summary || "Signed up for BidVoice.").catch(() => {});
     } else {
       db.prepare("UPDATE user SET fub_person_id=NULL WHERE id=?").run(user.id); // release the claim
     }
@@ -108,7 +108,7 @@ async function logMilestone(user, text) {
     let id = user.fub_person_id;
     if (!ready(id)) { const up = await upsertContractor(user); id = up.id; }
     if (!ready(id)) return { skipped: true }; // person not created yet — drop this note
-    await addNote(id, "Bidtranslator update", text);
+    await addNote(id, "BidVoice update", text);
     return { ok: true };
   } catch (e) { return { error: e.message }; }
 }

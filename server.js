@@ -1,4 +1,4 @@
-// Bidtranslator backend (Phase 1). Express + node:sqlite. The client talks only
+// BidVoice backend (Phase 1). Express + node:sqlite. The client talks only
 // to this API; the AI provider key never leaves the server.
 try { process.loadEnvFile(); } catch { /* no .env file — rely on real env vars */ }
 import express from "express";
@@ -49,6 +49,19 @@ const { track } = Analytics;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uid = () => crypto.randomBytes(9).toString("base64url");
+
+// Build stamp — so anyone can confirm in one call whether the LIVE site is running the
+// latest code (GET /api/health → "build"). Prefer an explicit deploy env var; otherwise
+// read the checked-out git commit; fall back to "unknown".
+const BUILD = (() => {
+  if (process.env.BT_BUILD) return String(process.env.BT_BUILD).slice(0, 40);
+  try {
+    const head = fs.readFileSync(path.join(__dirname, ".git", "HEAD"), "utf8").trim();
+    const m = /^ref:\s*(.+)$/.exec(head);
+    if (m) return fs.readFileSync(path.join(__dirname, ".git", m[1]), "utf8").trim().slice(0, 12);
+    return head.slice(0, 12);                              // detached HEAD → raw sha
+  } catch { return "unknown"; }
+})();
 const app = express();
 app.set("trust proxy", true); // behind Spaceship/Hyperlift's edge proxy
 
@@ -56,7 +69,7 @@ app.set("trust proxy", true); // behind Spaceship/Hyperlift's edge proxy
 // plain HTTP, or on a non-canonical host (e.g. www vs the apex), redirect once to
 // https://<canonical><path>. This gives one URL to certify and link to. No effect
 // locally (X-Forwarded-Proto absent) or on the internal health check. Configure
-// the canonical host with BT_CANONICAL_HOST (e.g. "bidtranslator.com"); disable
+// the canonical host with BT_CANONICAL_HOST (e.g. "bidvoice.ai"); disable
 // the HTTPS push with BT_FORCE_HTTPS=0 while a cert is still provisioning. Sends
 // HSTS on secure responses so browsers stick to HTTPS afterward.
 const FORCE_HTTPS = !/^(0|false|off|no)$/i.test(process.env.BT_FORCE_HTTPS || "1");
@@ -120,7 +133,7 @@ const baseUrl = (req) =>
 
 // ---- Living website (Sprint 12) helpers ----
 // Name-agnostic branded address: the base domain is a single knob, so the day the
-// brand is locked (BidVoice/Bidtranslator/…) the whole engine flips with one env var.
+// brand is locked (BidVoice/BidVoice/…) the whole engine flips with one env var.
 const SITE_DOMAIN = () => (process.env.BT_SITE_DOMAIN || "bidvoice.ai").trim().toLowerCase();
 const brandedSiteUrl = (slug) => (slug ? `https://${slug}.${SITE_DOMAIN()}` : "");
 // Public, signature-free URL for a photo PUBLISHED to a project (the /pub route
@@ -190,7 +203,7 @@ function attachPhotos(userId, job) {
 }
 
 // ---- Health ----
-app.get("/api/health", (_req, res) => res.json({ ok: true, ai: aiConfigured(), billing: Billing.billingConfigured(), payments: Payments.paymentsConfigured() }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, build: BUILD, ai: aiConfigured(), billing: Billing.billingConfigured(), payments: Payments.paymentsConfigured() }));
 
 // ---- Auth ----
 app.post("/api/auth/signup", wrap((req, res) => {
@@ -226,7 +239,7 @@ app.post("/api/auth/reset", wrap(async (req, res) => {
   const out = createResetToken(email);
   if (out && Mail.mailConfigured()) {
     const link = `${baseUrl(req)}/reset?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
-    try { await Mail.sendMail({ to: out.user.email, subject: "Reset your Bidtranslator password", html: resetEmailHtml(link), text: `Reset your Bidtranslator password:\n${link}\n\nThis link expires in 1 hour. If you didn't request it, ignore this email.` }); }
+    try { await Mail.sendMail({ to: out.user.email, subject: "Reset your BidVoice password", html: resetEmailHtml(link), text: `Reset your BidVoice password:\n${link}\n\nThis link expires in 1 hour. If you didn't request it, ignore this email.` }); }
     catch { /* never surface send errors to the caller (no enumeration) */ }
   }
   res.json({ ok: true, sent: Mail.mailConfigured() });
@@ -238,7 +251,7 @@ app.post("/api/auth/reset-confirm", wrap((req, res) => {
 }));
 function resetEmailHtml(link) {
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
-    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
+    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">Voice</span></div>
     <h2 style="margin:18px 0 8px">Reset your password</h2>
     <p style="color:#5a5240">Tap the button below to set a new password. This link expires in 1 hour.</p>
     <p style="margin:22px 0"><a href="${link}" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Set a new password</a></p>
@@ -250,16 +263,16 @@ function resetEmailHtml(link) {
 function leadEmailHtml(lead, appUrl) {
   const row = (k, v) => v ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68">${k}</td><td style="padding:4px 0;font-weight:600">${esc(v)}</td></tr>` : "";
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
-    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
+    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">Voice</span></div>
     <h2 style="margin:18px 0 6px">📥 New estimate request</h2>
     <p style="color:#5a5240">Someone just asked you for an estimate. Reach out while it's hot.</p>
     <table style="margin:14px 0;font-size:.96rem">${row("Name", lead.name)}${row("Phone", lead.phone)}${row("Email", lead.email)}${row("Project", lead.job_type)}${row("Area", lead.city)}${lead.message ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68;vertical-align:top">Details</td><td style="padding:4px 0">${esc(lead.message)}</td></tr>` : ""}</table>
-    <p style="margin:20px 0"><a href="${appUrl}/" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Open Bidtranslator &amp; bid it</a></p>
+    <p style="margin:20px 0"><a href="${appUrl}/" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Open BidVoice &amp; bid it</a></p>
   </div>`;
 }
 function leadEmailText(lead, appUrl) {
   const f = (k, v) => v ? `${k}: ${v}\n` : "";
-  return `New estimate request\n\n${f("Name", lead.name)}${f("Phone", lead.phone)}${f("Email", lead.email)}${f("Project", lead.job_type)}${f("Area", lead.city)}${lead.message ? `Details: ${lead.message}\n` : ""}\nOpen Bidtranslator to bid it: ${appUrl}/`;
+  return `New estimate request\n\n${f("Name", lead.name)}${f("Phone", lead.phone)}${f("Email", lead.email)}${f("Project", lead.job_type)}${f("Area", lead.city)}${lead.message ? `Details: ${lead.message}\n` : ""}\nOpen BidVoice to bid it: ${appUrl}/`;
 }
 
 // ---- Billing ----
@@ -466,7 +479,7 @@ app.get("/api/prospects/export", requireAuth, requireAdmin, (req, res) => {
   const cell = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
   const csv = [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\r\n");
   res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", 'attachment; filename="bidtranslator-prospects.csv"');
+  res.setHeader("Content-Disposition", 'attachment; filename="bidvoice-prospects.csv"');
   res.send(csv);
 });
 
@@ -536,9 +549,9 @@ app.post("/api/admin/onboard", requireAuth, requireAdmin, wrap(async (req, res) 
     try {
       await Mail.sendMail({
         to: user.email,
-        subject: `${req.user.company && req.user.company !== "Your Company" ? req.user.company : "Bidtranslator"} — your account is ready`,
+        subject: `${req.user.company && req.user.company !== "Your Company" ? req.user.company : "BidVoice"} — your account is ready`,
         html: onboardEmailHtml(link, req.user, b.note),
-        text: `You're set up on Bidtranslator. Set your password and get started:\n${link}\n\nThis link works for 7 days.`,
+        text: `You're set up on BidVoice. Set your password and get started:\n${link}\n\nThis link works for 7 days.`,
         replyTo: req.user.email || undefined,
       });
       emailed = true;
@@ -550,9 +563,9 @@ app.post("/api/admin/onboard", requireAuth, requireAdmin, wrap(async (req, res) 
 function onboardEmailHtml(link, from, note) {
   const who = from && from.name ? escHtml(from.name) : (from && from.company && from.company !== "Your Company" ? escHtml(from.company) : "We");
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
-    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
+    <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">Voice</span></div>
     <h2 style="margin:18px 0 8px">Your account is ready</h2>
-    <p style="color:#5a5240">${who} set you up on Bidtranslator — talk a job out loud and it writes a clean, priced bid in your client's language. ${note ? escHtml(String(note)) : "Tap below to set your password and take a look."}</p>
+    <p style="color:#5a5240">${who} set you up on BidVoice — talk a job out loud and it writes a clean, priced bid in your client's language. ${note ? escHtml(String(note)) : "Tap below to set your password and take a look."}</p>
     <p style="margin:22px 0"><a href="${link}" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Set your password &amp; get started</a></p>
     <p style="color:#8a7f68;font-size:.85rem">This link works for 7 days.</p>
   </div>`;
@@ -725,7 +738,9 @@ app.get("/api/jobs/:id/photos/:pid", (req, res) => {
   if (!row) return res.status(404).send("Not found");
   res.type(row.mime);
   res.setHeader("Cache-Control", "private, max-age=3600");
-  fs.createReadStream(path.join(PHOTO_DIR, row.filename)).pipe(res);
+  const stream = fs.createReadStream(path.join(PHOTO_DIR, row.filename));
+  stream.on("error", () => { if (!res.headersSent) res.status(404).send("Photo file missing"); });
+  stream.pipe(res);
 });
 
 app.delete("/api/jobs/:id/photos/:pid", requireAuth, wrap((req, res) => {
@@ -801,12 +816,14 @@ app.get("/api/brain", requireAuth, (req, res) => res.json(Memory.brain(req.user.
 app.post("/api/brain/chat", requireAuth, wrap(async (req, res) => {
   const messages = (req.body && req.body.messages) || [];
   const now = String((req.body && req.body.now) || "").slice(0, 80);   // client's local date/time for relative scheduling
+  const rawAi = (req.body && req.body.ai) || {};                        // the active AI identity (Name Trial System)
+  const ai = { name: String(rawAi.name || "Eden").slice(0, 40), pronoun: (rawAi.pronoun === "he" ? "he" : rawAi.pronoun === "they" ? "they" : "she") };
   const snapshot = Memory.businessSnapshot(req.user.id, req.user);
   if (!aiConfigured() || !Billing.isEntitled(req.user)) {
     return res.json({ ...localBrainReply(snapshot, messages), source: "local" });
   }
   try {
-    const out = await bidBrainChat(req.user, { messages, snapshot, now });
+    const out = await bidBrainChat(req.user, { messages, snapshot, now, ai });
     track(req.user.id, "brain_chat", { action: out.action || (out.schedule ? "schedule:" + out.schedule.intent : "") });
     res.json({ ...out, source: "ai" });
   } catch (e) {
@@ -1477,7 +1494,7 @@ async function deliverSignedAgreement(jobRow, owner, proposal, { name, email } =
       const html = `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;color:#1F252C">
         <h2 style="margin:0 0 8px">Signed &amp; accepted ✔</h2>
         <p style="color:#5a5240">Attached is the signed copy of the proposal for <b>${escHtml(proposal.title)}</b>${name ? `, signed by ${escHtml(name)}` : ""}. ${escHtml(company)} will be in touch about next steps.</p>
-        <p style="color:#8a7f68;font-size:.85rem">Sent by Bidtranslator on behalf of ${escHtml(company)}.</p>
+        <p style="color:#8a7f68;font-size:.85rem">Sent by BidVoice on behalf of ${escHtml(company)}.</p>
       </div>`;
       try {
         await Mail.sendMail({
@@ -1584,7 +1601,7 @@ app.get("*", (req, res, next) => {
 });
 
 const PORT = process.env.BT_PORT || process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Bidtranslator on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`BidVoice on http://localhost:${PORT}`));
 // Pull the real plan + setup-fee prices from Stripe so the paywall shows exactly
 // what checkout charges. Fire-and-forget; the UI falls back to defaults until ready.
 Billing.loadPrices().catch(() => {});

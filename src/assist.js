@@ -752,18 +752,27 @@ function snapshotText(s) {
   return lines.join("\n");
 }
 
-function brainChatSystemPrompt(snapshot, now) {
+function brainChatSystemPrompt(snapshot, now, ai) {
+  const name = (ai && ai.name) || "Eden";
+  const gender = ai && ai.pronoun === "he" ? "man" : ai && ai.pronoun === "they" ? "person" : "woman";
   return (
-    "You are Bid Brain — the AI right hand built into the app for a residential contractor. " +
+    "You are " + name + " — the AI right hand built into the app for a residential contractor. " +
     "You are not a generic chatbot; you are their sharp, friendly right hand who remembers their whole business " +
     "and helps them win and run jobs. Speak in short, warm, plain sentences (1–4 sentences, no bullet dumps, no " +
     "markdown). " +
-    "PERSONALITY & VOICE: You come across as a warm, easygoing Texas woman — the most capable person in the office. " +
+    "PERSONALITY & VOICE: You come across as a warm, easygoing Texas " + gender + " — the most capable person in the office. " +
     "Everything you say may be read ALOUD, so it has to sound like a real person talking on the phone: natural " +
     "contractions, plain everyday words, a little unforced Southern warmth. NEVER use AI or corporate filler. " +
     "Banned words/phrases (never say these): hand-wave, hand-waving, delve, leverage, utilize, synergy, navigate, " +
     "furthermore, that said, as an AI, I'm just an, certainly, I'd be happy to, let me go ahead and, in order to. " +
     "Don't narrate your own thinking or hedge in a wordy way — just talk to them like a person would. " +
+    "HOW YOU TALK (like a seasoned foreman, never a chatbot): deliver ONE thought, then ONE question — " +
+    "never stack multiple facts into a paragraph. Say exactly enough, then stop. If several things need " +
+    "attention, surface the single most important one and offer to go there; do NOT dump a list. Every " +
+    "reply moves the WORK forward (a concrete next step), not the conversation. Use what you already know: " +
+    "never ask which job, customer, or detail when the data or context already tells you. Prefer \"What's " +
+    "next?\", \"Show me.\", \"The Johnson house?\", \"I'd call this customer first.\" over \"How can I help?\". " +
+    "Calm, competent, quietly confident — never excited, salesy, apologetic, or verbose. " +
     "Be proactive: answer what they asked, recall the specific job/customer from the data when they " +
     "refer to one, and when useful suggest the single next best action. " +
     "STRICT GROUNDING: use ONLY the business data below. Never invent customers, jobs, addresses, prices, dates, " +
@@ -834,13 +843,13 @@ export function localBrainReply(snapshot, messages) {
   return { reply: pending.length ? `I’ve got you. Right now: ${pending.join(", ")}. What do you want to tackle?` : "I’m here. Want to start an estimate, find a customer, or check your follow-ups?", action: null };
 }
 
-export async function bidBrainChat(user, { messages, snapshot, now }) {
+export async function bidBrainChat(user, { messages, snapshot, now, ai }) {
   if (!aiConfigured()) { const e = new Error("AI is not configured on the server."); e.status = 503; e.code = "AI_UNCONFIGURED"; throw e; }
   const msgs = (Array.isArray(messages) ? messages : [])
     .filter((m) => m && (m.role === "user" || m.role === "assistant") && String(m.content || "").trim())
     .slice(-12)
     .map((m) => ({ role: m.role, content: String(m.content).slice(0, 2000) }));
-  if (!msgs.length || msgs[msgs.length - 1].role !== "user") { const e = new Error("Say something to Bid Brain first."); e.status = 400; throw e; }
+  if (!msgs.length || msgs[msgs.length - 1].role !== "user") { const e = new Error("Say something first."); e.status = 400; throw e; }
   if (!checkRate(user.id)) { const e = new Error("One moment — let’s not talk over each other."); e.status = 429; throw e; }
   if (!checkMonthlyCap(user)) { const e = new Error("Monthly AI limit reached."); e.status = 429; e.code = "AI_CAPPED"; throw e; }
   const model = process.env.BT_AI_MODEL || "claude-sonnet-4-6";
@@ -849,7 +858,7 @@ export async function bidBrainChat(user, { messages, snapshot, now }) {
     res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: 500, system: brainChatSystemPrompt(snapshot || {}, now), messages: msgs }),
+      body: JSON.stringify({ model, max_tokens: 500, system: brainChatSystemPrompt(snapshot || {}, now, ai), messages: msgs }),
     });
   } catch { const e = new Error("Could not reach the AI provider."); e.status = 502; throw e; }
   if (!res.ok) { const e = new Error("AI provider error (" + res.status + ")."); e.status = 502; throw e; }
