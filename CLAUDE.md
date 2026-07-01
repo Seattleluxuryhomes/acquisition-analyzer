@@ -18,13 +18,16 @@ Start with `README.md` for how it's structured and `DEPLOY.md` to ship it.
 > over cleverness (never fabricate); remove work, don't add it; conversation
 > absorbs complexity so the app gets *simpler* as it grows.
 >
-> **Brand Steward (standing role):** `docs/brand-steward.md` is a continuous
-> responsibility, not a one-time task. Every commit leaves BidVoice slightly
-> better; the test is *"does this strengthen or weaken the brand?"* Run
-> `npm run brand-verify` and append to `docs/brand-audit-log.md` on every
-> meaningful change. **Protected** (propose before changing): the B logo,
-> the BidVoice/Eden names, positioning, tagline, palette, typography — source
-> of truth in `brand/`. Everything else should continuously improve.
+> **Chief Brand Officer (standing role):** `docs/brand-steward.md` is a
+> permanent responsibility — *increase* BidVoice's brand value every week, not
+> just protect consistency. The test for every commit: *"did BidVoice become
+> more valuable because of this?"* Benchmark Apple/Stripe/Linear/Notion; render
+> and look (grep misses visual defects); never wait for Ben to notice — fix it
+> or propose it. Run `npm run brand-verify` and append to
+> `docs/brand-audit-log.md` on every meaningful change; track value work in
+> `docs/brand-value-backlog.md`. **Protected** (propose before changing): the B
+> logo, the BidVoice/Eden names, positioning, tagline, palette, typography —
+> source of truth in `brand/`. Everything else should continuously improve.
 
 ## Run
 

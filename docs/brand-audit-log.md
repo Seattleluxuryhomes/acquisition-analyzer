@@ -5,6 +5,30 @@
 
 ---
 
+## 2026-07-01 — CBO elevation + first-impression visual audit
+
+**Trigger:** Role elevated from Brand Steward to **Chief Brand Officer** — mandate is to
+*increase* brand value weekly, not only protect consistency.
+
+**Method:** Rendered the landing + login headlessly and evaluated as a first-time visitor
+(the CBO looks at the work, not just the source).
+
+**Found & fixed (first-impression surface — highest stakes):**
+- 🔴→✅ **Hero led with a literal microphone**, contradicting the "orb IS the microphone"
+  identity and signaling "voice recorder." Replaced with the **B logo mark** (app-icon
+  treatment) — consistent with nav, app header, and PWA icon. Verified by re-render.
+- 🔴→✅ **Wordmark rendered as "Bid Voice"** (two words) due to a CSS flex-gap between the
+  "Bid" text node and the "Voice" span. Wrapped the wordmark → renders "BidVoice". Applied to
+  EN + ES. *Grep could not catch this — visual-only defect; logged as why rendering matters.*
+
+**Proposed (logged in `docs/brand-value-backlog.md`):** tighten hero subhead, add a hero
+product visual, decide on the functional demo-mic glyph.
+
+**Process shipped:** `docs/brand-value-backlog.md` (ranked value opportunities);
+`brand-check` gained a wordmark-misspelling rule; CBO charter in `docs/brand-steward.md`.
+
+---
+
 ## 2026-07-01 — Stewardship established + full sweep
 
 **Trigger:** Founder appointed ongoing Brand Steward role.
