@@ -1,4 +1,4 @@
-// Public, SEO-optimized "How it works + FAQ" page for Bidtranslator itself
+// Public, SEO-optimized "How it works + FAQ" page for BidVoice itself
 // (product-level, not per-contractor). Served at /guide, /how-it-works, /faq.
 //
 // Why it exists: contractors Google "how to write a bid fast", "voice to estimate
@@ -16,7 +16,7 @@ const STEPS = [
   { n: 1, icon: "🎤", title: "Talk through the job",
     text: "Tap the mic and describe the work out loud — the way you'd tell your crew. “Dig out a 40-by-60 foundation, three feet deep, haul off the spoils, two days with the excavator.” No forms, no typing. You can speak English or Spanish." },
   { n: 2, icon: "📝", title: "It writes the bid",
-    text: "Bidtranslator transcribes what you said and pulls out the scope, the materials, the labor, and the measurements — organized into a clean draft estimate. If it needs one more detail, it asks you a simple question." },
+    text: "BidVoice transcribes what you said and pulls out the scope, the materials, the labor, and the measurements — organized into a clean draft estimate. If it needs one more detail, it asks you a simple question." },
   { n: 3, icon: "🔒", title: "You set your price",
     text: "The numbers are yours. You set your prices and your margin, and your margin and private notes are never shown to the customer or printed on the proposal. The AI only drafts the scope — you own the money." },
   { n: 4, icon: "📄", title: "Send a clean proposal",
@@ -27,9 +27,9 @@ const STEPS = [
 // actually type into Google. Keep them honest; they double as our support docs.
 const FAQ = [
   { q: "How do I write a bid with my voice?",
-    a: "Open Bidtranslator, tap the microphone, and describe the job out loud like you'd explain it to your crew. It transcribes what you said and turns it into a structured estimate — scope, materials, and labor — in seconds. You review the price, then send it. No typing required." },
+    a: "Open BidVoice, tap the microphone, and describe the job out loud like you'd explain it to your crew. It transcribes what you said and turns it into a structured estimate — scope, materials, and labor — in seconds. You review the price, then send it. No typing required." },
   { q: "Does it work in Spanish?",
-    a: "Yes. Bidtranslator is built for bilingual contractors. You can speak the job in Spanish (or English) and send your customer a clean proposal in the language they read. It's made for residential remodelers who work across both languages every day." },
+    a: "Yes. BidVoice is built for bilingual contractors. You can speak the job in Spanish (or English) and send your customer a clean proposal in the language they read. It's made for residential remodelers who work across both languages every day." },
   { q: "Is my pricing and margin private from the customer?",
     a: "Always. Your margin and any private notes never appear in the customer's view or on the PDF proposal — that's enforced in the app, not just a setting. The customer sees a professional bid; your numbers stay yours." },
   { q: "Can I still build a bid by hand?",
@@ -39,21 +39,21 @@ const FAQ = [
   { q: "How does my customer get the proposal?",
     a: "You send them a link or a PDF straight from your phone. They open it on any device, review the scope and price, e-sign to accept, and can pay a deposit online — so you can win the job on the spot instead of waiting days." },
   { q: "What trades does it work for?",
-    a: "Bidtranslator handles the residential trades — excavation and dirt work, windows and doors, roofing, siding, concrete, fencing, decking, painting, flooring, drywall, electrical, plumbing, HVAC, kitchen and bath remodels, and more. It understands the right terms for each trade." },
+    a: "BidVoice handles the residential trades — excavation and dirt work, windows and doors, roofing, siding, concrete, fencing, decking, painting, flooring, drywall, electrical, plumbing, HVAC, kitchen and bath remodels, and more. It understands the right terms for each trade." },
   { q: "Do I need to type anything?",
     a: "No. The whole point is that you talk and it writes. You can review and tweak with a tap if you want, but a complete bid can come entirely from your voice." },
   { q: "How much does it cost?",
     a: "It's free to try. You can capture a job and see a real bid come out of your own words before you pay anything. Pricing for ongoing use is straightforward and built for a one-person or small crew." },
   { q: "Why should I use this instead of writing bids at night?",
-    a: "Because that hour you spend at the kitchen table after dinner is time you don't get back. Bidtranslator turns a job conversation into a finished, professional proposal in a couple of minutes — so you bid faster, look sharper, and get your evenings back." },
+    a: "Because that hour you spend at the kitchen table after dinner is time you don't get back. BidVoice turns a job conversation into a finished, professional proposal in a couple of minutes — so you bid faster, look sharper, and get your evenings back." },
 ];
 
 export function renderGuidePage(opts = {}) {
   const base = String(opts.baseUrl || "").replace(/\/$/, "");
   const appUrl = base ? base + "/" : "/";
   const canonical = base + "/guide";
-  const title = "How to Write a Bid by Voice — Bidtranslator Guide & FAQ";
-  const desc = "Talk through a job and Bidtranslator writes the bid. Step-by-step guide and answers for contractors: voice estimates, Spanish, private pricing, e-sign, and deposits.";
+  const title = "How to Write a Bid by Voice — BidVoice Guide & FAQ";
+  const desc = "Talk through a job and BidVoice writes the bid. Step-by-step guide and answers for contractors: voice estimates, Spanish, private pricing, e-sign, and deposits.";
 
   // HowTo + FAQPage structured data, generated from the same STEPS/FAQ above.
   const ld = {
@@ -62,7 +62,7 @@ export function renderGuidePage(opts = {}) {
       {
         "@type": "HowTo",
         "name": "How to write a contractor bid with your voice",
-        "description": "Turn a job conversation into a professional proposal in minutes with Bidtranslator.",
+        "description": "Turn a job conversation into a professional proposal in minutes with BidVoice.",
         "totalTime": "PT2M",
         "step": STEPS.map((s) => ({ "@type": "HowToStep", "position": s.n, "name": s.title, "text": s.text })),
       },
@@ -152,7 +152,7 @@ export function renderGuidePage(opts = {}) {
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <a class="brand" href="${esc(appUrl)}" style="text-decoration:none"><span class="mk">B</span>Bidtranslator</a>
+  <a class="brand" href="${esc(appUrl)}" style="text-decoration:none"><span class="mk">B</span>BidVoice</a>
   <a class="nav-cta" href="${esc(appUrl)}">Try it free</a>
 </div></header>
 
@@ -160,7 +160,7 @@ export function renderGuidePage(opts = {}) {
   <div class="hero">
     <div class="eyebrow">For contractors</div>
     <h1>Talk through the job. We write the bid.</h1>
-    <p class="lede">Stop writing estimates at the kitchen table at night. Describe the work out loud — in English or Spanish — and Bidtranslator turns it into a professional proposal in about two minutes.</p>
+    <p class="lede">Stop writing estimates at the kitchen table at night. Describe the work out loud — in English or Spanish — and BidVoice turns it into a professional proposal in about two minutes.</p>
     <div class="cta-row"><a class="btn" href="${esc(appUrl)}">Start a bid free</a></div>
     <div class="sub">No credit card to try · Works by voice or typing · Your prices stay private</div>
   </div>
@@ -180,12 +180,12 @@ export function renderGuidePage(opts = {}) {
   <div class="band">
     <h2>Your evenings back, starting today</h2>
     <p>Capture one real job with your voice and watch the bid come out. Free to try.</p>
-    <a class="btn" href="${esc(appUrl)}">Try Bidtranslator free</a>
+    <a class="btn" href="${esc(appUrl)}">Try BidVoice free</a>
   </div>
 </main>
 
 <footer><div class="wrap">
-  &copy; Bidtranslator · <a href="${esc(appUrl)}">Open the app</a>
+  &copy; BidVoice · <a href="${esc(appUrl)}">Open the app</a>
 </div></footer>
 </body>
 </html>`;

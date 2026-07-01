@@ -1,4 +1,4 @@
-// Bidtranslator backend (Phase 1). Express + node:sqlite. The client talks only
+// BidVoice backend (Phase 1). Express + node:sqlite. The client talks only
 // to this API; the AI provider key never leaves the server.
 try { process.loadEnvFile(); } catch { /* no .env file — rely on real env vars */ }
 import express from "express";
@@ -120,7 +120,7 @@ const baseUrl = (req) =>
 
 // ---- Living website (Sprint 12) helpers ----
 // Name-agnostic branded address: the base domain is a single knob, so the day the
-// brand is locked (BidVoice/Bidtranslator/…) the whole engine flips with one env var.
+// brand is locked (BidVoice/BidVoice/…) the whole engine flips with one env var.
 const SITE_DOMAIN = () => (process.env.BT_SITE_DOMAIN || "bidvoice.ai").trim().toLowerCase();
 const brandedSiteUrl = (slug) => (slug ? `https://${slug}.${SITE_DOMAIN()}` : "");
 // Public, signature-free URL for a photo PUBLISHED to a project (the /pub route
@@ -226,7 +226,7 @@ app.post("/api/auth/reset", wrap(async (req, res) => {
   const out = createResetToken(email);
   if (out && Mail.mailConfigured()) {
     const link = `${baseUrl(req)}/reset?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
-    try { await Mail.sendMail({ to: out.user.email, subject: "Reset your Bidtranslator password", html: resetEmailHtml(link), text: `Reset your Bidtranslator password:\n${link}\n\nThis link expires in 1 hour. If you didn't request it, ignore this email.` }); }
+    try { await Mail.sendMail({ to: out.user.email, subject: "Reset your BidVoice password", html: resetEmailHtml(link), text: `Reset your BidVoice password:\n${link}\n\nThis link expires in 1 hour. If you didn't request it, ignore this email.` }); }
     catch { /* never surface send errors to the caller (no enumeration) */ }
   }
   res.json({ ok: true, sent: Mail.mailConfigured() });
@@ -254,12 +254,12 @@ function leadEmailHtml(lead, appUrl) {
     <h2 style="margin:18px 0 6px">📥 New estimate request</h2>
     <p style="color:#5a5240">Someone just asked you for an estimate. Reach out while it's hot.</p>
     <table style="margin:14px 0;font-size:.96rem">${row("Name", lead.name)}${row("Phone", lead.phone)}${row("Email", lead.email)}${row("Project", lead.job_type)}${row("Area", lead.city)}${lead.message ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68;vertical-align:top">Details</td><td style="padding:4px 0">${esc(lead.message)}</td></tr>` : ""}</table>
-    <p style="margin:20px 0"><a href="${appUrl}/" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Open Bidtranslator &amp; bid it</a></p>
+    <p style="margin:20px 0"><a href="${appUrl}/" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Open BidVoice &amp; bid it</a></p>
   </div>`;
 }
 function leadEmailText(lead, appUrl) {
   const f = (k, v) => v ? `${k}: ${v}\n` : "";
-  return `New estimate request\n\n${f("Name", lead.name)}${f("Phone", lead.phone)}${f("Email", lead.email)}${f("Project", lead.job_type)}${f("Area", lead.city)}${lead.message ? `Details: ${lead.message}\n` : ""}\nOpen Bidtranslator to bid it: ${appUrl}/`;
+  return `New estimate request\n\n${f("Name", lead.name)}${f("Phone", lead.phone)}${f("Email", lead.email)}${f("Project", lead.job_type)}${f("Area", lead.city)}${lead.message ? `Details: ${lead.message}\n` : ""}\nOpen BidVoice to bid it: ${appUrl}/`;
 }
 
 // ---- Billing ----
@@ -536,9 +536,9 @@ app.post("/api/admin/onboard", requireAuth, requireAdmin, wrap(async (req, res) 
     try {
       await Mail.sendMail({
         to: user.email,
-        subject: `${req.user.company && req.user.company !== "Your Company" ? req.user.company : "Bidtranslator"} — your account is ready`,
+        subject: `${req.user.company && req.user.company !== "Your Company" ? req.user.company : "BidVoice"} — your account is ready`,
         html: onboardEmailHtml(link, req.user, b.note),
-        text: `You're set up on Bidtranslator. Set your password and get started:\n${link}\n\nThis link works for 7 days.`,
+        text: `You're set up on BidVoice. Set your password and get started:\n${link}\n\nThis link works for 7 days.`,
         replyTo: req.user.email || undefined,
       });
       emailed = true;
@@ -552,7 +552,7 @@ function onboardEmailHtml(link, from, note) {
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
     <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">translator</span></div>
     <h2 style="margin:18px 0 8px">Your account is ready</h2>
-    <p style="color:#5a5240">${who} set you up on Bidtranslator — talk a job out loud and it writes a clean, priced bid in your client's language. ${note ? escHtml(String(note)) : "Tap below to set your password and take a look."}</p>
+    <p style="color:#5a5240">${who} set you up on BidVoice — talk a job out loud and it writes a clean, priced bid in your client's language. ${note ? escHtml(String(note)) : "Tap below to set your password and take a look."}</p>
     <p style="margin:22px 0"><a href="${link}" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Set your password &amp; get started</a></p>
     <p style="color:#8a7f68;font-size:.85rem">This link works for 7 days.</p>
   </div>`;
@@ -1481,7 +1481,7 @@ async function deliverSignedAgreement(jobRow, owner, proposal, { name, email } =
       const html = `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;color:#1F252C">
         <h2 style="margin:0 0 8px">Signed &amp; accepted ✔</h2>
         <p style="color:#5a5240">Attached is the signed copy of the proposal for <b>${escHtml(proposal.title)}</b>${name ? `, signed by ${escHtml(name)}` : ""}. ${escHtml(company)} will be in touch about next steps.</p>
-        <p style="color:#8a7f68;font-size:.85rem">Sent by Bidtranslator on behalf of ${escHtml(company)}.</p>
+        <p style="color:#8a7f68;font-size:.85rem">Sent by BidVoice on behalf of ${escHtml(company)}.</p>
       </div>`;
       try {
         await Mail.sendMail({
@@ -1588,7 +1588,7 @@ app.get("*", (req, res, next) => {
 });
 
 const PORT = process.env.BT_PORT || process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Bidtranslator on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`BidVoice on http://localhost:${PORT}`));
 // Pull the real plan + setup-fee prices from Stripe so the paywall shows exactly
 // what checkout charges. Fire-and-forget; the UI falls back to defaults until ready.
 Billing.loadPrices().catch(() => {});

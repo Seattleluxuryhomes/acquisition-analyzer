@@ -13,7 +13,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BidVoice AI</title>
+<title>BidVoice | AI Construction Operating System</title>
 <link rel="icon" type="image/png" href="/icon-192.png?v=2" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
 <meta name="theme-color" content="#CF7F18" />
@@ -21,12 +21,12 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Bidtranslator" />
-<meta name="description" content="Run your entire contracting business by voice: create estimates, schedule jobs, collect payments, manage customers, and grow — all from one app. A professional estimate in under 60 seconds, in your language. Free to start." />
+<meta name="apple-mobile-web-app-title" content="BidVoice" />
+<meta name="description" content="BidVoice is the AI Construction Operating System built for contractors. Meet Eden, your AI employee who helps estimate jobs, manage projects, organize customers, and keep your business moving." />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="BidVoice" />
-<meta property="og:title" content="BidVoice AI" />
-<meta property="og:description" content="Your AI employee for contractors." />
+<meta property="og:title" content="Meet Eden — your AI employee for contractors." />
+<meta property="og:description" content="BidVoice is the AI Construction Operating System built for contractors. Meet Eden, your AI employee who helps estimate jobs, manage projects, organize customers, and keep your business moving." />
 <meta property="og:image" content="https://bidvoice.ai/og.png?v=2" />
 <meta property="og:image:secure_url" content="https://bidvoice.ai/og.png?v=2" />
 <meta property="og:image:type" content="image/png" />
@@ -36,8 +36,8 @@
 <meta property="og:url" content="https://bidvoice.ai/" />
 <meta property="og:locale" content="en_US" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="BidVoice AI" />
-<meta name="twitter:description" content="Your AI employee for contractors." />
+<meta name="twitter:title" content="Meet Eden — your AI employee for contractors." />
+<meta name="twitter:description" content="BidVoice is the AI Construction Operating System built for contractors. Meet Eden, your AI employee who helps estimate jobs, manage projects, organize customers, and keep your business moving." />
 <meta name="twitter:image" content="https://bidvoice.ai/og.png?v=2" />
 <meta name="twitter:image:alt" content="Meet Eden — your AI employee for contractors." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -1431,7 +1431,7 @@ let LANG = (function(){ try{ const s=localStorage.getItem('bt_lang'); if(s==='en
 const I18N = {
   en: {
     auth_hero_h:"Just talk. We write the bid.",
-    auth_hero_sub:"Say the job out loud — in English or Spanish — and Bidtranslator turns it into a clean, priced proposal you can send from your phone.",
+    auth_hero_sub:"Say the job out loud — in English or Spanish — and BidVoice turns it into a clean, priced proposal you can send from your phone.",
     auth_one_account:"One account = your jobs, synced across your devices.",
     auth_create_eyebrow:"Create your account", auth_welcome_eyebrow:"Welcome back",
     auth_get_started:"Get started", auth_sign_in:"Sign in",
@@ -1518,7 +1518,7 @@ const I18N = {
   },
   es: {
     auth_hero_h:"Solo habla. Nosotros escribimos el presupuesto.",
-    auth_hero_sub:"Di el trabajo en voz alta — en inglés o español — y Bidtranslator lo convierte en una propuesta clara y con precio que puedes enviar desde tu teléfono.",
+    auth_hero_sub:"Di el trabajo en voz alta — en inglés o español — y BidVoice lo convierte en una propuesta clara y con precio que puedes enviar desde tu teléfono.",
     auth_one_account:"Una cuenta = tus trabajos, sincronizados en todos tus dispositivos.",
     auth_create_eyebrow:"Crea tu cuenta", auth_welcome_eyebrow:"Bienvenido de nuevo",
     auth_get_started:"Empezar", auth_sign_in:"Iniciar sesión",
@@ -1881,7 +1881,7 @@ function viewProspecting(){
       <textarea class="input sm ps-note" placeholder="Notes…" onchange="prospectNote('${p.id}',this.value)">${esc(p.notes||'')}</textarea></div>`;
   }).join(''):'<div class="hint">No prospects yet — search above, or save them as you go.</div>');
   return `<div class="h-eyebrow">Growth · outbound</div><h1 class="page">Prospecting</h1>
-    <div class="sub">Find &amp; qualify contractors, vendors, stagers, designers &amp; other home-service businesses — and work them into Bidtranslator.</div>
+    <div class="sub">Find &amp; qualify contractors, vendors, stagers, designers &amp; other home-service businesses — and work them into BidVoice.</div>
     ${connect}${form}${results}${crm}`;
 }
 
@@ -3060,11 +3060,11 @@ window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferr
 function isStandalone(){ try{ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }catch(e){ return false; } }
 function installApp(){
   closeMore();
-  if(isStandalone()){ toast('Bidtranslator is already on your home screen.','ok'); return; }
+  if(isStandalone()){ toast('BidVoice is already on your home screen.','ok'); return; }
   if(deferredInstall){ deferredInstall.prompt(); deferredInstall.userChoice.then(()=>{ deferredInstall=null; }).catch(()=>{}); return; }
   const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  if(ios){ alert('Add Bidtranslator to your home screen:\n\n1.  Tap the Share button at the bottom of Safari\n2.  Scroll down and tap "Add to Home Screen"\n3.  Tap "Add"'); }
-  else { alert('Add Bidtranslator to your home screen:\n\nOpen your browser menu and choose "Install app" or "Add to Home screen."'); }
+  if(ios){ alert('Add BidVoice to your home screen:\n\n1.  Tap the Share button at the bottom of Safari\n2.  Scroll down and tap "Add to Home Screen"\n3.  Tap "Add"'); }
+  else { alert('Add BidVoice to your home screen:\n\nOpen your browser menu and choose "Install app" or "Add to Home screen."'); }
 }
 // Register the service worker (installability + offline launch). Best-effort.
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
@@ -3242,15 +3242,15 @@ function toggleService(key){
 }
 function shareReferral(){
   const url=refLink();
-  const msg=`I'm using Bidtranslator to bid jobs by voice — try it free: ${url}`;
-  if(navigator.share){ navigator.share({title:'Bidtranslator',text:msg,url}).catch(()=>{}); }
+  const msg=`I'm using BidVoice to bid jobs by voice — try it free: ${url}`;
+  if(navigator.share){ navigator.share({title:'BidVoice',text:msg,url}).catch(()=>{}); }
   else { copyText(url).then(ok=>toast(ok?'✓ Your invite link is copied — paste it anywhere.':url, ok?'ok':'warn', ok?2600:7000)); }
 }
 function viewPaywall(){
   const expired = BILLING && !BILLING.entitled;
   const days = trialDaysLeft();
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
-    <div class="h-eyebrow">${expired?'Trial ended':'Bidtranslator Pro'}</div>
+    <div class="h-eyebrow">${expired?'Trial ended':'BidVoice Pro'}</div>
     <h1 class="page">${expired?'Subscribe to keep building bids':'Go unlimited'}</h1>
     <div class="sub">${expired
       ? 'Your free trial is over. Your saved jobs are still here — subscribe to create and send new bids.'
@@ -3905,10 +3905,10 @@ function calLink(j){
   }
   const note=(j.notes||'').trim();
   return 'https://calendar.google.com/calendar/render?action=TEMPLATE'
-    +'&text='+encodeURIComponent((j.title||'Job')+' — '+(SETTINGS.company||'Bidtranslator'))
+    +'&text='+encodeURIComponent((j.title||'Job')+' — '+(SETTINGS.company||'BidVoice'))
     +'&dates='+dates
     +(jobLocation(j)?'&location='+encodeURIComponent(jobLocation(j)):'')
-    +'&details='+encodeURIComponent('Scheduled via Bidtranslator · '+money(bidPrice(j))+(note?'\n\nNotes: '+note:''));
+    +'&details='+encodeURIComponent('Scheduled via BidVoice · '+money(bidPrice(j))+(note?'\n\nNotes: '+note:''));
 }
 function setTitle(id,v){ const j=JOBS.find(x=>x.id===id); if(!j) return; j.title=v||''; touch(j); saveJobs(); refreshAddrBlock(); }
 let REVEAL_ADDR=null; // jobId for which the user chose to add a separate address
@@ -4366,7 +4366,7 @@ function loadSample(){
 // Demo project lives in More now, not the primary workflow. Loads the sample into
 // a fresh New Job screen.
 function demoProject(){ closeMore(); go('capture'); loadSample(); }
-// "Why Bidtranslator" — the value story, every benefit framed as time/energy saved.
+// "Why BidVoice" — the value story, every benefit framed as time/energy saved.
 
 function newJobFromForm(){
   const text=((document.getElementById('capText')||{}).value||CAP_DRAFT.text||'').trim();
@@ -5252,7 +5252,7 @@ async function inviteSub(id, mode){
   const company=(SETTINGS.company||'').trim(), name=(SETTINGS.name||'').trim();
   const me = name ? (company ? `${name} at ${company}` : name) : company;
   const first=((s.name||'').trim().split(/\s+/)[0]||'');
-  const msg=`Hey${first?' '+first:''}, it's ${me}. I'm using Bidtranslator to send job scope and bids — it's free, take a look: ${appUrl}`;
+  const msg=`Hey${first?' '+first:''}, it's ${me}. I'm using BidVoice to send job scope and bids — it's free, take a look: ${appUrl}`;
   const digits=(s.phone||'').replace(/\D/g,'');
   if(mode==='sms'){ location.href='sms:'+(s.phone||'')+'?&body='+encodeURIComponent(msg); }
   else { window.open('https://wa.me/'+(digits?(digits.length===10?'1'+digits:digits):'')+'?text='+encodeURIComponent(msg),'_blank'); }
@@ -5275,7 +5275,7 @@ function teamNudge(){
   if(c.invited>=target) return '';
   const left=target-c.invited;
   return `<div class="teamnudge"><h3>${icon('hardhat',16)} Build your team — send it to ${left} more sub${left===1?'':'s'}</h3>
-    <p>Add your crew and send them Bidtranslator. They get it free to receive your scope in their language — and you're building the network you bid through.</p>
+    <p>Add your crew and send them BidVoice. They get it free to receive your scope in their language — and you're building the network you bid through.</p>
     <button class="btn full" onclick="go('team')">${c.invited>0?`Add more of your crew (${c.invited}/${target})`:'Add your subs'}</button></div>`;
 }
 
@@ -5888,7 +5888,7 @@ function viewSettings(){
     </div>
     <div class="legalbox">
       <h3>Terms &amp; privacy (placeholder)</h3>
-      <p>Conversations, transcripts, photos, and bids you create belong to you. They're stored for your use, and you can delete them at any time. Bidtranslator is a tool for preparing estimates — bids you send are agreements between you and your client, not us.</p>
+      <p>Conversations, transcripts, photos, and bids you create belong to you. They're stored for your use, and you can delete them at any time. BidVoice is a tool for preparing estimates — bids you send are agreements between you and your client, not us.</p>
       <p>Where your area requires it, let the other party know when a conversation is being captured.</p>
       <label style="display:flex;gap:10px;align-items:flex-start;font-size:.86rem;color:#cdc7bb;cursor:pointer;margin-top:6px">
         <input type="checkbox" id="setTerms" style="margin-top:3px;width:17px;height:17px;accent-color:var(--amber);flex-shrink:0"/>

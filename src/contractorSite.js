@@ -1,5 +1,5 @@
 // Live, custom customer-facing website for a contractor, rendered from their own
-// Bidtranslator profile (company, trades, contact, brand color). Served at /c/:id.
+// BidVoice profile (company, trades, contact, brand color). Served at /c/:id.
 // The "Request a free estimate" form is the homeowner → contractor connection: it
 // posts to the contractor's inbound-leads endpoint, so a homeowner becomes a lead
 // and the contractor bids it through the app. SEO-ready (LocalBusiness + reviews
@@ -40,7 +40,7 @@ const BLURB = {
 };
 
 // ---- Visitor-facing translations (the "language wheel") ----
-// Bidtranslator's whole promise is bilingual, so the storefront should greet a
+// BidVoice's whole promise is bilingual, so the storefront should greet a
 // homeowner in their own language. We translate everything WE control — UI chrome,
 // CTAs, the form, trade names and blurbs. The contractor's own custom tagline/About
 // are shown as they wrote them (translating their words needs AI — a later step).

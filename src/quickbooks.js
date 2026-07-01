@@ -124,7 +124,7 @@ async function ensureItem(user, token) {
   const income = acc?.QueryResponse?.Account?.[0];
   if (!income) return null;
   const made = await qboApi(user, token, "POST", "item", {
-    Name: "Bidtranslator Sale", Type: "Service", IncomeAccountRef: { value: income.Id },
+    Name: "BidVoice Sale", Type: "Service", IncomeAccountRef: { value: income.Id },
   });
   return made?.Item?.Id || null;
 }
@@ -154,7 +154,7 @@ export async function syncEstimate(user, { amount, description, customer, date }
     const body = {
       CustomerRef: { value: customerId },
       TxnDate: date ? new Date(date).toISOString().slice(0, 10) : undefined,
-      PrivateNote: description || "Signed via Bidtranslator",
+      PrivateNote: description || "Signed via BidVoice",
       Line: [{
         Amount: Number(amount),
         DetailType: "SalesItemLineDetail",
@@ -217,7 +217,7 @@ export async function syncSale(user, { amount, description, customer, date } = {
     if (!itemId) return { error: "no income account" };
     const body = {
       TxnDate: date ? new Date(date).toISOString().slice(0, 10) : undefined,
-      PrivateNote: description || "Bidtranslator payment",
+      PrivateNote: description || "BidVoice payment",
       Line: [{
         Amount: Number(amount),
         DetailType: "SalesItemLineDetail",
