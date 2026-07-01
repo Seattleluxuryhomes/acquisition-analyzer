@@ -1466,11 +1466,11 @@ const I18N = {
     bb_sched_when:"Sure — what day and time should I set it for?",
     bb_sched_which:"Which appointment should I move? Tell me the day or who it's with.",
     bb_err_reply:"I couldn't reach my brain just now. Try again in a moment — your work is safe.",
-    bb_mic_denied:"I need microphone access to listen. You can still type below, or turn on mic permission in your browser settings and tap the mic again.",
+    bb_mic_denied:"I need microphone access to listen. You can still type below, or turn on mic permission in your browser settings and tap Bid Brain again.",
     bb_mic_none:"I can't find a microphone on this device. You can still type below and I'll keep up.",
-    bb_ready_hint:"Answer now — or tap the mic",
+    bb_ready_hint:"Answer now — or tap Bid Brain",
     bb_listening_hint:"Listening… tap to stop",
-    bb_gentle_nudge:"I'm ready when you are — tap the mic, or type.",
+    bb_gentle_nudge:"I'm here when you are — tap Bid Brain, or type.",
     bb_heard:(x)=>`I heard: “${x}”. Is that right?`,
     bb_pulse_active:(n)=>`You have ${n} active estimate${n>1?'s':''}.`,
     bb_pulse_follow:(n)=>`${n} follow-up${n>1?'s':''} need${n>1?'':'s'} attention.`,
@@ -1481,7 +1481,7 @@ const I18N = {
     bb_brief_await:(n)=>`${n} proposal${n>1?'s':''} ${n>1?'are':'is'} waiting for signature.`,
     bb_brief_close:(amt,n)=>`Close ${n>1?'them':'it'} today and you'll add ${amt} in contracted work.`,
     bb_brief_first:"What should we tackle first?",
-    bb_brief_allset:"I'm set up and watching your business. Let's get your first estimate out the door — tap the mic and walk me through a job.",
+    bb_brief_allset:"I'm set up and watching your business. Let's get your first estimate out the door — tap Bid Brain and walk me through a job.",
     bb_sg_followwith:(name)=>`Follow up with ${name}`,
     bb_sg_nudge:(name)=>`Nudge ${name} to sign`,
     onb_welcome_h:"Welcome to Bid Brain",
@@ -1553,11 +1553,11 @@ const I18N = {
     bb_sched_when:"Claro — ¿para qué día y hora lo agendo?",
     bb_sched_which:"¿Cuál cita muevo? Dime el día o con quién es.",
     bb_err_reply:"No pude conectar con mi cerebro ahora mismo. Inténtalo de nuevo en un momento — tu trabajo está a salvo.",
-    bb_mic_denied:"Necesito acceso al micrófono para escuchar. Puedes escribir abajo, o activar el permiso del micrófono en tu navegador y tocar el micrófono otra vez.",
+    bb_mic_denied:"Necesito acceso al micrófono para escuchar. Puedes escribir abajo, o activar el permiso del micrófono en tu navegador y tocar Bid Brain otra vez.",
     bb_mic_none:"No encuentro un micrófono en este dispositivo. Puedes escribir abajo y te sigo.",
-    bb_ready_hint:"Responde ahora — o toca el micrófono",
+    bb_ready_hint:"Responde ahora — o toca Bid Brain",
     bb_listening_hint:"Escuchando… toca para detener",
-    bb_gentle_nudge:"Cuando quieras — toca el micrófono, o escribe.",
+    bb_gentle_nudge:"Cuando quieras — toca Bid Brain, o escribe.",
     bb_heard:(x)=>`Escuché: “${x}”. ¿Es correcto?`,
     bb_pulse_active:(n)=>`Tienes ${n} presupuesto${n>1?'s':''} activo${n>1?'s':''}.`,
     bb_pulse_follow:(n)=>`${n} seguimiento${n>1?'s':''} necesita${n>1?'n':''} atención.`,
@@ -1568,7 +1568,7 @@ const I18N = {
     bb_brief_await:(n)=>`${n} propuesta${n>1?'s':''} ${n>1?'están':'está'} esperando firma.`,
     bb_brief_close:(amt,n)=>`Ciérra${n>1?'las':'la'} hoy y sumarás ${amt} en trabajo contratado.`,
     bb_brief_first:"¿Qué resolvemos primero?",
-    bb_brief_allset:"Estoy listo y vigilando tu negocio. Saquemos tu primer presupuesto — toca el micrófono y cuéntame el trabajo.",
+    bb_brief_allset:"Estoy listo y vigilando tu negocio. Saquemos tu primer presupuesto — toca Bid Brain y cuéntame el trabajo.",
     bb_sg_followwith:(name)=>`Dar seguimiento a ${name}`,
     bb_sg_nudge:(name)=>`Pídele la firma a ${name}`,
     onb_welcome_h:"Te damos la bienvenida a Bid Brain",
@@ -4981,7 +4981,7 @@ function convertLead(id){
   localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT));
   setLeadStatus(id,'Estimate Scheduled');
   go('capture'); runIntake(true);
-  toast('Lead loaded — tap the mic to add details, then build the bid.','ok',4200);
+  toast('Lead loaded — start recording to add details, then build the bid.','ok',4200);
 }
 function importLeadCsv(input){
   const f=input.files&&input.files[0]; input.value=''; if(!f) return;
