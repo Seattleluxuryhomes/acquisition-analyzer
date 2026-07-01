@@ -800,18 +800,18 @@
   .bb-brain{width:48px;height:48px;display:block;overflow:visible;position:relative;z-index:1}
   .bb-brain .bb-syn path{stroke:rgb(var(--bbc,90,160,255));stroke-width:1.6;stroke-dasharray:3 4;animation:bbflow 3.6s linear infinite;opacity:1}
   .bb-brain .bb-core{transform:scale(.82);transform-origin:50px 50px;transform-box:view-box}
-  .bb-brain .bb-node circle{fill:rgb(var(--bbc,90,160,255));transform-box:fill-box;transform-origin:center;animation:bbnode 3.2s ease-in-out infinite}
+  .bb-brain .bb-node circle{fill:rgb(var(--bbc,90,160,255));transform-box:fill-box;transform-origin:center;animation:bbnode 2.3s ease-in-out infinite}
   .bb-brain .bb-node circle:nth-child(2n){animation-delay:.5s}
   .bb-brain .bb-node circle:nth-child(3n){animation-delay:1s}
   .bb-brain .bb-node circle:nth-child(4n){animation-delay:1.6s}
-  .bb-brain .bb-core circle{animation:bbnode 3.2s ease-in-out infinite}
+  .bb-brain .bb-core circle{animation:bbnode 2.3s ease-in-out infinite}
   .bb-brain .bb-orbit{opacity:0;transform-origin:50px 50px}
   .bb-brain .bb-orbit .orb{fill:#eaf2ff}
   .bb-brain .bb-spark{fill:rgb(var(--bbc,90,160,255))}
   /* ===== Living neural core: nucleus heartbeat · orbiting electrons · light traveling the pathways ===== */
-  .bb-brain .bb-nuc-glow{fill:rgb(var(--bbc,90,160,255));opacity:.55;transform-box:view-box;transform-origin:50px 49px;animation:bbnuc 3.6s ease-in-out infinite}
-  .bb-brain .bb-nucleus{fill:#fff;transform-box:view-box;transform-origin:50px 49px;animation:bbnuc 3.6s ease-in-out infinite}
-  .bb-brain .bb-pulse path{stroke:#eaf3ff;stroke-linecap:round;stroke-dasharray:3 100;stroke-dashoffset:100;opacity:0;animation:bbpkt 2.9s linear infinite}
+  .bb-brain .bb-nuc-glow{fill:rgb(var(--bbc,90,160,255));opacity:.55;transform-box:view-box;transform-origin:50px 49px;animation:bbnuc 2.8s ease-in-out infinite}
+  .bb-brain .bb-nucleus{fill:#fff;transform-box:view-box;transform-origin:50px 49px;animation:bbnuc 2.8s ease-in-out infinite}
+  .bb-brain .bb-pulse path{stroke:#eaf3ff;stroke-linecap:round;stroke-dasharray:3 100;stroke-dashoffset:100;opacity:0;animation:bbpkt 1.8s linear infinite}
   .bb-brain .bb-pulse path:nth-child(2){animation-delay:.6s}
   .bb-brain .bb-pulse path:nth-child(3){animation-delay:1.15s}
   .bb-brain .bb-pulse path:nth-child(4){animation-delay:1.7s}
@@ -820,8 +820,8 @@
   .bb-brain .bb-elec .ep1{transform:rotate(22deg) scale(1,.4)}
   .bb-brain .bb-elec .ep2{transform:rotate(-56deg) scale(1,.4)}
   .bb-brain .bb-elec .eo{fill:none;stroke:rgba(var(--bbc,90,160,255),.20);stroke-width:.7}
-  .bb-brain .bb-elec .espin{transform-box:view-box;transform-origin:50px 49px;animation:bbspin 7.5s linear infinite}
-  .bb-brain .bb-elec .s2{animation-duration:10s;animation-direction:reverse}
+  .bb-brain .bb-elec .espin{transform-box:view-box;transform-origin:50px 49px;animation:bbspin 5.2s linear infinite}
+  .bb-brain .bb-elec .s2{animation-duration:7s;animation-direction:reverse}
   .bb-brain .bb-elec .el{fill:#f2f7ff;filter:drop-shadow(0 0 2.4px rgba(var(--bbc,90,160,255),.95))}
   /* an almost-subconscious spark even at rest — the orb is never frozen */
   .bb-brain .bb-spark path{opacity:0;transform-box:fill-box;transform-origin:center;animation:bbsparkrest 6.5s ease-in-out infinite}
@@ -2406,6 +2406,7 @@ function bbApplyHealth(){ const mic=document.getElementById('bbMicBtn');
 function bbSetState(s){ const d=document.getElementById('bbDock'); if(!d) return; s=s||'idle';
   if(s==='completed'||s==='done') s='success';      // aliases
   if(BB_STATES.indexOf(s)<0) s='idle';
+  if(s!=='thinking'){ clearTimeout(bbThinkTimer); bbThinkTimer=null; bbThinkNote=''; }   // drop the progress phrase when work ends
   bbState=s; d.classList.remove(...BB_STATES,'flick'); d.classList.add(s);
   // Voice-first: the panel stage reflects the four states the contractor cares about.
   const lbl=document.getElementById('bbStateLabel'); if(lbl) lbl.textContent=bbStateText(s);
@@ -2450,7 +2451,7 @@ function bbLifeTick(){ if(!bbLifeOn) return;
   const hidden=document.hidden;
   if(!hidden && !bbReduce()) bbFireNeurons(bbActiveOrb(), bbState);
   const energy=bbEnergy();
-  let base = bbState==='thinking' ? 520 : bbState==='listening' ? 900 : bbState==='speaking' ? 1400 : 2200;
+  let base = bbState==='thinking' ? 430 : bbState==='listening' ? 780 : bbState==='speaking' ? 1200 : 1500;
   base = base * (1.4 - energy*0.6);                      // more energy → firings come sooner
   const delay = hidden ? 4000 : Math.max(280, Math.round(base * (0.5 + Math.random())));  // heavy jitter: never a loop
   bbLifeTimer=setTimeout(bbLifeTick, delay);
@@ -2493,11 +2494,39 @@ function bbMaybeBrief(){
 // The spoken-state label: Ready → Listening → Thinking → Responding (jobsite-plain).
 function bbStateText(s){
   if(s==='listening') return t('bb_state_listening');
-  if(s==='thinking') return t('bb_state_thinking');
+  if(s==='thinking') return bbThinkNote || t('bb_state_thinking');
   if(s==='success') return t('bb_state_done');
   if(s==='speaking'||s==='working') return t('bb_state_responding');
   return t('bb_state_ready');
 }
+// ===== Visible work: honest progress phrases during Thinking (Interaction Constitution IV) =====
+// Every phrase maps to the REAL task the contractor asked about — never simulated work. Phrases
+// rotate per category so they feel familiar, not random, and vary naturally over time.
+const BB_THINK = {
+  customer:['Finding the customer…','Reviewing their history…'],
+  schedule:['Looking at your schedule…',"Checking what's coming up…"],
+  estimate:['Pulling the job details…','Reviewing the estimate…'],
+  followup:["Checking what's overdue…",'Preparing the follow-up…'],
+  photos:['Organizing the photos…','Looking at the photos…'],
+  money:["Checking what's been paid…",'Reviewing the numbers…'],
+  generic:['Checking that now…','Pulling that up…','Looking into it…'],
+};
+function bbThinkCategory(txt){ txt=String(txt||'').toLowerCase();
+  if(/\b(customer|client|who|contact|homeowner|lead)\b/.test(txt)) return 'customer';
+  if(/\b(schedul|calendar|tomorrow|today|appoint|book|monday|tuesday|wednesday|thursday|friday)\b/.test(txt)) return 'schedule';
+  if(/\b(estimat|bid|quote|proposal|price|job|scope)\b/.test(txt)) return 'estimate';
+  if(/\b(follow|chase|nudge|remind|call ?back|overdue)\b/.test(txt)) return 'followup';
+  if(/\b(photo|picture|image|pic)\b/.test(txt)) return 'photos';
+  if(/\b(paid|payment|invoice|owe|deposit|money|balance)\b/.test(txt)) return 'money';
+  return 'generic';
+}
+let _bbThinkRot={}, bbThinkNote='', bbThinkTimer=null;
+function bbThinkStages(txt){ const cat=bbThinkCategory(txt); const arr=BB_THINK[cat]||BB_THINK.generic;
+  const i=(_bbThinkRot[cat]||0); _bbThinkRot[cat]=i+1; return [arr[i%arr.length], arr[(i+1)%arr.length]]; }
+// Show the first honest phrase now; if the real work runs long, advance to the next stage line
+// (never a fake extra step). The panel's state label is the surface.
+function bbStartThinking(txt){ const st=bbThinkStages(txt); bbThinkNote=st[0]; clearTimeout(bbThinkTimer);
+  bbThinkTimer=setTimeout(()=>{ if(bbState==='thinking'){ bbThinkNote=st[1]||bbThinkNote; const l=document.getElementById('bbStateLabel'); if(l) l.textContent=bbThinkNote; } }, 2600); }
 
 let bbInited=false, bbDrag=null, bbLastTap=0, bbTapTimer=null, bbLpTimer=null, bbLpFired=false;
 let bbIdleSince=Date.now(), bbDriftTimer=null;
@@ -2699,7 +2728,7 @@ async function bbConvSend(text){
   const msg=(text!=null?String(text):(inp?inp.value:'')).trim(); if(!msg||BBC.busy) return;
   if(inp) inp.value='';
   bbActivity(); BBC.thread.push({role:'user',content:msg}); bbThreadSave();
-  BBC.busy=true; bbConvRender(); bbSetState('thinking'); bbAk('thinking');
+  BBC.busy=true; bbConvRender(); bbStartThinking(msg); bbSetState('thinking'); bbAk('thinking');
   try{
     const payload=BBC.thread.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role,content:m.content}));
     const r=await api('/api/brain/chat',{method:'POST', body:JSON.stringify({messages:payload, now:bbNow()})});
@@ -2775,7 +2804,7 @@ async function bbConvMic(){
     const blob=new Blob(BBC.recChunks,{type:mime||'audio/webm'}); BBC.recording=false;
     // Armed but nothing said (or too short) → stand down gently, never dead-end.
     if(blob.size<700 || !heardSpeech){ bbSetState('idle'); bbAkAuto(); bbSayLocal(t('bb_gentle_nudge')); return; }
-    bbSetState('thinking'); bbAk('thinking'); BBC.busy=true; bbConvRender();
+    bbThinkNote='Getting that down…'; bbSetState('thinking'); bbAk('thinking'); BBC.busy=true; bbConvRender();
     try{
       const dataUrl=await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); });
       const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({audio:dataUrl, lang:(SETTINGS.from||'en')})});
