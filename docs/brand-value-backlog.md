@@ -5,24 +5,24 @@ consistent). Ranked by impact on perception/conversion/trust. Ship the safe ones
 identity-adjacent ones. See `docs/brand-steward.md`.*
 
 ## Shipped
-- **Landing hero was a microphone → now the B logo mark** (app-icon treatment). First
-  impression read as "voice recorder"; now reads as a premium software brand, consistent with
-  the app + PWA icon. *(2026-07-01)*
-- **Wordmark rendered as "Bid Voice" (two words) → "BidVoice"**. A CSS flex-gap split the name;
-  wrapped it so the logo reads as one word. Grep couldn't catch this — only rendering did.
+- **Hero message tightened to one promise** (EN+ES). Cut the six-feature run-on to a single
+  outcome: *"Describe a job out loud. Eden writes the estimate, sends the proposal in your
+  customer's language, and collects the deposit — in minutes."* Conversion over feature-listing.
+  *(2026-07-01)*
+- **Real product visual added to the hero** (EN+ES). The demo is now a dark BidVoice **app
+  frame** — Eden header + "Building your estimate" status → spoken job → priced bid. Shows the
+  product and work happening (confidence, not concepts). Rendered + verified. *(2026-07-01)*
+- **Every landing icon reviewed** — the two remaining mic glyphs (hero + "try it" button) both
+  replaced with the **B mark**; nothing on the page reinforces mic/dictation/chatbot anymore.
+  Try button relabeled "Talk to Eden". *(2026-07-01)*
+- **Landing hero microphone → B logo mark** (app-icon treatment). *(2026-07-01)*
+- **Wordmark "Bid Voice" (two words) → "BidVoice"** — CSS flex-gap fix; only rendering caught it.
   *(2026-07-01)*
 
-## Proposed — needs founder call (touches perception/messaging)
-1. **Functional demo mic button** ("Tap & describe a job") still shows a mic glyph. It's a
-   legitimate voice-input affordance, but given the "no mic in Eden's identity" mandate, confirm
-   whether to keep the glyph, swap to the orb, or drop to a text label. *(low risk, quick)*
-2. **Hero subhead is a 6-item run-on.** Premium sites (Linear/Stripe) lead with one sharp
-   promise, not a feature list. Proposal: keep "Stop managing software. Start working with an AI
-   teammate." then cut the list to one line; move the six capabilities into the "how it works"
-   section where they already live. *(clarity + professionalism)*
-3. **Above-the-fold has no product visual.** Best-in-class SaaS shows the product (a real bid,
-   the orb mid-conversation) in the hero. Proposal: add a single, honest product frame. *(first
-   impression + conversion)*
+## Next source of truth: real contractors (per founder)
+Website keeps evolving, but **customers now drive it, not imagination.** Priority is
+deploy → verify prod → onboard → gather feedback → iterate. Hold further hero polish until
+real usage data says what to change. Ideas parked below are candidates, not commitments.
 
 ## Watching (benchmark-driven, not yet scoped)
 - **Motion consistency** — define one easing/duration system shared by app + landing (Linear's

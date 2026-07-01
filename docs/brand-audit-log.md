@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-07-01 — Hero conversion pass (3 focused changes, then stop)
+
+**Trigger:** Founder approved 3 hero improvements, scoped to *conversion, not aesthetics* —
+each must raise the % of contractors who start using BidVoice.
+
+1. **One promise, not six features** — replaced the run-on subhead with a single talk→paid
+   outcome (EN+ES).
+2. **Real product visual** — rebuilt the hero demo as a dark BidVoice app frame: Eden header +
+   live "Building your estimate" status → spoken job → priced bid. Selling confidence.
+3. **Icon review** — the last two mic glyphs (hero + try button) → B mark; "Talk to Eden"
+   label. No mic/dictation/chatbot cues remain.
+
+**Verified:** rendered EN + ES hero (headless), both read as a premium product; wordmark reads
+"BidVoice"; app-icon halo shape matched. `brand-verify` clean; both landings boot 200.
+
+**Then stopped** (per instruction — no indefinite polishing). Next truth = real contractors.
+
+---
+
 ## 2026-07-01 — CBO elevation + first-impression visual audit
 
 **Trigger:** Role elevated from Brand Steward to **Chief Brand Officer** — mandate is to
