@@ -763,6 +763,10 @@
   .bb-mic:active{transform:scale(.96)}
   .bb-mic .ico{stroke:#1b1b1b}
   .bb-mic-l{font-weight:800;font-size:1.02rem}
+  /* The Bid Brain home CTA is the living orb, never a microphone — a deep well with intelligence inside. */
+  .bb-mic.bb-orb-cta{--bbc:96,164,255;border-radius:50%;background:radial-gradient(120% 120% at 50% 38%,#15263f 0%,#0b1422 58%,#060a13 100%);color:#cdd9f2;box-shadow:0 16px 40px rgba(4,8,18,.5),inset 0 0 26px rgba(var(--bbc),.28),0 0 0 1px rgba(var(--bbc),.20);-webkit-tap-highlight-color:transparent;animation:bbbreathe 4.6s ease-in-out infinite}
+  .bb-mic.bb-orb-cta .bb-brain{width:104px;height:104px;filter:drop-shadow(0 0 10px rgba(var(--bbc),.5))}
+  .bb-mic.bb-orb-cta .bb-mic-l{color:#8ea2c8;font-weight:600;font-size:.9rem}
   @media(prefers-reduced-motion:reduce){.bb-mic{animation:none}}
   .bb-or{text-align:center;margin:13px 0 20px}
   .bb-or a{color:var(--muted);font-size:.9rem;text-decoration:underline;cursor:pointer}
@@ -1034,8 +1038,6 @@
   .bb-mic-hero:focus-visible{box-shadow:0 14px 36px rgba(4,8,18,.55),inset 0 0 24px rgba(var(--bbc),.30),0 0 0 3px rgba(var(--bbc),.6)}
   .bb-mic-hero .mh-ico{position:relative;z-index:2;display:flex;align-items:center;justify-content:center}
   .bb-mic-hero .mh-ico .bb-brain{width:74px;height:74px;filter:drop-shadow(0 0 9px rgba(var(--bbc),.55))}
-  /* a quiet mic cue — an affordance, not the hero; it fades the moment she's engaged */
-  .bb-mic-hero .mh-mic{position:absolute;right:4px;bottom:4px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.14);color:#eaf3ff;display:flex;align-items:center;justify-content:center;z-index:3;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);transition:opacity .3s ease}
   .bb-mic-hero .mh-glow{position:absolute;inset:-5px;border-radius:50%;border:1.5px solid rgba(var(--bbc),.55);opacity:0}
   .bb-mic-hero .bb-wave{display:none}
   /* READY / IDLE — the well breathes slowly; the orb carries its own quiet life; color = health. */
@@ -1046,14 +1048,12 @@
   .bb-input[data-state="listening"] .bb-mic-hero .mh-glow,.bb-input.recording .bb-mic-hero .mh-glow{opacity:1;animation:bbring 1.4s ease-out infinite}
   .bb-input[data-state="listening"] .bb-mic-hero .bb-node circle,.bb-input.recording .bb-mic-hero .bb-node circle{animation-duration:1s}
   .bb-input[data-state="listening"] .bb-mic-hero .bb-pulse path,.bb-input.recording .bb-mic-hero .bb-pulse path{animation-duration:1.5s}
-  .bb-input[data-state="listening"] .bb-mic-hero .mh-mic,.bb-input.recording .bb-mic-hero .mh-mic{opacity:0}
   /* THINKING — purple, neurons fire fast, electrons race, light quickens across the brain. */
   .bb-input[data-state="thinking"] .bb-mic-hero{--bbc:132,114,255;animation:bbbreathe 1.6s ease-in-out infinite}
   .bb-input[data-state="thinking"] .bb-mic-hero .bb-node circle{animation-duration:.7s}
   .bb-input[data-state="thinking"] .bb-mic-hero .espin{animation-duration:1.7s}
   .bb-input[data-state="thinking"] .bb-mic-hero .bb-pulse path{animation-duration:1.1s}
   .bb-input[data-state="thinking"] .bb-mic-hero .bb-nucleus{animation-duration:1.2s}
-  .bb-input[data-state="thinking"] .bb-mic-hero .mh-mic{opacity:0}
   /* RESPONDING — warm amber, the activity settles as she speaks. */
   .bb-input[data-state="speaking"] .bb-mic-hero{--bbc:255,168,66;animation:bbspeak 1.15s ease-in-out infinite}
   /* responding: energy flows OUTWARD from the core — giving knowledge back */
@@ -1075,8 +1075,6 @@
   /* Transcript becomes the focus only once a conversation exists; the stage shrinks. */
   .bb-panel.has-convo .bb-mic-hero{width:60px;height:60px}
   .bb-panel.has-convo .bb-mic-hero .mh-ico .bb-brain{width:46px;height:46px}
-  .bb-panel.has-convo .bb-mic-hero .mh-mic{width:18px;height:18px;right:-2px;bottom:-2px}
-  .bb-panel.has-convo .bb-mic-hero .mh-mic svg{width:11px;height:11px}
   .bb-panel.has-convo .bb-state{font-size:.82rem;color:#8ea2c8;font-weight:500}
   .bb-panel.has-convo .bb-input{flex-direction:row;gap:10px;padding:6px 4px}
   .bb-panel.has-convo .bb-typewrap{flex-direction:row;flex:1;margin-top:0}
@@ -1441,13 +1439,13 @@ const I18N = {
     bb_followups:"follow-ups due", bb_awaiting:"awaiting signature",
     bb_firstrun:"Let's build your first estimate.",
     bb_prompt:"What are we building today?",
-    bb_tap_talk:"Tap and talk", bb_or_type:"or type it instead",
+    bb_tap_talk:"Talk to Bid Brain", bb_or_type:"or type it instead",
     bb_card_voice:"Start Voice Estimate", bb_card_photos:"Analyze Job Photos",
     bb_card_continue:"Continue Last Estimate", bb_card_customer:"Find Customer",
     bb_card_followups:"Today's Follow-ups",
     bb_remembers:"Bid Brain remembers:", bb_markup:"usual markup",
     bb_talk:"Talk", bb_type:"Type", bb_photos:"Analyze Photos", bb_attach:"Attach",
-    bb_state_ready:"Ready to listen", bb_state_listening:"Listening", bb_state_thinking:"Working on it…", bb_state_responding:"Here you go…", bb_state_done:"Done", bb_tap_hint:"Tap the mic and talk", bb_type_instead:"Type instead", bb_type_ph:"Type your message…",
+    bb_state_ready:"Standing by", bb_state_listening:"Listening", bb_state_thinking:"Working on it…", bb_state_responding:"Here you go…", bb_state_done:"Done", bb_tap_hint:"What are we working on today?", bb_type_instead:"Type instead", bb_type_ph:"Type your message…",
     bb_ctx_estimate:"What should I add to this estimate?",
     bb_ctx_customer:"What do you need for this customer?",
     bb_ctx_schedule:"What are we scheduling?",
@@ -1528,13 +1526,13 @@ const I18N = {
     bb_followups:"seguimientos pendientes", bb_awaiting:"esperando firma",
     bb_firstrun:"Hagamos tu primer presupuesto.",
     bb_prompt:"¿Qué vamos a construir hoy?",
-    bb_tap_talk:"Toca y habla", bb_or_type:"o escríbelo",
+    bb_tap_talk:"Habla con Bid Brain", bb_or_type:"o escríbelo",
     bb_card_voice:"Iniciar presupuesto por voz", bb_card_photos:"Analizar fotos del trabajo",
     bb_card_continue:"Continuar último presupuesto", bb_card_customer:"Buscar cliente",
     bb_card_followups:"Seguimientos de hoy",
     bb_remembers:"Bid Brain recuerda:", bb_markup:"margen habitual",
     bb_talk:"Hablar", bb_type:"Escribir", bb_photos:"Analizar fotos", bb_attach:"Adjuntar",
-    bb_state_ready:"Listo para escuchar", bb_state_listening:"Escuchando", bb_state_thinking:"Trabajando en eso…", bb_state_responding:"Aquí tienes…", bb_state_done:"Listo", bb_tap_hint:"Toca el micrófono y habla", bb_type_instead:"Escribir", bb_type_ph:"Escribe tu mensaje…",
+    bb_state_ready:"A tu disposición", bb_state_listening:"Escuchando", bb_state_thinking:"Trabajando en eso…", bb_state_responding:"Aquí tienes…", bb_state_done:"Listo", bb_tap_hint:"¿En qué trabajamos hoy?", bb_type_instead:"Escribir", bb_type_ph:"Escribe tu mensaje…",
     bb_ctx_estimate:"¿Qué agrego a este presupuesto?",
     bb_ctx_customer:"¿Qué necesitas para este cliente?",
     bb_ctx_schedule:"¿Qué vamos a agendar?",
@@ -2364,8 +2362,8 @@ function viewBrain(){
                      : `<div class="bb-pulse empty">${esc(t('bb_firstrun'))}</div>`}
       <div class="bb-prompt">${esc(t('bb_prompt'))}</div>
     </div>
-    <button class="bb-mic" onclick="brainStartVoice()" aria-label="${escAttr(t('bb_card_voice'))}">
-      <span class="bb-mic-ic">${icon('mic',38)}</span>
+    <button class="bb-mic bb-orb-cta" onclick="brainStartVoice()" aria-label="${escAttr(t('bb_card_voice'))}">
+      <span class="bb-orb-cta-ic"><svg class="bb-brain" viewBox="0 0 100 100" aria-hidden="true">${BB_SVG_INNER}</svg></span>
       <span class="bb-mic-l">${esc(t('bb_tap_talk'))}</span>
     </button>
     <div class="bb-or"><a onclick="brainStartVoice()">${esc(t('bb_or_type'))}</a></div>
@@ -2675,8 +2673,6 @@ function bbOpenPanel(){
     <div class="bb-suggest">${bbSuggestionsHTML()}</div>`;
   s.style.display='block'; p.style.display='block';
   bbConvRender(); bbApplyHealth(); bbPhStart();
-  // The hint teaches, then disappears forever — once they've used their voice a few times.
-  { const th=document.getElementById('bbTapHint'); if(th && Number(localStorage.getItem('bt_bb_voicewins')||0)>=3) th.style.display='none'; }
   bbMaybeBrief();   // she walks in and briefs you (per the setting + mute)
 }
 function bbConvRender(){
