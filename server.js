@@ -192,6 +192,12 @@ function settingsOf(user) {
     // Custom-site request: whether this contractor has asked us to build them one.
     site_requested: !!user.site_request_at,
     site_request_note: user.site_request_note || "",
+    // Eden voice settings (profile-persisted, cross-device). null = client default.
+    voice_on: user.voice_on == null ? null : !!user.voice_on,
+    voice_pace: user.voice_pace == null ? null : user.voice_pace,
+    voice_headphones_only: !!user.voice_headphones_only,
+    voice_name: user.voice_name || "",
+    brief_mode: user.brief_mode || "",
   };
 }
 
@@ -495,6 +501,12 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
     if (k in b) { sets.push(`${col}=?`); vals.push(String(b[k] ?? "")); }
   }
   if ("tax_rate" in b) { sets.push("tax_rate=?"); vals.push(Math.max(0, Number(b.tax_rate) || 0)); }
+  // Eden voice settings (profile-persisted, cross-device).
+  if ("voice_on" in b) { sets.push("voice_on=?"); vals.push(b.voice_on ? 1 : 0); }
+  if ("voice_pace" in b) { sets.push("voice_pace=?"); vals.push(Math.min(1.3, Math.max(0.9, Number(b.voice_pace) || 1.15))); }
+  if ("voice_headphones_only" in b) { sets.push("voice_headphones_only=?"); vals.push(b.voice_headphones_only ? 1 : 0); }
+  if ("voice_name" in b) { sets.push("voice_name=?"); vals.push(String(b.voice_name || "").slice(0, 120)); }
+  if ("brief_mode" in b) { sets.push("brief_mode=?"); vals.push(["silent", "exceptions", "always"].includes(b.brief_mode) ? b.brief_mode : "exceptions"); }
   if (sets.length) { vals.push(req.user.id); db.prepare(`UPDATE user SET ${sets.join(", ")} WHERE id=?`).run(...vals); }
   const fresh = db.prepare("SELECT * FROM user WHERE id=?").get(req.user.id);
   if (typeof b.logo === "string" && b.logo) track(req.user.id, "logo_uploaded", {});

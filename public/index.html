@@ -1684,6 +1684,16 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   if(!sessionPinged){ sessionPinged=true; const ia=inAppBrowser(); track('session_open',{ios:isIOS(),inApp:ia||'',voice:!ia&&recordSupported()}); }
   // Hydrate tax settings from the server unless the user has local unsaved edits.
   if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_about!==undefined) SETTINGS.site_about=r.settings.site_about; if(r.settings.site_logo!==undefined) SETTINGS.site_logo=r.settings.site_logo; if(r.settings.logo!==undefined) SETTINGS.logo=r.settings.logo; if(r.settings.site_published!==undefined) SETTINGS.site_published=r.settings.site_published; if(r.settings.site_branded_url!==undefined) SETTINGS.site_branded_url=r.settings.site_branded_url; if(r.settings.site_slug!==undefined) SETTINGS.site_slug=r.settings.site_slug; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
+  // Eden voice settings come from the PROFILE (cross-device). Mirror into device storage so the
+  // existing read helpers (TTS_ON / edenPace / bbBriefMode / picker) transparently use the profile value.
+  if(r.settings){ try{ const s=r.settings;
+    if(s.voice_on!==undefined && s.voice_on!==null) localStorage.setItem('bt_tts', s.voice_on?'on':'off');
+    if(s.voice_pace) localStorage.setItem('bt_pace', String(s.voice_pace));
+    if(s.voice_headphones_only!==undefined) localStorage.setItem('bt_hp_only', s.voice_headphones_only?'on':'off');
+    if(s.voice_name) localStorage.setItem('bt_voice_dev', s.voice_name);
+    if(s.brief_mode) localStorage.setItem('bt_bb_brief', s.brief_mode);
+    TTS_ON = localStorage.getItem('bt_tts')!=='off';
+  }catch(e){} }
 }catch(e){} }
 
 /* ============ AI Growth Score (Sprint 13) ============ */
@@ -2310,7 +2320,12 @@ async function syncNow(force){
       const _sp={ company:SETTINGS.company, name:SETTINGS.name, phone:SETTINGS.phone,
         license:SETTINGS.license, whatsapp:SETTINGS.whatsapp||'', from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'', site_logo:SETTINGS.site_logo||'',
         tax_rate:Number(SETTINGS.tax_rate)||0, region:SETTINGS.region||'',
-        site_tagline:SETTINGS.site_tagline||'', site_color:SETTINGS.site_color||'', site_about:SETTINGS.site_about||'' };
+        site_tagline:SETTINGS.site_tagline||'', site_color:SETTINGS.site_color||'', site_about:SETTINGS.site_about||'',
+        // Eden voice settings → profile (cross-device); device storage is the on-device source of truth.
+        voice_on:(localStorage.getItem('bt_tts')!=='off'), voice_pace:edenPace(),
+        voice_headphones_only:(localStorage.getItem('bt_hp_only')==='on'),
+        voice_name:(localStorage.getItem('bt_voice_dev')||''),
+        brief_mode:((typeof bbBriefMode==='function')?bbBriefMode():'exceptions') };
       if(SETTINGS.terms!==undefined) _sp.terms=SETTINGS.terms; // never blank out server terms before they've loaded
       if(Array.isArray(SETTINGS.services)) _sp.services=SETTINGS.services;
       try{ await api('/api/me',{method:'PATCH', body:JSON.stringify(_sp)}); settingsDirty=false; }catch(e){}
@@ -2555,7 +2570,7 @@ function bbAcknowledge(){ try{
    Content is composed ONLY from real greeting counts (Trust: never invent activity).
    When there's nothing, she says so plainly instead of manufacturing urgency. */
 function bbBriefMode(){ const m=localStorage.getItem('bt_bb_brief'); return (m==='silent'||m==='always'||m==='exceptions')?m:'exceptions'; }
-function setBriefMode(m){ if(m==='silent'||m==='always'||m==='exceptions'){ localStorage.setItem('bt_bb_brief', m); if(state.view==='settings') render(); } }
+function setBriefMode(m){ if(m==='silent'||m==='always'||m==='exceptions'){ localStorage.setItem('bt_bb_brief', m); if(typeof edenVoiceChanged==='function') edenVoiceChanged(); if(state.view==='settings') render(); } }
 // Deterministic rotation — never repeats back-to-back, but stable (not random). Advances per open.
 function bbRot(key,n){ if(n<=1) return 0; try{ const k='bt_rot_'+key; let i=parseInt(localStorage.getItem(k)||'0',10); if(!Number.isFinite(i)) i=0; localStorage.setItem(k,String(i+1)); return ((i%n)+n)%n; }catch(_){ return 0; } }
 function bbPick(arr,key){ return arr[bbRot(key,arr.length)]; }
@@ -2641,6 +2656,26 @@ let _edenSpoke = 0, _edenSpokeSinceAction = 0;
 function edenUserAction(){ _edenSpokeSinceAction = 0; }              // any real gesture re-opens the floor
 function edenOverBudget(){ return _edenSpoke >= EDEN_SPEECH_BUDGET; }
 function edenDidSpeak(){ _edenSpoke++; _edenSpokeSinceAction++; }
+/* ===== The moment map — one declarative dispatch for Eden's non-intake spoken lines =====
+   Strings are verbatim from the Fable spec §6 (sprint AC-16: every spoken string appears in the
+   moment map). Any discrete hand-off/update speaks through edenSpeakMoment(), which routes through
+   the single gate below + the budget counter. Intake conversation (the follow-up question) is a
+   separate, exempt channel. The engine stays behind bbSpeak() so a server voice can drop in later. */
+const EDEN_MOMENTS = {
+  estimate_ready:  "Estimate's ready.",
+  proposal_ready:  "Proposal's ready when you are.",
+  sent:            "Sent.",
+  accepted:        "They accepted.",       // top-update, spoken flat (no numbers)
+  payment:         "Payment came in.",
+  offline:         "We lost signal — your notes are safe.",
+};
+function edenSpeakMoment(key){
+  const line=EDEN_MOMENTS[key]; if(!line) return false;
+  if(!edenMaySpeakSync()) return false;   // budget / not-twice / foreground / mute
+  edenDidSpeak();
+  try{ bbSpeak(line, { full:true }); }catch(_){ return false; }
+  return true;
+}
 // The single gate for a spoken non-intake moment: on + not-muted + budget + not-twice + foreground.
 function edenMaySpeakSync(){
   if(!TTS_ON || !('speechSynthesis' in window)) return false;
@@ -2673,7 +2708,10 @@ function edenGreetWord(es){ const h=new Date().getHours(); return es?(h<12?'Buen
 function edenGreeting(es){ let nm=''; try{ nm=bbFirst(SETTINGS.name)||''; }catch(_){} const w=edenGreetWord(es); return nm?(w+', '+nm+'.'):(w+'.'); }
 // Global speaking pace (§6) — one control, 0.9–1.3×, default 1.15×; governs everything Eden says.
 function edenPace(){ let p=parseFloat(localStorage.getItem('bt_pace')); return (p>=0.9&&p<=1.3)?p:1.15; }
-function setEdenPace(v){ v=parseFloat(v); if(v>=0.9&&v<=1.3){ try{ localStorage.setItem('bt_pace', String(v)); }catch(_){} } }
+function setEdenPace(v){ v=parseFloat(v); if(v>=0.9&&v<=1.3){ try{ localStorage.setItem('bt_pace', String(v)); }catch(_){} } edenVoiceChanged(); }
+// A voice setting changed → persist it to the profile (cross-device) via the settings sync (debounced).
+let _edenVoiceSyncT=null;
+function edenVoiceChanged(){ settingsDirty=true; try{ clearTimeout(_edenVoiceSyncT); _edenVoiceSyncT=setTimeout(()=>{ if(typeof syncNow==='function') syncNow(); }, 700); }catch(_){} }
 function bbAwareOpening(){
   try{
     const es=(typeof LANG!=='undefined'&&LANG==='es');
@@ -4496,8 +4534,9 @@ async function runIntake(force){
   try{
     const r=await api('/api/assist/intake',{method:'POST', body:JSON.stringify({ text:t, trade:(CAP_DRAFT.trade||'') })});
     if(r && r.intake){ CAP_INTAKE=r.intake; persistIntake(); intakeLastAt=Date.now(); intakeLastLen=t.length;
-      // The estimator speaks: read the next question aloud, or announce it's ready.
-      if(CAP_INTAKE.ready) speakQuestion('Great. Your estimate is ready.');
+      // Ready → the hand-off moment (budget-governed, canonical string). Otherwise the follow-up
+      // question is intake conversation (exempt from the budget) and is read as before.
+      if(CAP_INTAKE.ready) edenSpeakMoment('estimate_ready');
       else if((CAP_INTAKE.next_question||'').trim()) speakQuestion(CAP_INTAKE.next_question.trim());
     }
   }catch(e){ /* keep going; this is a live helper, never block the user */ }
@@ -6067,7 +6106,7 @@ function bbVoiceSeg(){
     <div class="hint">A clean, natural American English voice by default. If your device's voice sounds off or accented, pick another here. Voices are provided by your device/browser${list.length?'':' — none detected yet; reopen this screen to load them'}.</div>
   </div>`;
 }
-function setBbVoice(v){ try{ if(v) localStorage.setItem('bt_voice_dev', v); else localStorage.removeItem('bt_voice_dev'); }catch(_){} if(typeof bbTestVoice==='function') bbTestVoice(); if(state.view==='settings') render(); }
+function setBbVoice(v){ try{ if(v) localStorage.setItem('bt_voice_dev', v); else localStorage.removeItem('bt_voice_dev'); }catch(_){} edenVoiceChanged(); if(typeof bbTestVoice==='function') bbTestVoice(); if(state.view==='settings') render(); }
 function bbTestVoice(){ try{ const es=(((SETTINGS&&SETTINGS.from)||LANG)==='es'); bbSpeak(es?('Hola, soy '+AI.name+'. Aquí estoy cuando quieras.'):("Hi, I'm "+AI.name+". I'm ready when you are."), {full:true}); }catch(_){} }
 // Working with Eden — Voice (eden-experience-guide §6): one small group — on/off, Pace (0.9–1.3×,
 // default 1.15×), a device-voice picker shown ONLY when the device has more than one usable voice,
@@ -6094,9 +6133,9 @@ function edenVoiceGroup(){
     ${bbBriefSeg()}
   </div>`;
 }
-function setEdenVoiceOn(v){ if(!!v!==!!TTS_ON) toggleTts(); if(state.view==='settings') render(); }
+function setEdenVoiceOn(v){ if(!!v!==!!TTS_ON) toggleTts(); edenVoiceChanged(); if(state.view==='settings') render(); }
 function setEdenPaceLive(v){ setEdenPace(v); const el=document.getElementById('edenPaceVal'); if(el) el.textContent=parseFloat(v).toFixed(2)+'×'; }
-function setEdenHpOnly(v){ try{ localStorage.setItem('bt_hp_only', v?'on':'off'); }catch(_){} if(state.view==='settings') render(); }
+function setEdenHpOnly(v){ try{ localStorage.setItem('bt_hp_only', v?'on':'off'); }catch(_){} edenVoiceChanged(); if(state.view==='settings') render(); }
 // How much the assistant says out loud when you open it — the contractor's call.
 function bbBriefSeg(){
   const cur=(typeof bbBriefMode==='function')?bbBriefMode():'exceptions';

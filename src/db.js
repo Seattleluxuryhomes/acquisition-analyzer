@@ -571,6 +571,13 @@ ensureColumns("user", [
   ["last_activity_at", "INTEGER"],
   ["last_spoken_at", "INTEGER"],
   ["last_seen_update_ids", "TEXT"],
+  // Eden voice settings — persisted to the PROFILE (cross-device), not device
+  // storage (eden-voice-spec §3 / sprint AC-18). null = use the client default.
+  ["voice_on", "INTEGER"],
+  ["voice_pace", "REAL"],
+  ["voice_headphones_only", "INTEGER DEFAULT 0"],
+  ["voice_name", "TEXT"],
+  ["brief_mode", "TEXT"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).
