@@ -1626,8 +1626,16 @@ const AI_IDENTITIES = {
 };
 const AI_DEFAULT = 'eden';                         // ← the single config change to switch identity
 function aiKey(){ try{ const k=localStorage.getItem('bt_ai_id'); return (k&&AI_IDENTITIES[k])?k:AI_DEFAULT; }catch(_){ return AI_DEFAULT; } }
-const AI = AI_IDENTITIES[aiKey()] || AI_IDENTITIES[AI_DEFAULT];
-function setAiIdentity(k){ if(AI_IDENTITIES[k]){ try{ localStorage.setItem('bt_ai_id', k); }catch(_){} location.reload(); } }
+let AI = AI_IDENTITIES[aiKey()] || AI_IDENTITIES[AI_DEFAULT];
+// Switch identity live — no full reload. Update the binding, refresh the panel/dock so the
+// name + orb reflect it, and re-render the current view (Settings shows the new selection).
+function setAiIdentity(k){ if(!AI_IDENTITIES[k] || k===aiKey()) return;
+  try{ localStorage.setItem('bt_ai_id', k); }catch(_){}
+  AI = AI_IDENTITIES[k];
+  try{ if(typeof bbClosePanel==='function' && typeof bbPanelOpen==='function' && bbPanelOpen()) bbClosePanel(); }catch(_){}
+  try{ if(typeof render==='function') render(); }catch(_){}
+  try{ if(typeof toast==='function') toast(aiText('Now working with '+AI.name+'.'),'ok'); }catch(_){}
+}
 // Swap the legacy label for the active name in any displayed string (fast no-op when unchanged).
 function aiText(s){ return (typeof s==='string' && AI.name!=='Bid Brain' && s.indexOf('Bid Brain')>=0) ? s.split('Bid Brain').join(AI.name) : s; }
 function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); const r = v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); return (typeof r==='string') ? aiText(r) : r; }
@@ -4254,8 +4262,8 @@ function viewCapture(){
     <button class="langchip" onclick="go('settings')" title="Change languages in Settings">${icon('globe',15)} You: ${esc(fromName)} · Client: ${esc(toName)} · change in Settings</button>
 
     <div class="consent">
-      <label><input type="checkbox" id="capConsent"/> <span>When my area requires it, I'll let the other person know the conversation is being captured.</span></label>
-      <div class="consent-fine">Placeholder wording — not legal advice. Final consent terms to be reviewed before launch.</div>
+      <label><input type="checkbox" id="capConsent"/> <span>Where my state requires it, I'll let the other person know the conversation is being recorded.</span></label>
+      <div class="consent-fine">You're responsible for following recording-consent laws in your area. See our <a href="/terms" target="_blank" rel="noopener">Terms</a>.</div>
     </div>
     <div aria-hidden="true" style="height:96px"></div>`;
 }
@@ -6024,14 +6032,14 @@ function viewSettings(){
       <button class="btn ghost sm" style="margin-top:8px" onclick="changePw(this)">Update password</button>
     </div>
     <div class="legalbox">
-      <h3>Terms &amp; privacy (placeholder)</h3>
+      <h3>Terms &amp; privacy</h3>
       <p>Conversations, transcripts, photos, and bids you create belong to you. They're stored for your use, and you can delete them at any time. BidVoice is a tool for preparing estimates — bids you send are agreements between you and your client, not us.</p>
-      <p>Where your area requires it, let the other party know when a conversation is being captured.</p>
+      <p>Where your area requires it, let the other party know when a conversation is being recorded.</p>
       <label style="display:flex;gap:10px;align-items:flex-start;font-size:.86rem;color:#cdc7bb;cursor:pointer;margin-top:6px">
         <input type="checkbox" id="setTerms" style="margin-top:3px;width:17px;height:17px;accent-color:var(--amber);flex-shrink:0"/>
-        <span>I understand and agree to the terms above.</span>
+        <span>I understand and agree to the <a href="/terms" target="_blank" rel="noopener" style="color:var(--amber)">Terms</a> and <a href="/privacy" target="_blank" rel="noopener" style="color:var(--amber)">Privacy Policy</a>.</span>
       </label>
-      <div class="consent-fine">Placeholder language only — replace with reviewed terms before launch.</div>
+      <div class="consent-fine">Read the full <a href="/terms" target="_blank" rel="noopener">Terms</a> · <a href="/privacy" target="_blank" rel="noopener">Privacy</a> · <a href="/acceptable-use" target="_blank" rel="noopener">Acceptable Use</a>.</div>
     </div>
 
     <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
