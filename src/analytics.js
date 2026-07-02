@@ -233,6 +233,81 @@ export function recentEvents(limit = 50) {
   ).all(Math.min(Number(limit) || 50, 200));
 }
 
+// ---------- Beta Playbook metrics (Operational Mandate, Deliverable 2) ----------
+// The numbers the beta decides on, computed from the event log + real tables. Real
+// dashboard data, not log spelunking. Exposed via /api/admin/overview → `beta`.
+const median = (arr) => {
+  if (!arr.length) return null;
+  const s = arr.slice().sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
+};
+const propsOf = (r) => { try { return JSON.parse(r.props || "{}"); } catch { return {}; } };
+const distinctUsers = (name) =>
+  cnt(`SELECT COUNT(DISTINCT user_id) c FROM event WHERE name=? AND user_id IS NOT NULL`, name);
+
+export function betaMetrics() {
+  // North star: signup → first reviewed estimate, P50. Derived server-side from the FIRST
+  // estimate event per account (AI `estimate_built` or manual `bid_created`) minus the
+  // account's signup — robust and retroactive, no client clock needed.
+  const firstEstimate = db.prepare(
+    `SELECT e.user_id, MIN(e.created_at) first_at
+       FROM event e WHERE e.name IN ('estimate_built','bid_created') AND e.user_id IS NOT NULL
+      GROUP BY e.user_id`
+  ).all();
+  const ttfe = [];
+  for (const r of firstEstimate) {
+    const u = one("SELECT created_at FROM user WHERE id=?", r.user_id);
+    if (u && r.first_at > u.created_at) ttfe.push(r.first_at - u.created_at);
+  }
+  const p50ms = median(ttfe);
+
+  // Voice-disable rate: of contractors who started an intake, how many turned voice off.
+  const intakeUsers = distinctUsers("intake_started") || cnt("SELECT COUNT(DISTINCT user_id) c FROM event WHERE user_id IS NOT NULL");
+  const voiceOffUsers = distinctUsers("voice_disabled");
+  const voiceDisableRate = intakeUsers ? voiceOffUsers / intakeUsers : null;
+
+  // Ambiguity catch rate: confirmed / surfaced.
+  const ambShown = cnt("SELECT COUNT(*) c FROM event WHERE name='ambiguity_shown'");
+  const ambResolved = cnt("SELECT COUNT(*) c FROM event WHERE name='ambiguity_resolved'");
+  const ambiguityCatchRate = ambShown ? ambResolved / ambShown : null;
+
+  // Offline-capture use: distinct contractors who queued a capture offline.
+  const offlineUsers = distinctUsers("offline_capture_queued");
+
+  // Week-2 retention: of accounts old enough to have a week two, the fraction with a
+  // login on/after day 7. (Approximation from user.created_at + last_login; documented.)
+  const cohort = db.prepare(
+    `SELECT created_at, last_login FROM user WHERE created_at <= ?${userExcl()}`
+  ).all(Date.now() - 14 * DAY);
+  const retained = cohort.filter((u) => u.last_login && u.last_login >= u.created_at + 7 * DAY).length;
+  const week2Retention = cohort.length ? retained / cohort.length : null;
+
+  // Approval-without-reading: sent proposals where the contractor never opened the
+  // "Here's what I heard" transcript for that job — a trust-signal to watch, not to cheer.
+  const sentJobs = new Set(db.prepare("SELECT props FROM event WHERE name='bid_sent'").all().map((r) => propsOf(r).jobId).filter(Boolean));
+  const readJobs = new Set(db.prepare("SELECT props FROM event WHERE name='transcript_opened'").all().map((r) => propsOf(r).jobId).filter(Boolean));
+  let sentWithoutRead = 0;
+  for (const j of sentJobs) if (!readJobs.has(j)) sentWithoutRead++;
+  const approvalWithoutReadingRate = sentJobs.size ? sentWithoutRead / sentJobs.size : null;
+
+  const pct = (r) => (r == null ? null : Math.round(r * 1000) / 10); // one decimal %
+  return {
+    time_to_first_estimate_p50_sec: p50ms == null ? null : Math.round(p50ms / 1000),
+    time_to_first_estimate_sample: ttfe.length,
+    time_to_first_estimate_target_sec: 180,               // Commercial Architecture: ≤3 min P50
+    voice_disable_rate_pct: pct(voiceDisableRate),
+    voice_disable_alarm_pct: 20,                           // >20% → default voice off (blueprint)
+    ambiguity_catch_rate_pct: pct(ambiguityCatchRate),
+    ambiguity_shown: ambShown,
+    offline_capture_users: offlineUsers,
+    week2_retention_pct: pct(week2Retention),
+    week2_cohort: cohort.length,
+    approval_without_reading_pct: pct(approvalWithoutReadingRate),
+    proposals_sent: sentJobs.size,
+  };
+}
+
 // ---------- Contractor notifications ("good news" inbox) ----------
 // Derived from the event log: the moments a contractor wants to know about the
 // instant they happen — a homeowner ACCEPTED a proposal, or PAID a deposit.

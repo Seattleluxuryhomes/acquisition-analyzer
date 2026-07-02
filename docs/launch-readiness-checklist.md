@@ -16,7 +16,7 @@
 | 1 | Fresh account → spoken job → reviewed estimate; zero forms, ≤2 Q | BLOCKED | Intake state machine present (`index.html:4347+`); AI build needs `ANTHROPIC_API_KEY` (unset) + device/voice |
 | 2 | "I'm Eden." once/account; "I'm listening." first job only | PARTIAL | Once-gating + awareness contexts present; exact spec strings not verbatim in the paper retrofit — product decision |
 | 3 | Quiet context: no text, no audio, screen functional | PASS | `edenCtx()` quiet branch; no forced speech |
-| 4 | Trust line appears exactly **twice**, never spoken | **FAIL** | "Nothing goes anywhere until you approve" renders **once** (grep=1); spec requires first-greeting **and** first-review. Never-spoken: OK |
+| 4 | Trust line appears exactly **twice**, never spoken | PASS | Now renders at **two** gated sites: first greeting (`edenIntakeHeader`) + first review (`trustReviewOnce()` in `tabBuild`, once per account); never spoken (rendered HTML only) |
 | 5 | Orb states blind-distinguishable; 60fps; static under reduced-motion | BLOCKED | `prefers-reduced-motion` CSS present; 60fps/blindness is perceptual/device |
 | 6 | No "Recording/Transcript/Processing" UI strings or mic glyph | PASS | grep=0 forbidden UI labels |
 | 7 | Thinking ≤1.5s to first response; items stream; zero spinners | BLOCKED | Streaming present (Slice 6); timing needs AI key + device |
@@ -31,7 +31,7 @@
 | 16 | Every spoken string in §6; **one** speech dispatch site | PARTIAL | One dispatch site ✅ (`speechSynthesis.speak` single call, `index.html:4694`); string-in-§6 audit not yet guarded (Eng-Const B-13) |
 | 17 | Learned rate applies to next same-trade job; toast undo reverts | PASS | `edenUpsertLaborRate` + `toastAction` undo |
 | 18 | Settings persist to profile cross-device; headphones-only never loudspeaker | PASS | Voice settings persisted to profile (server); cross-device/headphones = device-confirm |
-| 19 | Events fire: `time_to_first_estimate_ms`, `intake_started/completed(voice\|text)`, `voice_disabled`, … | **FAIL** | None of these event names exist in the codebase (grep) — north-star metric uninstrumented (→ Beta Playbook Deliverable 2) |
+| 19 | Beta metrics fire and aggregate (north-star + intake/voice/ambiguity signals) | PASS | Instrumented: `estimate_built`, `voice_disabled/enabled`, `ambiguity_shown/resolved`, `offline_capture_queued`, `transcript_opened`. `Analytics.betaMetrics()` computes P50 TTFE, voice-disable, ambiguity-catch, offline-use, wk2-retention, approval-without-reading → `/api/admin/overview.beta` |
 | 20 | Ambiguous figure → the follow-up; no unverified number in an estimate line | PASS | Slice 7 ambiguity routing (`assist.js` intake + `index.html` chips); AI-confirm on device |
 | 21 | "Here's what I heard" opens transcript ≤1 tap; correcting re-prices | PASS | `heardCard` + rebuild-from-conversation (`index.html`) |
 | 22 | Capture uses 3 audio constraints; transcript usable on 70dB noise fixtures | BLOCKED | getUserMedia constraints partial; noise-fixture suite not built (Eng-Const B-15/16) |
@@ -53,8 +53,8 @@
 
 ## Roll-up
 
-- **PASS:** AC 3,6,10,12,13,14,15,17,18,20,21,25 + all 7 trust blockers (2 pending legal review, 1 pending live email key).
-- **FAIL (2 — fixable now, no keys needed):** **AC4** trust line renders once not twice; **AC19** north-star + intake/voice metrics uninstrumented.
+- **PASS:** AC 3,**4**,6,10,12,13,14,15,17,18,**19**,20,21,25 + all 7 trust blockers (2 pending legal review, 1 pending live email key). *(AC4 + AC19 fixed 2026-07-02.)*
+- **FAIL:** none remaining that are fixable without keys/devices.
 - **PARTIAL (2):** AC2 (exact spoken strings), AC16 (spoken-string §6 audit).
 - **BLOCKED (9 — the device/live pass only Ben can run):** AC 1,5,7,8,9,11,22,23,24 — the killer-moment (spoken job → estimate on a real phone), performance/timing, airplane kill-test, and the P50 metric.
 

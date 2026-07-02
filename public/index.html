@@ -4363,7 +4363,8 @@ function edenCtx(){
 function edenIntakeStateLabel(){ if(intakeRunning) return 'Thinking'; if(CAP_INTAKE && CAP_INTAKE.ready) return 'Review'; return 'Ready'; }
 // The awareness header: state pill + orb + the context greeting (staged Beat reveal) + the first-visit
 // trust line. ctx==='first' is self-limiting (flips to 'returning' once has_completed_intake is set), so
-// the trust line here IS the "first greeting" occurrence; the second is the first review (a later slice).
+// the trust line here IS the "first greeting" occurrence; the second is the first estimate review
+// (`trustReviewOnce()` in tabBuild), giving exactly two per account (AC 4).
 function edenIntakeHeader(){
   const ctx=edenCtx(), nm=edenFirstName(), dp=edenDaypart(), name=esc(AI.name);
   const greet=dp+(nm?(', '+esc(nm)):'')+'.';
@@ -4559,8 +4560,12 @@ async function runIntake(force){
   if(!force && t.length-intakeLastLen < 12 && (Date.now()-intakeLastAt) < 7000) return; // coalesce
   intakeRunning=true; renderIntakeRegions();
   try{
+    const hadAmb=!!(CAP_INTAKE&&Array.isArray(CAP_INTAKE.ambiguous)&&CAP_INTAKE.ambiguous.length);
     const r=await api('/api/assist/intake',{method:'POST', body:JSON.stringify({ text:t, trade:(CAP_DRAFT.trade||'') })});
     if(r && r.intake){ CAP_INTAKE=r.intake; persistIntake(); intakeLastAt=Date.now(); intakeLastLen=t.length;
+      // Beta metric: a low-confidence figure was surfaced as a follow-up (fire on the transition
+      // into ambiguity, not every render). Pairs with ambiguity_resolved for the catch rate.
+      if(!hadAmb && Array.isArray(CAP_INTAKE.ambiguous) && CAP_INTAKE.ambiguous.length){ try{ track('ambiguity_shown',{}); }catch(_){} }
       // Ready → the hand-off moment (budget-governed, canonical string). Otherwise the follow-up
       // question is intake conversation (exempt from the budget) and is read as before.
       if(CAP_INTAKE.ready) edenSpeakMoment('estimate_ready');
@@ -4697,7 +4702,7 @@ function bbSpeak(text, opts){
 // Estimator + any other caller route through the same engine for one consistent voice.
 let _ttsLast='';
 function speakQuestion(q){ if(!q || q===_ttsLast) return; _ttsLast=q; bbSpeak(q); }
-function toggleTts(){ TTS_ON=!TTS_ON; localStorage.setItem('bt_tts', TTS_ON?'on':'off'); if(!TTS_ON){ bbStopSpeaking(); } _ttsLast=''; _bbSpokeLast=''; if(state.view==='capture') renderIntakeRegions(); }
+function toggleTts(){ TTS_ON=!TTS_ON; localStorage.setItem('bt_tts', TTS_ON?'on':'off'); if(!TTS_ON){ bbStopSpeaking(); } _ttsLast=''; _bbSpokeLast=''; try{ track(TTS_ON?'voice_enabled':'voice_disabled',{}); }catch(_){} if(state.view==='capture') renderIntakeRegions(); }
 // "I'm not sure": flag the current question for review and let the estimator move on —
 // never dead-end the conversation over one unknown.
 // Tap a chip to lock the exact figure Eden was unsure about — it's written back into
@@ -4710,6 +4715,7 @@ function capConfirmFigure(i){
   const heard=(a.heard||'').trim();
   ta.value=[ta.value.trim(), heard?`(To confirm: ${heard} = ${val}.)`:`(To confirm: ${val}.)`].filter(Boolean).join(' ');
   capDraft('text', ta.value); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px';
+  try{ track('ambiguity_resolved',{}); }catch(_){}  // Beta metric: the contractor confirmed a flagged figure
   runIntake(true); // re-evaluate: the figure is now unambiguous, drop it from the flag list
 }
 function capNotSure(){
@@ -5015,6 +5021,13 @@ function lineEditor(l){
     </div>`;
 }
 
+// The trust line's SECOND (and final) occurrence per account: the first time the
+// contractor reviews an estimate (AC 4 — "exactly twice per account, never spoken"; the
+// first is the intake greeting). Shown once, then never again on this device.
+function trustReviewOnce(){
+  try{ if(localStorage.getItem('bt_trust2')==='1') return ''; localStorage.setItem('bt_trust2','1'); }catch(_){ return ''; }
+  return `<div class="eden-trust" style="margin:2px 0 12px">Nothing goes anywhere until you approve it.</div>`;
+}
 // "Here's what I heard" (exec-review): the full transcript is always one tap from
 // the estimate. Open it, correct a misheard word or quantity in place, and re-price —
 // the line items are rebuilt from the corrected conversation. Native <details> so it's
@@ -5022,7 +5035,7 @@ function lineEditor(l){
 function heardCard(j){
   const t=String(j.transcript||'').trim();
   if(!t) return '';
-  return `<details class="heard">
+  return `<details class="heard" ontoggle="if(this.open){try{track('transcript_opened',{jobId:'${j.id}'})}catch(_){}}">
     <summary class="heard-sum">${icon('message',15)} Here's what I heard <span class="heard-hint">tap to review &amp; correct</span></summary>
     <div class="heard-body">
       <textarea class="editarea" oninput="updJob('transcript',this.value)" placeholder="The captured conversation…">${esc(j.transcript)}</textarea>
@@ -5060,6 +5073,7 @@ function tabBuild(j){
 
   return `<div class="h-eyebrow" style="margin-bottom:8px">Step 2 · Private estimating</div>
     <div class="note">AI prices are rough placeholders — you set the real numbers here.</div>
+    ${trustReviewOnce()}
     ${heardCard(j)}
     ${lines||'<div class="hint">No line items yet.</div>'}
     ${AI_BUILD && (j.lines||[]).length ? `<button class="btn ghost full" style="margin-top:10px" onclick="reviewBidAI('${j.id}',this)">${icon('bulb',15)} Find missing money — check this bid</button>
@@ -6880,7 +6894,9 @@ async function capQueuePut(blob, lang){
   const db=await capDB();
   return new Promise((res,rej)=>{ const tx=db.transaction('clips','readwrite');
     const id='c'+Date.now()+'_'+Math.round(Math.random()*1e6);
-    tx.objectStore('clips').put({ id, blob, lang:lang||'en', at:Date.now() });
+    // Tag clips captured while offline so we can count real offline-capture use once they
+    // sync (track() no-ops while offline, so the signal has to survive to reconnection).
+    tx.objectStore('clips').put({ id, blob, lang:lang||'en', at:Date.now(), offline: !online });
     tx.oncomplete=()=>res(id); tx.onerror=()=>rej(tx.error); });
 }
 async function capQueueAll(){
@@ -6918,6 +6934,7 @@ async function capQueueDrain(){
       try{
         const r=await api('/api/assist/transcribe',{ method:'POST', body:JSON.stringify({ audio:dataUrl, lang:c.lang||(SETTINGS.from||'en') }) });
         capAppendTranscript((r&&r.text)||'');
+        if(c.offline){ try{ track('offline_capture_queued',{}); }catch(_){} }  // Beta metric: a truly-offline capture synced (AC 8)
         await capQueueDel(c.id);   // processed (delete even on empty text — a silent clip shouldn't retry forever)
       }catch(e){
         if(e && e.status===402){ await capQueueDel(c.id); gate402(e); }  // billing gate → drop + surface

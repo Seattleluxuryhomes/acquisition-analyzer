@@ -569,7 +569,7 @@ const requireAdmin = (req, res, next) =>
   Analytics.isAdmin(req.user) ? next() : res.status(403).json({ error: "Not authorized." });
 app.get("/api/admin/overview", requireAuth, requireAdmin, (req, res) =>
   res.json({ overview: Analytics.overview(), funnel: Analytics.funnel(), biggestDropoff: Analytics.biggestDropoff(), features: Analytics.featureAdoption(),
-    devices: Analytics.deviceBreakdown(), voiceFailures: Analytics.voiceFailures() }));
+    devices: Analytics.deviceBreakdown(), voiceFailures: Analytics.voiceFailures(), beta: Analytics.betaMetrics() }));
 app.get("/api/admin/users", requireAuth, requireAdmin, (req, res) =>
   res.json({ users: Analytics.listUsers() }));
 app.get("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {
@@ -942,6 +942,9 @@ app.post("/api/assist/build", requireAuth, Billing.requireEntitled, wrap(async (
   // Feed the contractor's own price book in so the AI uses their real items + prices,
   // and the selected trade's estimating brain so quantities come back trade-accurate.
   const data = await assistBuild(req.user, { text, from_lang, to_lang, trade, skus: Skus.listSkus(req.user.id) });
+  // Beta north-star signal: the AI produced an estimate. betaMetrics() computes
+  // time_to_first_estimate from the FIRST such event per account minus signup.
+  if (data && Array.isArray(data.lines) && data.lines.length) track(req.user.id, "estimate_built", { lines: data.lines.length }, uaOf(req));
   // Bid Brain learns from every estimate the contractor builds — language + trade,
   // so the next one comes pre-personalized. Fire-and-forget; never blocks the build.
   Memory.learnFromEstimate(req.user.id, { trade, fromLang: from_lang, toLang: to_lang });
