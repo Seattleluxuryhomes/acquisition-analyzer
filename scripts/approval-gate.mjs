@@ -27,14 +27,20 @@ const EXTS = new Set([".js", ".mjs"]);
 // mail.js defines sendMail (the transport itself) — not a call site.
 const SKIP = new Set(["mail.js"]);
 
-// Outbound patterns: email sends + Stripe money movement (checkout, charges, intents).
+// Outbound patterns: email sends, Stripe money movement (checkout/charges/intents), and the
+// founder event-webhook seam (Notify.notify → BT_NOTIFY_WEBHOOK). Everything that leaves the
+// system is scanned, so "every outbound send is CI-enforced" (Bible §3.7) is literally true.
 const OUTBOUND = [
   { id: "mail", re: /\bMail\.sendMail\s*\(/ },
   { id: "mail", re: /(^|[^.\w])sendMail\s*\(/ },
   // Creation only (money movement) — a trailing "/" is a retrieval GET, not a charge.
   { id: "charge", re: /\bstripe\s*\(\s*["'`](?:checkout\/sessions|charges|payment_intents)(?!\/)/ },
+  { id: "webhook", re: /\bNotify\.notify\s*\(/ },
 ];
-const CLASSES = new Set(["system", "contractor-action", "client-action"]);
+// Classes: system (transactional mail to the account holder), contractor-action, client-action,
+// and founder-webhook (internal event fan-out to the founder's own integration endpoint — fired
+// by a contractor/client action, never a word or dollar to a client).
+const CLASSES = new Set(["system", "contractor-action", "client-action", "founder-webhook"]);
 const TAG = /APPROVAL:\s*([a-z-]+)/;
 
 function files(dir) {

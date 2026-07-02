@@ -12,8 +12,9 @@
     "brand-sync": "node scripts/sync-brand-assets.mjs",
     "check-dialogs": "node scripts/no-native-dialogs.mjs",
     "approval-gate": "node scripts/approval-gate.mjs",
+    "constitution-tests": "node scripts/constitution-tests.mjs",
     "brand-verify": "node scripts/soul-guard.mjs && node scripts/brand-check.mjs && node scripts/no-native-dialogs.mjs && node scripts/approval-gate.mjs && node scripts/sync-brand-assets.mjs --check",
-    "verify": "node scripts/soul-guard.mjs && node scripts/brand-check.mjs && node scripts/no-native-dialogs.mjs && node scripts/approval-gate.mjs && node scripts/sync-brand-assets.mjs --check"
+    "verify": "node scripts/soul-guard.mjs && node scripts/brand-check.mjs && node scripts/no-native-dialogs.mjs && node scripts/approval-gate.mjs && node scripts/constitution-tests.mjs && node scripts/sync-brand-assets.mjs --check"
   },
   "dependencies": {
     "express": "^4.19.2",

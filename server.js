@@ -733,6 +733,7 @@ app.post("/api/me/site-request", requireAuth, wrap((req, res) => {
   db.prepare("INSERT OR IGNORE INTO interest (user_id, feature, created_at) VALUES (?,?,?)")
     .run(req.user.id, "custom_website", Date.now());
   track(req.user.id, "custom_site_requested", { hasNote: !!note });
+  // APPROVAL: founder-webhook — internal event to the founder's integration endpoint (not a client send).
   try { Notify.notify("site_request", { userId: req.user.id, company: req.user.company || "", email: req.user.email || "", phone: req.user.phone || "", note }); } catch {}
   res.json({ ok: true, site_requested: true, site_request_note: note });
 }));
@@ -1118,6 +1119,7 @@ app.post("/api/inbound/leads", wrap((req, res) => {
   // 1) in-app "good news" inbox (an event the bell + dashboard banner surface),
   track(userId, "lead_received", { leadId: lead.id, name: lead.name || "", jobType: lead.job_type || "", source: lead.source || "website" });
   // 2) external fan-out webhook (correct signature now — was passing a bad arg),
+  // APPROVAL: founder-webhook — inbound-lead event to the founder's integration endpoint.
   try { Notify.notify("lead", { contractorId: userId, lead }); } catch {}
   // 3) email the contractor so they hear about it with the app closed.
   const owner = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
@@ -1207,6 +1209,7 @@ app.post("/s/:id/accept", wrap((req, res) => {
   if (!d) return res.status(404).json({ error: "Invalid scope link." });
   const out = Dispatch.accept(d.id, (req.body && req.body.name) || d.sub_name);
   track(d.user_id, "scope_accepted", { jobId: d.job_id, sub: out.accepted_by || "" });
+  // APPROVAL: founder-webhook — sub-dispatch event to the founder's integration endpoint.
   try { Notify.notify && Notify.notify({ type: "scope_accepted", userId: d.user_id, jobId: d.job_id, sub: out.accepted_by }); } catch {}
   res.json({ ok: true });
 }));
@@ -1216,6 +1219,7 @@ app.post("/s/:id/bid", wrap((req, res) => {
   if (!d) return res.status(404).json({ error: "Invalid scope link." });
   const out = Dispatch.submitBid(d.id, { amount: (req.body && req.body.amount) || 0, note: (req.body && req.body.note) || "" });
   track(d.user_id, "scope_bid", { jobId: d.job_id, sub: out.sub_name || "", amount: out.bid_amount || 0 });
+  // APPROVAL: founder-webhook — sub-bid event to the founder's integration endpoint.
   try { Notify.notify && Notify.notify({ type: "scope_bid", userId: d.user_id, jobId: d.job_id, sub: out.sub_name, amount: out.bid_amount }); } catch {}
   res.json({ ok: true });
 }));
@@ -1269,6 +1273,7 @@ app.post("/d/:id/approve", wrap((req, res) => {
   if (!draw) return res.status(404).json({ error: "Invalid draw link." });
   const out = Draws.approve(draw.id, (req.body && req.body.name) || "");
   track(draw.user_id, "draw_approved", { jobId: draw.job_id, amount: draw.amount, by: out.approved_by || "" });
+  // APPROVAL: founder-webhook — draw-approval event to the founder's integration endpoint.
   try { Notify.notify && Notify.notify({ type: "draw_approved", userId: draw.user_id, jobId: draw.job_id, amount: draw.amount, by: out.approved_by }); } catch {}
   res.json({ ok: true });
 }));
@@ -1315,6 +1320,7 @@ app.post("/co/:id/approve", wrap((req, res) => {
   if (!co) return res.status(404).json({ error: "Invalid change-order link." });
   const out = ChangeOrders.approve(co.id, (req.body && req.body.name) || "");
   track(co.user_id, "change_order_approved", { jobId: co.job_id, number: co.number, amount: co.amount, by: out.signed_by || "" });
+  // APPROVAL: founder-webhook — change-order-approval event to the founder's integration endpoint.
   try { Notify.notify && Notify.notify({ type: "change_order_approved", userId: co.user_id, jobId: co.job_id, amount: co.amount, by: out.signed_by }); } catch {}
   res.json({ ok: true });
 }));
@@ -1323,6 +1329,7 @@ app.post("/co/:id/decline", wrap((req, res) => {
   if (!co) return res.status(404).json({ error: "Invalid change-order link." });
   ChangeOrders.decline(co.id);
   track(co.user_id, "change_order_declined", { jobId: co.job_id, number: co.number });
+  // APPROVAL: founder-webhook — change-order-declined event to the founder's integration endpoint.
   try { Notify.notify && Notify.notify({ type: "change_order_declined", userId: co.user_id, jobId: co.job_id }); } catch {}
   res.json({ ok: true });
 }));
