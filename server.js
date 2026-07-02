@@ -195,6 +195,22 @@ function settingsOf(user) {
   };
 }
 
+// Eden awareness snapshot for the client (Intake/Voice V1). Drives the four ready
+// contexts (first / returning / mid-job / quiet) and the speech budget from real
+// server state, so a greeting is never a client-side guess. `now` lets the client
+// compute "reopened <4h" without trusting its own clock drift.
+function awarenessOf(user) {
+  let seenUpdateIds = [];
+  try { seenUpdateIds = JSON.parse(user.last_seen_update_ids || "[]") || []; } catch { seenUpdateIds = []; }
+  return {
+    hasCompletedIntake: !!user.has_completed_intake,
+    lastActivityAt: user.last_activity_at || null,
+    lastSpokenAt: user.last_spoken_at || null,
+    seenUpdateIds,
+    now: Date.now(),
+  };
+}
+
 // The profile used on the PUBLIC contractor website. Same as settingsOf, but a
 // contact email is exposed to the world only once the contractor has verified it —
 // so an unconfirmed (or typo'd) address is never published for scraping/spoofing.
@@ -407,7 +423,20 @@ app.post("/api/quickbooks/disconnect", requireAuth, wrap((req, res) => {
 app.get("/api/me", requireAuth, (req, res) =>
   res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user),
     admin: Analytics.isAdmin(req.user), leadsNew: Leads.countNew(req.user.id), inboxNew: Inbox.countPending(req.user.id),
+    // Eden awareness (Intake/Voice V1) — server-driven context so greetings/briefings are never faked client-side.
+    awareness: awarenessOf(req.user),
     ai: { build: aiConfigured(), transcribe: transcribeConfigured(), visualize: visualizeConfigured() } }));
+// Record client-side awareness signals (activity, a spoken moment, updates seen). Fire-and-forget from
+// the client; keeps the "quiet reopen (<4h)", the speech budget, and the update watermark server-driven.
+app.post("/api/me/awareness", requireAuth, wrap((req, res) => {
+  const b = req.body || {}, now = Date.now(), sets = [], vals = [];
+  if (b.activity) { sets.push("last_activity_at=?"); vals.push(now); }
+  if (b.spoke) { sets.push("last_spoken_at=?"); vals.push(now); }
+  if (b.completedIntake) { sets.push("has_completed_intake=?"); vals.push(1); }
+  if (Array.isArray(b.seenUpdateIds)) { sets.push("last_seen_update_ids=?"); vals.push(JSON.stringify(b.seenUpdateIds.slice(0, 200))); }
+  if (sets.length) { vals.push(req.user.id); db.prepare(`UPDATE user SET ${sets.join(", ")} WHERE id=?`).run(...vals); }
+  res.json(awarenessOf(db.prepare("SELECT * FROM user WHERE id=?").get(req.user.id)));
+}));
 // AI Growth Score (Sprint 13) — the coaching screen; pure data, no AI.
 app.get("/api/me/growth", requireAuth, (req, res) => res.json(growthScore(req.user)));
 

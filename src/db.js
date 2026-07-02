@@ -562,6 +562,15 @@ ensureColumns("user", [
   // Account lifecycle: 'active' (default), 'deactivated' (reversible self-serve
   // pause — sign-in blocked), or 'deleted' (hard-deleted; row cascades away).
   ["status", "TEXT DEFAULT 'active'"],
+  // Eden awareness (Intake/Voice V1): server-driven context so greetings are
+  // never faked client-side. has_completed_intake gates first-visit vs returning;
+  // last_activity_at drives the "quiet" reopen (<4h); last_spoken_at + the
+  // client session counter enforce the speech budget; last_seen_update_ids is the
+  // JSON watermark of updates already surfaced (money/acceptance/reply/conflict).
+  ["has_completed_intake", "INTEGER DEFAULT 0"],
+  ["last_activity_at", "INTEGER"],
+  ["last_spoken_at", "INTEGER"],
+  ["last_seen_update_ids", "TEXT"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).
