@@ -1,0 +1,24 @@
+name: Soul Guard
+
+# Fails the build if the constitutional file
+# (docs/00-bidvoice-bible/the-soul-of-bidvoice-v1.0.md) changes without a founder
+# AMENDMENT: commit that also logs the amendment inside the document itself.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  soul-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # need HEAD~1 to verify the amendment-log diff
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify the Soul of BidVoice is unchanged (or a logged AMENDMENT)
+        run: node scripts/soul-guard.mjs

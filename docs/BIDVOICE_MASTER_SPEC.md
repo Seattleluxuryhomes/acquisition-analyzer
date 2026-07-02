@@ -4,7 +4,7 @@
 ### The implementation constitution. Every engineer, designer, AI model, employee, and investor reads the Soul first, then this.
 
 > **⚠️ This is not the highest authority.** Above this document sits **The Soul of BidVoice**
-> (`docs/00-bidvoice-bible/The_Soul_of_BidVoice_v1.0.md`, FROZEN v1.0) — the company's constitution. The
+> (`docs/00-bidvoice-bible/the-soul-of-bidvoice-v1.0.md`, FROZEN v1.0) — the company's constitution. The
 > Bible is the **implementation constitution**: it translates the Soul into what we build and how. **If
 > anything here ever conflicts with the Soul, the Soul wins and the conflict is flagged, never silently
 > resolved.** This document has been reviewed for consistency with the Soul (see §0.1).
@@ -92,9 +92,10 @@ disclosure / legal honesty (§8.3, §10.8).
   the Soul's deeper truth is *"peace of mind… one employee worth trusting."* The OS framing must never
   drift into *"a dashboard company, a feature list"* — which the Soul forbids.
 
-**The one conflict flagged, not resolved (§14.6):** the Soul's *"there is one Eden… never split into market
-variants"* vs. the product's **Name Trial System** (per-account configurable assistant identity). Surfaced
-for the founder.
+**The one Soul↔product conflict, resolved in the Soul's favor (§14.6):** the Soul's *"there is one Eden…
+never split into market variants"* vs. the product's **Name Trial System**. Resolved — Eden is the one
+fixed identity; the user-facing identity switcher is retired. Full record in
+`docs/00-bidvoice-bible/Constitutional_Alignment_Report_v1.0.md` (C-1).
 
 ---
 
@@ -395,7 +396,7 @@ and enforce it in `billing.js`.
 ---
 
 ## 13. Amendment & document hierarchy — ✅ canonical
-**0. The Soul of BidVoice** (`docs/00-bidvoice-bible/The_Soul_of_BidVoice_v1.0.md`, FROZEN v1.0) — the
+**0. The Soul of BidVoice** (`docs/00-bidvoice-bible/the-soul-of-bidvoice-v1.0.md`, FROZEN v1.0) — the
 supreme authority; the company constitution. 1. **This Bible** — the implementation constitution; resolves
 conflicts below it. 2. **The two Constitutions** — deep detail. 3. **Canonical Product Specifications** —
 the V1 specs in `docs/specs/`, `brand-standard.md`, `trust-architecture.md`, the Experience Guide. 4.
@@ -406,7 +407,7 @@ founder's hand.
 
 ---
 
-## 14. Open conflicts requiring founder decision — 🟡 14.1 DECIDED (retrofit); 14.2–14.6 open (14.6 = Soul conflict)
+## 14. Open conflicts requiring founder decision — 🟡 14.1 DECIDED (retrofit); 14.6 RESOLVED (Soul); 14.2–14.5 open
 
 *Per the sprint package's governing rule (§14): "Where existing repo specs conflict with this package,
 list the conflict and stop; do not resolve it yourself." These are surfaced for the founder; I have not
@@ -455,16 +456,17 @@ stateful client state machine with server awareness fields (`hasCompletedIntake`
 building the V1 screens needs either those four files or an explicit instruction to reconstruct the orb/
 handoff from the prose specs (which I will not do silently).
 
-**14.6 Soul ↔ product conflict — "one Eden" vs the Name Trial System (flagged in the v1.0 consistency
-review; NOT resolved).** *The Soul (supreme):* "there is one Eden. A million contractors, one character —
-the same employee in every truck, **never a brand voice to be borrowed, split into market variants, or
+**14.6 Soul ↔ product conflict — "one Eden" vs the Name Trial System — ✅ RESOLVED in favor of the Soul
+(v1.0 consistency review).** *The Soul (supreme):* "there is one Eden. A million contractors, one character
+— the same employee in every truck, **never a brand voice to be borrowed, split into market variants, or
 optimized into someone else.**" *The product (`brand-standard.md` + shipped code — `AI_IDENTITIES`,
-`setAiIdentity`):* a **Name Trial System** lets an account run the assistant under a different name/voice;
-Eden is the default and public face. **The tension:** a per-account configurable identity can read as
-"splitting into variants," which the Soul forbids. **Plausible reconciliation (for the founder to
-ratify, not for me to assume):** the Name Trial was a *pre-launch experiment to choose the one name* (Eden
-won) and should now be retired to a single fixed identity — but that is a founder decision. Per the freeze
-order, this is surfaced, not silently resolved.
+`setAiIdentity`):* a **Name Trial System** let an account run the assistant under a different name/voice.
+**Resolution (Soul wins):** Eden is the one, fixed identity. The Name Trial served its only legitimate
+purpose — a pre-launch experiment to *choose* the name; Eden won — so the **user-facing identity switcher
+is retired** (`aiIdentitySeg()` removed from Settings; default is Eden). The internal `AI_IDENTITIES`
+registry may remain as dead scaffolding, but **no user-facing identity variation ships.** Full record:
+`docs/00-bidvoice-bible/Constitutional_Alignment_Report_v1.0.md` (C-1). This closes the v1.0 reconciliation
+window; any *future* Soul conflict is flagged and work stops until a founder amendment or decision.
 
 ---
 

@@ -1,0 +1,4 @@
+# The Soul of BidVoice is the constitutional file — the highest authority in the
+# project (see CLAUDE.md → "Constitutional Authority"). Ben is its sole owner; any
+# change to it requires his review. Enforced additionally by scripts/soul-guard.mjs.
+docs/00-bidvoice-bible/the-soul-of-bidvoice-v1.0.md @Seattleluxuryhomes

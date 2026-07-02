@@ -1,36 +1,3 @@
-<!--
-================================================================================
-  CONSTITUTIONAL FREEZE HEADER  —  added per the founder's "Freeze the Soul" order.
-  The body below is the founder's authoritative text, reproduced VERBATIM and
-  UNALTERED. Do not rewrite, shorten, expand, optimize, or restyle it during
-  normal work. It changes only by an explicit, recorded amendment approved by the
-  founder.
-================================================================================
--->
-
-> ## STATUS: FROZEN · VERSION: 1.0 · DATE: July 2, 2026
->
-> **The Soul of BidVoice is the highest authority within the BidVoice project.**
->
-> **Hierarchy of authority**
-> 1. **The Soul of BidVoice** — this document
-> 2. **The BidVoice Bible** — `docs/BIDVOICE_MASTER_SPEC.md`
-> 3. **Canonical Product Specifications** — `docs/specs/`
-> 4. **Engineering Specifications**
-> 5. **Source Code**
->
-> If any lower-level document conflicts with a higher-level document, **flag the conflict explicitly
-> rather than resolving it silently.**
->
-> This document may only change through an explicit, recorded amendment approved by the founder. During
-> normal work it is never rewritten, never shortened, never expanded, and never optimized for style.
-> Every future recommendation — product, UX, engineering, marketing, fundraising — is checked against it
-> first; where anything conflicts with it, stop and surface the conflict.
->
-> Amendment log: *(none — frozen at v1.0, July 2, 2026)*
-
-<!-- ===== The constitution begins here, verbatim ===== -->
-
 # The Soul of BidVoice
 ### Version 1.0 — Frozen July 2, 2026
 *Amendments require an explicit, recorded decision. Amendment log: none.*
