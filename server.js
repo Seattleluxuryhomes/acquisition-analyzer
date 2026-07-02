@@ -1757,8 +1757,14 @@ app.get("*", (req, res, next) => {
 const PORT = process.env.BT_PORT || process.env.PORT || 4000;
 try { const n = purgeExpiredDeletions(); if (n) console.log(`Purged ${n} account(s) past their 30-day deletion grace.`); } catch { /* never block boot */ }
 // Re-push any referral credits that were earned but never reached Stripe (provider was down,
-// or the referrer had no customer at grant time). Idempotent; safe every boot.
-Billing.reconcileReferralCredits().then((n) => { if (n) console.log(`Reconciled ${n} pending referral credit(s) to Stripe.`); }).catch(() => {});
+// or the referrer had no customer at grant time). Idempotent; safe every boot AND on an hourly
+// timer so an earned-unpushed credit doesn't wait for the next restart. The Idempotency-Key on
+// the balance-credit push (billing.js) guarantees no double-credit across boot + timer + webhook.
+const runReconcile = () => Billing.reconcileReferralCredits()
+  .then((n) => { if (n) console.log(`Reconciled ${n} pending referral credit(s) to Stripe.`); })
+  .catch(() => {});
+runReconcile();
+setInterval(runReconcile, 60 * 60 * 1000).unref();   // hourly; unref'd so it never holds the process open
 app.listen(PORT, () => {
   console.log(`BidVoice on http://localhost:${PORT}`);
   // Make an unconfigured mail provider obvious in the logs — otherwise password-reset /

@@ -137,8 +137,10 @@ customers.
   unlocked, so `checkout.session.completed` arriving first can't cause a missed lock.
 - **Transient failure at the grant:** the grant re-fires on the next paid invoice/redelivery
   (idempotent); if the ledger row is written but the Stripe credit push fails (or the referrer
-  has no customer yet), the row stays `earned` and **`reconcileReferralCredits()` re-pushes it on
-  the next boot** — logged, never silently lost.
+  has no customer yet), the row stays `earned` and **`reconcileReferralCredits()` re-pushes it —
+  on every boot AND hourly** — logged, never silently lost. The push carries an `Idempotency-Key`
+  (`refcredit_<row id>`), so a re-push after an ambiguous timeout returns the original Stripe
+  transaction instead of creating a second credit.
 - **Concurrent referees, same referrer:** the cap check and ledger insert run synchronously with
   no `await` between them (the price is resolved first), so two simultaneous grants can't both
   slip past the 12/year cap.
@@ -179,8 +181,9 @@ customers.
    frozen `btref*` coupons — cosmetic; Stripe already holds their Price.
 
 Reconciliation of earned-but-unpushed credits is **automatic** — `reconcileReferralCredits()`
-runs on every boot and re-pushes any `referrer_reward` row with a null `stripe_txn_id` once the
-referrer has a Stripe customer. No manual step.
+runs on every boot **and hourly**, re-pushing any `referrer_reward` row with a null
+`stripe_txn_id` once the referrer has a Stripe customer (idempotent via the `Idempotency-Key`).
+No manual step.
 
 ## 10. Constitutional conformance
 - **Soul:** no data hostage (ledger in export), never betray early customers (Founding lock +
