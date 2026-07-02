@@ -472,6 +472,15 @@
   .hint{font-family:"IBM Plex Sans";font-size:.72rem;color:var(--muted);margin-top:8px}
   /* Voice-first New Job */
   .vf-hero{text-align:center;padding:6px 0 4px}
+  /* Eden intake — awareness/greeting layer (Fable Intake v4, retrofit; paper brand) */
+  .eden-pill{display:inline-flex;align-items:center;gap:7px;font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:.74rem;letter-spacing:.02em;color:var(--muted);background:rgba(207,127,24,.09);border:1px solid var(--rule);border-radius:999px;padding:4px 11px;margin-bottom:10px}
+  .eden-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px rgba(238,155,46,.18)}
+  .eden-lines{display:flex;flex-direction:column;gap:2px;margin:2px 0 4px}
+  .eden-line{font-family:"Archivo",sans-serif;font-weight:800;font-size:1.5rem;line-height:1.18;opacity:0;transform:translateY(8px);animation:edenBeat .5s cubic-bezier(.2,.7,.2,1) forwards}
+  .eden-line.sub{font-family:"IBM Plex Sans",sans-serif;font-weight:500;font-size:1.02rem;color:var(--muted)}
+  .eden-trust{font-family:"IBM Plex Sans",sans-serif;font-size:.82rem;color:var(--muted);opacity:0;animation:edenBeat .5s cubic-bezier(.2,.7,.2,1) forwards;margin-top:6px}
+  @keyframes edenBeat{to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){ .eden-line,.eden-trust{animation:none;opacity:1;transform:none} }
   .vf-title{font-family:"Archivo",sans-serif;font-weight:900;font-size:1.9rem;line-height:1.1;margin:6px 0 4px}
   .vf-sub{color:var(--muted);font-size:.92rem;max-width:340px;margin:0 auto 16px}
   .vf-mic-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin:6px 0 14px}
@@ -1645,6 +1654,7 @@ try{ document.documentElement.lang = LANG; }catch(e){}
 const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:_returning?'signin':'welcome', authError:'', authSent:false, booted:false, onbStep:0, onbLang:null, onbMore:false, onbQ:'' };
 let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
+let AWARENESS = JSON.parse(localStorage.getItem('bt_aware')||'null');   // Eden intake awareness (server-driven contexts)
 let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'', tax_rate:0, region:'', autoTranslate:true, bidLang:'' };
 if(SETTINGS.autoTranslate===undefined) SETTINGS.autoTranslate=true; // remembered account-level language prefs
 let JOBS = JSON.parse(localStorage.getItem('bt_jobs')||'[]');
@@ -1667,6 +1677,7 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   AI_VISUALIZE = !!(r.ai && r.ai.visualize); localStorage.setItem('bt_visualize', AI_VISUALIZE?'1':'0');
   AI_BUILD = !!(r.ai && r.ai.build); localStorage.setItem('bt_aibuild', AI_BUILD?'1':'0');
   LEADS_NEW = r.leadsNew||0; if(state.view==='home') render();
+  if(r.awareness){ AWARENESS=r.awareness; try{ localStorage.setItem('bt_aware', JSON.stringify(AWARENESS)); }catch(e){} }
   if(state.view==='capture') render();
   // One device ping per session so the founder dashboard sees who's on iPhone vs
   // Android and who landed in an in-app browser — even if they never record.
@@ -4281,6 +4292,44 @@ function clearCapDraft(){ CAP_DRAFT={title:'',from:'',to:'',text:'',trade:''}; C
 // Voice-first New Job. The microphone is the hero: open, tap, talk. Languages,
 // company, tax all live in Settings now and are used silently. The AI extracts the
 // job details live as you speak and auto-names the project.
+/* ===== Eden intake — awareness contexts + exact copy (Fable Intake v4, retrofit) =====
+   The capture screen opens as a conversation, not a form. Context is server-driven
+   (AWARENESS from /api/me) so a greeting is never a client-side guess. Four contexts:
+   first / returning / mid-job / quiet. Copy strings are verbatim from the spec. */
+function edenFirstName(){ try{ return (String((SETTINGS&&SETTINGS.name)||'').trim().split(/\s+/)[0])||''; }catch(_){ return ''; } }
+function edenDaypart(){ const h=new Date().getHours(); return h<12?'Morning':(h<18?'Afternoon':'Evening'); }
+// first = no completed intake on the account · mid-job = resuming a draft with content · else returning.
+function edenCtx(){
+  const done = AWARENESS ? !!AWARENESS.hasCompletedIntake : (typeof JOBS!=='undefined' && JOBS.some(j=>!j._deleted));
+  if(!done) return 'first';
+  if(((CAP_DRAFT&&CAP_DRAFT.text)||'').trim().length>0) return 'midjob';
+  return 'returning';
+}
+// The spoken/on-screen state label for the "Eden · {state}" pill (Ready/Thinking/Review).
+function edenIntakeStateLabel(){ if(intakeRunning) return 'Thinking'; if(CAP_INTAKE && CAP_INTAKE.ready) return 'Review'; return 'Ready'; }
+// The awareness header: state pill + orb + the context greeting (staged Beat reveal) + the first-visit
+// trust line. ctx==='first' is self-limiting (flips to 'returning' once has_completed_intake is set), so
+// the trust line here IS the "first greeting" occurrence; the second is the first review (a later slice).
+function edenIntakeHeader(){
+  const ctx=edenCtx(), nm=edenFirstName(), dp=edenDaypart(), name=esc(AI.name);
+  const greet=dp+(nm?(', '+esc(nm)):'')+'.';
+  let lines;
+  if(ctx==='first') lines=[[greet,0],["I'm "+name+".",0],["Tell me about the job.",0],["I'll take it from here.",1]];
+  else if(ctx==='midjob') lines=[["We're still on "+esc((autoProjectName()||'this one'))+".",0],["Want to finish the estimate?",1]];
+  else lines=[[greet,0],["What are we working on?",1]];
+  const linesHTML=lines.map((l,i)=>`<div class="eden-line${l[1]?' sub':''}" style="animation-delay:${(0.25+i*0.12).toFixed(2)}s">${l[0]}</div>`).join('');
+  const trust = ctx==='first'
+    ? `<div class="eden-trust" style="animation-delay:${(0.25+lines.length*0.12).toFixed(2)}s">Nothing goes anywhere until you approve it.</div>` : '';
+  return `<div class="eden-pill"><span class="dot"></span>${name} · ${edenIntakeStateLabel()}</div>
+    <div style="display:flex;justify-content:center;margin:2px 0 8px"><svg class="bb-brain" viewBox="0 0 100 100" width="86" height="86" aria-hidden="true">${BB_SVG_INNER}</svg></div>
+    <div class="eden-lines">${linesHTML}${trust}</div>`;
+}
+// Once a bid draft is successfully built, the account has "completed intake" — flip first→returning
+// server-side so the greeting never re-introduces Eden. Fire-and-forget.
+function edenMarkIntakeComplete(){
+  try{ if(AWARENESS) AWARENESS.hasCompletedIntake=true; localStorage.setItem('bt_aware', JSON.stringify(AWARENESS||{hasCompletedIntake:true})); }catch(_){}
+  try{ if(TOKEN && online) api('/api/me/awareness',{method:'POST',body:JSON.stringify({activity:true,completedIntake:true})}).catch(()=>{}); }catch(_){}
+}
 function viewCapture(){
   if(state.loading){
     return `<button class="backlink" onclick="go('home')">← Dashboard</button>
@@ -4304,8 +4353,7 @@ function viewCapture(){
       : `<div class="vf-mic off">${icon('mic',22)}</div><div class="vf-mic-lbl">Voice isn't available on this device — type below.</div>`;
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div class="vf-hero">
-      <h1 class="vf-title">Tell me about the job</h1>
-      <div class="vf-sub">Tap and talk — name, address, the work. The AI fills in the details.</div>
+      ${edenIntakeHeader()}
       <div class="vf-mic-wrap">${micBlock}</div>
     </div>
 
@@ -4695,6 +4743,7 @@ async function buildFromConversation(){
   }
   const job=makeLocalJob(f, data);
   JOBS.unshift(job); clearCapDraft(); saveJobs();
+  edenMarkIntakeComplete();   // account has now completed intake → greeting stops re-introducing Eden
   state.loading=false; state.bidTab='notebook'; go('job',job.id);
 }
 
