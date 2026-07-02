@@ -1666,7 +1666,24 @@ let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
 let AWARENESS = JSON.parse(localStorage.getItem('bt_aware')||'null');   // Eden intake awareness (server-driven contexts)
 let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'', tax_rate:0, region:'', autoTranslate:true, bidLang:'' };
 if(SETTINGS.autoTranslate===undefined) SETTINGS.autoTranslate=true; // remembered account-level language prefs
-let JOBS = JSON.parse(localStorage.getItem('bt_jobs')||'[]');
+// Per-account local job cache. Keying the cache to the signed-in user's id — rather
+// than one shared "bt_jobs" bucket — is what keeps a shared device safe: signing in as
+// a different account can never surface, or push up, the previous account's jobs (P1-1).
+// The legacy single-tenant cache is migrated exactly once, and only into the account
+// already authenticated on THIS device, so it's never adopted by a later, different login.
+function jobsKey(u){ const id=((u||USER)||{}).id; return id ? ('bt_jobs_'+id) : 'bt_jobs_anon'; }
+(function migrateLegacyJobs(){
+  try{
+    const legacy = localStorage.getItem('bt_jobs');
+    if(legacy===null) return;
+    if(USER && USER.id){
+      if(localStorage.getItem(jobsKey(USER))===null) localStorage.setItem(jobsKey(USER), legacy);
+      localStorage.removeItem('bt_jobs');   // adopted by (and only by) the session that owned it
+    }
+  }catch(e){}
+})();
+function loadJobs(){ try{ return JSON.parse(localStorage.getItem(jobsKey())||'[]'); }catch(e){ return []; } }
+let JOBS = loadJobs();
 let CAP_PHOTOS = []; // photos staged on the capture screen before the job exists
 let settingsDirty = false;
 let online = navigator.onLine;
@@ -2230,7 +2247,7 @@ async function copyPayLink(url, btn){
 }
 
 /* ============ local persistence ============ */
-function persist(){ localStorage.setItem('bt_jobs', JSON.stringify(JOBS)); }
+function persist(){ try{ localStorage.setItem(jobsKey(), JSON.stringify(JOBS)); }catch(e){} }
 function persistSettings(){ localStorage.setItem('bt_settings', JSON.stringify(SETTINGS)); }
 function persistAuth(){
   if(TOKEN) localStorage.setItem('bt_token', TOKEN); else localStorage.removeItem('bt_token');
@@ -2273,6 +2290,8 @@ async function doAuth(){
     const body = state.authMode==='signup' ? {email, password:pass, ref:REFCODE||'', role:SIGNUP_ROLE||''} : {email, password:pass};
     const r = await api(path, { method:'POST', body:JSON.stringify(body) });
     TOKEN=r.token; USER=r.user; persistAuth();
+    // Load THIS account's own job cache — never the previous account's in-memory list.
+    JOBS = loadJobs();
     try{ localStorage.setItem('bt_returning','1'); }catch(e){} // next visit on this device defaults to Sign in
     if(r.user){ SETTINGS=Object.assign({}, SETTINGS, {
       company:r.user.company||SETTINGS.company, name:r.user.name||'', phone:r.user.phone||'',
@@ -2290,6 +2309,10 @@ function setAuthMode(m){ state.authMode=m; state.authError=''; state.authSent=fa
 async function signOut(){
   try{ if(TOKEN) await api('/api/auth/signout',{method:'POST'}); }catch(e){}
   TOKEN=null; USER=null; BILLING=null; PAYMENTS=null; PAYREQS={};
+  // Drop the signed-out account's jobs from memory so the next person on this device
+  // starts clean (their own cache reloads on sign-in). The account's cache stays under
+  // its own key, so their offline work isn't lost when they come back.
+  JOBS=[];
   localStorage.removeItem('bt_billing'); localStorage.removeItem('bt_payments'); persistAuth();
   // They clearly have an account now — never drop them back on "Create account".
   try{ localStorage.setItem('bt_returning','1'); }catch(e){}
@@ -2339,9 +2362,11 @@ async function syncNow(force){
       if(Array.isArray(SETTINGS.services)) _sp.services=SETTINGS.services;
       try{ await api('/api/me',{method:'PATCH', body:JSON.stringify(_sp)}); settingsDirty=false; }catch(e){}
     }
-    // 2) pull server jobs
-    let server=[];
-    try{ server = (await api('/api/jobs')).jobs || []; }catch(e){ server=[]; }
+    // 2) pull server jobs (the authoritative list for this account). Track whether the
+    //    fetch actually succeeded — an empty list from a failed request must never be
+    //    mistaken for "the account has no jobs" (that would wrongly delete local work).
+    let server=[], serverOk=false;
+    try{ server = (await api('/api/jobs')).jobs || []; serverOk=true; }catch(e){ server=[]; serverOk=false; }
     const serverById = new Map(server.map(j=>[j.id,j]));
 
     // 3) reconcile each local job
@@ -2351,9 +2376,20 @@ async function syncNow(force){
         JOBS = JOBS.filter(j=>j!==local); continue;
       }
       if(local._dirty){
+        const s = serverById.get(local.id);
+        // Last-write-wins: if the server copy is newer than this offline edit — e.g. the
+        // customer signed it, or another device edited it while we were offline — the
+        // server wins. Don't push a stale edit over it: that's what reverted a customer
+        // signature back to "sent" (P1-2). Take the server version (pending photos are
+        // preserved by replaceJob) and try to flush any queued photos to it.
+        if(s && (s.updated_at||0) > (local.updated_at||0)){
+          replaceJob(local.id, hydrate(s));
+          const merged = JOBS.find(j=>j.id===local.id); if(merged) await uploadPendingPhotos(merged);
+          continue;
+        }
         const payload = jobPayload(local);
         try{
-          if(serverById.has(local.id)) await api('/api/jobs/'+local.id,{method:'PATCH', body:JSON.stringify(payload)});
+          if(s) await api('/api/jobs/'+local.id,{method:'PATCH', body:JSON.stringify(payload)});
           else await api('/api/jobs',{method:'POST', body:JSON.stringify(payload)});
           await uploadPendingPhotos(local);
           local._dirty=false;
@@ -2361,6 +2397,12 @@ async function syncNow(force){
       } else if(serverById.has(local.id)){
         const s=serverById.get(local.id);
         if((s.updated_at||0) > (local.updated_at||0)) replaceJob(local.id, hydrate(s));
+      } else if(serverOk){
+        // Clean (already-synced) job that's gone from a successfully-fetched server list
+        // → it was deleted on another device. Delete-wins: drop it locally so it can't
+        // resurrect or POST itself back (P1-3). Skipped when the fetch failed, so a
+        // transient network error can never wipe the local cache.
+        JOBS = JOBS.filter(j=>j!==local);
       }
     }
     // 4) add server jobs we don't have locally

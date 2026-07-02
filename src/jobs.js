@@ -168,17 +168,30 @@ const COLUMN = { title: "title", from: "from_lang", to: "to_lang", transcript: "
   scheduled_date: "scheduled_date", scheduled_time: "scheduled_time", address: "address", customer: "customer", customer_phone: "customer_phone", deposit_pct: "deposit_pct", tax_rate: "tax_rate",
   assumptions: "assumptions", exclusions: "exclusions", lines: "lines", upgrades: "upgrades", permits: "permits" };
 
+// Once a customer has accepted (signed/scheduled), that acceptance is authoritative and
+// server-owned. A stale client push — e.g. an offline edit that predates the signature —
+// must never downgrade the status back to draft/sent and "un-sign" the job. This is the
+// server-side backstop for P1-2 (the client also honors last-write-wins, but clock skew
+// across devices means the server can't rely on timestamps alone). Other fields on an
+// accepted job (a typo fix, a note) still update normally.
+const ACCEPTED = new Set(["signed", "scheduled"]);
+const OPEN = new Set(["draft", "sent"]);
+
 export function updateJob(userId, id, patch = {}) {
-  const existing = db.prepare("SELECT id FROM job WHERE id=? AND user_id=?").get(id, userId);
+  const existing = db.prepare("SELECT status FROM job WHERE id=? AND user_id=?").get(id, userId);
   if (!existing) return null;
+  const wouldUnsign = "status" in patch
+    && ACCEPTED.has(existing.status)
+    && OPEN.has(normStatus(patch.status));
 
   const sets = [];
   const vals = [];
   for (const [key, transform] of Object.entries(FIELD_MAP)) {
+    if (key === "status" && wouldUnsign) continue; // keep the accepted status
     if (key in patch) { sets.push(`${COLUMN[key]} = ?`); vals.push(transform(patch[key])); }
   }
-  // status -> sent stamps sent_at once
-  if (patch.status === "sent") { sets.push("sent_at = COALESCE(sent_at, ?)"); vals.push(Date.now()); }
+  // status -> sent stamps sent_at once (never when we're protecting an accepted status)
+  if (patch.status === "sent" && !wouldUnsign) { sets.push("sent_at = COALESCE(sent_at, ?)"); vals.push(Date.now()); }
   sets.push("updated_at = ?");
   vals.push(Number(patch.updated_at) || Date.now());
 
