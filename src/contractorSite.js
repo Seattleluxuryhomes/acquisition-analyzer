@@ -142,9 +142,13 @@ export function renderContractorSite(profile = {}, opts = {}) {
   // background, so prefer a dedicated dark "website logo" when set; otherwise fall
   // back to the bid/PDF logo. When present it IS the header brand; otherwise fall
   // back to an initial-in-a-square.
-  const logo = String(profile.site_logo || profile.logo || "").trim();
+  // Only trust a real data-image URL (same guard as proposalHtml.js). Anything else — a
+  // contractor could set logo to `x" onerror=...` via PATCH /api/me — falls back to the
+  // initial mark rather than injecting into the public /c/:id + /f/:id pages (stored-XSS fix).
+  const rawLogo = String(profile.site_logo || profile.logo || "").trim();
+  const logo = /^data:image\//i.test(rawLogo) ? rawLogo : "";
   const brandMark = logo
-    ? `<div class="brand brand-logoed"><img class="brand-logo" src="${logo}" alt="${company}"/></div>`
+    ? `<div class="brand brand-logoed"><img class="brand-logo" src="${esc(logo)}" alt="${company}"/></div>`
     : `<div class="brand"><span class="mk">${esc(initial)}</span>${company}</div>`;
   const accent = /^#[0-9a-f]{3,8}$/i.test(profile.site_color || "") ? profile.site_color : "#CF7F18";
   const phone = String(profile.phone || "").trim();

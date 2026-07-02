@@ -233,7 +233,7 @@ export function confirmEmailVerify({ email, token }) {
 // ---- Change email (re-verification required) ----
 // Verify the current password, move to the new address, and reset verification so
 // the new inbox must be confirmed. Other sessions are revoked (email is identity).
-export function changeEmail({ userId, currentPassword, newEmail }) {
+export function changeEmail({ userId, currentPassword, newEmail, keepToken }) {
   const row = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
   if (!row) throw httpError(401, "Account not found.");
   if (!verifyPassword(String(currentPassword || ""), row.password_hash)) {
@@ -248,6 +248,9 @@ export function changeEmail({ userId, currentPassword, newEmail }) {
   const token = crypto.randomBytes(32).toString("base64url");
   db.prepare("UPDATE user SET email=?, email_verified=0, verify_token_hash=?, verify_token_exp=? WHERE id=?")
     .run(newEmail, sha256(token), Date.now() + VERIFY_TTL, userId);
+  // Email is identity — revoke every OTHER session (keep the caller's), matching
+  // changePassword. (Previously the comment claimed this but the code didn't do it.)
+  db.prepare("DELETE FROM session WHERE user_id=? AND token!=?").run(userId, keepToken || "");
   const fresh = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
   return { user: publicUser(fresh), token };
 }

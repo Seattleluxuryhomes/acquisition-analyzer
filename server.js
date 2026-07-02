@@ -324,7 +324,7 @@ app.post("/api/auth/resend-verification", requireAuth, wrap(async (req, res) => 
 // fresh verification link. Other sessions were revoked server-side (email = identity).
 app.post("/api/account/email", requireAuth, wrap(async (req, res) => {
   const { currentPassword, newEmail } = req.body || {};
-  const out = changeEmail({ userId: req.user.id, currentPassword, newEmail });
+  const out = changeEmail({ userId: req.user.id, currentPassword, newEmail, keepToken: req.token });
   track(req.user.id, "email_changed", {});
   if (out && out.token && Mail.mailConfigured()) {
     const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
