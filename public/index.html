@@ -4330,6 +4330,42 @@ function edenMarkIntakeComplete(){
   try{ if(AWARENESS) AWARENESS.hasCompletedIntake=true; localStorage.setItem('bt_aware', JSON.stringify(AWARENESS||{hasCompletedIntake:true})); }catch(_){}
   try{ if(TOKEN && online) api('/api/me/awareness',{method:'POST',body:JSON.stringify({activity:true,completedIntake:true})}).catch(()=>{}); }catch(_){}
 }
+/* ===== Conversational first-run setup (Fable Intake v4 · setup state) =====
+   The first job IS the onboarding. Before the first build, if the price book lacks
+   the one pricing input the estimate needs (a labor rate), Eden asks it as a
+   follow-up — chips + "Type it" — persists it to the price book, and never asks
+   again. No setup form ever precedes value. */
+let edenSetup={ open:false };
+function setupDone(){ try{ return localStorage.getItem('bt_eden_setup')==='1'; }catch(_){ return false; } }
+function setupTradeLabel(){ const k=(CAP_DRAFT&&CAP_DRAFT.trade)||''; const t=(typeof TRADE_PICK!=='undefined')&&TRADE_PICK.find(x=>x.key===k); return t?t.label.toLowerCase():'your work'; }
+function edenNeedsSetup(){ return AI_BUILD && edenCtx()==='first' && !setupDone(); }
+function edenSetupCard(){
+  if(!edenSetup.open) return '';
+  const tl=esc(setupTradeLabel());
+  const chip=(v)=>`<button class="segbtn" type="button" onclick="edenSetupSave(${v})">$${v}/hr</button>`;
+  return `<div class="intake est-card" id="edenSetupCard">
+    <div class="intake-h">${icon('activity',13)} ${esc(AI.name)}</div>
+    <div class="est-q"><div class="est-q-t">One more — what do you get per hour for ${tl}?</div>
+      <div class="seg" style="margin-top:8px">${[45,65,85,95].map(chip).join('')}</div>
+      <div class="row2" style="margin-top:8px">
+        <div><input id="edenSetupRate" class="input" type="number" min="1" inputmode="decimal" placeholder="Type it — $/hr"/></div>
+        <div><button class="btn sm" style="width:100%" onclick="edenSetupSave()">I'll remember it</button></div>
+      </div></div></div>`;
+}
+async function edenSetupSave(rate){
+  if(rate==null){ const el=document.getElementById('edenSetupRate'); rate=el?+el.value:0; }
+  rate=Math.round(+rate||0);
+  if(rate<1){ toast('Enter your hourly rate.','warn'); return; }
+  try{ localStorage.setItem('bt_eden_setup','1'); }catch(_){}
+  // Persist to the price book (a labor-rate SKU) so every future estimate uses it.
+  try{ if(TOKEN&&online){ const nm=setupTradeLabel();
+    await api('/api/skus',{method:'POST', body:JSON.stringify({ name:(nm==='your work'?'Labor':(nm.charAt(0).toUpperCase()+nm.slice(1)+' labor')), unit:'hr', unit_price:rate })});
+    if(typeof loadSkus==='function') loadSkus();
+  } }catch(e){}
+  edenSetup.open=false;
+  toast('Got it — $'+rate+'/hr from now on.','ok');
+  buildFromConversation();   // proceed to the build now that setup is answered
+}
 function viewCapture(){
   if(state.loading){
     return `<button class="backlink" onclick="go('home')">← Dashboard</button>
@@ -4442,7 +4478,7 @@ function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value
 /* ---- Live job-detail extraction as the contractor speaks/types ---- */
 let intakeTimer=null, intakeRunning=false, intakeLastAt=0, intakeLastLen=0;
 function renderIntakeRegions(){
-  const r=document.getElementById('intakeRegion'); if(r) r.innerHTML=intakeCard()+questionsCard();
+  const r=document.getElementById('intakeRegion'); if(r) r.innerHTML=intakeCard()+questionsCard()+edenSetupCard();
   paintRecFab(); // surface "Answer" on the floating button when the AI has questions
 }
 function scheduleIntake(){
@@ -4727,6 +4763,8 @@ async function rebuildWithAI(id, btn){
 
 async function buildFromConversation(){
   if(!entitled()){ go('paywall'); return; }
+  // First job: ask the one pricing input the estimate needs before building (setup state).
+  if(edenNeedsSetup()){ edenSetup.open=true; renderIntakeRegions(); try{ document.getElementById('edenSetupCard').scrollIntoView({behavior:'smooth',block:'center'}); }catch(_){} return; }
   const f=newJobFromForm();
   if(!f.text){ state.error='Add the conversation first, or choose “build manually”.'; render(); return; }
   if(!online){ state.error='You’re offline — the AI build needs a connection. Your job will be created so you can fill it in by hand now and build later.'; const job=makeLocalJob(f,null); JOBS.unshift(job); saveJobs(); state.bidTab='notebook'; go('job',job.id); return; }
