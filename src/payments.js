@@ -143,6 +143,8 @@ export async function createPaymentRequest(user, { amount, description, clientNa
   // Direct charge on the contractor's connected account. Omitting
   // payment_method_types lets each contractor turn Klarna/Affirm on/off from their
   // own Stripe dashboard (that's all step #4 needs).
+  // APPROVAL: client-action — a hosted Checkout the client opens and pays; the contractor
+  // set the amount. Nothing is charged without the client's explicit payment. No auto-charge.
   const session = await stripe("checkout/sessions", {
     account,
     body: {

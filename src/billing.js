@@ -186,6 +186,8 @@ export async function createCheckout(user, baseUrl) {
     params.customer_update = { address: "auto" };
     params.billing_address_collection = "required";
   }
+  // APPROVAL: contractor-action — the contractor's own subscription Checkout, opened when
+  // they choose to subscribe. BidVoice never charges a contractor without this explicit step.
   const session = await stripe("checkout/sessions", params);
   return session.url;
 }

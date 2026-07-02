@@ -253,11 +253,13 @@ app.post("/api/auth/signup", wrap((req, res) => {
     // before public contact info (e.g. their website email) is ever exposed.
     if (Mail.mailConfigured() && out.user.email) {
       const w = Emails.welcome(baseUrl(req), { name: out.user.name || "", appUrl: baseUrl(req) });
+      // APPROVAL: system — transactional welcome to the new account holder's own inbox.
       Mail.sendMail({ to: out.user.email, subject: w.subject, html: w.html, text: w.text }).catch(() => {});
       const vt = createVerifyToken(out.user.id);
       if (vt && vt.token) {
         const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(vt.token)}&e=${encodeURIComponent(out.user.email)}`;
         const m = Emails.verifyEmail(baseUrl(req), { link, name: out.user.name || "" });
+        // APPROVAL: system — email-verification link to the account holder's own inbox.
         Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }).catch(() => {});
       }
     }
@@ -286,6 +288,7 @@ app.post("/api/auth/reset", wrap(async (req, res) => {
   if (out && Mail.mailConfigured()) {
     const link = `${baseUrl(req)}/reset?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
     const m = Emails.passwordReset(baseUrl(req), { link });
+    // APPROVAL: system — password-reset link to the account holder's own inbox.
     try { await Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }); }
     // Never surface send errors to the caller (no enumeration) — but DO log server-side so a
     // configured-but-failing provider (e.g. unverified BT_MAIL_FROM) is diagnosable.
@@ -310,6 +313,7 @@ app.post("/api/auth/resend-verification", requireAuth, wrap(async (req, res) => 
   if (vt && vt.token && Mail.mailConfigured()) {
     const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(vt.token)}&e=${encodeURIComponent(req.user.email)}`;
     const m = Emails.verifyEmail(baseUrl(req), { link, name: req.user.name || "" });
+    // APPROVAL: system — re-send of the verification link to the account holder's own inbox.
     try { await Mail.sendMail({ to: req.user.email, subject: m.subject, html: m.html, text: m.text }); }
     catch (e) { console.warn("[mail] verification send failed:", (e && (e.detail || e.message)) || e); }
   }
@@ -325,6 +329,7 @@ app.post("/api/account/email", requireAuth, wrap(async (req, res) => {
   if (out && out.token && Mail.mailConfigured()) {
     const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
     const m = Emails.verifyEmail(baseUrl(req), { link, name: out.user.name || "" });
+    // APPROVAL: system — verification link to the account holder's own (new) inbox.
     try { await Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }); } catch { /* silent */ }
   }
   res.json({ ok: true, user: out.user, sent: Mail.mailConfigured() });
@@ -680,6 +685,7 @@ app.post("/api/admin/onboard", requireAuth, requireAdmin, wrap(async (req, res) 
     try {
       const fromName = req.user.name || (req.user.company && req.user.company !== "Your Company" ? req.user.company : "");
       const m = Emails.invitation(baseUrl(req), { link, from: fromName, note: b.note });
+      // APPROVAL: contractor-action — the contractor explicitly invited this crew member.
       await Mail.sendMail({
         to: user.email,
         subject: m.subject,
@@ -1114,6 +1120,7 @@ app.post("/api/inbound/leads", wrap((req, res) => {
   // 3) email the contractor so they hear about it with the app closed.
   const owner = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
   if (owner && owner.email && Mail.mailConfigured()) {
+    // APPROVAL: system — inbound-lead notification to the contractor's own inbox (not a client-facing send).
     Mail.sendMail({ to: owner.email, subject: `New estimate request${lead.name ? " from " + lead.name : ""}`,
       html: leadEmailHtml(lead, baseUrl(req)), text: leadEmailText(lead, baseUrl(req)) }).catch(() => {});
   }
@@ -1630,6 +1637,8 @@ async function deliverSignedAgreement(jobRow, owner, proposal, { name, email } =
         <p style="color:#8a7f68;font-size:.85rem">Sent by BidVoice on behalf of ${escHtml(company)}.</p>
       </div>`;
       try {
+        // APPROVAL: client-action — fired by the client signing a proposal the contractor
+        // already approved and sent; delivers the countersigned copy. No autonomous send.
         await Mail.sendMail({
           to, subject: `Signed agreement — ${proposal.title}`,
           html, text: `Attached is the signed agreement for ${proposal.title}.`,

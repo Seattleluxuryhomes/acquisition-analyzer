@@ -34,6 +34,7 @@
 | v0.4 | 2026-07-02 | Custodial rewrite to constitutional grade; resolved terminology/positioning/scope drift; corrected four implementation-drift items. | Claude |
 | v0.5 | 2026-07-02 | **Canonical V1 specs received and integrated.** Unblocked §4 (Voice), §5 (Intake), §11 (Roadmap) from `eden-voice-spec.md`, `eden-intake-final-spec.md`, `bidvoice-v1-blueprint.md`, `sprint-package-eden-intake-voice.md`, `bidvoice-cpo-audit.md`, `exec-review-response.md` (all now in `docs/specs/`). Added the north-star metric, the no-autonomous-outbound invariant, numeric-ambiguity rule, component canon, and §14 (open conflicts for founder decision). | Claude |
 | **v1.0** | 2026-07-02 | **The Soul of BidVoice frozen as the supreme authority; Bible reviewed for constitutional consistency and declared complete.** Added §0.1 (alignment with the Soul), led §1 with the Soul's mission + protected sentence, added the Soul-derived non-negotiables to §10 (portability, openly-AI, never-hide-a-failure, never-monetize-the-homeowner, no attention-farming), set the authority hierarchy (§13), and flagged the one Soul↔product conflict (§14.6: "one Eden" vs the Name Trial System). | Claude |
+| **v1.1** | 2026-07-02 | **All open conflicts closed; every Bible claim made true.** §14.2 (voice=V1) and §14.3 (intake v4) resolved as **shipped** (retrofit Slices 1–7); §14.5 mooted by the retrofit decision; §14.4 all four corrections shipped. §12 business model **ratified** the Commercial Architecture (`bidvoice-commercial-architecture-v1.0.md`; numbers = beta hypotheses) with the referral divergence flagged (C-6). Made the §3.7/§7 no-autonomous-outbound invariant **real**: `scripts/approval-gate.mjs` CI-classifies all 10 outbound sites. Native-dialog guard shipped. | Claude |
 
 ## Table of contents
 0. Canonical facts · 1. Vision & North Star · 2. Brand & identity · 3. Eden (what she is + how she
@@ -181,8 +182,8 @@ to *commit.*
 **3.7 The constitutional invariant — no autonomous outbound** (`exec-review-response.md`, promoted from
 acceptance criterion): **No dollar or word ever leaves the system without the contractor's sign-off.**
 Every outbound send (proposal, invoice, reminder, nudge, SMS, email) sits behind the **ApprovalGate**,
-enforced by a build-failing CI check that greps every send call site. *"Nothing goes anywhere until you
-approve it."* This never changes.
+enforced by a build-failing CI check (`scripts/approval-gate.mjs`) that greps every send/charge call site
+and fails on any unclassified one. *"Nothing goes anywhere until you approve it."* This never changes.
 
 **3.8 The tests** (`CONSTITUTION.md` VI): The One Question · The Ten-Year Test · The 6:30 AM Test · The
 Reputation Test.
@@ -272,14 +273,19 @@ more.** Never-spoken list per §4.2. Reduced motion respected; aria-live state a
 
 ---
 
-## 7. Trust architecture — the Trust Gate / ApprovalGate — ✅ specified; ⚠️ partially implemented
+## 7. Trust architecture — the Trust Gate / ApprovalGate — ✅ specified; invariant CI-enforced; provenance pending
 *Source: `trust-architecture.md`; the ApprovalGate component in `bidvoice-cpo-audit.md`/blueprint.* Before
 an artifact **leaves** BidVoice it passes: completeness check (trade-pack mandatory items) → assumption
 ledger → materiality flags → **the human stamp.** BidVoice never sends an unstamped artifact; the gate is
 progressive (recedes as the Company Brain learns). **`<ApprovalGate>` is a shared component** — "Send to
-{client}" primary, "Make changes" secondary, footer "Nothing is sent until you approve it"; the CI
-invariant (§3.7) proves no outbound path bypasses it. *Not yet built:* per-line provenance (today's line
-model is scalar; AI numbers are placeholders — §10.7), calibration loop, defensibility exports.
+{client}" primary, "Make changes" secondary, footer "Nothing is sent until you approve it". **The CI
+invariant (§3.7) is enforced** by `scripts/approval-gate.mjs` (in `verify`/CI): every outbound
+send/charge site is classified `system` / `contractor-action` / `client-action`, and a new unclassified
+send fails the build — proving no outbound path silently bypasses sign-off. Today all 10 outbound sites are
+either system mail to the account holder, contractor-initiated, or fired by the client's own action on
+already-approved content; **there is no autonomous client-facing send.** *Not yet built:* per-line
+provenance (today's line model is scalar; AI numbers are placeholders — §10.7), calibration loop,
+defensibility exports.
 
 ---
 
@@ -432,11 +438,11 @@ founder's hand.
 
 ---
 
-## 14. Open conflicts requiring founder decision — 🟡 14.1 DECIDED (retrofit); 14.6 RESOLVED (Soul); 14.2–14.5 open
+## 14. Conflicts & decisions — ✅ all resolved (14.1 retrofit · 14.2–14.5 closed this cycle · 14.6 Soul)
 
 *Per the sprint package's governing rule (§14): "Where existing repo specs conflict with this package,
-list the conflict and stop; do not resolve it yourself." These are surfaced for the founder; I have not
-picked a winner.*
+list the conflict and stop; do not resolve it yourself." Every item below has since been decided by the
+founder or closed by the shipped retrofit — this section is now a record, not an open queue.*
 
 **14.1 Architecture & palette — the biggest decision.** The canonical V1 specs describe a **ground-up
 rebuild**: a React/TypeScript component architecture (`components/eden/EdenOrb.tsx`, `voice/engine.ts`,
@@ -453,14 +459,16 @@ shipped feature, needs no missing build files, and is the fastest path to launch
 `docs/specs/eden-v1-retrofit-plan.md`. (Adopting the dark surface later would be a separate, explicit
 brand decision per `brand-standard.md`.)
 
-**14.2 Voice in V1 — resolvable, noted.** The voice spec says voice **ships in V1** and "supersedes the
-'voice deferred' line"; the blueprint and intake-v4 list "voice replies from Eden" as *not in V1*. The
-voice spec is the later, more-specific, explicitly-superseding doc → **voice is V1.** (Recorded, not a
-standing conflict — flagging so the blueprint/intake text gets the correction.)
+**14.2 Voice in V1 — ✅ RESOLVED (voice is V1, shipped).** The voice spec (later, explicitly-superseding)
+says voice **ships in V1**; the older blueprint/intake-v4 text listed it as not-in-V1. Decision: **voice is
+V1** — shipped behind the toggle via the moment-map dispatcher (§4, retrofit Slice 5), instrumented, with
+the >20%-disable fallback. Closed.
 
-**14.3 Intake architecture.** Today's intake is a stateless re-analysis loop (§5.5); the canonical v4 is a
-stateful client state machine with server awareness fields (`hasCompletedIntake`, `lastActivityAt`,
-`lastSpokenAt`, `sessionSpokenCount`, `lastSeenUpdateIds`). Building v4 is net-new work gated by 14.1.
+**14.3 Intake architecture — ✅ RESOLVED (v4 shipped).** The canonical v4 stateful intake with server
+awareness fields (`has_completed_intake`, `last_activity_at`, `last_spoken_at`, `last_seen_update_ids`) was
+**built into the vanilla-JS app** across retrofit Slices 1–7 (state machine, capture screen, offline queue,
+conversational setup, moment map, edit-and-learn review, numeric-ambiguity routing + transcript-from-review).
+The old stateless re-analysis loop is superseded. Closed.
 
 **14.4 My shipped Launch-Readiness work diverges from the now-canonical blueprint §5 — needs rework:**
 - **Delete flow:** I shipped *immediate hard-delete*; the blueprint requires **30-day grace + data export
@@ -478,11 +486,13 @@ stateful client state machine with server awareness fields (`hasCompletedIntake`
   *All four §14.4 corrections are now shipped: 30-day-grace delete + export (C-4), zero native dialogs,
   voice settings → profile (AC-18), and dual email identity.*
 
-**14.5 Missing reference builds.** The specs repeatedly say "port verbatim from" `eden-intake-v3.jsx`,
-`eden-intake-v4.jsx`, `eden-intake-v5.jsx`, and `login-handoff.jsx` (the canvas orb, `ORB_PARAMS`/
-`SPEAK_PARAMS`, the handoff timing). **None were provided.** A faithful "port" is impossible without them;
-building the V1 screens needs either those four files or an explicit instruction to reconstruct the orb/
-handoff from the prose specs (which I will not do silently).
+**14.5 Missing reference builds — ✅ CLOSED (mooted by the retrofit decision).** The specs said "port
+verbatim from" `eden-intake-v3/v4/v5.jsx` and `login-handoff.jsx` (the canvas orb, `ORB_PARAMS`/
+`SPEAK_PARAMS`, handoff timing); none were provided. The §14.1 **RETROFIT** decision resolves this: V1 was
+built into the existing vanilla-JS app keeping the **protected paper palette and the existing SVG orb**, with
+the Fable specs canonical for **behavior, state machine, moment map, and copy** — not the canvas orb or dark
+stack. So the missing `.jsx` files are **not needed** and nothing was reconstructed silently. (Adopting the
+canvas orb / dark surface later remains a separate, explicit brand decision.) Closed.
 
 **14.6 Soul ↔ product conflict — "one Eden" vs the Name Trial System — ✅ RESOLVED in favor of the Soul
 (v1.0 consistency review).** *The Soul (supreme):* "there is one Eden. A million contractors, one character
