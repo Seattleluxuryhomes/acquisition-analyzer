@@ -3678,8 +3678,16 @@ async function doForgot(){
   if(!email){ state.authError='Enter your email.'; render(); return; }
   if(!online){ state.authError='Connect to the internet to reset your password.'; render(); return; }
   state.authError='';
-  try{ await api('/api/auth/reset',{method:'POST',body:JSON.stringify({email})}); }catch(e){}
-  state.authSent=true; render(); // generic confirmation regardless (no account enumeration)
+  let r=null;
+  try{ r=await api('/api/auth/reset',{method:'POST',body:JSON.stringify({email})}); }catch(e){}
+  // Never claim we sent an email we didn't (Soul: never hide a failure). `sent` reflects
+  // whether email is configured server-wide — NOT whether the account exists — so surfacing
+  // it doesn't leak account existence.
+  if(r && r.sent===false){
+    state.authError='Password reset by email isn’t turned on yet. Email support@bidvoice.ai and we’ll reset it for you.';
+    render(); return;
+  }
+  state.authSent=true; render(); // generic confirmation (no account enumeration)
 }
 async function doReset(){
   const p=((document.getElementById('resetPass')||{}).value)||'';

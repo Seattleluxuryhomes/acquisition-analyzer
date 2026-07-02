@@ -287,7 +287,9 @@ app.post("/api/auth/reset", wrap(async (req, res) => {
     const link = `${baseUrl(req)}/reset?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
     const m = Emails.passwordReset(baseUrl(req), { link });
     try { await Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }); }
-    catch { /* never surface send errors to the caller (no enumeration) */ }
+    // Never surface send errors to the caller (no enumeration) — but DO log server-side so a
+    // configured-but-failing provider (e.g. unverified BT_MAIL_FROM) is diagnosable.
+    catch (e) { console.warn("[mail] password-reset send failed:", (e && (e.detail || e.message)) || e); }
   }
   res.json({ ok: true, sent: Mail.mailConfigured() });
 }));
@@ -308,7 +310,8 @@ app.post("/api/auth/resend-verification", requireAuth, wrap(async (req, res) => 
   if (vt && vt.token && Mail.mailConfigured()) {
     const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(vt.token)}&e=${encodeURIComponent(req.user.email)}`;
     const m = Emails.verifyEmail(baseUrl(req), { link, name: req.user.name || "" });
-    try { await Mail.sendMail({ to: req.user.email, subject: m.subject, html: m.html, text: m.text }); } catch { /* never surface send errors */ }
+    try { await Mail.sendMail({ to: req.user.email, subject: m.subject, html: m.html, text: m.text }); }
+    catch (e) { console.warn("[mail] verification send failed:", (e && (e.detail || e.message)) || e); }
   }
   res.json({ ok: true, sent: Mail.mailConfigured() });
 }));
@@ -1742,7 +1745,12 @@ app.get("*", (req, res, next) => {
 
 const PORT = process.env.BT_PORT || process.env.PORT || 4000;
 try { const n = purgeExpiredDeletions(); if (n) console.log(`Purged ${n} account(s) past their 30-day deletion grace.`); } catch { /* never block boot */ }
-app.listen(PORT, () => console.log(`BidVoice on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`BidVoice on http://localhost:${PORT}`);
+  // Make an unconfigured mail provider obvious in the logs — otherwise password-reset /
+  // verification emails silently no-op (set RESEND_API_KEY + a verified BT_MAIL_FROM).
+  if (!Mail.mailConfigured()) console.warn("[mail] RESEND_API_KEY not set — password-reset and verification emails are DISABLED.");
+});
 // Pull the real plan + setup-fee prices from Stripe so the paywall shows exactly
 // what checkout charges. Fire-and-forget; the UI falls back to defaults until ready.
 Billing.loadPrices().catch(() => {});
