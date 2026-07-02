@@ -89,7 +89,13 @@ app.use((req, res, next) => {
   // so local dev on localhost is never redirected.
   const needHost = !!CANONICAL_HOST && !!proto && !!hostName && hostName !== CANONICAL_HOST;
   if (needHttps || needHost) {
-    return res.redirect(307, "https://" + (needHost ? CANONICAL_HOST : host) + req.originalUrl);
+    // 301 permanent: this is how search engines consolidate all authority onto the one
+    // canonical origin (old domain / www / http → https://<canonical>). A temporary
+    // redirect (307) would leave Google treating the variants as separate sites and split
+    // the ranking. Cross-origin traffic here is GET (crawlers, old links, browser address
+    // bar); API callers (Stripe, webhooks) are configured against the canonical host
+    // directly, so they never bounce through this hop.
+    return res.redirect(301, "https://" + (needHost ? CANONICAL_HOST : host) + req.originalUrl);
   }
   if (proto === "https" && FORCE_HTTPS) res.setHeader("Strict-Transport-Security", "max-age=15552000");
   next();

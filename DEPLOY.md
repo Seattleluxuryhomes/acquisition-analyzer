@@ -1,4 +1,9 @@
-# Deploying Bidtranslator on Spaceship → bidtranslator.com
+# Deploying BidVoice → bidvoice.ai
+
+> **Canonical domain: `bidvoice.ai`.** The retired `bidtranslator.com` must 301-redirect
+> to it, never run as a second live site. Set `BT_PUBLIC_URL`, `BT_CANONICAL_HOST`, and
+> `BT_SITE_DOMAIN` to `bidvoice.ai`. Full inventory + cutover steps:
+> **`docs/canonical-domain-audit.md`**.
 
 The app is one container. The recommended path on Spaceship is **Starlight
 Hyperlift** (deploys a Docker image straight from a GitHub repo). A `Dockerfile`
@@ -21,7 +26,9 @@ is included, so there's nothing to build by hand.
    | Key | Value |
    |---|---|
    | `BT_SIGNING_SECRET` | a long random string (one was generated for you — see chat, or run `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) |
-   | `BT_PUBLIC_URL` | `https://bidtranslator.com` |
+   | `BT_PUBLIC_URL` | `https://bidvoice.ai` |
+   | `BT_CANONICAL_HOST` | `bidvoice.ai` |
+   | `BT_SITE_DOMAIN` | `bidvoice.ai` |
 
    Add these later when you have them (optional):
 
