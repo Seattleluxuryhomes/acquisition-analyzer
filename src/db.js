@@ -471,6 +471,29 @@ CREATE TABLE IF NOT EXISTS project_state (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS pstate_user_idx ON project_state(user_id, health);
+
+-- referral_credit: the append-only referral ledger (Commercial Architecture v1.0 §5).
+-- Give-a-month / get-a-month, capped 12/calendar-year. Every earned and applied credit
+-- is one immutable row — auditable, deterministic. Stripe holds the actual money
+-- (customer balance / coupon); this table is WHY each credit exists + idempotency + cap.
+-- Rows are never mutated except to stamp applied_at/status when Stripe applies them.
+CREATE TABLE IF NOT EXISTS referral_credit (
+  id            TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL,            -- who the credit belongs to (referrer, or referee for welcome)
+  kind          TEXT NOT NULL,            -- 'referrer_reward' | 'referee_welcome'
+  referee_id    TEXT,                     -- the referred company (identifies the reward-triggering account)
+  amount_cents  INTEGER NOT NULL,         -- credit value in cents (one month), positive
+  currency      TEXT DEFAULT 'usd',
+  status        TEXT DEFAULT 'earned',    -- 'earned' | 'applied' | 'void'
+  stripe_txn_id TEXT,                     -- Stripe customer_balance_transaction id (for referrer_reward)
+  reason        TEXT,                     -- 'month_two_completed' | 'signup_welcome'
+  year          INTEGER NOT NULL,         -- calendar year the credit was earned (the 12/yr cap window)
+  created_at    INTEGER NOT NULL,
+  applied_at    INTEGER
+);
+CREATE INDEX IF NOT EXISTS refcredit_user_idx ON referral_credit(user_id, year);
+-- One reward per referred company, and one welcome per referee — idempotency at the DB.
+CREATE UNIQUE INDEX IF NOT EXISTS refcredit_reward_uniq ON referral_credit(referee_id, kind);
 `);
 
 // Migrate older databases that predate the billing columns.
@@ -520,6 +543,17 @@ ensureColumns("user", [
   ["referral_code", "TEXT"],
   ["referred_by", "TEXT"],
   ["locked_monthly", "REAL"],
+  // Founding Member grandfathering (Commercial Architecture v1.0 §4 / §10). Captured
+  // automatically from Stripe when a contractor's subscription first activates = the
+  // monthly price (cents) they signed up at, locked while the account stays active.
+  // Cleared on full cancellation so a returning customer gets whatever price is current
+  // then (Stripe naturally keeps active subs on their original Price — no migration = no
+  // change; this field is the auditable record of what they pay). No manual intervention.
+  ["founding_price_cents", "INTEGER"],
+  ["founding_member", "INTEGER DEFAULT 0"],
+  // Count of PAID subscription invoices — drives the referral month-two grant trigger
+  // (the referrer earns their credit once a referred company pays their 2nd invoice).
+  ["paid_invoice_count", "INTEGER DEFAULT 0"],
   // Customer-facing website: services offered (JSON array of trade keys), a hero
   // tagline, and a brand accent color. Drive the per-contractor site at /c/:id.
   ["services", "TEXT"],
