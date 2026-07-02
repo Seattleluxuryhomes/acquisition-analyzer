@@ -1824,8 +1824,8 @@ function funnelsBlock(){
 async function createFunnel(btn){
   if(!online||!TOKEN){ toast('Connect to the internet.','warn'); return; }
   const svcKeys=(SETTINGS.services||[]);
-  const service = svcKeys.length===1 ? svcKeys[0] : (prompt('Which service is this offer for? (e.g. roofing, fencing, excavation)')||'').trim();
-  const offer = (prompt('What\'s the offer? (e.g. Free Estimate, Free Roof Inspection)','Free Estimate')||'').trim();
+  const service = svcKeys.length===1 ? svcKeys[0] : ((await edenPrompt({title:'Which service is this offer for?',placeholder:'e.g. roofing, fencing, excavation'}))||'').trim();
+  const offer = ((await edenPrompt({title:'What’s the offer?',value:'Free Estimate',placeholder:'e.g. Free Estimate, Free Roof Inspection'}))||'').trim();
   if(!offer){ return; }
   if(btn){ btn.disabled=true; btn.textContent='Building your page…'; }
   try{
@@ -1838,7 +1838,7 @@ async function createFunnel(btn){
   if(btn){ btn.disabled=false; btn.textContent='Create an offer page'; }
 }
 function copyFunnel(id){ edenCopy(location.origin+'/f/'+id, 'Link copied.'); }
-async function delFunnel(id){ if(!confirm('Delete this offer page?'))return; try{ await api('/api/funnels/'+id,{method:'DELETE'}); FUNNELS.items=(FUNNELS.items||[]).filter(f=>f.id!==id); render(); }catch(e){} }
+async function delFunnel(id){ if(!await edenConfirm({title:'Delete this offer page?',okLabel:'Delete',danger:true}))return; try{ await api('/api/funnels/'+id,{method:'DELETE'}); FUNNELS.items=(FUNNELS.items||[]).filter(f=>f.id!==id); render(); }catch(e){} }
 
 /* ===== Outbound Prospecting (Gojiberry) — founder-only ===== */
 let PROSPECT={config:null,results:[],saved:[],counts:{},loaded:false,searching:false};
@@ -1865,7 +1865,7 @@ async function prospectSaveAll(){
 }
 async function prospectStatus(id,status){ try{ const r=await api('/api/prospects/'+id,{method:'PATCH',body:JSON.stringify({status})}); PROSPECT.saved=PROSPECT.saved.map(p=>p.id===id?r.prospect:p); PROSPECT.counts=r.counts||PROSPECT.counts; render(); }catch(e){} }
 async function prospectNote(id,notes){ try{ await api('/api/prospects/'+id,{method:'PATCH',body:JSON.stringify({notes})}); }catch(e){} }
-async function prospectDelete(id){ if(!confirm('Remove this prospect?'))return; try{ const r=await api('/api/prospects/'+id,{method:'DELETE'}); PROSPECT.saved=PROSPECT.saved.filter(p=>p.id!==id); PROSPECT.counts=r.counts||PROSPECT.counts; render(); }catch(e){} }
+async function prospectDelete(id){ if(!await edenConfirm({title:'Remove this prospect?',okLabel:'Remove',danger:true}))return; try{ const r=await api('/api/prospects/'+id,{method:'DELETE'}); PROSPECT.saved=PROSPECT.saved.filter(p=>p.id!==id); PROSPECT.counts=r.counts||PROSPECT.counts; render(); }catch(e){} }
 // Export the CRM as CSV — the handoff into Instantly (email) / LinkedHelper. Authenticated
 // fetch → Blob → download (a plain <a href> can't carry the bearer token).
 async function prospectExportCsv(){
@@ -1951,7 +1951,7 @@ async function vendorSave(){
   }catch(e){ toast(e.message||'Could not add.','bad'); }
 }
 async function vendorNote(id,notes){ try{ await api('/api/vendors/'+id,{method:'PATCH',body:JSON.stringify({notes})}); const v=VENDORS.items.find(x=>x.id===id); if(v) v.notes=notes; }catch(e){} }
-async function vendorDelete(id){ if(!confirm('Remove this vendor?'))return; try{ const r=await api('/api/vendors/'+id,{method:'DELETE'}); VENDORS.items=VENDORS.items.filter(v=>v.id!==id); VENDORS.count=r.count||VENDORS.count; render(); }catch(e){} }
+async function vendorDelete(id){ if(!await edenConfirm({title:'Remove this vendor?',okLabel:'Remove',danger:true}))return; try{ const r=await api('/api/vendors/'+id,{method:'DELETE'}); VENDORS.items=VENDORS.items.filter(v=>v.id!==id); VENDORS.count=r.count||VENDORS.count; render(); }catch(e){} }
 // One-tap quote request — opens a text prefilled with who you are + what they carry.
 function vendorQuote(id){
   const v=VENDORS.items.find(x=>x.id===id); if(!v) return;
@@ -2124,7 +2124,7 @@ async function startCheckout(btn){
 async function openPortal(btn){
   if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
   try{ const r=await api('/api/billing/portal',{method:'POST'}); window.location.href=r.url; }
-  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Manage billing'; } alert(e.message||'Could not open billing.'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Manage billing'; } toast(e.message||'Could not open billing.','bad'); }
 }
 // Route gated 402s to the paywall.
 function gate402(e){ if(e && e.status===402){ loadBilling().then(()=>go('paywall')); return true; } return false; }
@@ -2152,11 +2152,11 @@ async function loadBrain(){
 async function connectQuickbooks(btn){
   if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
   try{ const r=await api('/api/quickbooks/connect',{method:'POST'}); window.location.href=r.url; }
-  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Connect QuickBooks'; } alert(e.message||'QuickBooks isn’t set up on the server yet.'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Connect QuickBooks'; } toast(e.message||'QuickBooks isn’t set up on the server yet.','bad'); }
 }
 async function disconnectQuickbooks(){
-  if(!confirm('Disconnect QuickBooks? New payments will stop syncing to your books.')) return;
-  try{ await api('/api/quickbooks/disconnect',{method:'POST'}); QBO=Object.assign({},QBO||{},{connected:false}); localStorage.setItem('bt_qbo',JSON.stringify(QBO)); render(); }catch(e){ alert('Could not disconnect.'); }
+  if(!await edenConfirm({title:'Disconnect QuickBooks?',body:'New payments will stop syncing to your books.',okLabel:'Disconnect',danger:true})) return;
+  try{ await api('/api/quickbooks/disconnect',{method:'POST'}); QBO=Object.assign({},QBO||{},{connected:false}); localStorage.setItem('bt_qbo',JSON.stringify(QBO)); render(); }catch(e){ toast('Could not disconnect.','bad'); }
 }
 function quickbooksSection(){
   if(!QBO || !QBO.configured) return ''; // hidden until the server has QuickBooks keys
@@ -2189,7 +2189,7 @@ function paymentsReady(){ return !!(PAYMENTS && PAYMENTS.configured && PAYMENTS.
 async function startConnect(btn){
   if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
   try{ const r=await api('/api/payments/connect',{method:'POST'}); window.location.href=r.url; }
-  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Set up payments'; } if(!gate402(e)) alert(e.message||'Could not start payment setup.'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Set up payments'; } if(!gate402(e)) toast(e.message||'Could not start payment setup.','bad'); }
 }
 async function loadJobPayReqs(jobId){
   if(!TOKEN || !online) return;
@@ -3289,8 +3289,8 @@ function installApp(){
   if(isStandalone()){ toast('BidVoice is already on your home screen.','ok'); return; }
   if(deferredInstall){ deferredInstall.prompt(); deferredInstall.userChoice.then(()=>{ deferredInstall=null; }).catch(()=>{}); return; }
   const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  if(ios){ alert('Add BidVoice to your home screen:\n\n1.  Tap the Share button at the bottom of Safari\n2.  Scroll down and tap "Add to Home Screen"\n3.  Tap "Add"'); }
-  else { alert('Add BidVoice to your home screen:\n\nOpen your browser menu and choose "Install app" or "Add to Home screen."'); }
+  if(ios){ edenAlert('Add BidVoice to your home screen','1.  Tap the Share button at the bottom of Safari\n2.  Scroll down and tap “Add to Home Screen”\n3.  Tap “Add”','Got it'); }
+  else { edenAlert('Add BidVoice to your home screen','Open your browser menu and choose “Install app” or “Add to Home screen.”','Got it'); }
 }
 // Register the service worker (installability + offline launch). Best-effort.
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
@@ -3299,7 +3299,7 @@ function closeMore(){ const s=document.getElementById('sheet'); if(s) s.style.di
 /* ----- Center action button: voice-first new proposal (tap), menu (long-press) ----- */
 // Tap → straight into capture with the mic already listening (the core workflow:
 // Speak → Generate → Send → Get Paid). Falls back silently if speech is unavailable.
-function fabTap(){ if(!entitled()){ go('paywall'); return; }
+async function fabTap(){ if(!entitled()){ go('paywall'); return; }
   // On the capture screen the center nav mic is ALSO a record toggle (alongside the
   // floating Record button) — both reach the same recording. Tap to start/stop.
   if(state.view==='capture' && !state.loading){ micTap(); return; }
@@ -3307,7 +3307,7 @@ function fabTap(){ if(!entitled()){ go('paywall'); return; }
   // on the capture screen, confirm before clearing them for a brand-new bid.
   const ta=document.getElementById('capText');
   const hasDraft = !!((ta && ta.value.trim()) || (CAP_DRAFT.text||'').trim());
-  if(state.view==='capture' && hasDraft && !confirm('Start a new bid? Your current voice notes will be cleared.')) return;
+  if(state.view==='capture' && hasDraft && !await edenConfirm({title:'Start a new bid?',body:'Your current voice notes will be cleared.',okLabel:'Start new',cancelLabel:'Keep editing'})) return;
   freshCapture(); go('capture','new'); requestAnimationFrame(animateMicGrow); }
 function openCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='flex'; }
 function closeCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='none'; }
@@ -3425,7 +3425,7 @@ function referralLadderHTML(){
 function openMySite(){ closeMore(); if(!USER||!USER.id){ toast('Sign in first.','warn'); return; } window.open('/c/'+USER.id, '_blank'); }
 async function requestCustomSite(btn){
   if(!online||!TOKEN){ toast('Connect to the internet to send your request.','warn'); return; }
-  const note=(prompt('Anything you want on it? (optional — pages, your domain, the look you want)')||'').trim();
+  const note=((await edenPrompt({title:'Anything you want on it?',body:'Optional — pages, your domain, the look you want.',placeholder:'Optional',okLabel:'Send request'}))||'').trim();
   if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
   try{
     const r=await api('/api/me/site-request',{method:'POST',body:JSON.stringify({note})});
@@ -3520,7 +3520,7 @@ function viewPaywall(){
 }
 function interestDone(f){ try{ return localStorage.getItem('bt_interest_'+f)==='1'; }catch(e){ return false; } }
 async function notifyInterest(feature, btn){
-  if(!TOKEN || !online){ alert('Connect to the internet to join the list.'); return; }
+  if(!TOKEN || !online){ toast('Connect to the internet to join the list.','warn'); return; }
   const old=btn.textContent; btn.disabled=true; btn.textContent='Adding…';
   try{
     const r=await api('/api/interest',{method:'POST',body:JSON.stringify({feature})});
@@ -3528,7 +3528,7 @@ async function notifyInterest(feature, btn){
     const n=(r&&r.count)||1;
     const box=document.getElementById('teamInterest');
     if(box) box.innerHTML=`<button class="btn ghost full" disabled>${icon('check',14)} You're on the list${n>1?` — ${n} contractors want this`:''}</button>`;
-  }catch(e){ btn.disabled=false; btn.textContent=old; alert('Could not save right now — please try again.'); }
+  }catch(e){ btn.disabled=false; btn.textContent=old; toast('Could not save right now — please try again.','bad'); }
 }
 
 /* ---------- AUTH ---------- */
@@ -3770,12 +3770,12 @@ const TRADE_TEMPLATES = {
     {section:'Finish', desc:'Trim, doors & hardware'},
     {section:'Finish', desc:'Final cleanup'} ] },
 };
-function applyTemplate(trade){
+async function applyTemplate(trade){
   if(!trade) return;
   const j=currentJob(); if(!j) return;
   const tpl=TRADE_TEMPLATES[trade]; if(!tpl) return;
   const hasContent=(j.lines||[]).some(l=>l.desc||l.price||l.hours||l.rate);
-  if(hasContent && !confirm('Add the typical '+tpl.label+' line items? Your current lines stay — delete any you don’t need.')) return;
+  if(hasContent && !await edenConfirm({title:'Add the typical '+tpl.label+' line items?',body:'Your current lines stay — delete any you don’t need.',okLabel:'Add items'})) return;
   tpl.lines.forEach(t=>{ j.lines.push({id:uid(), section:t.section||'', desc:t.desc, type:t.type||'fixed', price:0, hours:0, rate:0, furn:'you'}); });
   track('feature_used', {feature:'trade_template', trade});
   touch(j); saveJobs(); render();
@@ -4802,10 +4802,10 @@ async function rebuildWithAI(id, btn){
   const j=JOBS.find(x=>x.id===id); if(!j) return;
   if(!entitled()){ go('paywall'); return; }
   const text=String(j.transcript||'').trim();
-  if(!text){ alert('Add the captured conversation in the box above first.'); return; }
-  if(!online){ alert('The AI build needs an internet connection.'); return; }
+  if(!text){ toast('Add the captured conversation in the box above first.','warn'); return; }
+  if(!online){ toast('The AI build needs an internet connection.','warn'); return; }
   if((j.lines||[]).some(l=>l.desc||l.price||l.hours||l.rate)
-     && !confirm('This replaces the current line items with a fresh AI draft. Continue?')){ return; }
+     && !await edenConfirm({title:'Replace the current line items?',body:'This rebuilds them as a fresh AI draft from the conversation.',okLabel:'Rebuild',danger:true})){ return; }
   const orig = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Building…'; }
   try{
@@ -4826,9 +4826,9 @@ async function rebuildWithAI(id, btn){
   }catch(e){
     if(e.status===402){ gate402(e); return; }
     if(btn){ btn.disabled=false; btn.textContent=orig||'Build the bid from this text'; }
-    alert(e.code==='AI_UNCONFIGURED'
+    toast(e.code==='AI_UNCONFIGURED'
       ? 'The AI build isn’t switched on yet — add your ANTHROPIC_API_KEY in the app settings to enable it.'
-      : ('Could not build the draft: '+(e.message||'error')));
+      : ('Could not build the draft: '+(e.message||'error')),'bad',5000);
   }
 }
 
@@ -5283,7 +5283,7 @@ async function shareBid(mode, btn){
   if(!online || !TOKEN){ toast('Connect to the internet to create a shareable bid link.','warn'); return; }
   // Gently nudge for a customer name — it personalizes the proposal greeting.
   if(!((j.customer||'').trim())){
-    if(!confirm('No customer name on this bid yet — it personalizes the proposal. Send anyway?')){ focusCustomer(); return; }
+    if(!await edenConfirm({title:'No customer name on this bid yet',body:'A name personalizes the proposal greeting.',okLabel:'Send anyway',cancelLabel:'Add a name'})){ focusCustomer(); return; }
   }
   const orig = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Preparing…'; }
@@ -5468,7 +5468,7 @@ function leadRow(l){
 }
 function refreshLeadList(){ const el=document.getElementById('leadList'); if(el) el.innerHTML=leadListHTML(); }
 async function setLeadStatus(id,status){ const l=(LEADS.items||[]).find(x=>x.id===id); if(l) l.status=status; LEADS_NEW=(LEADS.items||[]).filter(x=>x.status==='New').length; try{ await api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({status})}); }catch(e){ toast('Could not update the lead.','bad'); } }
-async function delLead(id){ if(!confirm('Delete this lead?')) return; LEADS.items=(LEADS.items||[]).filter(x=>x.id!==id); LEADS_NEW=LEADS.items.filter(x=>x.status==='New').length; refreshLeadList(); try{ await api('/api/leads/'+id,{method:'DELETE'}); }catch(e){} }
+async function delLead(id){ if(!await edenConfirm({title:'Delete this lead?',okLabel:'Delete',danger:true})) return; LEADS.items=(LEADS.items||[]).filter(x=>x.id!==id); LEADS_NEW=LEADS.items.filter(x=>x.status==='New').length; refreshLeadList(); try{ await api('/api/leads/'+id,{method:'DELETE'}); }catch(e){} }
 function openAddLead(){ const el=document.getElementById('leadAddSheet'); if(el) el.style.display='flex'; }
 function closeAddLead(){ const el=document.getElementById('leadAddSheet'); if(el) el.style.display='none'; }
 async function saveLead(){
@@ -5480,7 +5480,7 @@ async function saveLead(){
     closeAddLead(); await loadLeads(); toast('✓ Lead added','ok'); }
   catch(e){ toast(e.message||'Could not add the lead.','bad'); }
 }
-async function rotateLeadToken(){ if(!confirm('Reset your webhook link? The old link stops working immediately.')) return; try{ const r=await api('/api/leads/token/rotate',{method:'POST'}); LEADS.webhookUrl=r.webhookUrl; const el=document.getElementById('leadHook'); if(el) el.textContent=r.webhookUrl; toast('✓ New webhook link','ok'); }catch(e){ toast('Could not reset the link.','bad'); } }
+async function rotateLeadToken(){ if(!await edenConfirm({title:'Reset your webhook link?',body:'The old link stops working immediately.',okLabel:'Reset link',danger:true})) return; try{ const r=await api('/api/leads/token/rotate',{method:'POST'}); LEADS.webhookUrl=r.webhookUrl; const el=document.getElementById('leadHook'); if(el) el.textContent=r.webhookUrl; toast('✓ New webhook link','ok'); }catch(e){ toast('Could not reset the link.','bad'); } }
 // Convert a lead → seed the voice-first New Job with the lead's details, then open
 // it so the contractor records the rest and builds the bid.
 function convertLead(id){
@@ -5550,7 +5550,7 @@ async function addSkuManual(btn){
   try{ await api('/api/skus',{method:'POST', body:JSON.stringify({ name, category:g('mCat').trim(), unit:g('mUnit'), unit_price:+g('mPrice')||0 })}); await loadSkus(); toast('✓ Added to price book','ok'); }
   catch(e){ toast(!online?'You’re offline — connect to add to the price book.':(e.message||'Could not add.'),'bad',5000); }
 }
-async function delSku(id){ if(!confirm('Remove this SKU?')) return; try{ await api('/api/skus/'+id,{method:'DELETE'}); CATALOG.skus=CATALOG.skus.filter(s=>s.id!==id); const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }catch(e){} }
+async function delSku(id){ if(!await edenConfirm({title:'Remove this SKU?',okLabel:'Remove',danger:true})) return; try{ await api('/api/skus/'+id,{method:'DELETE'}); CATALOG.skus=CATALOG.skus.filter(s=>s.id!==id); const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }catch(e){} }
 async function updSku(id,k,v){ const s=CATALOG.skus.find(x=>x.id===id); if(!s) return; s[k]=(k==='unit_price'?(+v||0):v); try{ await api('/api/skus/'+id,{method:'PATCH', body:JSON.stringify({[k]:s[k]})}); }catch(e){} }
 function skuSearch(v){ skuQ=v; const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }
 function previewRow(it,i){ return `<div class="skurow">
@@ -5637,7 +5637,7 @@ async function inviteSub(id, mode){
     const i=(TEAM.items||[]).findIndex(x=>x.id===id); if(i>=0) TEAM.items[i]=r.sub; TEAM.counts=r.counts; render(); }catch(e){}
 }
 async function deleteSubRow(id){
-  if(!confirm('Remove this sub from your crew?')) return;
+  if(!await edenConfirm({title:'Remove this sub from your crew?',okLabel:'Remove',danger:true})) return;
   try{ const r=await api('/api/team/'+id,{method:'DELETE'}); TEAM.items=(TEAM.items||[]).filter(x=>x.id!==id); TEAM.counts=r.counts; render(); }catch(e){}
 }
 // True once the contractor has actually named their company (not the default).
@@ -5730,7 +5730,7 @@ async function sendDispatch(jobId){
   }catch(e){ toast(e.message||'Could not send.','bad'); }
 }
 async function acceptBidUI(jobId, did){
-  if(!confirm('Accept this bid? The other contractors will be declined.')) return;
+  if(!await edenConfirm({title:'Accept this bid?',body:'The other contractors will be declined.',okLabel:'Accept'})) return;
   try{ const r=await api('/api/jobs/'+jobId+'/dispatch/'+did+'/accept',{method:'POST'}); DISPATCHES[jobId]=r.dispatches||DISPATCHES[jobId]; render(); toast('Bid accepted.','ok'); }
   catch(e){ toast(e.message||'Could not accept.','bad'); }
 }
@@ -6030,7 +6030,7 @@ async function skuRowPhotoPick(input){
 }
 async function removeSkuPhoto(id, ev){
   if(ev){ ev.stopPropagation(); }
-  if(!confirm('Remove this photo?')) return;
+  if(!await edenConfirm({title:'Remove this photo?',okLabel:'Remove',danger:true})) return;
   try{ await api('/api/skus/'+id+'/image',{method:'DELETE'}); const s=(CATALOG.skus||[]).find(x=>x.id===id); if(s) s.image=null; const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }
   catch(e){ toast(e.message||'Could not remove the photo.','bad'); }
 }
@@ -6362,7 +6362,7 @@ function toggleAutoTranslate(){ SETTINGS.autoTranslate = !(SETTINGS.autoTranslat
 function uploadLogo(input, field){
   field = field || 'logo';
   const f=input.files&&input.files[0]; if(!f) return;
-  if(!/^image\//.test(f.type)){ alert('Please choose an image file.'); return; }
+  if(!/^image\//.test(f.type)){ toast('Please choose an image file.','warn'); return; }
   const reader=new FileReader();
   reader.onload=e=>{
     const img=new Image();
@@ -6373,10 +6373,10 @@ function uploadLogo(input, field){
       c.getContext('2d').drawImage(img,0,0,w,h);
       let data=c.toDataURL('image/png');
       if(data.length>180000) data=c.toDataURL('image/jpeg',0.85);
-      if(data.length>240000){ alert('That image is too detailed — try a simpler or smaller logo.'); return; }
+      if(data.length>240000){ toast('That image is too detailed — try a simpler or smaller logo.','warn',5000); return; }
       setS(field,data); render();
     };
-    img.onerror=()=>alert('Could not read that image.');
+    img.onerror=()=>toast('Could not read that image.','bad');
     img.src=e.target.result;
   };
   reader.readAsDataURL(f);
@@ -6659,7 +6659,7 @@ async function uploadJobDoc(input){
   persist(); if(state.view==='job') render(); if(ok) toast('✓ '+ok+' document'+(ok===1?'':'s')+' uploaded','ok');
 }
 async function deleteJobDoc(jobId,docId){
-  if(!confirm('Remove this document?')) return;
+  if(!await edenConfirm({title:'Remove this document?',okLabel:'Remove',danger:true})) return;
   const j=currentJob();
   try{ await api('/api/jobs/'+jobId+'/documents/'+docId,{method:'DELETE'}); if(j) j.documents=(j.documents||[]).filter(d=>d.id!==docId); persist(); render(); }
   catch(e){ toast(e.message||'Could not remove.','bad'); }
@@ -6675,8 +6675,8 @@ function permitToLine(id){ const j=currentJob(); const p=(j.permits||[]).find(x=
 }
 function updJob(k,v){ const j=currentJob(); j[k]=(k==='margin'||k==='deposit_pct'||k==='tax_rate')?(+v||0):v; touch(j); saveJobs(); if(k==='margin'||k==='tax_rate') refreshTotals(j); }
 function updList(k,v){ const j=currentJob(); j[k]=String(v).split('\n').map(s=>s.trim()).filter(Boolean); touch(j); saveJobs(); }
-function deleteJob(id){
-  if(!confirm('Delete this job? This removes it from all your devices.')) return;
+async function deleteJob(id){
+  if(!await edenConfirm({title:'Delete this job?',body:'This removes it from all your devices.',okLabel:'Delete',danger:true})) return;
   const j=JOBS.find(x=>x.id===id); if(!j) return;
   j._deleted=true; j._dirty=true; persist();
   state.view='home'; render(); syncNow();

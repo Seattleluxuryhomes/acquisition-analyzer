@@ -10,8 +10,9 @@
     "soul-guard": "node scripts/soul-guard.mjs",
     "brand-check": "node scripts/brand-check.mjs",
     "brand-sync": "node scripts/sync-brand-assets.mjs",
-    "brand-verify": "node scripts/soul-guard.mjs && node scripts/brand-check.mjs && node scripts/sync-brand-assets.mjs --check",
-    "verify": "node scripts/soul-guard.mjs && node scripts/brand-check.mjs && node scripts/sync-brand-assets.mjs --check"
+    "check-dialogs": "node scripts/no-native-dialogs.mjs",
+    "brand-verify": "node scripts/soul-guard.mjs && node scripts/brand-check.mjs && node scripts/no-native-dialogs.mjs && node scripts/sync-brand-assets.mjs --check",
+    "verify": "node scripts/soul-guard.mjs && node scripts/brand-check.mjs && node scripts/no-native-dialogs.mjs && node scripts/sync-brand-assets.mjs --check"
   },
   "dependencies": {
     "express": "^4.19.2",
