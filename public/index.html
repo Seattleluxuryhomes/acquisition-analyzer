@@ -1837,7 +1837,7 @@ async function createFunnel(btn){
   }catch(e){ toast(e.status===402?'Subscribe to use AI features.':(e.message||'Could not create.'),'bad',5000); }
   if(btn){ btn.disabled=false; btn.textContent='Create an offer page'; }
 }
-function copyFunnel(id){ const link=location.origin+'/f/'+id; try{ navigator.clipboard.writeText(link); toast('Link copied.','ok'); }catch(e){ prompt('Copy:',link); } }
+function copyFunnel(id){ edenCopy(location.origin+'/f/'+id, 'Link copied.'); }
 async function delFunnel(id){ if(!confirm('Delete this offer page?'))return; try{ await api('/api/funnels/'+id,{method:'DELETE'}); FUNNELS.items=(FUNNELS.items||[]).filter(f=>f.id!==id); render(); }catch(e){} }
 
 /* ===== Outbound Prospecting (Gojiberry) — founder-only ===== */
@@ -2119,7 +2119,7 @@ async function startCheckout(btn){
   const label = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Opening checkout…'; }
   try{ const r=await api('/api/billing/checkout',{method:'POST'}); window.location.href=r.url; }
-  catch(e){ if(btn){ btn.disabled=false; btn.textContent=label||'Subscribe'; } if(!gate402(e)) alert(e.message||'Could not start checkout.'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent=label||'Subscribe'; } if(!gate402(e)) toast(e.message||'Could not start checkout.','bad'); }
 }
 async function openPortal(btn){
   if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
@@ -2207,7 +2207,7 @@ async function createPayReq(jobId, btn){
   const amount=+(amtEl&&amtEl.value)||0;
   const clientName=(nameEl&&nameEl.value||'').trim();
   const purpose=(purpEl&&purpEl.value||'').trim();
-  if(amount<1){ alert('Enter an amount of at least $1.'); return; }
+  if(amount<1){ toast('Enter an amount of at least $1.','warn'); return; }
   const j=JOBS.find(x=>x.id===jobId);
   // The client sees the purpose on their checkout ("Materials deposit — Kitchen").
   const description=[purpose, (j&&j.title)||''].filter(Boolean).join(' — ') || 'Construction work';
@@ -2216,17 +2216,17 @@ async function createPayReq(jobId, btn){
     const r=await api('/api/payments/requests',{method:'POST', body:JSON.stringify({ amount, clientName, jobId, description })});
     PAYREQS[jobId]=[r.request, ...(PAYREQS[jobId]||[])];
     render();
-  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Create payment link'; } if(!gate402(e)) alert(e.message||'Could not create the payment link.'); }
+  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Create payment link'; } if(!gate402(e)) toast(e.message||'Could not create the payment link.','bad'); }
 }
 async function cancelPayReq(jobId, id){
-  if(!confirm('Cancel this payment request?')) return;
+  if(!await edenConfirm({ title:'Cancel this payment request?', okLabel:'Cancel request', cancelLabel:'Keep it' })) return;
   try{ const r=await api('/api/payments/requests/'+id+'/cancel',{method:'POST'});
     PAYREQS[jobId]=(PAYREQS[jobId]||[]).map(x=>x.id===id?r.request:x); render();
-  }catch(e){ alert(e.message||'Could not cancel.'); }
+  }catch(e){ toast(e.message||'Could not cancel.','bad'); }
 }
 async function copyPayLink(url, btn){
   try{ await navigator.clipboard.writeText(url); if(btn){ const t=btn.textContent; btn.textContent='Copied ✓'; setTimeout(()=>btn.textContent=t,1500); } }
-  catch(e){ prompt('Copy this payment link:', url); }
+  catch(e){ edenCopy(url, 'Payment link copied.'); }
 }
 
 /* ============ local persistence ============ */
@@ -5776,7 +5776,7 @@ function renderDrawBody(j){
     <div id="drawResult"></div>`;
 }
 function closeDraw(){ const el=document.getElementById('drawSheet'); if(el) el.style.display='none'; }
-function copyDrawLink(link){ try{ navigator.clipboard.writeText(link); toast('Link copied — text it to the owner or bank.','ok'); }catch(e){ prompt('Copy this link:', link); } }
+function copyDrawLink(link){ edenCopy(link, 'Link copied — text it to the owner or bank.'); }
 async function sendDraw(jobId){
   const amt=parseFloat((document.getElementById('drawAmt')||{}).value||'0');
   if(!(amt>=1)){ toast('Enter a draw amount of at least $1.','warn'); return; }
@@ -5834,7 +5834,7 @@ function renderCOBody(j){
     <button class="btn full" style="margin-top:12px" onclick="sendCO('${j.id}')">Create change order</button>
     <div id="coResult"></div>`;
 }
-function copyCOLink(link){ try{ navigator.clipboard.writeText(link); toast('Link copied — text it to your client.','ok'); }catch(e){ prompt('Copy this link:', link); } }
+function copyCOLink(link){ edenCopy(link, 'Link copied — text it to your client.'); }
 async function sendCO(jobId){
   const title=(document.getElementById('coTitle')||{}).value||'';
   const description=(document.getElementById('coDesc')||{}).value||'';
@@ -6449,6 +6449,65 @@ function edenConfirm(opts){
     };
     setTimeout(()=>{ const f=card.querySelector(need?'#edenConfirmType':'#edenConfirmOk'); if(f) f.focus(); },50);
   });
+}
+// In-app alert — one branded modal, single OK. Replaces window.alert so nothing
+// ever pops an unbranded OS dialog (blueprint §5: zero window.alert/confirm/prompt).
+function edenAlert(title, body, okLabel){
+  return new Promise((resolve)=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+    const card=document.createElement('div');
+    card.style.cssText='background:var(--card,#fff);color:var(--text,#1F252C);max-width:400px;width:100%;border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4)';
+    card.innerHTML='<div style="font-family:Archivo,sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:8px">'+esc(title||'Heads up')+'</div>'+
+      (body?'<div style="font-size:.92rem;color:var(--muted,#5c6270);line-height:1.5;white-space:pre-line">'+esc(body)+'</div>':'')+
+      '<div style="display:flex;margin-top:16px"><button id="edenAlertOk" class="btn" style="flex:1">'+esc(okLabel||'OK')+'</button></div>';
+    ov.appendChild(card); document.body.appendChild(ov);
+    const done=()=>{ try{ ov.remove(); }catch(_){} document.removeEventListener('keydown',onKey); resolve(true); };
+    const onKey=(e)=>{ if(e.key==='Escape'||e.key==='Enter') done(); };
+    document.addEventListener('keydown',onKey);
+    ov.addEventListener('click',(e)=>{ if(e.target===ov) done(); });
+    card.querySelector('#edenAlertOk').onclick=done;
+    setTimeout(()=>{ const f=card.querySelector('#edenAlertOk'); if(f) f.focus(); },50);
+  });
+}
+// In-app prompt — branded modal with a text field. Resolves the trimmed string, or
+// null on cancel. Replaces window.prompt.
+function edenPrompt(opts){
+  opts=opts||{};
+  return new Promise((resolve)=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+    const card=document.createElement('div');
+    card.style.cssText='background:var(--card,#fff);color:var(--text,#1F252C);max-width:400px;width:100%;border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4)';
+    card.innerHTML='<div style="font-family:Archivo,sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:8px">'+esc(opts.title||'')+'</div>'+
+      (opts.body?'<div style="font-size:.92rem;color:var(--muted,#5c6270);line-height:1.5;margin-bottom:8px">'+esc(opts.body)+'</div>':'')+
+      '<input id="edenPromptIn" class="input" '+(opts.readonly?'readonly ':'')+'placeholder="'+escAttr(opts.placeholder||'')+'" autocomplete="off"/>'+
+      '<div style="display:flex;gap:10px;margin-top:16px">'+
+        (opts.hideCancel?'':'<button id="edenPromptCancel" class="btn ghost" style="flex:1">'+esc(opts.cancelLabel||'Cancel')+'</button>')+
+        '<button id="edenPromptOk" class="btn" style="flex:1">'+esc(opts.okLabel||'OK')+'</button>'+
+      '</div>';
+    ov.appendChild(card); document.body.appendChild(ov);
+    const inp=card.querySelector('#edenPromptIn'); if(inp) inp.value=opts.value||'';
+    const done=(v)=>{ try{ ov.remove(); }catch(_){} document.removeEventListener('keydown',onKey); resolve(v); };
+    const submit=()=>done(inp?(inp.value||'').trim():'');
+    const onKey=(e)=>{ if(e.key==='Escape') done(null); else if(e.key==='Enter' && !opts.readonly) submit(); };
+    document.addEventListener('keydown',onKey);
+    ov.addEventListener('click',(e)=>{ if(e.target===ov) done(null); });
+    const c=card.querySelector('#edenPromptCancel'); if(c) c.onclick=()=>done(null);
+    card.querySelector('#edenPromptOk').onclick=submit;
+    setTimeout(()=>{ if(inp){ inp.focus(); if(opts.readonly) try{ inp.select(); }catch(_){} } },50);
+  });
+}
+// Copy to clipboard with a graceful, still-in-app fallback: if the async clipboard
+// API is blocked, show the text pre-selected in a modal to copy by hand (no window.prompt).
+function edenCopy(text, okMsg){
+  const t=String(text||'');
+  const fallback=()=>edenPrompt({ title:'Copy this', value:t, readonly:true, hideCancel:true, okLabel:'Done' });
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(()=>toast(okMsg||'Copied.','ok'), fallback);
+    } else fallback();
+  }catch(e){ fallback(); }
 }
 // Portability (Soul: no data hostage). Download the full account export as one JSON file.
 async function exportMyData(btn){
