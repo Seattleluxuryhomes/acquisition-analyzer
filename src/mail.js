@@ -7,12 +7,24 @@ const KEY = () => process.env.RESEND_API_KEY || "";
 // resend.dev works out of the box for testing.
 const FROM = () => process.env.BT_MAIL_FROM || "BidVoice <onboarding@resend.dev>";
 
+// The bare sender address inside FROM() — "BidVoice <x@y>" → "x@y". Used to swap the
+// display NAME for client-facing mail while keeping BidVoice's verified sending domain
+// (dual email identity: the client sees the contractor's brand, replies go to the
+// contractor, envelope stays BidVoice — see the Commercial Architecture, Layer 1).
+const FROM_ADDR = () => { const m = /<([^>]+)>/.exec(FROM()); return m ? m[1].trim() : FROM().trim(); };
+// Compose "Display Name <addr>", sanitizing the display name (no quotes/newlines/brackets).
+function fromWithName(name) {
+  const clean = String(name || "").replace(/["<>\r\n]/g, "").trim().slice(0, 60);
+  return clean ? `${clean} <${FROM_ADDR()}>` : FROM();
+}
+
 export function mailConfigured() { return !!KEY(); }
 
 // attachments: [{ filename, content }] where content is base64 (no data: prefix).
-export async function sendMail({ to, subject, html, text, attachments, replyTo } = {}) {
+// fromName: optional display name (client-facing mail sent under the contractor's brand).
+export async function sendMail({ to, subject, html, text, attachments, replyTo, fromName } = {}) {
   if (!mailConfigured()) { const e = new Error("Email isn't configured on the server."); e.status = 503; e.code = "MAIL_UNCONFIGURED"; throw e; }
-  const body = { from: FROM(), to: Array.isArray(to) ? to : [to], subject: String(subject || "") };
+  const body = { from: fromName ? fromWithName(fromName) : FROM(), to: Array.isArray(to) ? to : [to], subject: String(subject || "") };
   if (html) body.html = html;
   if (text) body.text = text;
   if (replyTo) body.reply_to = replyTo;

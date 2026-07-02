@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Eden Voice Test (internal) · BidVoice</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/png" href="/brand-orange.png?v=4">
+<meta name="theme-color" content="#CF7F18">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--amber:#CF7F18;--amber2:#EE9B2E;--ink:#1F252C;--paper:#F1EEE7;--card:#fff;--mut:#5c6270;--rule:#e6e0d4}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:560px;margin:0 auto;padding:20px 18px 60px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Archivo";font-weight:800;font-size:1.2rem;margin-bottom:2px}
+  .brand img{width:26px;height:26px;object-fit:contain}.brand .v{color:var(--amber)}
+  .tag{color:var(--mut);font-size:.85rem;margin:0 0 6px}
+  .devbadge{display:inline-block;background:rgba(207,127,24,.12);border:1px solid rgba(207,127,24,.3);color:var(--amber);font-weight:700;font-size:.72rem;border-radius:999px;padding:3px 10px;letter-spacing:.03em;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--rule);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 6px 20px rgba(31,37,44,.05)}
+  h2{font-family:"Archivo";font-weight:800;font-size:1rem;margin:0 0 10px}
+  label.fld{display:block;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:0 0 6px}
+  select,button{font-family:inherit}
+  select{width:100%;padding:12px;border:1px solid var(--rule);border-radius:10px;background:#fff;color:var(--ink);font-size:.95rem;outline:none}
+  .selected{margin-top:10px;font-size:.9rem;color:var(--ink)}
+  .selected b{color:var(--amber)}
+  .toggle{display:flex;gap:8px;margin:2px 0 4px}
+  .toggle button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--rule);background:#fff;color:var(--ink);font-weight:700;cursor:pointer}
+  .toggle button.on{background:var(--amber);color:#fff;border-color:var(--amber)}
+  .rowlbl{display:flex;justify-content:space-between;align-items:baseline}
+  .rowlbl .val{font-family:"IBM Plex Sans";font-weight:700;color:var(--amber);font-size:.95rem}
+  input[type=range]{width:100%;accent-color:var(--amber);height:32px}
+  .lines{display:grid;gap:9px}
+  .line{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--rule);border-radius:12px;padding:12px 14px;cursor:pointer;text-align:left;font-size:1.02rem;color:var(--ink);font-weight:600}
+  .line:active{transform:scale(.99)}
+  .line .play{flex:0 0 auto;width:34px;height:34px;border-radius:50%;background:var(--amber);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+  .line.speaking{border-color:var(--amber);box-shadow:0 0 0 3px rgba(207,127,24,.15)}
+  .playall{width:100%;margin-top:12px;padding:14px;border:none;border-radius:12px;background:var(--ink);color:#fff;font-weight:800;font-size:1rem;cursor:pointer}
+  .hint{color:var(--mut);font-size:.8rem;margin-top:10px;line-height:1.45}
+  .diag{font-family:"IBM Plex Sans";font-size:.75rem;color:var(--mut);word-break:break-word}
+  .warn{background:#fff4e5;border:1px solid #ffd591;color:#8a5a00;border-radius:10px;padding:10px 12px;font-size:.85rem;margin-bottom:14px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><img src="/brand-orange.png?v=4" alt=""><span>Bid<span class="v">Voice</span></span></div>
+  <p class="tag">Eden voice feasibility test</p>
+  <div class="devbadge">INTERNAL · NOT PART OF THE APP</div>
+
+  <div id="noTTS" class="warn">This browser doesn't support speech synthesis. Try Safari (iPhone) or Chrome.</div>
+
+  <div class="card">
+    <label class="fld">Voice (en-US only)</label>
+    <select id="voiceSel"></select>
+    <div class="selected">Selected: <b id="selName">—</b> <span id="selMeta" style="color:var(--mut)"></span></div>
+  </div>
+
+  <div class="card">
+    <label class="fld">Voice</label>
+    <div class="toggle">
+      <button id="onBtn" class="on" onclick="setOn(true)">On</button>
+      <button id="offBtn" onclick="setOn(false)">Off</button>
+    </div>
+    <div class="rowlbl" style="margin-top:14px"><label class="fld" style="margin:0">Rate</label><span class="val" id="rateVal">1.10x</span></div>
+    <input id="rate" type="range" min="0.9" max="1.3" step="0.05" value="1.1" oninput="rateVal.textContent=(+this.value).toFixed(2)+'x'">
+    <div class="rowlbl" style="margin-top:8px"><label class="fld" style="margin:0">Pitch <span style="text-transform:none;font-weight:500;color:var(--mut)">(optional)</span></label><span class="val" id="pitchVal">1.00</span></div>
+    <input id="pitch" type="range" min="0.8" max="1.2" step="0.05" value="1.0" oninput="pitchVal.textContent=(+this.value).toFixed(2)">
+  </div>
+
+  <div class="card">
+    <label class="fld">Sample Eden lines — tap to hear</label>
+    <div class="lines" id="lines"></div>
+    <button class="playall" onclick="playAll()">▶ Play all five (Eden moment)</button>
+    <div class="hint">Tip on iPhone: the voice list can be empty until you tap a line once. If a voice sounds robotic or accented, pick another from the dropdown. Note which one you like — that's what we'd wire into Eden.</div>
+  </div>
+
+  <div class="card">
+    <label class="fld">This device</label>
+    <div class="diag" id="diag">…</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var SAMPLES = ["Morning, Ben.", "I’m Eden.", "Tell me about the job.", "Got it.", "Estimate’s ready."];
+  var synth = window.speechSynthesis;
+  var on = true, voices = [], current = null, speaking = -1;
+
+  if(!synth){ document.getElementById('noTTS').style.display='block'; }
+
+  // Score en-US voices: prefer natural/neural + known clean female names; penalize accented names.
+  var FEMALE=/samantha|\baria\b|\bjenny\b|\bava\b|\bemma\b|\bmichelle\b|allison|susan|\bzoe\b|\bnora\b|google us english/i;
+  var MALE=/daniel|\balex\b|\bfred\b|aaron|arthur|gordon|\bdavid\b|\bmark\b|\bguy\b|thomas|\bgeorge\b/i;
+  var ACCENT=/rishi|veena|lekha|heera|ravi|priya|neerja|aditi/i;
+  function score(v){
+    var n=v.name||''; var s=0;
+    if(/natural|neural|premium|enhanced|online/i.test(n)) s+=30;
+    if(v.localService) s+=6;
+    if(FEMALE.test(n)) s+=26; if(MALE.test(n)) s-=20;
+    if(/samantha|\baria\b|\bjenny\b|\bava\b|\bemma\b|google us english/i.test(n)) s+=20;
+    if(ACCENT.test(n)) s-=60;
+    return s;
+  }
+  function isEnUS(v){ return String(v.lang||'').toLowerCase().replace('_','-').indexOf('en-us')===0; }
+
+  function loadVoices(){
+    var all = (synth && synth.getVoices()) || [];
+    voices = all.filter(isEnUS).map(function(v){return {v:v,s:score(v)};}).sort(function(a,b){return b.s-a.s;}).map(function(o){return o.v;});
+    var sel = document.getElementById('voiceSel');
+    if(!voices.length){ sel.innerHTML='<option>No en-US voices found yet — tap a line, or try Safari/Chrome</option>'; return; }
+    sel.innerHTML = voices.map(function(v,i){
+      var tags=[]; if(/natural|neural|enhanced|online/i.test(v.name))tags.push('natural'); if(v.localService)tags.push('on-device');
+      return '<option value="'+i+'">'+v.name+' · '+v.lang+(tags.length?' · '+tags.join(', '):'')+'</option>';
+    }).join('');
+    // keep current selection if still present, else best
+    var keep = current ? voices.findIndex(function(v){return v.voiceURI===current.voiceURI;}) : -1;
+    sel.value = keep>=0 ? keep : 0;
+    setCurrent(voices[+sel.value]);
+  }
+  function setCurrent(v){ current=v||null;
+    document.getElementById('selName').textContent = v ? v.name : '—';
+    document.getElementById('selMeta').textContent = v ? ('· '+v.lang+(v.localService?' · on-device':' · cloud')) : '';
+  }
+  document.getElementById('voiceSel').addEventListener('change', function(){ setCurrent(voices[+this.value]); });
+
+  window.setOn = function(v){ on=v;
+    document.getElementById('onBtn').classList.toggle('on',on);
+    document.getElementById('offBtn').classList.toggle('on',!on);
+    if(!on && synth) synth.cancel();
+  };
+
+  function speak(text, idx){
+    if(!on || !synth) return;
+    synth.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    if(current){ u.voice=current; u.lang=current.lang; } else { u.lang='en-US'; }
+    u.rate = +document.getElementById('rate').value || 1.1;
+    u.pitch = +document.getElementById('pitch').value || 1.0;
+    u.volume = 1;
+    if(typeof idx==='number'){ u.onstart=function(){ mark(idx,true); }; u.onend=u.onerror=function(){ mark(idx,false); }; }
+    synth.speak(u);
+  }
+  function mark(idx,active){ var els=document.querySelectorAll('.line'); els.forEach(function(e,i){ e.classList.toggle('speaking', active && i===idx); }); }
+
+  window.playAll = function(){
+    if(!on || !synth) return; synth.cancel();
+    SAMPLES.forEach(function(t,i){
+      var u=new SpeechSynthesisUtterance(t);
+      if(current){ u.voice=current; u.lang=current.lang; } else { u.lang='en-US'; }
+      u.rate=+document.getElementById('rate').value||1.1; u.pitch=+document.getElementById('pitch').value||1.0;
+      u.onstart=function(){ mark(i,true); }; u.onend=function(){ mark(i,false); };
+      synth.speak(u);
+    });
+  };
+
+  // Build the sample lines
+  document.getElementById('lines').innerHTML = SAMPLES.map(function(t,i){
+    return '<button class="line" data-i="'+i+'"><span class="play">▶</span><span>'+t.replace(/</g,'&lt;')+'</span></button>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('.line'), function(el){
+    el.addEventListener('click', function(){ speak(SAMPLES[+el.dataset.i], +el.dataset.i); });
+  });
+
+  // Diagnostics (so we know which device/browser the sample was judged on)
+  document.getElementById('diag').textContent = navigator.userAgent + ' · TTS: ' + (synth?'yes':'no');
+
+  // Voices load async on many platforms
+  if(synth){ loadVoices(); synth.onvoiceschanged = loadVoices; setTimeout(loadVoices, 500); setTimeout(loadVoices, 1500); }
+})();
+</script>
+</body>
+</html>

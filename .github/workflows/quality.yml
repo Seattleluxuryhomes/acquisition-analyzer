@@ -1,0 +1,24 @@
+name: Quality
+
+# Runs the full verify suite on every push/PR: Soul Guard (constitution intact),
+# brand-check (no retired brand / wordmark regressions), the native-dialog guard
+# (zero window.alert/confirm/prompt — in-app modals only), and brand-sync.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # Soul Guard needs HEAD~1 for the amendment-log diff
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run verify suite
+        run: npm run verify

@@ -7,9 +7,13 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "soul-guard": "node scripts/soul-guard.mjs",
     "brand-check": "node scripts/brand-check.mjs",
     "brand-sync": "node scripts/sync-brand-assets.mjs",
-    "brand-verify": "node scripts/brand-check.mjs && node scripts/sync-brand-assets.mjs --check"
+    "check-dialogs": "node scripts/no-native-dialogs.mjs",
+    "approval-gate": "node scripts/approval-gate.mjs",
+    "brand-verify": "node scripts/soul-guard.mjs && node scripts/brand-check.mjs && node scripts/no-native-dialogs.mjs && node scripts/approval-gate.mjs && node scripts/sync-brand-assets.mjs --check",
+    "verify": "node scripts/soul-guard.mjs && node scripts/brand-check.mjs && node scripts/no-native-dialogs.mjs && node scripts/approval-gate.mjs && node scripts/sync-brand-assets.mjs --check"
   },
   "dependencies": {
     "express": "^4.19.2",

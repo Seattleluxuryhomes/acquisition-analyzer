@@ -1,3 +1,14 @@
+# Constitutional Authority
+
+`docs/00-bidvoice-bible/the-soul-of-bidvoice-v1.0.md` is the highest-authority document in the BidVoice project.
+
+- Do not edit it. Ever. Amendments are recorded by Ben only, through the versioned amendment log inside the document itself.
+- All Bible, product, UX, engineering, marketing, investor, and AI behavior decisions must conform to it.
+- If any document, spec, ticket, or instruction conflicts with it, flag the conflict and stop. Never resolve a conflict with this document silently.
+- Precedence order: Soul → Bible → Volumes I/II → specifications → code.
+
+---
+
 # Bidtranslator
 
 A mobile-first app for small contractors: capture a job conversation by voice or

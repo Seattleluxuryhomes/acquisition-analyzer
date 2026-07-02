@@ -471,6 +471,29 @@ CREATE TABLE IF NOT EXISTS project_state (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS pstate_user_idx ON project_state(user_id, health);
+
+-- referral_credit: the append-only referral ledger (Commercial Architecture v1.0 §5).
+-- Give-a-month / get-a-month, capped 12/calendar-year. Every earned and applied credit
+-- is one immutable row — auditable, deterministic. Stripe holds the actual money
+-- (customer balance / coupon); this table is WHY each credit exists + idempotency + cap.
+-- Rows are never mutated except to stamp applied_at/status when Stripe applies them.
+CREATE TABLE IF NOT EXISTS referral_credit (
+  id            TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL,            -- who the credit belongs to (referrer, or referee for welcome)
+  kind          TEXT NOT NULL,            -- 'referrer_reward' | 'referee_welcome'
+  referee_id    TEXT,                     -- the referred company (identifies the reward-triggering account)
+  amount_cents  INTEGER NOT NULL,         -- credit value in cents (one month), positive
+  currency      TEXT DEFAULT 'usd',
+  status        TEXT DEFAULT 'earned',    -- 'earned' | 'applied' | 'void'
+  stripe_txn_id TEXT,                     -- Stripe customer_balance_transaction id (for referrer_reward)
+  reason        TEXT,                     -- 'month_two_completed' | 'signup_welcome'
+  year          INTEGER NOT NULL,         -- calendar year the credit was earned (the 12/yr cap window)
+  created_at    INTEGER NOT NULL,
+  applied_at    INTEGER
+);
+CREATE INDEX IF NOT EXISTS refcredit_user_idx ON referral_credit(user_id, year);
+-- One reward per referred company, and one welcome per referee — idempotency at the DB.
+CREATE UNIQUE INDEX IF NOT EXISTS refcredit_reward_uniq ON referral_credit(referee_id, kind);
 `);
 
 // Migrate older databases that predate the billing columns.
@@ -520,6 +543,17 @@ ensureColumns("user", [
   ["referral_code", "TEXT"],
   ["referred_by", "TEXT"],
   ["locked_monthly", "REAL"],
+  // Founding Member grandfathering (Commercial Architecture v1.0 §4 / §10). Captured
+  // automatically from Stripe when a contractor's subscription first activates = the
+  // monthly price (cents) they signed up at, locked while the account stays active.
+  // Cleared on full cancellation so a returning customer gets whatever price is current
+  // then (Stripe naturally keeps active subs on their original Price — no migration = no
+  // change; this field is the auditable record of what they pay). No manual intervention.
+  ["founding_price_cents", "INTEGER"],
+  ["founding_member", "INTEGER DEFAULT 0"],
+  // Count of PAID subscription invoices — drives the referral month-two grant trigger
+  // (the referrer earns their credit once a referred company pays their 2nd invoice).
+  ["paid_invoice_count", "INTEGER DEFAULT 0"],
   // Customer-facing website: services offered (JSON array of trade keys), a hero
   // tagline, and a brand accent color. Drive the per-contractor site at /c/:id.
   ["services", "TEXT"],
@@ -553,6 +587,34 @@ ensureColumns("user", [
   // (<slug>.<BT_SITE_DOMAIN>, name-agnostic) and whether they've hit "Publish".
   ["site_slug", "TEXT"],
   ["site_published", "INTEGER DEFAULT 0"],
+  // Email verification: whether the address is confirmed, plus a single-use
+  // verify token (sha256 hash) and its expiry (ms). Public contact info (e.g. the
+  // email on a contractor's website) is only exposed once email_verified=1.
+  ["email_verified", "INTEGER DEFAULT 0"],
+  ["verify_token_hash", "TEXT"],
+  ["verify_token_exp", "INTEGER"],
+  // Account lifecycle: 'active' (default), 'deactivated' (reversible pause), or
+  // 'pending_delete' (a 30-day grace before the row is purged). purge_at = when the
+  // hard delete fires. Portability is constitutional (Soul: data leaves in one tap,
+  // whole) — export is always available, and delete is reversible for 30 days.
+  ["status", "TEXT DEFAULT 'active'"],
+  ["purge_at", "INTEGER"],
+  // Eden awareness (Intake/Voice V1): server-driven context so greetings are
+  // never faked client-side. has_completed_intake gates first-visit vs returning;
+  // last_activity_at drives the "quiet" reopen (<4h); last_spoken_at + the
+  // client session counter enforce the speech budget; last_seen_update_ids is the
+  // JSON watermark of updates already surfaced (money/acceptance/reply/conflict).
+  ["has_completed_intake", "INTEGER DEFAULT 0"],
+  ["last_activity_at", "INTEGER"],
+  ["last_spoken_at", "INTEGER"],
+  ["last_seen_update_ids", "TEXT"],
+  // Eden voice settings — persisted to the PROFILE (cross-device), not device
+  // storage (eden-voice-spec §3 / sprint AC-18). null = use the client default.
+  ["voice_on", "INTEGER"],
+  ["voice_pace", "REAL"],
+  ["voice_headphones_only", "INTEGER DEFAULT 0"],
+  ["voice_name", "TEXT"],
+  ["brief_mode", "TEXT"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).

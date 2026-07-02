@@ -1,32 +1,33 @@
-// Referral credit — the pricing engine. Base $50/mo; every PAYING contractor a GC
-// brings on knocks $10 off, down to $0 at five. Self-correcting: if a referred sub
-// stops paying, the credit comes off and the bill goes back up — "free as long as
-// your crew is active." Founders can be rate-locked (their base price never moves
-// when the public price rises).
+// Referral attribution + company pricing basics.
 //
-// This module is PURE (db + math) — no Stripe. billing.js reads effectiveMonthly()
-// and applies the discount at checkout / on subscription changes.
+// Commercial Architecture v1.0: BidVoice is ONE subscription PER COMPANY with unlimited
+// internal users — never per-seat, never a price that moves when someone else churns.
+// The old "crew network" model (−$10 per paying sub, free at five, re-synced on every
+// churn) is GONE — it was the exact "someone's bill changes when someone else churns"
+// pattern the architecture rejects (§5). Referral rewards now live in the deterministic
+// credit ledger (referralCredits.js + billing.js): give-a-month / get-a-month, capped.
+//
+// What remains here: referral-code attribution (who referred whom), the real-estate
+// agent free-year channel, and the manual founder rate-lock helper. Pricing is Stripe's
+// job now (source of truth) — this module no longer computes a discounted price.
 import crypto from "node:crypto";
 import db from "./db.js";
 
-export const BASE_PRICE = () => Number(process.env.BT_BASE_PRICE || 50);     // dollars/mo
-export const CREDIT_PER_REF = () => Number(process.env.BT_REFERRAL_CREDIT || 10); // dollars off per paying sub
-export const freeAt = () => Math.ceil(BASE_PRICE() / CREDIT_PER_REF());       // subs needed to reach $0 (5)
+export const BASE_PRICE = () => Number(process.env.BT_BASE_PRICE || 50);     // dollars/mo (display fallback only)
 
-// A GC's own base price — the founder rate-lock pins it; otherwise it's the live base.
+// A company's own base monthly (display fallback). The founder rate-lock / agent lock
+// pins it; otherwise it's the live base. Stripe is the real source of truth for what a
+// subscription is actually charged — this is only for pre-subscription paywall copy.
 function baseFor(user) {
   return user && user.locked_monthly != null ? Number(user.locked_monthly) : BASE_PRICE();
 }
 
-// Real-estate agents get their first year free, then a locked $50 forever. While the
-// free year is active, the account pays $0 regardless of base/credit. This is the
-// distribution channel: agents walk houses and RFQ their contractors into the app.
+// Real-estate agents get their first year free, then a locked rate — the distribution
+// channel (agents walk houses and RFQ their contractors into the app). Unchanged.
 export function agentFreeActive(user) {
   return !!(user && user.agent_free_until && Date.now() < Number(user.agent_free_until));
 }
 const DAY = 24 * 60 * 60 * 1000;
-// Status block for an agent account (null for non-agents) — drives the in-app
-// "free year" banner and the T-90 retention nudge.
 export function agentStatus(user) {
   if (!user || user.role !== "agent") return null;
   const until = user.agent_free_until ? Number(user.agent_free_until) : null;
@@ -37,23 +38,22 @@ export function agentStatus(user) {
     free_until: until,
     free_active: active,
     days_left: daysLeft,
-    nudge: active && daysLeft <= 90,   // surface "your free year is ending" inside 90 days
-    after_monthly: baseFor(user),      // what they pay once the free year ends ($50 locked)
+    nudge: active && daysLeft <= 90,   // "your free year is ending" inside 90 days
+    after_monthly: baseFor(user),      // what they pay once the free year ends
   };
 }
 
-// Paying subs this GC brought on. "Paying" = an active Stripe subscription (a sub
-// still in their free trial doesn't count yet — the credit is for real revenue).
-export function payingReferrals(userId) {
+// How many companies this user has referred that became paying customers — a display
+// stat ("you've brought on N"). It does NOT affect price anymore (no per-sub discount).
+export function referredCompanies(userId) {
   return db.prepare("SELECT COUNT(*) c FROM user WHERE referred_by=? AND subscription_status='active'").get(userId).c;
 }
 
-// What this GC actually pays per month, after credit, floored at $0. Agents inside
-// their free first year pay $0 (the credit ladder still applies after it ends).
+// What a company pays per month, for display before they subscribe. No per-sub discount:
+// a locked/agent rate, else the live base. Once subscribed, Stripe is authoritative.
 export function effectiveMonthly(user) {
   if (agentFreeActive(user)) return 0;
-  const base = baseFor(user);
-  return Math.max(0, base - CREDIT_PER_REF() * payingReferrals(user.id));
+  return baseFor(user);
 }
 
 export function getOrCreateCode(userId) {
@@ -81,28 +81,21 @@ export function setReferrer(newUserId, code) {
   return true;
 }
 
-// Founder rate-lock: pin a GC's base price (e.g. the launch price) forever. Pass
-// null to clear. They still earn the per-sub credit on top of the locked base.
+// Manual founder rate-lock: pin a company's display base price. Automatic Founding
+// Member locking (captured from Stripe on subscription activation) lives in billing.js;
+// this stays for the agent channel and any hand-set founder rate. Pass null to clear.
 export function setLockedPrice(userId, dollars) {
   db.prepare("UPDATE user SET locked_monthly=? WHERE id=?").run(dollars == null ? null : Number(dollars), userId);
 }
 
-// Everything the paywall/billing screen needs to show the ladder.
+// Everything the paywall/billing screen needs for the referral panel (code + who they've
+// brought on). The credit balance + cap come from the ledger (referralCredits.summary),
+// merged in billing.billingStatus.
 export function referralStatus(user) {
-  const base = baseFor(user);
-  const refs = payingReferrals(user.id);
-  const effective = Math.max(0, base - CREDIT_PER_REF() * refs);
-  const need = freeAt();
   return {
     code: getOrCreateCode(user.id),
-    base,                                   // their base (locked or live)
-    creditPerRef: CREDIT_PER_REF(),
-    payingReferrals: refs,
-    credit: base - effective,               // dollars off this month
-    effective,                              // what they pay
-    free: effective === 0,
-    freeAt: need,                           // subs to reach $0 (5)
-    remainingToFree: Math.max(0, need - refs),
-    locked: user.locked_monthly != null,
+    base: baseFor(user),
+    referredCompanies: referredCompanies(user.id),
+    locked: user.locked_monthly != null || !!user.founding_member,
   };
 }

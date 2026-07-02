@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { PassThrough } from "node:stream";
 
 import db, { PHOTO_DIR } from "./src/db.js";
-import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser } from "./src/auth.js";
+import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser, createVerifyToken, confirmEmailVerify, changeEmail, deactivateAccount, deleteAccount, purgeExpiredDeletions } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, generateReviewRequest, generateLeadFollowup, generateFunnelHeadline, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured, bidBrainChat, localBrainReply } from "./src/assist.js";
@@ -34,6 +34,8 @@ import { renderDrawHTML } from "./src/drawHtml.js";
 import { renderChangeOrderHTML } from "./src/changeOrderHtml.js";
 import { renderContractorSite } from "./src/contractorSite.js";
 import { renderGuidePage } from "./src/guidePage.js";
+import { renderLegalPage } from "./src/legal.js";
+import * as Emails from "./src/emails.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig, signProposalPdfUrl, verifyProposalPdfSig, signDocUrl, verifyDocSig } from "./src/files.js";
@@ -190,7 +192,38 @@ function settingsOf(user) {
     // Custom-site request: whether this contractor has asked us to build them one.
     site_requested: !!user.site_request_at,
     site_request_note: user.site_request_note || "",
+    // Eden voice settings (profile-persisted, cross-device). null = client default.
+    voice_on: user.voice_on == null ? null : !!user.voice_on,
+    voice_pace: user.voice_pace == null ? null : user.voice_pace,
+    voice_headphones_only: !!user.voice_headphones_only,
+    voice_name: user.voice_name || "",
+    brief_mode: user.brief_mode || "",
   };
+}
+
+// Eden awareness snapshot for the client (Intake/Voice V1). Drives the four ready
+// contexts (first / returning / mid-job / quiet) and the speech budget from real
+// server state, so a greeting is never a client-side guess. `now` lets the client
+// compute "reopened <4h" without trusting its own clock drift.
+function awarenessOf(user) {
+  let seenUpdateIds = [];
+  try { seenUpdateIds = JSON.parse(user.last_seen_update_ids || "[]") || []; } catch { seenUpdateIds = []; }
+  return {
+    hasCompletedIntake: !!user.has_completed_intake,
+    lastActivityAt: user.last_activity_at || null,
+    lastSpokenAt: user.last_spoken_at || null,
+    seenUpdateIds,
+    now: Date.now(),
+  };
+}
+
+// The profile used on the PUBLIC contractor website. Same as settingsOf, but a
+// contact email is exposed to the world only once the contractor has verified it —
+// so an unconfirmed (or typo'd) address is never published for scraping/spoofing.
+function publicProfileOf(user) {
+  const prof = settingsOf(user);
+  if (!user.email_verified) prof.email = "";
+  return prof;
 }
 
 function attachPhotos(userId, job) {
@@ -210,11 +243,26 @@ app.post("/api/auth/signup", wrap((req, res) => {
   const out = signup(req.body || {});
   if (out && out.user) {
     db.prepare("UPDATE user SET last_login=? WHERE id=?").run(Date.now(), out.user.id);
-    // Attribute the signup to whoever's referral code they came in on (the GC
-    // earns a crew credit once this user becomes a paying subscriber).
+    // Attribute the signup to whoever's referral code they came in on. The referrer
+    // earns a give-a-month credit once this company pays through month two (billing.js).
     const ref = String((req.body && (req.body.ref || req.body.r)) || "").trim();
     if (ref && Referrals.setReferrer(out.user.id, ref)) track(out.user.id, "referred_signup", { by: ref }, uaOf(req));
     track(out.user.id, "user_registered", { email: out.user.email, role: out.user.role || "contractor" }, uaOf(req));
+    // Warm welcome from Eden + an email-verification link — fire-and-forget so
+    // signup never waits on email. The verify link confirms the inbox is theirs
+    // before public contact info (e.g. their website email) is ever exposed.
+    if (Mail.mailConfigured() && out.user.email) {
+      const w = Emails.welcome(baseUrl(req), { name: out.user.name || "", appUrl: baseUrl(req) });
+      // APPROVAL: system — transactional welcome to the new account holder's own inbox.
+      Mail.sendMail({ to: out.user.email, subject: w.subject, html: w.html, text: w.text }).catch(() => {});
+      const vt = createVerifyToken(out.user.id);
+      if (vt && vt.token) {
+        const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(vt.token)}&e=${encodeURIComponent(out.user.email)}`;
+        const m = Emails.verifyEmail(baseUrl(req), { link, name: out.user.name || "" });
+        // APPROVAL: system — email-verification link to the account holder's own inbox.
+        Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }).catch(() => {});
+      }
+    }
   }
   res.json(out);
 }));
@@ -239,8 +287,12 @@ app.post("/api/auth/reset", wrap(async (req, res) => {
   const out = createResetToken(email);
   if (out && Mail.mailConfigured()) {
     const link = `${baseUrl(req)}/reset?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
-    try { await Mail.sendMail({ to: out.user.email, subject: "Reset your BidVoice password", html: resetEmailHtml(link), text: `Reset your BidVoice password:\n${link}\n\nThis link expires in 1 hour. If you didn't request it, ignore this email.` }); }
-    catch { /* never surface send errors to the caller (no enumeration) */ }
+    const m = Emails.passwordReset(baseUrl(req), { link });
+    // APPROVAL: system — password-reset link to the account holder's own inbox.
+    try { await Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }); }
+    // Never surface send errors to the caller (no enumeration) — but DO log server-side so a
+    // configured-but-failing provider (e.g. unverified BT_MAIL_FROM) is diagnosable.
+    catch (e) { console.warn("[mail] password-reset send failed:", (e && (e.detail || e.message)) || e); }
   }
   res.json({ ok: true, sent: Mail.mailConfigured() });
 }));
@@ -248,6 +300,73 @@ app.post("/api/auth/reset", wrap(async (req, res) => {
 app.post("/api/auth/reset-confirm", wrap((req, res) => {
   const { email, token, password } = req.body || {};
   res.json(confirmPasswordReset({ email, token, newPassword: password }));
+}));
+// Confirm an email-verification link (the SPA at /verify posts the token here).
+app.post("/api/auth/verify-confirm", wrap((req, res) => {
+  const { email, token } = req.body || {};
+  res.json(confirmEmailVerify({ email, token }));
+}));
+// Resend the verification email to the signed-in user's current address.
+app.post("/api/auth/resend-verification", requireAuth, wrap(async (req, res) => {
+  const vt = createVerifyToken(req.user.id);
+  if (vt && vt.alreadyVerified) return res.json({ ok: true, alreadyVerified: true });
+  if (vt && vt.token && Mail.mailConfigured()) {
+    const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(vt.token)}&e=${encodeURIComponent(req.user.email)}`;
+    const m = Emails.verifyEmail(baseUrl(req), { link, name: req.user.name || "" });
+    // APPROVAL: system — re-send of the verification link to the account holder's own inbox.
+    try { await Mail.sendMail({ to: req.user.email, subject: m.subject, html: m.html, text: m.text }); }
+    catch (e) { console.warn("[mail] verification send failed:", (e && (e.detail || e.message)) || e); }
+  }
+  res.json({ ok: true, sent: Mail.mailConfigured() });
+}));
+// ---- Account (change email · deactivate · delete) ----
+// Change email: verify password, move to the new address (unverified), and email a
+// fresh verification link. Other sessions were revoked server-side (email = identity).
+app.post("/api/account/email", requireAuth, wrap(async (req, res) => {
+  const { currentPassword, newEmail } = req.body || {};
+  const out = changeEmail({ userId: req.user.id, currentPassword, newEmail });
+  track(req.user.id, "email_changed", {});
+  if (out && out.token && Mail.mailConfigured()) {
+    const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
+    const m = Emails.verifyEmail(baseUrl(req), { link, name: out.user.name || "" });
+    // APPROVAL: system — verification link to the account holder's own (new) inbox.
+    try { await Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }); } catch { /* silent */ }
+  }
+  res.json({ ok: true, user: out.user, sent: Mail.mailConfigured() });
+}));
+// Deactivate: reversible pause. Verify password, block sign-in, revoke sessions.
+app.post("/api/account/deactivate", requireAuth, wrap((req, res) => {
+  const out = deactivateAccount({ userId: req.user.id, password: (req.body || {}).password });
+  track(req.user.id, "account_deactivated", {});
+  res.json(out);
+}));
+// Delete: permanent. Verify password + explicit confirm, then hard-delete (cascades).
+app.post("/api/account/delete", requireAuth, wrap((req, res) => {
+  const b = req.body || {};
+  if (b.confirm !== "DELETE") return res.status(400).json({ error: 'Type DELETE to confirm.' });
+  track(req.user.id, "account_deleted", {});
+  res.json(deleteAccount({ userId: req.user.id, password: b.password })); // 30-day grace, then purge
+}));
+// Portability (Soul-constitutional: no data hostage — everything leaves in one tap, whole).
+// A complete JSON export of the contractor's owned data: profile, jobs (+ line items),
+// leads, price book, and payment records.
+app.get("/api/account/export", requireAuth, wrap((req, res) => {
+  const uid = req.user.id;
+  const q = (sql) => { try { return db.prepare(sql).all(uid); } catch { return []; } };
+  const bundle = {
+    exported_at: new Date().toISOString(),
+    account: publicUser(req.user),
+    profile: settingsOf(req.user),
+    jobs: q("SELECT * FROM job WHERE user_id=? ORDER BY created_at"),
+    contacts: q("SELECT * FROM customer WHERE user_id=? ORDER BY created_at"),
+    leads: q("SELECT * FROM lead WHERE user_id=? ORDER BY created_at"),
+    price_book: q("SELECT * FROM sku WHERE user_id=? ORDER BY created_at"),
+    payments: q("SELECT * FROM payment_request WHERE user_id=? ORDER BY created_at"),
+    // Referral credit ledger — every earned/applied credit, for the contractor's own audit.
+    referral_credits: q("SELECT * FROM referral_credit WHERE user_id=? ORDER BY created_at"),
+  };
+  res.setHeader("Content-Disposition", 'attachment; filename="bidvoice-export.json"');
+  res.type("application/json").send(JSON.stringify(bundle, null, 2));
 }));
 function resetEmailHtml(link) {
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
@@ -339,7 +458,20 @@ app.post("/api/quickbooks/disconnect", requireAuth, wrap((req, res) => {
 app.get("/api/me", requireAuth, (req, res) =>
   res.json({ user: publicUser(req.user), settings: settingsOf(req.user), billing: Billing.billingStatus(req.user),
     admin: Analytics.isAdmin(req.user), leadsNew: Leads.countNew(req.user.id), inboxNew: Inbox.countPending(req.user.id),
+    // Eden awareness (Intake/Voice V1) — server-driven context so greetings/briefings are never faked client-side.
+    awareness: awarenessOf(req.user),
     ai: { build: aiConfigured(), transcribe: transcribeConfigured(), visualize: visualizeConfigured() } }));
+// Record client-side awareness signals (activity, a spoken moment, updates seen). Fire-and-forget from
+// the client; keeps the "quiet reopen (<4h)", the speech budget, and the update watermark server-driven.
+app.post("/api/me/awareness", requireAuth, wrap((req, res) => {
+  const b = req.body || {}, now = Date.now(), sets = [], vals = [];
+  if (b.activity) { sets.push("last_activity_at=?"); vals.push(now); }
+  if (b.spoke) { sets.push("last_spoken_at=?"); vals.push(now); }
+  if (b.completedIntake) { sets.push("has_completed_intake=?"); vals.push(1); }
+  if (Array.isArray(b.seenUpdateIds)) { sets.push("last_seen_update_ids=?"); vals.push(JSON.stringify(b.seenUpdateIds.slice(0, 200))); }
+  if (sets.length) { vals.push(req.user.id); db.prepare(`UPDATE user SET ${sets.join(", ")} WHERE id=?`).run(...vals); }
+  res.json(awarenessOf(db.prepare("SELECT * FROM user WHERE id=?").get(req.user.id)));
+}));
 // AI Growth Score (Sprint 13) — the coaching screen; pure data, no AI.
 app.get("/api/me/growth", requireAuth, (req, res) => res.json(growthScore(req.user)));
 
@@ -398,6 +530,12 @@ app.patch("/api/me", requireAuth, wrap((req, res) => {
     if (k in b) { sets.push(`${col}=?`); vals.push(String(b[k] ?? "")); }
   }
   if ("tax_rate" in b) { sets.push("tax_rate=?"); vals.push(Math.max(0, Number(b.tax_rate) || 0)); }
+  // Eden voice settings (profile-persisted, cross-device).
+  if ("voice_on" in b) { sets.push("voice_on=?"); vals.push(b.voice_on ? 1 : 0); }
+  if ("voice_pace" in b) { sets.push("voice_pace=?"); vals.push(Math.min(1.3, Math.max(0.9, Number(b.voice_pace) || 1.15))); }
+  if ("voice_headphones_only" in b) { sets.push("voice_headphones_only=?"); vals.push(b.voice_headphones_only ? 1 : 0); }
+  if ("voice_name" in b) { sets.push("voice_name=?"); vals.push(String(b.voice_name || "").slice(0, 120)); }
+  if ("brief_mode" in b) { sets.push("brief_mode=?"); vals.push(["silent", "exceptions", "always"].includes(b.brief_mode) ? b.brief_mode : "exceptions"); }
   if (sets.length) { vals.push(req.user.id); db.prepare(`UPDATE user SET ${sets.join(", ")} WHERE id=?`).run(...vals); }
   const fresh = db.prepare("SELECT * FROM user WHERE id=?").get(req.user.id);
   if (typeof b.logo === "string" && b.logo) track(req.user.id, "logo_uploaded", {});
@@ -547,11 +685,14 @@ app.post("/api/admin/onboard", requireAuth, requireAdmin, wrap(async (req, res) 
   let emailed = false;
   if (Mail.mailConfigured()) {
     try {
+      const fromName = req.user.name || (req.user.company && req.user.company !== "Your Company" ? req.user.company : "");
+      const m = Emails.invitation(baseUrl(req), { link, from: fromName, note: b.note });
+      // APPROVAL: contractor-action — the contractor explicitly invited this crew member.
       await Mail.sendMail({
         to: user.email,
-        subject: `${req.user.company && req.user.company !== "Your Company" ? req.user.company : "BidVoice"} — your account is ready`,
-        html: onboardEmailHtml(link, req.user, b.note),
-        text: `You're set up on BidVoice. Set your password and get started:\n${link}\n\nThis link works for 7 days.`,
+        subject: m.subject,
+        html: m.html,
+        text: m.text,
         replyTo: req.user.email || undefined,
       });
       emailed = true;
@@ -981,6 +1122,7 @@ app.post("/api/inbound/leads", wrap((req, res) => {
   // 3) email the contractor so they hear about it with the app closed.
   const owner = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
   if (owner && owner.email && Mail.mailConfigured()) {
+    // APPROVAL: system — inbound-lead notification to the contractor's own inbox (not a client-facing send).
     Mail.sendMail({ to: owner.email, subject: `New estimate request${lead.name ? " from " + lead.name : ""}`,
       html: leadEmailHtml(lead, baseUrl(req)), text: leadEmailText(lead, baseUrl(req)) }).catch(() => {});
   }
@@ -1282,7 +1424,7 @@ app.get("/f/:id", (req, res) => {
     title: p.title, description: p.description, service: p.service, area: p.area,
     before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)), after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
   }));
-  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects, offer: { headline: f.headline, subhead: f.subhead, cta: f.cta }, lang: pickSiteLang(req), altBase: `${baseUrl(req)}/f/${encodeURIComponent(f.id)}` }));
+  res.type("html").send(renderContractorSite(publicProfileOf(u), { leadAction, projects, offer: { headline: f.headline, subhead: f.subhead, cta: f.cta }, lang: pickSiteLang(req), altBase: `${baseUrl(req)}/f/${encodeURIComponent(f.id)}` }));
 });
 
 // Public, login-free contractor website (built from their profile + published
@@ -1301,7 +1443,7 @@ app.get("/c/:id", (req, res) => {
     before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)),
     after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
   }));
-  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects, lang: pickSiteLang(req), altBase: `${baseUrl(req)}/c/${encodeURIComponent(u.site_slug || u.id)}` }));
+  res.type("html").send(renderContractorSite(publicProfileOf(u), { leadAction, projects, lang: pickSiteLang(req), altBase: `${baseUrl(req)}/c/${encodeURIComponent(u.site_slug || u.id)}` }));
 });
 
 // ---- Share a bid: a clean public link the contractor texts/emails ----
@@ -1497,11 +1639,15 @@ async function deliverSignedAgreement(jobRow, owner, proposal, { name, email } =
         <p style="color:#8a7f68;font-size:.85rem">Sent by BidVoice on behalf of ${escHtml(company)}.</p>
       </div>`;
       try {
+        // APPROVAL: client-action — fired by the client signing a proposal the contractor
+        // already approved and sent; delivers the countersigned copy. No autonomous send.
         await Mail.sendMail({
           to, subject: `Signed agreement — ${proposal.title}`,
           html, text: `Attached is the signed agreement for ${proposal.title}.`,
           attachments: [{ filename, content: pdf.toString("base64") }],
           replyTo: owner && owner.email ? owner.email : undefined,
+          // Dual identity: client-facing mail under the contractor's brand.
+          fromName: (owner && owner.company && owner.company !== "Your Company") ? owner.company : undefined,
         });
       } catch { /* never fail signing */ }
     }
@@ -1594,6 +1740,14 @@ app.get(["/guide", "/how-it-works", "/faq"], (req, res) => {
   res.type("html").send(renderGuidePage({ baseUrl: baseUrl(req) }));
 });
 
+// Legal pages — branded, crawlable, no dead links. Served before the SPA fallback.
+app.get(["/terms", "/privacy", "/acceptable-use", "/cookies", "/disclaimer"], (req, res) => {
+  const slug = req.path.replace(/^\//, "");
+  const html = renderLegalPage(slug);
+  if (!html) return res.status(404).send("Not found");
+  res.set("Content-Type", "text/html; charset=utf-8").send(html);
+});
+
 // SPA fallback for the single-page app.
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api/")) return next();
@@ -1601,7 +1755,22 @@ app.get("*", (req, res, next) => {
 });
 
 const PORT = process.env.BT_PORT || process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`BidVoice on http://localhost:${PORT}`));
+try { const n = purgeExpiredDeletions(); if (n) console.log(`Purged ${n} account(s) past their 30-day deletion grace.`); } catch { /* never block boot */ }
+// Re-push any referral credits that were earned but never reached Stripe (provider was down,
+// or the referrer had no customer at grant time). Idempotent; safe every boot AND on an hourly
+// timer so an earned-unpushed credit doesn't wait for the next restart. The Idempotency-Key on
+// the balance-credit push (billing.js) guarantees no double-credit across boot + timer + webhook.
+const runReconcile = () => Billing.reconcileReferralCredits()
+  .then((n) => { if (n) console.log(`Reconciled ${n} pending referral credit(s) to Stripe.`); })
+  .catch(() => {});
+runReconcile();
+setInterval(runReconcile, 60 * 60 * 1000).unref();   // hourly; unref'd so it never holds the process open
+app.listen(PORT, () => {
+  console.log(`BidVoice on http://localhost:${PORT}`);
+  // Make an unconfigured mail provider obvious in the logs — otherwise password-reset /
+  // verification emails silently no-op (set RESEND_API_KEY + a verified BT_MAIL_FROM).
+  if (!Mail.mailConfigured()) console.warn("[mail] RESEND_API_KEY not set — password-reset and verification emails are DISABLED.");
+});
 // Pull the real plan + setup-fee prices from Stripe so the paywall shows exactly
 // what checkout charges. Fire-and-forget; the UI falls back to defaults until ready.
 Billing.loadPrices().catch(() => {});

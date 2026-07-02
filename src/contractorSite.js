@@ -246,7 +246,7 @@ ${hreflangs}
   .hero .cta{display:flex;gap:12px;flex-wrap:wrap}
   .badges{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px;color:var(--muted);font-size:.92rem;font-weight:600}.badges b{color:var(--ink)}.stars{color:var(--accent)}
   .badges span{display:inline-flex;align-items:center;gap:7px}.badges svg{width:17px;height:17px;color:var(--accent);flex:0 0 auto}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:10px 0 6px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:10px auto 6px}
   .stats .s{background:#fff;border:1px solid var(--rule);border-radius:16px;padding:22px 16px;text-align:center;box-shadow:0 4px 16px rgba(27,34,40,.05)}
   .stats .s .ic{height:28px;display:flex;align-items:center;justify-content:center}.stats .s .ic svg{width:27px;height:27px;color:var(--accent)}
   .stats .v{font-size:1.5rem;font-weight:800;color:var(--blue);margin-top:7px;line-height:1.12;word-break:break-word}

@@ -14,7 +14,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>BidVoice | AI Construction Operating System</title>
-<link rel="icon" type="image/png" href="/icon-192.png?v=2" />
+<link rel="icon" type="image/png" href="/brand-orange.png?v=4" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
 <meta name="theme-color" content="#CF7F18" />
 <link rel="manifest" href="/manifest.json" />
@@ -208,6 +208,8 @@
   .routedir{display:flex;align-items:center;justify-content:center;min-width:54px;font-size:1.1rem;text-decoration:none}
   /* ===== Dashboard ===== */
   .dash-hello{margin:6px 0 14px}
+  h1.page.dash-lead{display:flex;align-items:flex-start;gap:9px;line-height:1.2}
+  h1.page.dash-lead .di-ic{color:var(--amber);margin-top:3px}
   .greet-emoji{display:inline-block;transform-origin:72% 75%}
   @keyframes bt-wave{0%{transform:rotate(0)}15%{transform:rotate(14deg)}30%{transform:rotate(-8deg)}45%{transform:rotate(12deg)}60%{transform:rotate(-4deg)}75%{transform:rotate(8deg)}100%{transform:rotate(0)}}
   .greet-emoji.wave{animation:bt-wave 1s ease-in-out 1}
@@ -470,6 +472,15 @@
   .hint{font-family:"IBM Plex Sans";font-size:.72rem;color:var(--muted);margin-top:8px}
   /* Voice-first New Job */
   .vf-hero{text-align:center;padding:6px 0 4px}
+  /* Eden intake — awareness/greeting layer (Fable Intake v4, retrofit; paper brand) */
+  .eden-pill{display:inline-flex;align-items:center;gap:7px;font-family:"IBM Plex Sans",sans-serif;font-weight:600;font-size:.74rem;letter-spacing:.02em;color:var(--muted);background:rgba(207,127,24,.09);border:1px solid var(--rule);border-radius:999px;padding:4px 11px;margin-bottom:10px}
+  .eden-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px rgba(238,155,46,.18)}
+  .eden-lines{display:flex;flex-direction:column;gap:2px;margin:2px 0 4px}
+  .eden-line{font-family:"Archivo",sans-serif;font-weight:800;font-size:1.5rem;line-height:1.18;opacity:0;transform:translateY(8px);animation:edenBeat .5s cubic-bezier(.2,.7,.2,1) forwards}
+  .eden-line.sub{font-family:"IBM Plex Sans",sans-serif;font-weight:500;font-size:1.02rem;color:var(--muted)}
+  .eden-trust{font-family:"IBM Plex Sans",sans-serif;font-size:.82rem;color:var(--muted);opacity:0;animation:edenBeat .5s cubic-bezier(.2,.7,.2,1) forwards;margin-top:6px}
+  @keyframes edenBeat{to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){ .eden-line,.eden-trust{animation:none;opacity:1;transform:none} }
   .vf-title{font-family:"Archivo",sans-serif;font-weight:900;font-size:1.9rem;line-height:1.1;margin:6px 0 4px}
   .vf-sub{color:var(--muted);font-size:.92rem;max-width:340px;margin:0 auto 16px}
   .vf-mic-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin:6px 0 14px}
@@ -551,6 +562,15 @@
   .est-q{margin-top:10px;background:rgba(238,155,46,.1);border:1px solid var(--amber-deep);border-radius:12px;padding:12px 14px}
   .est-q-t{font-size:1.02rem;font-weight:700;color:var(--text);line-height:1.35}
   .est-q-act{display:flex;gap:8px;margin-top:10px}
+  .est-amb{background:rgba(238,155,46,.16);border-color:var(--amber-deep)}
+  .est-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .est-chip{white-space:nowrap}
+  .heard{margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);overflow:hidden}
+  .heard-sum{list-style:none;cursor:pointer;padding:12px 14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+  .heard-sum::-webkit-details-marker{display:none}
+  .heard-hint{margin-left:auto;font-weight:400;font-size:.8rem;color:var(--muted)}
+  .heard[open] .heard-sum{border-bottom:1px solid var(--line)}
+  .heard-body{padding:12px 14px}
   .est-ready{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;background:rgba(62,125,90,.14);border:1px solid rgba(62,125,90,.4);border-radius:12px;padding:12px 14px;font-size:.96rem;color:var(--text)}
   .est-ready .btn{margin-left:auto}
   .langchip{display:block;width:100%;margin-top:16px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:10px 12px;font-family:"IBM Plex Sans";font-size:.72rem;cursor:pointer;text-align:center}
@@ -677,9 +697,11 @@
   .brand-big{display:flex;align-items:center;gap:10px;justify-content:center;font-family:"Archivo";font-weight:800;font-size:1.3rem}
   .brand-big .mark{width:28px;height:28px;border-radius:5px;background:var(--amber);display:flex;align-items:center;justify-content:center}
   .tagline{text-align:center;color:var(--muted);font-size:.9rem;margin-top:8px}
-  .auth-hero{text-align:center;margin-top:20px}
-  .auth-mic{width:74px;height:74px;border-radius:50%;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 10px 26px rgba(207,127,24,.4)}
-  .auth-mic .ico{width:34px;height:34px;stroke-width:2}
+  .brand-big .wm{display:inline-flex;white-space:nowrap}
+  .auth-legal{text-align:center;margin-top:20px;color:var(--muted);font-size:.78rem}
+  .auth-legal a{color:var(--muted);text-decoration:none}
+  .auth-legal a:hover{color:var(--amber)}
+  .auth-hero{text-align:center;margin-top:22px}
   .auth-hero-h{font-family:"Archivo";font-weight:800;font-size:1.55rem;line-height:1.16;color:var(--text);margin:0 6px}
   .auth-hero-sub{color:var(--muted);font-size:.92rem;margin:9px auto 0;max-width:330px;line-height:1.45}
   .why{max-width:560px;margin:0 auto}
@@ -1430,9 +1452,11 @@ let LANG = (function(){ try{ const s=localStorage.getItem('bt_lang'); if(s==='en
   return (String((navigator.language||navigator.userLanguage||'en')).toLowerCase().slice(0,2)==='es') ? 'es' : 'en'; })();
 const I18N = {
   en: {
-    auth_hero_h:"Just talk. We write the bid.",
-    auth_hero_sub:"Say the job out loud — in English or Spanish — and BidVoice turns it into a clean, priced proposal you can send from your phone.",
+    auth_hero_h:"Welcome to BidVoice.",
+    auth_hero_sub:"Your AI employee is ready. Let's get to work.",
     auth_one_account:"One account = your jobs, synced across your devices.",
+    legal_terms:"Terms", legal_privacy:"Privacy", legal_support:"Support",
+    sms_consent:"By providing your mobile number, you agree to receive transactional and account-related text messages from BidVoice. Message and data rates may apply. Reply STOP to unsubscribe or HELP for assistance.",
     auth_create_eyebrow:"Create your account", auth_welcome_eyebrow:"Welcome back",
     auth_get_started:"Get started", auth_sign_in:"Sign in",
     auth_email:"Email", auth_password:"Password",
@@ -1517,9 +1541,11 @@ const I18N = {
     onb_v_paid:"I'll help you get paid.",
   },
   es: {
-    auth_hero_h:"Solo habla. Nosotros escribimos el presupuesto.",
-    auth_hero_sub:"Di el trabajo en voz alta — en inglés o español — y BidVoice lo convierte en una propuesta clara y con precio que puedes enviar desde tu teléfono.",
+    auth_hero_h:"Bienvenido a BidVoice.",
+    auth_hero_sub:"Tu empleada de IA está lista. Manos a la obra.",
     auth_one_account:"Una cuenta = tus trabajos, sincronizados en todos tus dispositivos.",
+    legal_terms:"Términos", legal_privacy:"Privacidad", legal_support:"Soporte",
+    sms_consent:"Al proporcionar tu número de celular, aceptas recibir mensajes de texto transaccionales y relacionados con tu cuenta de BidVoice. Pueden aplicar tarifas de mensajes y datos. Responde STOP para cancelar o HELP para ayuda.",
     auth_create_eyebrow:"Crea tu cuenta", auth_welcome_eyebrow:"Bienvenido de nuevo",
     auth_get_started:"Empezar", auth_sign_in:"Iniciar sesión",
     auth_email:"Correo electrónico", auth_password:"Contraseña",
@@ -1618,8 +1644,16 @@ const AI_IDENTITIES = {
 };
 const AI_DEFAULT = 'eden';                         // ← the single config change to switch identity
 function aiKey(){ try{ const k=localStorage.getItem('bt_ai_id'); return (k&&AI_IDENTITIES[k])?k:AI_DEFAULT; }catch(_){ return AI_DEFAULT; } }
-const AI = AI_IDENTITIES[aiKey()] || AI_IDENTITIES[AI_DEFAULT];
-function setAiIdentity(k){ if(AI_IDENTITIES[k]){ try{ localStorage.setItem('bt_ai_id', k); }catch(_){} location.reload(); } }
+let AI = AI_IDENTITIES[aiKey()] || AI_IDENTITIES[AI_DEFAULT];
+// Switch identity live — no full reload. Update the binding, refresh the panel/dock so the
+// name + orb reflect it, and re-render the current view (Settings shows the new selection).
+function setAiIdentity(k){ if(!AI_IDENTITIES[k] || k===aiKey()) return;
+  try{ localStorage.setItem('bt_ai_id', k); }catch(_){}
+  AI = AI_IDENTITIES[k];
+  try{ if(typeof bbClosePanel==='function' && typeof bbPanelOpen==='function' && bbPanelOpen()) bbClosePanel(); }catch(_){}
+  try{ if(typeof render==='function') render(); }catch(_){}
+  try{ if(typeof toast==='function') toast(aiText('Now working with '+AI.name+'.'),'ok'); }catch(_){}
+}
 // Swap the legacy label for the active name in any displayed string (fast no-op when unchanged).
 function aiText(s){ return (typeof s==='string' && AI.name!=='Bid Brain' && s.indexOf('Bid Brain')>=0) ? s.split('Bid Brain').join(AI.name) : s; }
 function t(k){ const v=(I18N[LANG]&&I18N[LANG][k]); const r = v!==undefined ? v : (I18N.en[k]!==undefined ? I18N.en[k] : k); return (typeof r==='string') ? aiText(r) : r; }
@@ -1629,6 +1663,7 @@ try{ document.documentElement.lang = LANG; }catch(e){}
 const state = { view:'home', jobId:null, bidTab:'notebook', loading:false, error:'', authMode:_returning?'signin':'welcome', authError:'', authSent:false, booted:false, onbStep:0, onbLang:null, onbMore:false, onbQ:'' };
 let TOKEN = localStorage.getItem('bt_token') || null;
 let USER = JSON.parse(localStorage.getItem('bt_user')||'null');
+let AWARENESS = JSON.parse(localStorage.getItem('bt_aware')||'null');   // Eden intake awareness (server-driven contexts)
 let SETTINGS = JSON.parse(localStorage.getItem('bt_settings')||'null') || { company:'Your Company', name:'', phone:'', license:'', from:'es', to:'en', logo:'', tax_rate:0, region:'', autoTranslate:true, bidLang:'' };
 if(SETTINGS.autoTranslate===undefined) SETTINGS.autoTranslate=true; // remembered account-level language prefs
 let JOBS = JSON.parse(localStorage.getItem('bt_jobs')||'[]');
@@ -1651,12 +1686,23 @@ async function loadMe(){ if(!TOKEN || !online) return; try{ const r=await api('/
   AI_VISUALIZE = !!(r.ai && r.ai.visualize); localStorage.setItem('bt_visualize', AI_VISUALIZE?'1':'0');
   AI_BUILD = !!(r.ai && r.ai.build); localStorage.setItem('bt_aibuild', AI_BUILD?'1':'0');
   LEADS_NEW = r.leadsNew||0; if(state.view==='home') render();
+  if(r.awareness){ AWARENESS=r.awareness; try{ localStorage.setItem('bt_aware', JSON.stringify(AWARENESS)); }catch(e){} }
   if(state.view==='capture') render();
   // One device ping per session so the founder dashboard sees who's on iPhone vs
   // Android and who landed in an in-app browser — even if they never record.
   if(!sessionPinged){ sessionPinged=true; const ia=inAppBrowser(); track('session_open',{ios:isIOS(),inApp:ia||'',voice:!ia&&recordSupported()}); }
   // Hydrate tax settings from the server unless the user has local unsaved edits.
   if(r.settings && !settingsDirty){ SETTINGS.tax_rate=r.settings.tax_rate||0; SETTINGS.region=r.settings.region||''; if(r.settings.terms!==undefined) SETTINGS.terms=r.settings.terms; if(r.settings.whatsapp!==undefined) SETTINGS.whatsapp=r.settings.whatsapp; if(r.settings.services!==undefined) SETTINGS.services=r.settings.services; if(r.settings.site_tagline!==undefined) SETTINGS.site_tagline=r.settings.site_tagline; if(r.settings.site_color!==undefined) SETTINGS.site_color=r.settings.site_color; if(r.settings.site_about!==undefined) SETTINGS.site_about=r.settings.site_about; if(r.settings.site_logo!==undefined) SETTINGS.site_logo=r.settings.site_logo; if(r.settings.logo!==undefined) SETTINGS.logo=r.settings.logo; if(r.settings.site_published!==undefined) SETTINGS.site_published=r.settings.site_published; if(r.settings.site_branded_url!==undefined) SETTINGS.site_branded_url=r.settings.site_branded_url; if(r.settings.site_slug!==undefined) SETTINGS.site_slug=r.settings.site_slug; if(r.settings.site_requested!==undefined) SETTINGS.site_requested=r.settings.site_requested; if(r.settings.site_request_note!==undefined) SETTINGS.site_request_note=r.settings.site_request_note; persistSettings(); }
+  // Eden voice settings come from the PROFILE (cross-device). Mirror into device storage so the
+  // existing read helpers (TTS_ON / edenPace / bbBriefMode / picker) transparently use the profile value.
+  if(r.settings){ try{ const s=r.settings;
+    if(s.voice_on!==undefined && s.voice_on!==null) localStorage.setItem('bt_tts', s.voice_on?'on':'off');
+    if(s.voice_pace) localStorage.setItem('bt_pace', String(s.voice_pace));
+    if(s.voice_headphones_only!==undefined) localStorage.setItem('bt_hp_only', s.voice_headphones_only?'on':'off');
+    if(s.voice_name) localStorage.setItem('bt_voice_dev', s.voice_name);
+    if(s.brief_mode) localStorage.setItem('bt_bb_brief', s.brief_mode);
+    TTS_ON = localStorage.getItem('bt_tts')!=='off';
+  }catch(e){} }
 }catch(e){} }
 
 /* ============ AI Growth Score (Sprint 13) ============ */
@@ -1778,8 +1824,8 @@ function funnelsBlock(){
 async function createFunnel(btn){
   if(!online||!TOKEN){ toast('Connect to the internet.','warn'); return; }
   const svcKeys=(SETTINGS.services||[]);
-  const service = svcKeys.length===1 ? svcKeys[0] : (prompt('Which service is this offer for? (e.g. roofing, fencing, excavation)')||'').trim();
-  const offer = (prompt('What\'s the offer? (e.g. Free Estimate, Free Roof Inspection)','Free Estimate')||'').trim();
+  const service = svcKeys.length===1 ? svcKeys[0] : ((await edenPrompt({title:'Which service is this offer for?',placeholder:'e.g. roofing, fencing, excavation'}))||'').trim();
+  const offer = ((await edenPrompt({title:'What’s the offer?',value:'Free Estimate',placeholder:'e.g. Free Estimate, Free Roof Inspection'}))||'').trim();
   if(!offer){ return; }
   if(btn){ btn.disabled=true; btn.textContent='Building your page…'; }
   try{
@@ -1791,8 +1837,8 @@ async function createFunnel(btn){
   }catch(e){ toast(e.status===402?'Subscribe to use AI features.':(e.message||'Could not create.'),'bad',5000); }
   if(btn){ btn.disabled=false; btn.textContent='Create an offer page'; }
 }
-function copyFunnel(id){ const link=location.origin+'/f/'+id; try{ navigator.clipboard.writeText(link); toast('Link copied.','ok'); }catch(e){ prompt('Copy:',link); } }
-async function delFunnel(id){ if(!confirm('Delete this offer page?'))return; try{ await api('/api/funnels/'+id,{method:'DELETE'}); FUNNELS.items=(FUNNELS.items||[]).filter(f=>f.id!==id); render(); }catch(e){} }
+function copyFunnel(id){ edenCopy(location.origin+'/f/'+id, 'Link copied.'); }
+async function delFunnel(id){ if(!await edenConfirm({title:'Delete this offer page?',okLabel:'Delete',danger:true}))return; try{ await api('/api/funnels/'+id,{method:'DELETE'}); FUNNELS.items=(FUNNELS.items||[]).filter(f=>f.id!==id); render(); }catch(e){} }
 
 /* ===== Outbound Prospecting (Gojiberry) — founder-only ===== */
 let PROSPECT={config:null,results:[],saved:[],counts:{},loaded:false,searching:false};
@@ -1819,7 +1865,7 @@ async function prospectSaveAll(){
 }
 async function prospectStatus(id,status){ try{ const r=await api('/api/prospects/'+id,{method:'PATCH',body:JSON.stringify({status})}); PROSPECT.saved=PROSPECT.saved.map(p=>p.id===id?r.prospect:p); PROSPECT.counts=r.counts||PROSPECT.counts; render(); }catch(e){} }
 async function prospectNote(id,notes){ try{ await api('/api/prospects/'+id,{method:'PATCH',body:JSON.stringify({notes})}); }catch(e){} }
-async function prospectDelete(id){ if(!confirm('Remove this prospect?'))return; try{ const r=await api('/api/prospects/'+id,{method:'DELETE'}); PROSPECT.saved=PROSPECT.saved.filter(p=>p.id!==id); PROSPECT.counts=r.counts||PROSPECT.counts; render(); }catch(e){} }
+async function prospectDelete(id){ if(!await edenConfirm({title:'Remove this prospect?',okLabel:'Remove',danger:true}))return; try{ const r=await api('/api/prospects/'+id,{method:'DELETE'}); PROSPECT.saved=PROSPECT.saved.filter(p=>p.id!==id); PROSPECT.counts=r.counts||PROSPECT.counts; render(); }catch(e){} }
 // Export the CRM as CSV — the handoff into Instantly (email) / LinkedHelper. Authenticated
 // fetch → Blob → download (a plain <a href> can't carry the bearer token).
 async function prospectExportCsv(){
@@ -1905,7 +1951,7 @@ async function vendorSave(){
   }catch(e){ toast(e.message||'Could not add.','bad'); }
 }
 async function vendorNote(id,notes){ try{ await api('/api/vendors/'+id,{method:'PATCH',body:JSON.stringify({notes})}); const v=VENDORS.items.find(x=>x.id===id); if(v) v.notes=notes; }catch(e){} }
-async function vendorDelete(id){ if(!confirm('Remove this vendor?'))return; try{ const r=await api('/api/vendors/'+id,{method:'DELETE'}); VENDORS.items=VENDORS.items.filter(v=>v.id!==id); VENDORS.count=r.count||VENDORS.count; render(); }catch(e){} }
+async function vendorDelete(id){ if(!await edenConfirm({title:'Remove this vendor?',okLabel:'Remove',danger:true}))return; try{ const r=await api('/api/vendors/'+id,{method:'DELETE'}); VENDORS.items=VENDORS.items.filter(v=>v.id!==id); VENDORS.count=r.count||VENDORS.count; render(); }catch(e){} }
 // One-tap quote request — opens a text prefilled with who you are + what they carry.
 function vendorQuote(id){
   const v=VENDORS.items.find(x=>x.id===id); if(!v) return;
@@ -1990,6 +2036,24 @@ async function markNotifsSeen(){
 function openNotifs(){ go('home'); }
 // The "good news" banner on the dashboard. Each item is swipe-to-dismiss (with an
 // × for desktop); dismissed ids are remembered so they don't come back.
+// A gentle, dismissible-by-verifying banner while the account's email is unconfirmed.
+// Verifying secures the login and unlocks publishing public contact info (item 6).
+function verifyBanner(){
+  if(!USER || USER.email_verified!==false) return '';
+  return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(238,155,46,.12);border:1px solid rgba(238,155,46,.38);color:inherit;border-radius:12px;padding:11px 14px;margin:10px 0;font-size:.9rem">
+    ${icon('message',16)}<span style="flex:1;min-width:170px">Verify your email — it secures your account and lets your public contact info go live.</span>
+    <button class="btn ghost sm" onclick="resendVerify(this)">Resend link</button></div>`;
+}
+async function resendVerify(btn){
+  if(!online||!TOKEN){ toast('Connect to the internet to resend the link.','warn'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  try{
+    const r=await api('/api/auth/resend-verification',{method:'POST'});
+    if(r&&r.alreadyVerified){ if(USER) USER.email_verified=true; toast('Your email is already verified. ✓','ok'); if(state.view==='home'||state.view==='settings') render(); return; }
+    toast(r&&r.sent?('Verification link sent to '+((USER&&USER.email)||'your email')+'.'):'Email isn’t switched on yet on the server.', r&&r.sent?'ok':'warn', 5000);
+  }catch(e){ toast(e.message||'Could not send the link.','bad'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='Resend link'; } }
+}
 function notifBanner(){
   const items=((NOTIFS&&NOTIFS.items)||[]).filter(i=>!NOTIF_DISMISSED.includes(i.id));
   if(!items.length) return '';
@@ -2055,12 +2119,12 @@ async function startCheckout(btn){
   const label = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Opening checkout…'; }
   try{ const r=await api('/api/billing/checkout',{method:'POST'}); window.location.href=r.url; }
-  catch(e){ if(btn){ btn.disabled=false; btn.textContent=label||'Subscribe'; } if(!gate402(e)) alert(e.message||'Could not start checkout.'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent=label||'Subscribe'; } if(!gate402(e)) toast(e.message||'Could not start checkout.','bad'); }
 }
 async function openPortal(btn){
   if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
   try{ const r=await api('/api/billing/portal',{method:'POST'}); window.location.href=r.url; }
-  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Manage billing'; } alert(e.message||'Could not open billing.'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Manage billing'; } toast(e.message||'Could not open billing.','bad'); }
 }
 // Route gated 402s to the paywall.
 function gate402(e){ if(e && e.status===402){ loadBilling().then(()=>go('paywall')); return true; } return false; }
@@ -2088,11 +2152,11 @@ async function loadBrain(){
 async function connectQuickbooks(btn){
   if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
   try{ const r=await api('/api/quickbooks/connect',{method:'POST'}); window.location.href=r.url; }
-  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Connect QuickBooks'; } alert(e.message||'QuickBooks isn’t set up on the server yet.'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Connect QuickBooks'; } toast(e.message||'QuickBooks isn’t set up on the server yet.','bad'); }
 }
 async function disconnectQuickbooks(){
-  if(!confirm('Disconnect QuickBooks? New payments will stop syncing to your books.')) return;
-  try{ await api('/api/quickbooks/disconnect',{method:'POST'}); QBO=Object.assign({},QBO||{},{connected:false}); localStorage.setItem('bt_qbo',JSON.stringify(QBO)); render(); }catch(e){ alert('Could not disconnect.'); }
+  if(!await edenConfirm({title:'Disconnect QuickBooks?',body:'New payments will stop syncing to your books.',okLabel:'Disconnect',danger:true})) return;
+  try{ await api('/api/quickbooks/disconnect',{method:'POST'}); QBO=Object.assign({},QBO||{},{connected:false}); localStorage.setItem('bt_qbo',JSON.stringify(QBO)); render(); }catch(e){ toast('Could not disconnect.','bad'); }
 }
 function quickbooksSection(){
   if(!QBO || !QBO.configured) return ''; // hidden until the server has QuickBooks keys
@@ -2125,7 +2189,7 @@ function paymentsReady(){ return !!(PAYMENTS && PAYMENTS.configured && PAYMENTS.
 async function startConnect(btn){
   if(btn){ btn.disabled=true; btn.textContent='Opening…'; }
   try{ const r=await api('/api/payments/connect',{method:'POST'}); window.location.href=r.url; }
-  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Set up payments'; } if(!gate402(e)) alert(e.message||'Could not start payment setup.'); }
+  catch(e){ if(btn){ btn.disabled=false; btn.textContent='Set up payments'; } if(!gate402(e)) toast(e.message||'Could not start payment setup.','bad'); }
 }
 async function loadJobPayReqs(jobId){
   if(!TOKEN || !online) return;
@@ -2143,7 +2207,7 @@ async function createPayReq(jobId, btn){
   const amount=+(amtEl&&amtEl.value)||0;
   const clientName=(nameEl&&nameEl.value||'').trim();
   const purpose=(purpEl&&purpEl.value||'').trim();
-  if(amount<1){ alert('Enter an amount of at least $1.'); return; }
+  if(amount<1){ toast('Enter an amount of at least $1.','warn'); return; }
   const j=JOBS.find(x=>x.id===jobId);
   // The client sees the purpose on their checkout ("Materials deposit — Kitchen").
   const description=[purpose, (j&&j.title)||''].filter(Boolean).join(' — ') || 'Construction work';
@@ -2152,17 +2216,17 @@ async function createPayReq(jobId, btn){
     const r=await api('/api/payments/requests',{method:'POST', body:JSON.stringify({ amount, clientName, jobId, description })});
     PAYREQS[jobId]=[r.request, ...(PAYREQS[jobId]||[])];
     render();
-  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Create payment link'; } if(!gate402(e)) alert(e.message||'Could not create the payment link.'); }
+  }catch(e){ if(btn){ btn.disabled=false; btn.textContent='Create payment link'; } if(!gate402(e)) toast(e.message||'Could not create the payment link.','bad'); }
 }
 async function cancelPayReq(jobId, id){
-  if(!confirm('Cancel this payment request?')) return;
+  if(!await edenConfirm({ title:'Cancel this payment request?', okLabel:'Cancel request', cancelLabel:'Keep it' })) return;
   try{ const r=await api('/api/payments/requests/'+id+'/cancel',{method:'POST'});
     PAYREQS[jobId]=(PAYREQS[jobId]||[]).map(x=>x.id===id?r.request:x); render();
-  }catch(e){ alert(e.message||'Could not cancel.'); }
+  }catch(e){ toast(e.message||'Could not cancel.','bad'); }
 }
 async function copyPayLink(url, btn){
   try{ await navigator.clipboard.writeText(url); if(btn){ const t=btn.textContent; btn.textContent='Copied ✓'; setTimeout(()=>btn.textContent=t,1500); } }
-  catch(e){ prompt('Copy this payment link:', url); }
+  catch(e){ edenCopy(url, 'Payment link copied.'); }
 }
 
 /* ============ local persistence ============ */
@@ -2265,7 +2329,12 @@ async function syncNow(force){
       const _sp={ company:SETTINGS.company, name:SETTINGS.name, phone:SETTINGS.phone,
         license:SETTINGS.license, whatsapp:SETTINGS.whatsapp||'', from:SETTINGS.from, to:SETTINGS.to, logo:SETTINGS.logo||'', site_logo:SETTINGS.site_logo||'',
         tax_rate:Number(SETTINGS.tax_rate)||0, region:SETTINGS.region||'',
-        site_tagline:SETTINGS.site_tagline||'', site_color:SETTINGS.site_color||'', site_about:SETTINGS.site_about||'' };
+        site_tagline:SETTINGS.site_tagline||'', site_color:SETTINGS.site_color||'', site_about:SETTINGS.site_about||'',
+        // Eden voice settings → profile (cross-device); device storage is the on-device source of truth.
+        voice_on:(localStorage.getItem('bt_tts')!=='off'), voice_pace:edenPace(),
+        voice_headphones_only:(localStorage.getItem('bt_hp_only')==='on'),
+        voice_name:(localStorage.getItem('bt_voice_dev')||''),
+        brief_mode:((typeof bbBriefMode==='function')?bbBriefMode():'exceptions') };
       if(SETTINGS.terms!==undefined) _sp.terms=SETTINGS.terms; // never blank out server terms before they've loaded
       if(Array.isArray(SETTINGS.services)) _sp.services=SETTINGS.services;
       try{ await api('/api/me',{method:'PATCH', body:JSON.stringify(_sp)}); settingsDirty=false; }catch(e){}
@@ -2338,7 +2407,7 @@ async function uploadPendingPhotos(job){
   }
 }
 
-window.addEventListener('online', ()=>{ online=true; paintSync(); syncNow(); loadNotifications(); });
+window.addEventListener('online', ()=>{ online=true; paintSync(); syncNow(); loadNotifications(); capQueueDrain(); });
 // Coming back to the app is the moment to surprise them with a paid deposit.
 document.addEventListener('visibilitychange', async ()=>{ if(!document.hidden && TOKEN && online){ await loadNotifications(); if(state.view==='home') render(); } });
 window.addEventListener('offline', ()=>{ online=false; paintSync(); });
@@ -2510,7 +2579,7 @@ function bbAcknowledge(){ try{
    Content is composed ONLY from real greeting counts (Trust: never invent activity).
    When there's nothing, she says so plainly instead of manufacturing urgency. */
 function bbBriefMode(){ const m=localStorage.getItem('bt_bb_brief'); return (m==='silent'||m==='always'||m==='exceptions')?m:'exceptions'; }
-function setBriefMode(m){ if(m==='silent'||m==='always'||m==='exceptions'){ localStorage.setItem('bt_bb_brief', m); if(state.view==='settings') render(); } }
+function setBriefMode(m){ if(m==='silent'||m==='always'||m==='exceptions'){ localStorage.setItem('bt_bb_brief', m); if(typeof edenVoiceChanged==='function') edenVoiceChanged(); if(state.view==='settings') render(); } }
 // Deterministic rotation — never repeats back-to-back, but stable (not random). Advances per open.
 function bbRot(key,n){ if(n<=1) return 0; try{ const k='bt_rot_'+key; let i=parseInt(localStorage.getItem(k)||'0',10); if(!Number.isFinite(i)) i=0; localStorage.setItem(k,String(i+1)); return ((i%n)+n)%n; }catch(_){ return 0; } }
 function bbPick(arr,key){ return arr[bbRot(key,arr.length)]; }
@@ -2586,6 +2655,72 @@ function bbOpeningLine(){ const j=bbActiveJob(); return j ? bbJobOpeningLine(j) 
 let bbOpenState=null;   // {t, speak} decided at open; bbMaybeBrief speaks it (or nothing)
 function _bbSeen(){ try{ return JSON.parse(localStorage.getItem('bt_bb_seen')||'{}')||{}; }catch(_){ return {}; } }
 function _bbSaveSeen(s){ try{ localStorage.setItem('bt_bb_seen', JSON.stringify(s||{})); }catch(_){} }
+/* ===== Eden speech dispatch — the moment map's gatekeeper (eden-experience-guide §1/§6/§7) =====
+   One place decides whether Eden speaks a NON-INTAKE moment. Budget: at most 3 spoken moments per
+   session, and never twice in a row without a user action between (§1). Foreground-gated: no
+   timer/push/socket line unless the surface is visible (§7). Headphone-only privacy mode (§6).
+   Intake conversation itself is exempt from the budget — it's the work, not a briefing. */
+const EDEN_SPEECH_BUDGET = 3;
+let _edenSpoke = 0, _edenSpokeSinceAction = 0;
+function edenUserAction(){ _edenSpokeSinceAction = 0; }              // any real gesture re-opens the floor
+function edenOverBudget(){ return _edenSpoke >= EDEN_SPEECH_BUDGET; }
+function edenDidSpeak(){ _edenSpoke++; _edenSpokeSinceAction++; }
+/* ===== The moment map — one declarative dispatch for Eden's non-intake spoken lines =====
+   Strings are verbatim from the Fable spec §6 (sprint AC-16: every spoken string appears in the
+   moment map). Any discrete hand-off/update speaks through edenSpeakMoment(), which routes through
+   the single gate below + the budget counter. Intake conversation (the follow-up question) is a
+   separate, exempt channel. The engine stays behind bbSpeak() so a server voice can drop in later. */
+const EDEN_MOMENTS = {
+  estimate_ready:  "Estimate's ready.",
+  proposal_ready:  "Proposal's ready when you are.",
+  sent:            "Sent.",
+  accepted:        "They accepted.",       // top-update, spoken flat (no numbers)
+  payment:         "Payment came in.",
+  offline:         "We lost signal — your notes are safe.",
+};
+function edenSpeakMoment(key){
+  const line=EDEN_MOMENTS[key]; if(!line) return false;
+  if(!edenMaySpeakSync()) return false;   // budget / not-twice / foreground / mute
+  edenDidSpeak();
+  try{ bbSpeak(line, { full:true }); }catch(_){ return false; }
+  return true;
+}
+// The single gate for a spoken non-intake moment: on + not-muted + budget + not-twice + foreground.
+function edenMaySpeakSync(){
+  if(!TTS_ON || !('speechSynthesis' in window)) return false;
+  if(bbBriefMode()==='silent') return false;                        // the mute overrides everything
+  if(edenOverBudget()) return false;                                // over budget → text only, silently
+  if(_edenSpokeSinceAction >= 1) return false;                      // never twice without an action between
+  if(document.hidden) return false;                                 // a backgrounded surface never speaks
+  return true;
+}
+// Privacy: "speak only through headphones" (§6). Browsers can't reliably read the output route, so
+// when the setting is on and we can't confirm a private (headphone/earpiece/BT) output, Eden stays
+// silent — a spoken "They accepted." in front of the wrong person is a real leak. Opt-in, default off.
+function edenHeadphoneOnly(){ try{ return localStorage.getItem('bt_hp_only')==='on'; }catch(_){ return false; } }
+async function edenOutputIsPrivate(){
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return false;
+    const outs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audiooutput');
+    return outs.some(d=>/head|ear|bud|bluetooth|airpod|hands.?free/i.test(d.label||''));
+  }catch(_){ return false; }
+}
+// Contextual greeting — allowed ONLY first-session-of-the-day or after a meaningful (4h+) absence,
+// and at most once per day. Law XV amended (approved): a warm "Morning, Ben." is fine when it's
+// genuinely a new arrival; it must never become scripted filler or repeat. Returns '' otherwise so
+// the caller can stay silent. (eden-experience-guide §2.)
+function edenGreetedToday(){ try{ return localStorage.getItem('bt_bb_greetday')===todayKey(); }catch(_){ return false; } }
+function edenMarkGreeted(){ try{ localStorage.setItem('bt_bb_greetday', todayKey()); }catch(_){} }
+function edenAwaySec(){ try{ const last=Number(localStorage.getItem('bt_bb_lastopen')||0); return last?(Date.now()-last)/1000:Infinity; }catch(_){ return Infinity; } }
+function edenGreetOK(){ return !edenGreetedToday() && edenAwaySec() >= 14400; }   // once/day, 4h+ gap
+function edenGreetWord(es){ const h=new Date().getHours(); return es?(h<12?'Buenos días':(h<18?'Buenas tardes':'Buenas noches')):(h<12?'Morning':(h<18?'Afternoon':'Evening')); }
+function edenGreeting(es){ let nm=''; try{ nm=bbFirst(SETTINGS.name)||''; }catch(_){} const w=edenGreetWord(es); return nm?(w+', '+nm+'.'):(w+'.'); }
+// Global speaking pace (§6) — one control, 0.9–1.3×, default 1.15×; governs everything Eden says.
+function edenPace(){ let p=parseFloat(localStorage.getItem('bt_pace')); return (p>=0.9&&p<=1.3)?p:1.15; }
+function setEdenPace(v){ v=parseFloat(v); if(v>=0.9&&v<=1.3){ try{ localStorage.setItem('bt_pace', String(v)); }catch(_){} } edenVoiceChanged(); }
+// A voice setting changed → persist it to the profile (cross-device) via the settings sync (debounced).
+let _edenVoiceSyncT=null;
+function edenVoiceChanged(){ settingsDirty=true; try{ clearTimeout(_edenVoiceSyncT); _edenVoiceSyncT=setTimeout(()=>{ if(typeof syncNow==='function') syncNow(); }, 700); }catch(_){} }
 function bbAwareOpening(){
   try{
     const es=(typeof LANG!=='undefined'&&LANG==='es');
@@ -2604,15 +2739,19 @@ function bbAwareOpening(){
     if(fresh.length){
       const p=fresh[0]; const who=bbFirst(p.name)||(es?'un cliente':'a customer'); const amt=money(p.amount);
       seen.paid=paid.map(pk); _bbSaveSeen(seen);
-      const line=es?bbPick([who+' pagó el anticipo — '+amt+'.','Entró el anticipo de '+who+': '+amt+'.','Ya pagó '+who+' — '+amt+'.'],'aw_paid')
-                   :bbPick([who+"'s deposit came in — "+amt+'.',"That's "+amt+' in from '+who+'.',who+' paid the deposit — '+amt+'.'],'aw_paid');
-      return {t:line, speak:true};
+      const greet=edenGreetOK(); const gp=greet?(edenGreeting(es)+' '):''; if(greet) edenMarkGreeted();
+      // Screen keeps the number; the spoken line never does (§4: dollar amounts are read, not heard).
+      const screen=gp+(es?bbPick([who+' pagó el anticipo — '+amt+'.','Entró el anticipo de '+who+': '+amt+'.','Ya pagó '+who+' — '+amt+'.'],'aw_paid')
+                        :bbPick([who+"'s deposit came in — "+amt+'.',"That's "+amt+' in from '+who+'.',who+' paid the deposit — '+amt+'.'],'aw_paid'));
+      const spoken=gp+(es?(who+' pagó el anticipo.'):(who+"'s deposit came in."));
+      return {t:screen, say:spoken, speak:true};
     }
     // 2) A new lead since last time — real and time-sensitive.
     if(nl>(seen.leads||0)){
       const d=nl-(seen.leads||0); seen.leads=nl; _bbSaveSeen(seen);
-      const line=es?bbPick([(d===1?'Entró un prospecto nuevo.':'Entraron '+d+' prospectos nuevos.'),(d===1?'Tienes un lead nuevo esperando.':'Tienes '+d+' leads nuevos esperando.')],'aw_lead')
-                   :bbPick([(d===1?'New lead just came in.':d+' new leads just came in.'),(d===1?"There's a fresh lead waiting.":'There are '+d+' fresh leads waiting.')],'aw_lead');
+      const greet=edenGreetOK(); const gp=greet?(edenGreeting(es)+' '):''; if(greet) edenMarkGreeted();
+      const line=gp+(es?bbPick([(d===1?'Entró un prospecto nuevo.':'Entraron '+d+' prospectos nuevos.'),(d===1?'Tienes un lead nuevo esperando.':'Tienes '+d+' leads nuevos esperando.')],'aw_lead')
+                      :bbPick([(d===1?'New lead just came in.':d+' new leads just came in.'),(d===1?"There's a fresh lead waiting.":'There are '+d+' fresh leads waiting.')],'aw_lead'));
       return {t:line, speak:true};
     }
     if(nl<(seen.leads||0)){ seen.leads=nl; _bbSaveSeen(seen); }   // keep the watermark honest; never re-announce
@@ -2631,7 +2770,10 @@ function bbAwareOpening(){
       const line=es?bbPick(['De vuelta contigo.','Aquí sigo.',''],'aw_quick'):bbPick(['Back with you.','Still here.',''],'aw_quick');
       return {t:line, speak:false};
     }
-    // 5) Nothing changed — stay quiet, or a short presence line. NEVER a scripted greeting.
+    // 5) Nothing new. If this is the first arrival of the day (or after a real 4h+ gap), a warm
+    // greeting is warranted (Law XV amended — approved) — otherwise a short, silent presence line,
+    // never scripted filler. She greets at most once a day; never on a quick reopen.
+    if(edenGreetOK()){ edenMarkGreeted(); return {t:edenGreeting(es), speak:true}; }
     const line=es?bbPick(['','¿Qué sigue?','Lista.','Aquí estoy.',''],'aw_idle'):bbPick(['',"What's next?",'Ready.',"I'm here.",''],'aw_idle');
     return {t:line, speak:false};
   }catch(_){ return {t:'', speak:false}; }
@@ -2640,12 +2782,17 @@ function bbAwareOpening(){
 // No manufactured greeting: if awareness is silent, she is silent, whatever the mode.
 function bbMaybeBrief(){
   try{
-    if(!('speechSynthesis' in window) || !TTS_ON) return;
-    if(bbBriefMode()==='silent') return;            // the mute overrides everything
     const op=bbOpenState; if(!op || !op.t || !op.speak) return;   // awareness said nothing to say
-    setTimeout(()=>{ if(!bbPanelOpen() || BBC.recording) return;
-      bbSetState('speaking');
-      bbSpeak(op.t, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
+    if(!edenMaySpeakSync()) return;                 // budget / not-twice / foreground / mute (§1,§7)
+    const spoken=op.say||op.t;                       // the spoken variant never carries numbers (§4)
+    const dispatch=()=>{ if(!bbPanelOpen() || BBC.recording) return;
+      bbSetState('speaking'); edenDidSpeak();        // count it against the session budget
+      bbSpeak(spoken, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
+    };
+    setTimeout(()=>{
+      // Headphone-only privacy gate (§6): confirm a private audio route, or stay on screen.
+      if(edenHeadphoneOnly()){ edenOutputIsPrivate().then(ok=>{ if(ok) dispatch(); }); }
+      else dispatch();
     }, 500);
   }catch(_){}
 }
@@ -2838,7 +2985,7 @@ function bbSuggestionsHTML(){
 function bbSuggestPick(i){ const s=BB_SUGGEST[i]; if(!s) return; bbActivity(); if(s.kind==='job'){ bbClosePanel(); go('job',s.id); } else bbDoAction(s.a); }
 function bbOpenPanel(){
   const p=document.getElementById('bbPanel'), s=document.getElementById('bbScrim'); if(!p) return;
-  bbActivity(); if(typeof loadBrain==='function') loadBrain();
+  bbActivity(); edenUserAction(); if(typeof loadBrain==='function') loadBrain();
   bbSessionStart=Date.now();   // start of this working session (feeds her energy/memory)
   // Every open starts clean — never reopens mid-transcript. The conversation is
   // ephemeral to this session, like talking to a person: you walk up fresh, you don't
@@ -2900,7 +3047,7 @@ async function bbConvSend(text){
   const inp=document.getElementById('bbInput');
   const msg=(text!=null?String(text):(inp?inp.value:'')).trim(); if(!msg||BBC.busy) return;
   if(inp) inp.value='';
-  bbActivity(); BBC.thread.push({role:'user',content:msg}); bbThreadSave();
+  bbActivity(); edenUserAction(); BBC.thread.push({role:'user',content:msg}); bbThreadSave();
   BBC.busy=true; bbConvRender(); bbStartThinking(msg); bbSetState('thinking'); bbAk('thinking');
   const _turnT0=bbTurnStart||Date.now();   // measure the whole turn (you stop talking → she answers)
   try{
@@ -2957,6 +3104,7 @@ function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.g
 // In-overlay voice: (barge-in) → record → silence auto-stop → transcribe → send.
 async function bbConvMic(){
   if(bbSpeaking()) bbStopSpeaking();           // barge-in: stop Bid Brain so it can listen
+  edenUserAction();                            // talking is a user action — re-opens Eden's floor
   bbTurn++; bbClearVoiceTimers();              // a new user turn invalidates any pending auto-listen
   const micBtn=document.getElementById('bbMicBtn'); if(micBtn) micBtn.classList.remove('ready');
   if(BBC.recording){ bbConvStopRec(); return; }              // tap again = stop & send
@@ -3126,19 +3274,23 @@ function bbScheduleAsk(reason){ return reason==='no_match'?t('bb_sched_which'):t
 function goJobs(){ go('home'); requestAnimationFrame(()=>{ const el=document.querySelector('.fchips')||document.querySelector('.newbar'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }); }
 function openMore(){ const a=document.getElementById('sheetAdmin'); if(a) a.style.display=ADMIN?'block':'none';
   const pr=document.getElementById('sheetProspect'); if(pr) pr.style.display=ADMIN?'block':'none';
-  const ins=document.getElementById('sheetInstall'); if(ins) ins.style.display=isStandalone()?'none':'block';
+  // "Add to home screen" is a phone/tablet concept — hide it on desktop (and when
+  // already installed) so we never show a mobile-only prompt where it can't apply.
+  const ins=document.getElementById('sheetInstall'); if(ins) ins.style.display=(isStandalone()||!isMobileDevice())?'none':'block';
   document.getElementById('sheet').style.display='flex'; }
 // ---- Install as an app (PWA) ----
 let deferredInstall=null;
 window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredInstall=e; });
 function isStandalone(){ try{ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }catch(e){ return false; } }
+// A touch/handheld device — used to hide add-to-home and other mobile-only prompts on desktop.
+function isMobileDevice(){ try{ return (window.matchMedia && matchMedia('(pointer:coarse)').matches) || /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(navigator.userAgent||''); }catch(_){ return false; } }
 function installApp(){
   closeMore();
   if(isStandalone()){ toast('BidVoice is already on your home screen.','ok'); return; }
   if(deferredInstall){ deferredInstall.prompt(); deferredInstall.userChoice.then(()=>{ deferredInstall=null; }).catch(()=>{}); return; }
   const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  if(ios){ alert('Add BidVoice to your home screen:\n\n1.  Tap the Share button at the bottom of Safari\n2.  Scroll down and tap "Add to Home Screen"\n3.  Tap "Add"'); }
-  else { alert('Add BidVoice to your home screen:\n\nOpen your browser menu and choose "Install app" or "Add to Home screen."'); }
+  if(ios){ edenAlert('Add BidVoice to your home screen','1.  Tap the Share button at the bottom of Safari\n2.  Scroll down and tap “Add to Home Screen”\n3.  Tap “Add”','Got it'); }
+  else { edenAlert('Add BidVoice to your home screen','Open your browser menu and choose “Install app” or “Add to Home screen.”','Got it'); }
 }
 // Register the service worker (installability + offline launch). Best-effort.
 if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
@@ -3147,7 +3299,7 @@ function closeMore(){ const s=document.getElementById('sheet'); if(s) s.style.di
 /* ----- Center action button: voice-first new proposal (tap), menu (long-press) ----- */
 // Tap → straight into capture with the mic already listening (the core workflow:
 // Speak → Generate → Send → Get Paid). Falls back silently if speech is unavailable.
-function fabTap(){ if(!entitled()){ go('paywall'); return; }
+async function fabTap(){ if(!entitled()){ go('paywall'); return; }
   // On the capture screen the center nav mic is ALSO a record toggle (alongside the
   // floating Record button) — both reach the same recording. Tap to start/stop.
   if(state.view==='capture' && !state.loading){ micTap(); return; }
@@ -3155,7 +3307,7 @@ function fabTap(){ if(!entitled()){ go('paywall'); return; }
   // on the capture screen, confirm before clearing them for a brand-new bid.
   const ta=document.getElementById('capText');
   const hasDraft = !!((ta && ta.value.trim()) || (CAP_DRAFT.text||'').trim());
-  if(state.view==='capture' && hasDraft && !confirm('Start a new bid? Your current voice notes will be cleared.')) return;
+  if(state.view==='capture' && hasDraft && !await edenConfirm({title:'Start a new bid?',body:'Your current voice notes will be cleared.',okLabel:'Start new',cancelLabel:'Keep editing'})) return;
   freshCapture(); go('capture','new'); requestAnimationFrame(animateMicGrow); }
 function openCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='flex'; }
 function closeCreate(){ const s=document.getElementById('createSheet'); if(s) s.style.display='none'; }
@@ -3251,29 +3403,27 @@ function paintTrialChip(){
 }
 
 /* ---------- PAYWALL ---------- */
-// The crew-credit ladder: $50 base, −$10 per paying sub, free at 5. Shows where the
-// contractor is on the ladder and nudges them to bring more crew.
+// Give a month, get a month. Refer another company: they get their first month free,
+// and once they've paid through month two you get a month credited — up to 12 a year.
+// Credits never expire while you're active and apply to your future invoices.
 function referralLadderHTML(){
   const r = BILLING && BILLING.referral; if(!r) return '';
-  const rungs=[];
-  for(let i=0;i<=r.freeAt;i++){ rungs.push({ i, price:Math.max(0, r.base - r.creditPerRef*i), on:i===r.payingReferrals }); }
-  const free = r.effective===0;
-  // Lead with the destination — FREE at 5 — then the math. Once they're free, keep
-  // it open-ended: they stay free and adding more crew grows their network.
+  const c = r.credits || {};
+  const earned = c.earnedThisYear || 0;
+  const remaining = (c.remainingThisYear==null) ? 12 : c.remainingThisYear;
+  const lifetime = c.lifetimeRewards || 0;
+  const brought = r.referredCompanies || 0;
   return `<div class="pricecard" style="border-color:var(--amber)">
-    <div class="h-eyebrow">${free?"You're in — it's free":`Get it FREE — bring ${r.freeAt} of your crew`}</div>
-    <div class="amt">${free?'$0':priceStr(r.effective)}<span>${free?" — free while your crew's active":'/month'}</span></div>
-    <div class="hint" style="margin:-4px 0 10px">${free
-      ? `Your crew's got you — <b style="color:var(--paper)">$0/month</b> for as long as they stay subscribed${r.locked?', and your founder rate is locked in':''}. Keep adding crew — you stay free, and every contractor you bring grows your network.`
-      : `$${r.base}/mo, and every contractor you bring on who subscribes takes <b style="color:var(--paper)">$${r.creditPerRef} off</b> — <b style="color:var(--paper)">${r.freeAt} paying subs and it's $0.</b> You're at ${r.payingReferrals} so far; bring <b style="color:var(--paper)">${r.remainingToFree}</b> more and it's free${r.locked?' (founder rate locked in)':''}.`}</div>
-    <div class="ladder">${rungs.map(x=>`<div class="rung ${x.on?'on':''}"><span>${x.i}</span><b>${x.price===0?'Free':'$'+x.price}</b></div>`).join('')}</div>
-    <button class="btn ghost full" style="margin-top:12px" onclick="shareReferral()">${icon('share',15)} ${free?'Add more of your crew':'Invite your crew — get to free'}</button>
+    <div class="h-eyebrow">Give a month, get a month</div>
+    <div class="amt">${earned}<span> ${earned===1?'month':'months'} earned this year</span></div>
+    <div class="hint" style="margin:-4px 0 10px">Refer another company — <b style="color:var(--paper)">they get their first month free</b>, and once they've paid through month two <b style="color:var(--paper)">you get a month credited</b>. Up to <b style="color:var(--paper)">12 a year</b>; credits never expire while you're active and come off your future invoices.${c.capReached?` <b style="color:var(--paper)">You've hit this year's 12 — nice.</b>`:` <b style="color:var(--paper)">${remaining}</b> left this year.`}${lifetime?` You've earned <b style="color:var(--paper)">${lifetime}</b> total${brought?` from ${brought} paying ${brought===1?'company':'companies'}`:''}.`:''}${r.locked?' Your founding rate is locked in.':''}</div>
+    <button class="btn ghost full" style="margin-top:12px" onclick="shareReferral()">${icon('share',15)} Refer a company</button>
   </div>`;
 }
 function openMySite(){ closeMore(); if(!USER||!USER.id){ toast('Sign in first.','warn'); return; } window.open('/c/'+USER.id, '_blank'); }
 async function requestCustomSite(btn){
   if(!online||!TOKEN){ toast('Connect to the internet to send your request.','warn'); return; }
-  const note=(prompt('Anything you want on it? (optional — pages, your domain, the look you want)')||'').trim();
+  const note=((await edenPrompt({title:'Anything you want on it?',body:'Optional — pages, your domain, the look you want.',placeholder:'Optional',okLabel:'Send request'}))||'').trim();
   if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
   try{
     const r=await api('/api/me/site-request',{method:'POST',body:JSON.stringify({note})});
@@ -3337,8 +3487,9 @@ function viewPaywall(){
         : (setupWaivedView()
           ? `your ${priceStr(BILLING.setup_fee_base)} setup fee is <b style="color:var(--paper)">waived</b> (founding member) — just your first ${priceStr(planMonthly())}`
           : `your first ${priceStr(planMonthly())} is charged`)}, then ${priceStr(planMonthly())}/month. Cancel anytime.</div>
-      ${(BILLING&&BILLING.referral)?`<div class="freecallout">${icon('party',15)} Or get it <b>FREE</b> — bring ${BILLING.referral.freeAt} contractors who subscribe and your ${priceStr(BILLING.referral.base)}/mo drops to <b>$0</b>.</div>`:''}
+      ${(BILLING&&BILLING.referral)?`<div class="freecallout">${icon('party',15)} <b>Give a month, get a month</b> — refer another company: they get their first month free, and once they pay through month two, you earn a free month (up to 12 a year).</div>`:''}
       <ul class="feat">
+        <li><b>Unlimited team</b> — your whole crew, one price</li>
         <li>Unlimited job notebooks</li>
         <li>Voice capture &amp; English ⇄ Spanish translation</li>
         <li>AI bid drafting from the conversation</li>
@@ -3351,24 +3502,24 @@ function viewPaywall(){
     ${referralLadderHTML()}
     <div class="pricecard soon">
       <div class="soonflag">Coming soon</div>
-      <div class="h-eyebrow">Team plan · for a GC's sales team</div>
-      <div class="amt">$149.99<span>/month</span></div>
-      <div class="hint" style="margin:-4px 0 10px">One-time <b style="color:var(--paper)">$599.99 setup</b>, then <b style="color:var(--paper)">$149.99/mo</b>. For a GC running a sales team — bring every salesperson under one roof, assign leads, and track every rep's bids in one place.</div>
+      <div class="h-eyebrow">Eden Front Office</div>
+      <div class="amt">The answered phone<span></span></div>
+      <div class="hint" style="margin:-4px 0 10px">A dedicated business number, 24/7 answering, and SMS/email/forms in one thread — Eden handles the front office so nothing falls through the cracks. Everything in your plan, plus the phone. Still one price per company, still unlimited team.</div>
       <ul class="feat">
-        <li>Everything in the Contractor plan</li>
-        <li>Add your whole sales team</li>
-        <li>Assign leads &amp; track every rep's bids</li>
-        <li>One dashboard for the whole operation</li>
+        <li>Everything in your plan</li>
+        <li>Dedicated business number &amp; 24/7 answering</li>
+        <li>SMS, email &amp; web forms as one conversation</li>
+        <li>Scheduling within your approval</li>
       </ul>
-      <div id="teamInterest">${interestDone('team')
+      <div id="teamInterest">${interestDone('front_office')
         ? `<button class="btn ghost full" disabled>${icon('check',14)} You're on the list — we'll email you</button>`
-        : `<button class="btn ghost full" onclick="notifyInterest('team',this)">${icon('bell',15)} Notify me when it's ready</button>`}</div>
+        : `<button class="btn ghost full" onclick="notifyInterest('front_office',this)">${icon('bell',15)} Notify me when it's ready</button>`}</div>
     </div>
     ${BILLING&&BILLING.has_subscription?`<div style="margin-top:14px;text-align:center"><button class="btn ghost" onclick="openPortal(this)">Manage billing</button></div>`:''}`;
 }
 function interestDone(f){ try{ return localStorage.getItem('bt_interest_'+f)==='1'; }catch(e){ return false; } }
 async function notifyInterest(feature, btn){
-  if(!TOKEN || !online){ alert('Connect to the internet to join the list.'); return; }
+  if(!TOKEN || !online){ toast('Connect to the internet to join the list.','warn'); return; }
   const old=btn.textContent; btn.disabled=true; btn.textContent='Adding…';
   try{
     const r=await api('/api/interest',{method:'POST',body:JSON.stringify({feature})});
@@ -3376,7 +3527,7 @@ async function notifyInterest(feature, btn){
     const n=(r&&r.count)||1;
     const box=document.getElementById('teamInterest');
     if(box) box.innerHTML=`<button class="btn ghost full" disabled>${icon('check',14)} You're on the list${n>1?` — ${n} contractors want this`:''}</button>`;
-  }catch(e){ btn.disabled=false; btn.textContent=old; alert('Could not save right now — please try again.'); }
+  }catch(e){ btn.disabled=false; btn.textContent=old; toast('Could not save right now — please try again.','bad'); }
 }
 
 /* ---------- AUTH ---------- */
@@ -3443,14 +3594,14 @@ function viewAuth(){
   if(m==='welcome') return viewWelcome();
   const card = m==='forgot' ? authForgotCard() : m==='reset' ? authResetCard() : authSigninCard(m==='signup');
   return `<div class="auth">
-    <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">Voice</span></div>
+    <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span><span class="wm">Bid<span style="color:var(--amber)">Voice</span></span></div>
     <div class="auth-hero">
-      <div class="auth-mic">${icon('mic',34)}</div>
       <div class="auth-hero-h">${esc(t('auth_hero_h'))}</div>
       <div class="auth-hero-sub">${esc(t('auth_hero_sub'))}</div>
     </div>
     ${card}
     <div class="hint" style="text-align:center;margin-top:14px">${esc(t('auth_one_account'))}</div>
+    <div class="auth-legal"><a href="/terms">${esc(t('legal_terms'))}</a> · <a href="/privacy">${esc(t('legal_privacy'))}</a> · <a href="mailto:support@bidvoice.ai">${esc(t('legal_support'))}</a> · <span>© BidVoice AI</span></div>
   </div>`;
 }
 // Compact language picker tucked into the top-right corner of the auth card —
@@ -3526,8 +3677,16 @@ async function doForgot(){
   if(!email){ state.authError='Enter your email.'; render(); return; }
   if(!online){ state.authError='Connect to the internet to reset your password.'; render(); return; }
   state.authError='';
-  try{ await api('/api/auth/reset',{method:'POST',body:JSON.stringify({email})}); }catch(e){}
-  state.authSent=true; render(); // generic confirmation regardless (no account enumeration)
+  let r=null;
+  try{ r=await api('/api/auth/reset',{method:'POST',body:JSON.stringify({email})}); }catch(e){}
+  // Never claim we sent an email we didn't (Soul: never hide a failure). `sent` reflects
+  // whether email is configured server-wide — NOT whether the account exists — so surfacing
+  // it doesn't leak account existence.
+  if(r && r.sent===false){
+    state.authError='Password reset by email isn’t turned on yet. Email support@bidvoice.ai and we’ll reset it for you.';
+    render(); return;
+  }
+  state.authSent=true; render(); // generic confirmation (no account enumeration)
 }
 async function doReset(){
   const p=((document.getElementById('resetPass')||{}).value)||'';
@@ -3618,12 +3777,12 @@ const TRADE_TEMPLATES = {
     {section:'Finish', desc:'Trim, doors & hardware'},
     {section:'Finish', desc:'Final cleanup'} ] },
 };
-function applyTemplate(trade){
+async function applyTemplate(trade){
   if(!trade) return;
   const j=currentJob(); if(!j) return;
   const tpl=TRADE_TEMPLATES[trade]; if(!tpl) return;
   const hasContent=(j.lines||[]).some(l=>l.desc||l.price||l.hours||l.rate);
-  if(hasContent && !confirm('Add the typical '+tpl.label+' line items? Your current lines stay — delete any you don’t need.')) return;
+  if(hasContent && !await edenConfirm({title:'Add the typical '+tpl.label+' line items?',body:'Your current lines stay — delete any you don’t need.',okLabel:'Add items'})) return;
   tpl.lines.forEach(t=>{ j.lines.push({id:uid(), section:t.section||'', desc:t.desc, type:t.type||'fixed', price:0, hours:0, rate:0, furn:'you'}); });
   track('feature_used', {feature:'trade_template', trade});
   touch(j); saveJobs(); render();
@@ -3726,12 +3885,12 @@ function dailyInsight(){
   return {ic:'star', text:pickMotivation()};
 }
 function greetingHTML(){
-  const who=(SETTINGS.name||'').trim();
-  const e=greetEmoji(), isHand=(e==='👋');
-  const waveCls=(isHand && !greetWaved)?' wave':''; greetWaved=true;
+  // Law XV: no scripted "Good <time>, Name." The home leads with the one real thing that
+  // matters right now (money in, appointments, follow-ups, leads, estimates ready) — pulled
+  // from live data by dailyInsight(). Awareness, not a greeting.
+  const di=dailyInsight();
   return `<div class="dash-hello"><div class="h-eyebrow">${esc(SETTINGS.company)||'Your business'}</div>
-    <h1 class="page">${greetingWord()}${who?', '+esc(who):''}</h1>
-    <div class="daily-insight">${(di=>`<span class="di-ic">${icon(di.ic,15)}</span><span>${esc(di.text)}</span>`)(dailyInsight())}</div></div>`;
+    <h1 class="page dash-lead"><span class="di-ic">${icon(di.ic,20)}</span> ${esc(di.text)}</h1></div>`;
 }
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function timeAgo(ts){ if(!ts) return ''; const m=Math.floor((Date.now()-ts)/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
@@ -3841,9 +4000,10 @@ function viewHome(){
   const needsSetup = !SETTINGS.company || SETTINGS.company==='Your Company' || !SETTINGS.logo || !(SETTINGS.phone||'').trim();
   const nudge = needsSetup ? `<button class="setupnudge" onclick="go('settings')">Finish your setup — add your company name, logo &amp; phone so every bid looks professional. <span class="nudge-go">Set up ${icon('chevron',12)}</span></button>` : '';
   const news = notifBanner();
+  const verify = verifyBanner();
   const crew = teamNudge();
   if(visible.length===0){
-    return hello + news + nudge + crew + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
+    return hello + verify + news + nudge + crew + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
   }
   const f = state.jobFilter || 'all';
   const counts = { all: visible.length, draft:0, sent:0, signed:0, scheduled:0 };
@@ -3860,7 +4020,7 @@ function viewHome(){
   let list;
   if(filtered.length===0){ list = folHead + `<div class="hint" style="margin-top:16px">${f==='followups'?"No follow-ups needed — you're on top of it. "+icon('party',14):'No '+statusLabel(f).toLowerCase()+' jobs yet.'}</div>`; }
   else { list = folHead + (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">${icon('map',14)} Tap ${icon('compass',13)} for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
-  return `${hello}${news}${nudge}${crew}
+  return `${hello}${verify}${news}${nudge}${crew}
     ${growthCard()}
     ${kpiStrip(dashKPIs(visible))}
     ${scheduleBlock(visible)}
@@ -4080,6 +4240,7 @@ function onboardPanel(){
       <input id="obEmail" class="input" type="email" placeholder="Their email (required)"/>
       <div class="row2" style="margin-top:8px"><input id="obCompany" class="input" placeholder="Company"/><input id="obName" class="input" placeholder="Contact name"/></div>
       <div class="row2" style="margin-top:8px"><input id="obPhone" class="input" type="tel" placeholder="Phone / WhatsApp"/><input id="obRegion" class="input" placeholder="State (e.g. WA)"/></div>
+      <div class="hint" style="margin-top:6px;font-size:.76rem">${esc(t('sms_consent'))}</div>
       <div class="row2" style="margin-top:8px"><input id="obTax" class="input" type="number" step="0.1" min="0" placeholder="Sales tax %"/>
         <select id="obToLang" class="input" title="Their client's language">${langOpts('en')}</select></div>
       <label class="fld" style="margin-top:10px">Their trades <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(tap — sets up their website + a sample bid)</span></label>
@@ -4185,6 +4346,80 @@ function clearCapDraft(){ CAP_DRAFT={title:'',from:'',to:'',text:'',trade:''}; C
 // Voice-first New Job. The microphone is the hero: open, tap, talk. Languages,
 // company, tax all live in Settings now and are used silently. The AI extracts the
 // job details live as you speak and auto-names the project.
+/* ===== Eden intake — awareness contexts + exact copy (Fable Intake v4, retrofit) =====
+   The capture screen opens as a conversation, not a form. Context is server-driven
+   (AWARENESS from /api/me) so a greeting is never a client-side guess. Four contexts:
+   first / returning / mid-job / quiet. Copy strings are verbatim from the spec. */
+function edenFirstName(){ try{ return (String((SETTINGS&&SETTINGS.name)||'').trim().split(/\s+/)[0])||''; }catch(_){ return ''; } }
+function edenDaypart(){ const h=new Date().getHours(); return h<12?'Morning':(h<18?'Afternoon':'Evening'); }
+// first = no completed intake on the account · mid-job = resuming a draft with content · else returning.
+function edenCtx(){
+  const done = AWARENESS ? !!AWARENESS.hasCompletedIntake : (typeof JOBS!=='undefined' && JOBS.some(j=>!j._deleted));
+  if(!done) return 'first';
+  if(((CAP_DRAFT&&CAP_DRAFT.text)||'').trim().length>0) return 'midjob';
+  return 'returning';
+}
+// The spoken/on-screen state label for the "Eden · {state}" pill (Ready/Thinking/Review).
+function edenIntakeStateLabel(){ if(intakeRunning) return 'Thinking'; if(CAP_INTAKE && CAP_INTAKE.ready) return 'Review'; return 'Ready'; }
+// The awareness header: state pill + orb + the context greeting (staged Beat reveal) + the first-visit
+// trust line. ctx==='first' is self-limiting (flips to 'returning' once has_completed_intake is set), so
+// the trust line here IS the "first greeting" occurrence; the second is the first review (a later slice).
+function edenIntakeHeader(){
+  const ctx=edenCtx(), nm=edenFirstName(), dp=edenDaypart(), name=esc(AI.name);
+  const greet=dp+(nm?(', '+esc(nm)):'')+'.';
+  let lines;
+  if(ctx==='first') lines=[[greet,0],["I'm "+name+".",0],["Tell me about the job.",0],["I'll take it from here.",1]];
+  else if(ctx==='midjob') lines=[["We're still on "+esc((autoProjectName()||'this one'))+".",0],["Want to finish the estimate?",1]];
+  else lines=[[greet,0],["What are we working on?",1]];
+  const linesHTML=lines.map((l,i)=>`<div class="eden-line${l[1]?' sub':''}" style="animation-delay:${(0.25+i*0.12).toFixed(2)}s">${l[0]}</div>`).join('');
+  const trust = ctx==='first'
+    ? `<div class="eden-trust" style="animation-delay:${(0.25+lines.length*0.12).toFixed(2)}s">Nothing goes anywhere until you approve it.</div>` : '';
+  return `<div class="eden-pill"><span class="dot"></span>${name} · ${edenIntakeStateLabel()}</div>
+    <div style="display:flex;justify-content:center;margin:2px 0 8px"><svg class="bb-brain" viewBox="0 0 100 100" width="86" height="86" aria-hidden="true">${BB_SVG_INNER}</svg></div>
+    <div class="eden-lines">${linesHTML}${trust}</div>`;
+}
+// Once a bid draft is successfully built, the account has "completed intake" — flip first→returning
+// server-side so the greeting never re-introduces Eden. Fire-and-forget.
+function edenMarkIntakeComplete(){
+  try{ if(AWARENESS) AWARENESS.hasCompletedIntake=true; localStorage.setItem('bt_aware', JSON.stringify(AWARENESS||{hasCompletedIntake:true})); }catch(_){}
+  try{ if(TOKEN && online) api('/api/me/awareness',{method:'POST',body:JSON.stringify({activity:true,completedIntake:true})}).catch(()=>{}); }catch(_){}
+}
+/* ===== Conversational first-run setup (Fable Intake v4 · setup state) =====
+   The first job IS the onboarding. Before the first build, if the price book lacks
+   the one pricing input the estimate needs (a labor rate), Eden asks it as a
+   follow-up — chips + "Type it" — persists it to the price book, and never asks
+   again. No setup form ever precedes value. */
+let edenSetup={ open:false };
+function setupDone(){ try{ return localStorage.getItem('bt_eden_setup')==='1'; }catch(_){ return false; } }
+function setupTradeLabel(){ const k=(CAP_DRAFT&&CAP_DRAFT.trade)||''; const t=(typeof TRADE_PICK!=='undefined')&&TRADE_PICK.find(x=>x.key===k); return t?t.label.toLowerCase():'your work'; }
+function edenNeedsSetup(){ return AI_BUILD && edenCtx()==='first' && !setupDone(); }
+function edenSetupCard(){
+  if(!edenSetup.open) return '';
+  const tl=esc(setupTradeLabel());
+  const chip=(v)=>`<button class="segbtn" type="button" onclick="edenSetupSave(${v})">$${v}/hr</button>`;
+  return `<div class="intake est-card" id="edenSetupCard">
+    <div class="intake-h">${icon('activity',13)} ${esc(AI.name)}</div>
+    <div class="est-q"><div class="est-q-t">One more — what do you get per hour for ${tl}?</div>
+      <div class="seg" style="margin-top:8px">${[45,65,85,95].map(chip).join('')}</div>
+      <div class="row2" style="margin-top:8px">
+        <div><input id="edenSetupRate" class="input" type="number" min="1" inputmode="decimal" placeholder="Type it — $/hr"/></div>
+        <div><button class="btn sm" style="width:100%" onclick="edenSetupSave()">I'll remember it</button></div>
+      </div></div></div>`;
+}
+async function edenSetupSave(rate){
+  if(rate==null){ const el=document.getElementById('edenSetupRate'); rate=el?+el.value:0; }
+  rate=Math.round(+rate||0);
+  if(rate<1){ toast('Enter your hourly rate.','warn'); return; }
+  try{ localStorage.setItem('bt_eden_setup','1'); }catch(_){}
+  // Persist to the price book (a labor-rate SKU) so every future estimate uses it.
+  try{ if(TOKEN&&online){ const nm=setupTradeLabel();
+    await api('/api/skus',{method:'POST', body:JSON.stringify({ name:(nm==='your work'?'Labor':(nm.charAt(0).toUpperCase()+nm.slice(1)+' labor')), unit:'hr', unit_price:rate })});
+    if(typeof loadSkus==='function') loadSkus();
+  } }catch(e){}
+  edenSetup.open=false;
+  toast('Got it — $'+rate+'/hr from now on.','ok');
+  buildFromConversation();   // proceed to the build now that setup is answered
+}
 function viewCapture(){
   if(state.loading){
     return `<button class="backlink" onclick="go('home')">← Dashboard</button>
@@ -4208,8 +4443,7 @@ function viewCapture(){
       : `<div class="vf-mic off">${icon('mic',22)}</div><div class="vf-mic-lbl">Voice isn't available on this device — type below.</div>`;
   return `<button class="backlink" onclick="go('home')">← Dashboard</button>
     <div class="vf-hero">
-      <h1 class="vf-title">Tell me about the job</h1>
-      <div class="vf-sub">Tap and talk — name, address, the work. The AI fills in the details.</div>
+      ${edenIntakeHeader()}
       <div class="vf-mic-wrap">${micBlock}</div>
     </div>
 
@@ -4245,8 +4479,8 @@ function viewCapture(){
     <button class="langchip" onclick="go('settings')" title="Change languages in Settings">${icon('globe',15)} You: ${esc(fromName)} · Client: ${esc(toName)} · change in Settings</button>
 
     <div class="consent">
-      <label><input type="checkbox" id="capConsent"/> <span>When my area requires it, I'll let the other person know the conversation is being captured.</span></label>
-      <div class="consent-fine">Placeholder wording — not legal advice. Final consent terms to be reviewed before launch.</div>
+      <label><input type="checkbox" id="capConsent"/> <span>Where my state requires it, I'll let the other person know the conversation is being recorded.</span></label>
+      <div class="consent-fine">You're responsible for following recording-consent laws in your area. See our <a href="/terms" target="_blank" rel="noopener">Terms</a>.</div>
     </div>
     <div aria-hidden="true" style="height:96px"></div>`;
 }
@@ -4268,11 +4502,22 @@ function questionsCard(){
   const cl=Array.isArray(x.checklist)?x.checklist:[];
   const nq=(x.next_question||'').trim();
   const ready=!!x.ready;
-  if(!cl.length && !nq && !ready) return '';
+  const hasAmb=Array.isArray(x.ambiguous)&&x.ambiguous.length;
+  if(!cl.length && !nq && !ready && !hasAmb) return '';
   const ic=(s)=> s==='captured'?icon('check',14):s==='unsure'?icon('alert',14):'<svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.85" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>';
   const clHTML = cl.length ? `<div class="est-list">${cl.map(c=>`<div class="est-item ${esc(c.status)}"><span class="est-ic">${ic(c.status)}</span><span class="est-l">${esc(c.label)}${c.status==='captured'&&c.value?` — <b>${esc(c.value)}</b>`:''}${c.status==='unsure'?` <span class="est-flag">to confirm</span>`:''}</span></div>`).join('')}</div>` : '';
+  // Numeric-ambiguity routing (exec-review): a figure Eden isn't sure she heard right
+  // becomes the follow-up — never a guess. Tap a chip to lock the exact number, or
+  // answer by voice. An estimate must never carry an unverified ambiguous number.
+  const amb=Array.isArray(x.ambiguous)?x.ambiguous:[];
   let action='';
-  if(ready){
+  if(amb.length){
+    const a=amb[0];
+    const chips=(a.chips||[]).map((c,i)=>`<button class="btn ghost sm est-chip" onclick="capConfirmFigure(${i})">${esc(c)}</button>`).join('');
+    action=`<div class="est-q est-amb"><div class="est-q-t">${icon('alert',16)} ${esc(a.question)}</div>
+      ${chips?`<div class="est-chips">${chips}</div>`:''}
+      <div class="est-q-act"><button class="btn sm" onclick="micTap()">${icon('mic',15)} Say it again</button><button class="btn ghost sm" onclick="capNotSure()">I'm not sure</button></div></div>`;
+  } else if(ready){
     action=`<div class="est-ready">${icon('check',15)} <b>I have everything I need.</b><button class="btn sm" onclick="buildFromConversation()">Build the estimate →</button></div>`;
   } else if(nq){
     action=`<div class="est-q"><div class="est-q-t">${icon('message',16)} ${esc(nq)}</div>
@@ -4298,7 +4543,7 @@ function langOpts(sel){ return Object.entries(LANGS).map(([k,v])=>`<option value
 /* ---- Live job-detail extraction as the contractor speaks/types ---- */
 let intakeTimer=null, intakeRunning=false, intakeLastAt=0, intakeLastLen=0;
 function renderIntakeRegions(){
-  const r=document.getElementById('intakeRegion'); if(r) r.innerHTML=intakeCard()+questionsCard();
+  const r=document.getElementById('intakeRegion'); if(r) r.innerHTML=intakeCard()+questionsCard()+edenSetupCard();
   paintRecFab(); // surface "Answer" on the floating button when the AI has questions
 }
 function scheduleIntake(){
@@ -4316,8 +4561,9 @@ async function runIntake(force){
   try{
     const r=await api('/api/assist/intake',{method:'POST', body:JSON.stringify({ text:t, trade:(CAP_DRAFT.trade||'') })});
     if(r && r.intake){ CAP_INTAKE=r.intake; persistIntake(); intakeLastAt=Date.now(); intakeLastLen=t.length;
-      // The estimator speaks: read the next question aloud, or announce it's ready.
-      if(CAP_INTAKE.ready) speakQuestion('Great. Your estimate is ready.');
+      // Ready → the hand-off moment (budget-governed, canonical string). Otherwise the follow-up
+      // question is intake conversation (exempt from the budget) and is read as before.
+      if(CAP_INTAKE.ready) edenSpeakMoment('estimate_ready');
       else if((CAP_INTAKE.next_question||'').trim()) speakQuestion(CAP_INTAKE.next_question.trim());
     }
   }catch(e){ /* keep going; this is a live helper, never block the user */ }
@@ -4438,7 +4684,7 @@ function bbSpeak(text, opts){
     const lang = prof.lang==='auto' ? (/[áéíóúñ¿¡]/i.test(say)?'es':'en') : prof.lang;
     const u=new SpeechSynthesisUtterance(say);
     const v=bbPickVoice(lang); if(v){ u.voice=v; u.lang=v.lang; } else { u.lang = (lang==='es'?'es-ES':'en-US'); }
-    u.rate=prof.rate||1.15; u.pitch=prof.pitch||1.0; u.volume=1;
+    u.rate=edenPace(); u.pitch=prof.pitch||1.0; u.volume=1;   // one global Pace control (§6), 0.9–1.3×
     _bbSpeaking=true; _bbSpokeLast=say;
     let done=false; const fin=()=>{ if(done) return; done=true; _bbSpeaking=false; clearTimeout(t2); onEnd(); };
     u.onend=fin; u.onerror=fin;
@@ -4454,6 +4700,18 @@ function speakQuestion(q){ if(!q || q===_ttsLast) return; _ttsLast=q; bbSpeak(q)
 function toggleTts(){ TTS_ON=!TTS_ON; localStorage.setItem('bt_tts', TTS_ON?'on':'off'); if(!TTS_ON){ bbStopSpeaking(); } _ttsLast=''; _bbSpokeLast=''; if(state.view==='capture') renderIntakeRegions(); }
 // "I'm not sure": flag the current question for review and let the estimator move on —
 // never dead-end the conversation over one unknown.
+// Tap a chip to lock the exact figure Eden was unsure about — it's written back into
+// the conversation so the next intake pass reads a clear number and clears the flag.
+function capConfirmFigure(i){
+  const amb=(CAP_INTAKE&&Array.isArray(CAP_INTAKE.ambiguous))?CAP_INTAKE.ambiguous:[];
+  const a=amb[0]; if(!a) return;
+  const val=(a.chips&&a.chips[i])||''; if(!val) return;
+  const ta=document.getElementById('capText'); if(!ta) return;
+  const heard=(a.heard||'').trim();
+  ta.value=[ta.value.trim(), heard?`(To confirm: ${heard} = ${val}.)`:`(To confirm: ${val}.)`].filter(Boolean).join(' ');
+  capDraft('text', ta.value); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px';
+  runIntake(true); // re-evaluate: the figure is now unambiguous, drop it from the flag list
+}
 function capNotSure(){
   const nq=((CAP_INTAKE&&CAP_INTAKE.next_question)||'').trim();
   const ta=document.getElementById('capText'); if(!ta) return;
@@ -4551,10 +4809,10 @@ async function rebuildWithAI(id, btn){
   const j=JOBS.find(x=>x.id===id); if(!j) return;
   if(!entitled()){ go('paywall'); return; }
   const text=String(j.transcript||'').trim();
-  if(!text){ alert('Add the captured conversation in the box above first.'); return; }
-  if(!online){ alert('The AI build needs an internet connection.'); return; }
+  if(!text){ toast('Add the captured conversation in the box above first.','warn'); return; }
+  if(!online){ toast('The AI build needs an internet connection.','warn'); return; }
   if((j.lines||[]).some(l=>l.desc||l.price||l.hours||l.rate)
-     && !confirm('This replaces the current line items with a fresh AI draft. Continue?')){ return; }
+     && !await edenConfirm({title:'Replace the current line items?',body:'This rebuilds them as a fresh AI draft from the conversation.',okLabel:'Rebuild',danger:true})){ return; }
   const orig = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Building…'; }
   try{
@@ -4575,14 +4833,16 @@ async function rebuildWithAI(id, btn){
   }catch(e){
     if(e.status===402){ gate402(e); return; }
     if(btn){ btn.disabled=false; btn.textContent=orig||'Build the bid from this text'; }
-    alert(e.code==='AI_UNCONFIGURED'
+    toast(e.code==='AI_UNCONFIGURED'
       ? 'The AI build isn’t switched on yet — add your ANTHROPIC_API_KEY in the app settings to enable it.'
-      : ('Could not build the draft: '+(e.message||'error')));
+      : ('Could not build the draft: '+(e.message||'error')),'bad',5000);
   }
 }
 
 async function buildFromConversation(){
   if(!entitled()){ go('paywall'); return; }
+  // First job: ask the one pricing input the estimate needs before building (setup state).
+  if(edenNeedsSetup()){ edenSetup.open=true; renderIntakeRegions(); try{ document.getElementById('edenSetupCard').scrollIntoView({behavior:'smooth',block:'center'}); }catch(_){} return; }
   const f=newJobFromForm();
   if(!f.text){ state.error='Add the conversation first, or choose “build manually”.'; render(); return; }
   if(!online){ state.error='You’re offline — the AI build needs a connection. Your job will be created so you can fill it in by hand now and build later.'; const job=makeLocalJob(f,null); JOBS.unshift(job); saveJobs(); state.bidTab='notebook'; go('job',job.id); return; }
@@ -4599,6 +4859,7 @@ async function buildFromConversation(){
   }
   const job=makeLocalJob(f, data);
   JOBS.unshift(job); clearCapDraft(); saveJobs();
+  edenMarkIntakeComplete();   // account has now completed intake → greeting stops re-introducing Eden
   state.loading=false; state.bidTab='notebook'; go('job',job.id);
 }
 
@@ -4754,6 +5015,21 @@ function lineEditor(l){
     </div>`;
 }
 
+// "Here's what I heard" (exec-review): the full transcript is always one tap from
+// the estimate. Open it, correct a misheard word or quantity in place, and re-price —
+// the line items are rebuilt from the corrected conversation. Native <details> so it's
+// a single tap and needs no view state.
+function heardCard(j){
+  const t=String(j.transcript||'').trim();
+  if(!t) return '';
+  return `<details class="heard">
+    <summary class="heard-sum">${icon('message',15)} Here's what I heard <span class="heard-hint">tap to review &amp; correct</span></summary>
+    <div class="heard-body">
+      <textarea class="editarea" oninput="updJob('transcript',this.value)" placeholder="The captured conversation…">${esc(j.transcript)}</textarea>
+      <button class="btn ghost full" style="margin-top:10px" onclick="rebuildWithAI('${j.id}',this)">${icon('wand',15)} Re-price from these corrections</button>
+      <div class="hint" style="margin-top:4px">Fix a misheard word or quantity, then re-price — the line items rebuild from the corrected conversation.</div>
+    </div></details>`;
+}
 function tabBuild(j){
   let lines;
   if(jobHasSections(j.lines)){
@@ -4784,7 +5060,7 @@ function tabBuild(j){
 
   return `<div class="h-eyebrow" style="margin-bottom:8px">Step 2 · Private estimating</div>
     <div class="note">AI prices are rough placeholders — you set the real numbers here.</div>
-    ${(j.transcript||'').trim() ? `<button class="btn ghost full" style="margin-bottom:12px" onclick="rebuildWithAI('${j.id}',this)">${icon('wand',15)} Rebuild these lines from the conversation with AI</button>` : ''}
+    ${heardCard(j)}
     ${lines||'<div class="hint">No line items yet.</div>'}
     ${AI_BUILD && (j.lines||[]).length ? `<button class="btn ghost full" style="margin-top:10px" onclick="reviewBidAI('${j.id}',this)">${icon('bulb',15)} Find missing money — check this bid</button>
       <div class="hint" style="margin-top:4px">AI checks your bid against what ${tradeLbl(j.trade)||'this trade'}'s bids usually include — so you don't eat costs you forgot to charge for.</div>` : ''}
@@ -4953,6 +5229,7 @@ function paymentsBlock(j){
     <label class="fld">Client name (optional)</label><input id="prName" class="input" placeholder="e.g. Reyes" value="${escAttr(j.customer||'')}"/>
     <button class="btn blue full" style="margin-top:10px" onclick="createPayReq('${j.id}',this)">Create payment link</button>
     <div class="hint" style="margin-top:8px">The label shows on your client's checkout, so deposits, material costs and the final balance are easy to tell apart.</div>
+    <div class="hint" style="margin-top:6px">Payments are processed by Stripe. Stripe's standard processing fee (about 2.9% + 30¢ per card payment) is deducted by Stripe — <b>BidVoice adds nothing on top</b>. The rest lands in your connected account.</div>
     ${(reqs&&reqs.length)?`<div class="paylist">${list}</div>`:(reqs?'':'<div class="hint" style="margin-top:10px">Loading…</div>')}</div>`;
 }
 
@@ -5013,7 +5290,7 @@ async function shareBid(mode, btn){
   if(!online || !TOKEN){ toast('Connect to the internet to create a shareable bid link.','warn'); return; }
   // Gently nudge for a customer name — it personalizes the proposal greeting.
   if(!((j.customer||'').trim())){
-    if(!confirm('No customer name on this bid yet — it personalizes the proposal. Send anyway?')){ focusCustomer(); return; }
+    if(!await edenConfirm({title:'No customer name on this bid yet',body:'A name personalizes the proposal greeting.',okLabel:'Send anyway',cancelLabel:'Add a name'})){ focusCustomer(); return; }
   }
   const orig = btn ? btn.textContent : '';
   if(btn){ btn.disabled=true; btn.textContent='Preparing…'; }
@@ -5087,7 +5364,7 @@ function billingSection(){
     return `<div class="billbox"><h3>Subscription</h3>
       <div class="statline"><span class="badge active">Agent — free year</span></div>
       <div class="hint" style="margin-top:8px">${icon('home',15)} Free until <b style="color:var(--paper)">${esc(until)}</b> (${ag.days_left} day${ag.days_left===1?'':'s'} left), then <b style="color:var(--paper)">${priceStr(ag.after_monthly||50)}/mo locked</b> — never rises.</div>
-      ${ag.nudge?`<div class="freecallout" style="margin-top:10px">⏳ Your free year is ending soon. Keep it free: bring ${BILLING.referral?BILLING.referral.freeAt:5} contractors who subscribe and your bill stays <b>$0</b>.</div>`:''}</div>`;
+      ${ag.nudge?`<div class="freecallout" style="margin-top:10px">⏳ Your free year is ending soon. Refer a company and you earn a free month once they pay through month two — up to 12 a year.</div>`:''}</div>`;
   }
   const s=BILLING.status;
   const label = s==='active'?'Active':(BILLING.in_trial?'Free trial':(s==='past_due'?'Past due':(s==='canceled'?'Canceled':'No subscription')));
@@ -5198,7 +5475,7 @@ function leadRow(l){
 }
 function refreshLeadList(){ const el=document.getElementById('leadList'); if(el) el.innerHTML=leadListHTML(); }
 async function setLeadStatus(id,status){ const l=(LEADS.items||[]).find(x=>x.id===id); if(l) l.status=status; LEADS_NEW=(LEADS.items||[]).filter(x=>x.status==='New').length; try{ await api('/api/leads/'+id,{method:'PATCH',body:JSON.stringify({status})}); }catch(e){ toast('Could not update the lead.','bad'); } }
-async function delLead(id){ if(!confirm('Delete this lead?')) return; LEADS.items=(LEADS.items||[]).filter(x=>x.id!==id); LEADS_NEW=LEADS.items.filter(x=>x.status==='New').length; refreshLeadList(); try{ await api('/api/leads/'+id,{method:'DELETE'}); }catch(e){} }
+async function delLead(id){ if(!await edenConfirm({title:'Delete this lead?',okLabel:'Delete',danger:true})) return; LEADS.items=(LEADS.items||[]).filter(x=>x.id!==id); LEADS_NEW=LEADS.items.filter(x=>x.status==='New').length; refreshLeadList(); try{ await api('/api/leads/'+id,{method:'DELETE'}); }catch(e){} }
 function openAddLead(){ const el=document.getElementById('leadAddSheet'); if(el) el.style.display='flex'; }
 function closeAddLead(){ const el=document.getElementById('leadAddSheet'); if(el) el.style.display='none'; }
 async function saveLead(){
@@ -5210,7 +5487,7 @@ async function saveLead(){
     closeAddLead(); await loadLeads(); toast('✓ Lead added','ok'); }
   catch(e){ toast(e.message||'Could not add the lead.','bad'); }
 }
-async function rotateLeadToken(){ if(!confirm('Reset your webhook link? The old link stops working immediately.')) return; try{ const r=await api('/api/leads/token/rotate',{method:'POST'}); LEADS.webhookUrl=r.webhookUrl; const el=document.getElementById('leadHook'); if(el) el.textContent=r.webhookUrl; toast('✓ New webhook link','ok'); }catch(e){ toast('Could not reset the link.','bad'); } }
+async function rotateLeadToken(){ if(!await edenConfirm({title:'Reset your webhook link?',body:'The old link stops working immediately.',okLabel:'Reset link',danger:true})) return; try{ const r=await api('/api/leads/token/rotate',{method:'POST'}); LEADS.webhookUrl=r.webhookUrl; const el=document.getElementById('leadHook'); if(el) el.textContent=r.webhookUrl; toast('✓ New webhook link','ok'); }catch(e){ toast('Could not reset the link.','bad'); } }
 // Convert a lead → seed the voice-first New Job with the lead's details, then open
 // it so the contractor records the rest and builds the bid.
 function convertLead(id){
@@ -5280,7 +5557,7 @@ async function addSkuManual(btn){
   try{ await api('/api/skus',{method:'POST', body:JSON.stringify({ name, category:g('mCat').trim(), unit:g('mUnit'), unit_price:+g('mPrice')||0 })}); await loadSkus(); toast('✓ Added to price book','ok'); }
   catch(e){ toast(!online?'You’re offline — connect to add to the price book.':(e.message||'Could not add.'),'bad',5000); }
 }
-async function delSku(id){ if(!confirm('Remove this SKU?')) return; try{ await api('/api/skus/'+id,{method:'DELETE'}); CATALOG.skus=CATALOG.skus.filter(s=>s.id!==id); const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }catch(e){} }
+async function delSku(id){ if(!await edenConfirm({title:'Remove this SKU?',okLabel:'Remove',danger:true})) return; try{ await api('/api/skus/'+id,{method:'DELETE'}); CATALOG.skus=CATALOG.skus.filter(s=>s.id!==id); const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }catch(e){} }
 async function updSku(id,k,v){ const s=CATALOG.skus.find(x=>x.id===id); if(!s) return; s[k]=(k==='unit_price'?(+v||0):v); try{ await api('/api/skus/'+id,{method:'PATCH', body:JSON.stringify({[k]:s[k]})}); }catch(e){} }
 function skuSearch(v){ skuQ=v; const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }
 function previewRow(it,i){ return `<div class="skurow">
@@ -5367,7 +5644,7 @@ async function inviteSub(id, mode){
     const i=(TEAM.items||[]).findIndex(x=>x.id===id); if(i>=0) TEAM.items[i]=r.sub; TEAM.counts=r.counts; render(); }catch(e){}
 }
 async function deleteSubRow(id){
-  if(!confirm('Remove this sub from your crew?')) return;
+  if(!await edenConfirm({title:'Remove this sub from your crew?',okLabel:'Remove',danger:true})) return;
   try{ const r=await api('/api/team/'+id,{method:'DELETE'}); TEAM.items=(TEAM.items||[]).filter(x=>x.id!==id); TEAM.counts=r.counts; render(); }catch(e){}
 }
 // True once the contractor has actually named their company (not the default).
@@ -5460,7 +5737,7 @@ async function sendDispatch(jobId){
   }catch(e){ toast(e.message||'Could not send.','bad'); }
 }
 async function acceptBidUI(jobId, did){
-  if(!confirm('Accept this bid? The other contractors will be declined.')) return;
+  if(!await edenConfirm({title:'Accept this bid?',body:'The other contractors will be declined.',okLabel:'Accept'})) return;
   try{ const r=await api('/api/jobs/'+jobId+'/dispatch/'+did+'/accept',{method:'POST'}); DISPATCHES[jobId]=r.dispatches||DISPATCHES[jobId]; render(); toast('Bid accepted.','ok'); }
   catch(e){ toast(e.message||'Could not accept.','bad'); }
 }
@@ -5506,7 +5783,7 @@ function renderDrawBody(j){
     <div id="drawResult"></div>`;
 }
 function closeDraw(){ const el=document.getElementById('drawSheet'); if(el) el.style.display='none'; }
-function copyDrawLink(link){ try{ navigator.clipboard.writeText(link); toast('Link copied — text it to the owner or bank.','ok'); }catch(e){ prompt('Copy this link:', link); } }
+function copyDrawLink(link){ edenCopy(link, 'Link copied — text it to the owner or bank.'); }
 async function sendDraw(jobId){
   const amt=parseFloat((document.getElementById('drawAmt')||{}).value||'0');
   if(!(amt>=1)){ toast('Enter a draw amount of at least $1.','warn'); return; }
@@ -5564,7 +5841,7 @@ function renderCOBody(j){
     <button class="btn full" style="margin-top:12px" onclick="sendCO('${j.id}')">Create change order</button>
     <div id="coResult"></div>`;
 }
-function copyCOLink(link){ try{ navigator.clipboard.writeText(link); toast('Link copied — text it to your client.','ok'); }catch(e){ prompt('Copy this link:', link); } }
+function copyCOLink(link){ edenCopy(link, 'Link copied — text it to your client.'); }
 async function sendCO(jobId){
   const title=(document.getElementById('coTitle')||{}).value||'';
   const description=(document.getElementById('coDesc')||{}).value||'';
@@ -5760,7 +6037,7 @@ async function skuRowPhotoPick(input){
 }
 async function removeSkuPhoto(id, ev){
   if(ev){ ev.stopPropagation(); }
-  if(!confirm('Remove this photo?')) return;
+  if(!await edenConfirm({title:'Remove this photo?',okLabel:'Remove',danger:true})) return;
   try{ await api('/api/skus/'+id+'/image',{method:'DELETE'}); const s=(CATALOG.skus||[]).find(x=>x.id===id); if(s) s.image=null; const l=document.getElementById('skuList'); if(l) l.innerHTML=skuListHTML(); }
   catch(e){ toast(e.message||'Could not remove the photo.','bad'); }
 }
@@ -5883,8 +6160,36 @@ function bbVoiceSeg(){
     <div class="hint">A clean, natural American English voice by default. If your device's voice sounds off or accented, pick another here. Voices are provided by your device/browser${list.length?'':' — none detected yet; reopen this screen to load them'}.</div>
   </div>`;
 }
-function setBbVoice(v){ try{ if(v) localStorage.setItem('bt_voice_dev', v); else localStorage.removeItem('bt_voice_dev'); }catch(_){} if(typeof bbTestVoice==='function') bbTestVoice(); if(state.view==='settings') render(); }
+function setBbVoice(v){ try{ if(v) localStorage.setItem('bt_voice_dev', v); else localStorage.removeItem('bt_voice_dev'); }catch(_){} edenVoiceChanged(); if(typeof bbTestVoice==='function') bbTestVoice(); if(state.view==='settings') render(); }
 function bbTestVoice(){ try{ const es=(((SETTINGS&&SETTINGS.from)||LANG)==='es'); bbSpeak(es?('Hola, soy '+AI.name+'. Aquí estoy cuando quieras.'):("Hi, I'm "+AI.name+". I'm ready when you are."), {full:true}); }catch(_){} }
+// Working with Eden — Voice (eden-experience-guide §6): one small group — on/off, Pace (0.9–1.3×,
+// default 1.15×), a device-voice picker shown ONLY when the device has more than one usable voice,
+// a "speak only through headphones" privacy switch, and how much she briefs on open. No per-moment
+// toggles, no verbosity sliders — the moment map is the product's opinion.
+function edenVoiceGroup(){
+  const on=TTS_ON, pace=edenPace(), hp=edenHeadphoneOnly();
+  // Voice picker only if the device offers more than one usable voice — hide, don't offer bad options.
+  const want=(((SETTINGS&&SETTINGS.from)||LANG)==='es')?'es':'en';
+  const wantMale=(typeof AI!=='undefined'&&AI.voice==='male');
+  let usable=0; try{ if(typeof bbLoadVoices==='function') bbLoadVoices(); usable=(_bbVoices||[]).map(v=>bbVoiceScore(v,want,wantMale)).filter(s=>s>=0).length; }catch(_){}
+  const picker=usable>1?bbVoiceSeg():'';
+  return `<div class="appearance">
+    <label class="fld" style="margin-top:16px">Working with ${esc(AI.name)} — Voice</label>
+    <div class="seg"><button class="segbtn ${on?'on':''}" onclick="setEdenVoiceOn(true)">On</button><button class="segbtn ${on?'':'on'}" onclick="setEdenVoiceOn(false)">Off</button></div>
+    <div class="hint">${esc(AI.name)} speaks only to move work forward — an acknowledgment, a question, or a hand-off — at most three times a session, never twice in a row. Everything else stays on screen.</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:14px"><label class="fld" style="margin:0">Pace</label><span id="edenPaceVal" style="font-weight:700;color:var(--amber)">${pace.toFixed(2)}×</span></div>
+    <input type="range" min="0.9" max="1.3" step="0.05" value="${pace}" style="width:100%;accent-color:var(--amber)" oninput="setEdenPaceLive(this.value)" onchange="bbTestVoice()">
+    <div class="seg" style="margin-top:8px"><button class="segbtn" onclick="bbTestVoice()">▶ Hear ${esc(AI.name)}</button></div>
+    ${picker}
+    <label class="fld" style="margin-top:16px">Speak only through headphones</label>
+    <div class="seg"><button class="segbtn ${hp?'on':''}" onclick="setEdenHpOnly(true)">On</button><button class="segbtn ${hp?'':'on'}" onclick="setEdenHpOnly(false)">Off</button></div>
+    <div class="hint">Job sites are public. With this on, ${esc(AI.name)} speaks only when headphones or an earpiece are detected — otherwise she stays on screen, so a spoken update never plays out loud in front of the wrong person. Where the audio route can't be detected, she stays silent to be safe.</div>
+    ${bbBriefSeg()}
+  </div>`;
+}
+function setEdenVoiceOn(v){ if(!!v!==!!TTS_ON) toggleTts(); edenVoiceChanged(); if(state.view==='settings') render(); }
+function setEdenPaceLive(v){ setEdenPace(v); const el=document.getElementById('edenPaceVal'); if(el) el.textContent=parseFloat(v).toFixed(2)+'×'; }
+function setEdenHpOnly(v){ try{ localStorage.setItem('bt_hp_only', v?'on':'off'); }catch(_){} edenVoiceChanged(); if(state.view==='settings') render(); }
 // How much the assistant says out loud when you open it — the contractor's call.
 function bbBriefSeg(){
   const cur=(typeof bbBriefMode==='function')?bbBriefMode():'exceptions';
@@ -5912,9 +6217,9 @@ function viewSettings(){
   return `<div class="h-eyebrow">Setup</div><h1 class="page">Your business</h1>
     <div class="sub">This appears on the proposals you send. Synced to your account.</div>
     ${themeSeg()}
-    ${bbBriefSeg()}
-    ${aiIdentitySeg()}
-    ${bbVoiceSeg()}
+    <!-- Name Trial identity switcher retired: the Soul mandates ONE Eden, never split into variants
+         (Constitutional Alignment Report C-1). The pre-launch name experiment is over; Eden is fixed. -->
+    ${edenVoiceGroup()}
     <label class="fld">Company logo (shows on your bids &amp; PDF)</label>
     <div class="logo-row">
       ${SETTINGS.logo?`<img class="logo-preview" src="${SETTINGS.logo}" alt="logo"/>`:`<div class="logo-empty">No logo yet</div>`}
@@ -5934,7 +6239,7 @@ function viewSettings(){
     <input class="input" value="${escAttr(SETTINGS.company)}" oninput="setS('company',this.value)"/>
     <div class="row2">
       <div><label class="fld">Your name</label><input class="input" value="${escAttr(SETTINGS.name)}" oninput="setS('name',this.value)"/></div>
-      <div><label class="fld">Phone</label><input class="input" value="${escAttr(SETTINGS.phone)}" oninput="setS('phone',this.value)"/></div>
+      <div><label class="fld">Phone</label><input class="input" type="tel" value="${escAttr(SETTINGS.phone)}" oninput="setS('phone',this.value)"/><div class="hint" style="margin-top:5px;font-size:.75rem">${esc(t('sms_consent'))}</div></div>
     </div>
     <label class="fld">License # (optional)</label>
     <input class="input" value="${escAttr(SETTINGS.license)}" oninput="setS('license',this.value)" style="max-width:240px"/>
@@ -5961,9 +6266,9 @@ function viewSettings(){
       <div class="svcpick">${TRADE_PICK.map(t=>{const on=(SETTINGS.services||[]).includes(t.key);return `<button class="svcchip ${on?'on':''}" onclick="toggleService('${t.key}')">${t.emoji} ${esc(t.label)}</button>`;}).join('')}</div>
       <button class="btn full" style="margin-top:12px" onclick="openMySite()">${icon('globe',16)} View your website</button>
       ${SETTINGS.site_published
-        ? `<div class="freecallout" style="margin-top:12px">${icon('globe',15)} <b>Your website is live.</b><div style="margin-top:4px;font-size:.9rem">${esc(SETTINGS.site_branded_url||'')} <span style="color:var(--muted)">(coming soon)</span></div></div>`
-        : `<button class="btn blue full" style="margin-top:8px" onclick="publishWebsite(this)">${icon('globe',16)} Publish Website</button>
-           <div class="hint" style="margin-top:4px">Make it live and get your address. Free, hosted for you — no setup.</div>`}
+        ? `<div class="freecallout" style="margin-top:12px">${icon('globe',15)} <b>Your website preview is ready.</b><div style="margin-top:4px;font-size:.9rem">${esc(SETTINGS.site_branded_url||'')} <span style="color:var(--muted)">(branded publishing coming soon)</span></div></div>`
+        : `<button class="btn ghost full" style="margin-top:8px;opacity:.9" onclick="toast('One-tap publishing to your branded BidVoice address is coming soon. Your site preview already works — tap “View your website.”','ok',5500)">${icon('globe',16)} Publish Website <span style="color:var(--muted);font-weight:400">(coming soon)</span></button>
+           <div class="hint" style="margin-top:4px">Your site preview works now — tap “View your website” to see it. One-tap branded publishing lands shortly.</div>`}
       <button class="btn ghost full" style="margin-top:8px" onclick="toast('Custom domains are coming soon — you’ll be able to connect yourcompany.com. Want it now? Tap “Request a custom website”.','ok',5000)">${icon('link',15)} Connect a custom domain <span style="color:var(--muted);font-weight:400">(coming soon)</span></button>
       ${SETTINGS.site_requested
         ? `<div class="freecallout" style="margin-top:12px">${icon('check',15)} Custom website requested — we'll reach out to build it with you.</div>`
@@ -6015,14 +6320,38 @@ function viewSettings(){
       <button class="btn ghost sm" style="margin-top:8px" onclick="changePw(this)">Update password</button>
     </div>
     <div class="legalbox">
-      <h3>Terms &amp; privacy (placeholder)</h3>
+      <h3>Email address</h3>
+      <div class="hint" style="margin-bottom:8px">Your account email is <b style="color:var(--paper)">${esc((USER&&USER.email)||'')}</b>${USER&&USER.email_verified===false?` · <span style="color:#e0a94b">unverified</span> — <a href="#" onclick="event.preventDefault();resendVerify(this)" style="color:var(--amber)">resend link</a>`:(USER&&USER.email_verified?` · <span style="color:#8fce8f">verified ✓</span>`:'')}</div>
+      <input id="emCur" type="password" class="input" placeholder="Current password" autocomplete="current-password"/>
+      <input id="emNew" type="email" class="input" style="margin-top:8px" placeholder="New email address" autocomplete="email"/>
+      <div id="emMsg" class="hint" style="margin-top:8px"></div>
+      <button class="btn ghost sm" style="margin-top:8px" onclick="changeEmailUI(this)">Update email</button>
+      <div class="hint" style="margin-top:6px">Changing your email signs you out of other devices and sends a verification link to the new address.</div>
+    </div>
+    <div class="legalbox">
+      <h3>Your data</h3>
+      <p style="margin:0 0 8px">Everything you built here is yours. Export it all — profile, jobs, estimates, contacts, price book, payments — in one file, any time.</p>
+      <button class="btn ghost sm" onclick="exportMyData(this)">${icon('download',14)} Export my data</button>
+    </div>
+    <div class="legalbox" style="border-color:rgba(169,78,56,.4)">
+      <h3 style="color:#d98a72">Deactivate or delete account</h3>
+      <p style="margin:0 0 8px">Deactivating pauses your account and signs you out everywhere — your data is kept and support can reactivate it. Deleting schedules permanent removal after a <b>30-day grace period</b> — your data is kept until then, and support can cancel it. Export your data first if you want a copy.</p>
+      <input id="dzPw" type="password" class="input" placeholder="Your password" autocomplete="current-password"/>
+      <div class="row2" style="margin-top:8px">
+        <div><button class="btn ghost sm" style="width:100%" onclick="deactivateAccountUI(this)">Deactivate account</button></div>
+        <div><button class="btn ghost sm" style="width:100%;color:#d98a72;border-color:rgba(169,78,56,.5)" onclick="deleteAccountUI(this)">Delete account</button></div>
+      </div>
+      <div id="dzMsg" class="hint" style="margin-top:8px"></div>
+    </div>
+    <div class="legalbox">
+      <h3>Terms &amp; privacy</h3>
       <p>Conversations, transcripts, photos, and bids you create belong to you. They're stored for your use, and you can delete them at any time. BidVoice is a tool for preparing estimates — bids you send are agreements between you and your client, not us.</p>
-      <p>Where your area requires it, let the other party know when a conversation is being captured.</p>
+      <p>Where your area requires it, let the other party know when a conversation is being recorded.</p>
       <label style="display:flex;gap:10px;align-items:flex-start;font-size:.86rem;color:#cdc7bb;cursor:pointer;margin-top:6px">
         <input type="checkbox" id="setTerms" style="margin-top:3px;width:17px;height:17px;accent-color:var(--amber);flex-shrink:0"/>
-        <span>I understand and agree to the terms above.</span>
+        <span>I understand and agree to the <a href="/terms" target="_blank" rel="noopener" style="color:var(--amber)">Terms</a> and <a href="/privacy" target="_blank" rel="noopener" style="color:var(--amber)">Privacy Policy</a>.</span>
       </label>
-      <div class="consent-fine">Placeholder language only — replace with reviewed terms before launch.</div>
+      <div class="consent-fine">Read the full <a href="/terms" target="_blank" rel="noopener">Terms</a> · <a href="/privacy" target="_blank" rel="noopener">Privacy</a> · <a href="/acceptable-use" target="_blank" rel="noopener">Acceptable Use</a>.</div>
     </div>
 
     <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
@@ -6040,7 +6369,7 @@ function toggleAutoTranslate(){ SETTINGS.autoTranslate = !(SETTINGS.autoTranslat
 function uploadLogo(input, field){
   field = field || 'logo';
   const f=input.files&&input.files[0]; if(!f) return;
-  if(!/^image\//.test(f.type)){ alert('Please choose an image file.'); return; }
+  if(!/^image\//.test(f.type)){ toast('Please choose an image file.','warn'); return; }
   const reader=new FileReader();
   reader.onload=e=>{
     const img=new Image();
@@ -6051,10 +6380,10 @@ function uploadLogo(input, field){
       c.getContext('2d').drawImage(img,0,0,w,h);
       let data=c.toDataURL('image/png');
       if(data.length>180000) data=c.toDataURL('image/jpeg',0.85);
-      if(data.length>240000){ alert('That image is too detailed — try a simpler or smaller logo.'); return; }
+      if(data.length>240000){ toast('That image is too detailed — try a simpler or smaller logo.','warn',5000); return; }
       setS(field,data); render();
     };
-    img.onerror=()=>alert('Could not read that image.');
+    img.onerror=()=>toast('Could not read that image.','bad');
     img.src=e.target.result;
   };
   reader.readAsDataURL(f);
@@ -6079,14 +6408,201 @@ async function changePw(btn){
     show(e.message||'Could not update password.');
   }finally{ btn.disabled=false; }
 }
+async function changeEmailUI(btn){
+  const g=id=>{ const e=document.getElementById(id); return e?e.value:''; };
+  const msg=document.getElementById('emMsg');
+  const show=(t,ok)=>{ if(msg){ msg.textContent=t; msg.style.color=ok?'#8fce8f':'#e88'; } };
+  const cur=g('emCur'), nw=(g('emNew')||'').trim();
+  if(!cur||!nw){ show('Enter your current password and the new email.'); return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nw)){ show('Enter a valid email address.'); return; }
+  if(!online||!TOKEN){ show('You need to be online and signed in.'); return; }
+  btn.disabled=true; show('Updating…', true);
+  try{
+    const r=await api('/api/account/email',{method:'POST', body:JSON.stringify({currentPassword:cur, newEmail:nw})});
+    if(r&&r.user){ USER.email=r.user.email; USER.email_verified=r.user.email_verified; }
+    show(r&&r.sent?'Email updated — check the new inbox to verify it. ✓':'Email updated. Verification email will send once the mail service is on. ✓', true);
+    ['emCur','emNew'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+    setTimeout(()=>{ if(state.view==='settings') render(); }, 1200);
+  }catch(e){ show(e.message||'Could not update email.'); }
+  finally{ btn.disabled=false; }
+}
+// Professional in-app confirm/prompt modal — replaces window.confirm/prompt for the
+// sensitive account actions (blueprint §5: zero window.alert/confirm/prompt). Returns
+// a Promise<boolean>; requireText makes the OK button gate on a typed match (e.g. DELETE).
+function edenConfirm(opts){
+  opts=opts||{};
+  return new Promise((resolve)=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+    const need=opts.requireText||'';
+    const card=document.createElement('div');
+    card.style.cssText='background:var(--card,#fff);color:var(--text,#1F252C);max-width:400px;width:100%;border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4)';
+    card.innerHTML='<div style="font-family:Archivo,sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:8px">'+esc(opts.title||'Are you sure?')+'</div>'+
+      '<div style="font-size:.92rem;color:var(--muted,#5c6270);line-height:1.5">'+(opts.body||'')+'</div>'+
+      (need?'<input id="edenConfirmType" class="input" style="margin-top:12px" placeholder="Type '+esc(need)+' to confirm" autocomplete="off"/>':'')+
+      '<div style="display:flex;gap:10px;margin-top:16px">'+
+        '<button id="edenConfirmCancel" class="btn ghost" style="flex:1">'+esc(opts.cancelLabel||'Cancel')+'</button>'+
+        '<button id="edenConfirmOk" class="btn" style="flex:1'+(opts.danger?';background:#a94e38;border-color:#a94e38;color:#fff':'')+'">'+esc(opts.okLabel||'Confirm')+'</button>'+
+      '</div>';
+    ov.appendChild(card); document.body.appendChild(ov);
+    const done=(v)=>{ try{ ov.remove(); }catch(_){} document.removeEventListener('keydown',onKey); resolve(v); };
+    const onKey=(e)=>{ if(e.key==='Escape') done(false); };
+    document.addEventListener('keydown',onKey);
+    ov.addEventListener('click',(e)=>{ if(e.target===ov) done(false); });
+    card.querySelector('#edenConfirmCancel').onclick=()=>done(false);
+    card.querySelector('#edenConfirmOk').onclick=()=>{
+      if(need){ const el=card.querySelector('#edenConfirmType'); if(!el || (el.value||'').trim()!==need){ if(el){ el.style.borderColor='#a94e38'; el.focus(); } return; } }
+      done(true);
+    };
+    setTimeout(()=>{ const f=card.querySelector(need?'#edenConfirmType':'#edenConfirmOk'); if(f) f.focus(); },50);
+  });
+}
+// In-app alert — one branded modal, single OK. Replaces window.alert so nothing
+// ever pops an unbranded OS dialog (blueprint §5: zero window.alert/confirm/prompt).
+function edenAlert(title, body, okLabel){
+  return new Promise((resolve)=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+    const card=document.createElement('div');
+    card.style.cssText='background:var(--card,#fff);color:var(--text,#1F252C);max-width:400px;width:100%;border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4)';
+    card.innerHTML='<div style="font-family:Archivo,sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:8px">'+esc(title||'Heads up')+'</div>'+
+      (body?'<div style="font-size:.92rem;color:var(--muted,#5c6270);line-height:1.5;white-space:pre-line">'+esc(body)+'</div>':'')+
+      '<div style="display:flex;margin-top:16px"><button id="edenAlertOk" class="btn" style="flex:1">'+esc(okLabel||'OK')+'</button></div>';
+    ov.appendChild(card); document.body.appendChild(ov);
+    const done=()=>{ try{ ov.remove(); }catch(_){} document.removeEventListener('keydown',onKey); resolve(true); };
+    const onKey=(e)=>{ if(e.key==='Escape'||e.key==='Enter') done(); };
+    document.addEventListener('keydown',onKey);
+    ov.addEventListener('click',(e)=>{ if(e.target===ov) done(); });
+    card.querySelector('#edenAlertOk').onclick=done;
+    setTimeout(()=>{ const f=card.querySelector('#edenAlertOk'); if(f) f.focus(); },50);
+  });
+}
+// In-app prompt — branded modal with a text field. Resolves the trimmed string, or
+// null on cancel. Replaces window.prompt.
+function edenPrompt(opts){
+  opts=opts||{};
+  return new Promise((resolve)=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+    const card=document.createElement('div');
+    card.style.cssText='background:var(--card,#fff);color:var(--text,#1F252C);max-width:400px;width:100%;border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4)';
+    card.innerHTML='<div style="font-family:Archivo,sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:8px">'+esc(opts.title||'')+'</div>'+
+      (opts.body?'<div style="font-size:.92rem;color:var(--muted,#5c6270);line-height:1.5;margin-bottom:8px">'+esc(opts.body)+'</div>':'')+
+      '<input id="edenPromptIn" class="input" '+(opts.readonly?'readonly ':'')+'placeholder="'+escAttr(opts.placeholder||'')+'" autocomplete="off"/>'+
+      '<div style="display:flex;gap:10px;margin-top:16px">'+
+        (opts.hideCancel?'':'<button id="edenPromptCancel" class="btn ghost" style="flex:1">'+esc(opts.cancelLabel||'Cancel')+'</button>')+
+        '<button id="edenPromptOk" class="btn" style="flex:1">'+esc(opts.okLabel||'OK')+'</button>'+
+      '</div>';
+    ov.appendChild(card); document.body.appendChild(ov);
+    const inp=card.querySelector('#edenPromptIn'); if(inp) inp.value=opts.value||'';
+    const done=(v)=>{ try{ ov.remove(); }catch(_){} document.removeEventListener('keydown',onKey); resolve(v); };
+    const submit=()=>done(inp?(inp.value||'').trim():'');
+    const onKey=(e)=>{ if(e.key==='Escape') done(null); else if(e.key==='Enter' && !opts.readonly) submit(); };
+    document.addEventListener('keydown',onKey);
+    ov.addEventListener('click',(e)=>{ if(e.target===ov) done(null); });
+    const c=card.querySelector('#edenPromptCancel'); if(c) c.onclick=()=>done(null);
+    card.querySelector('#edenPromptOk').onclick=submit;
+    setTimeout(()=>{ if(inp){ inp.focus(); if(opts.readonly) try{ inp.select(); }catch(_){} } },50);
+  });
+}
+// Copy to clipboard with a graceful, still-in-app fallback: if the async clipboard
+// API is blocked, show the text pre-selected in a modal to copy by hand (no window.prompt).
+function edenCopy(text, okMsg){
+  const t=String(text||'');
+  const fallback=()=>edenPrompt({ title:'Copy this', value:t, readonly:true, hideCancel:true, okLabel:'Done' });
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(()=>toast(okMsg||'Copied.','ok'), fallback);
+    } else fallback();
+  }catch(e){ fallback(); }
+}
+// Portability (Soul: no data hostage). Download the full account export as one JSON file.
+async function exportMyData(btn){
+  if(!online||!TOKEN){ toast('Connect to the internet to export your data.','warn'); return; }
+  if(btn) btn.disabled=true;
+  try{
+    const res=await fetch('/api/account/export',{headers:{authorization:'Bearer '+TOKEN}});
+    if(!res.ok) throw new Error('Export failed');
+    const blob=await res.blob(), url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='bidvoice-export.json'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    toast('Your data is downloading — jobs, estimates, contacts, and more.','ok',4000);
+  }catch(e){ toast('Could not export your data — try again.','bad'); }
+  finally{ if(btn) btn.disabled=false; }
+}
+async function deactivateAccountUI(btn){
+  const pw=(document.getElementById('dzPw')||{}).value||'';
+  const msg=document.getElementById('dzMsg'); const show=(t,ok)=>{ if(msg){ msg.textContent=t; msg.style.color=ok?'#8fce8f':'#e88'; } };
+  if(!pw){ show('Enter your password to deactivate.'); return; }
+  const ok=await edenConfirm({ title:'Deactivate your account?', okLabel:'Deactivate',
+    body:'You’ll be signed out everywhere and won’t be able to sign in until support reactivates it. <b>Your data is kept.</b>' });
+  if(!ok) return;
+  if(!online||!TOKEN){ show('You need to be online and signed in.'); return; }
+  btn.disabled=true; show('Deactivating…', true);
+  try{
+    await api('/api/account/deactivate',{method:'POST', body:JSON.stringify({password:pw})});
+    toast('Your account is deactivated. Contact support@bidvoice.ai to reactivate.','ok',6000);
+    setTimeout(()=>signOut(), 900);
+  }catch(e){ show(e.message||'Could not deactivate.'); btn.disabled=false; }
+}
+async function deleteAccountUI(btn){
+  const pw=(document.getElementById('dzPw')||{}).value||'';
+  const msg=document.getElementById('dzMsg'); const show=(t,ok)=>{ if(msg){ msg.textContent=t; msg.style.color=ok?'#8fce8f':'#e88'; } };
+  if(!pw){ show('Enter your password to delete.'); return; }
+  const ok=await edenConfirm({ title:'Delete your account?', danger:true, okLabel:'Delete', requireText:'DELETE',
+    body:'This schedules permanent deletion in <b>30 days</b>. Your data is kept until then, and support can cancel it. <b>Export your data first</b> if you want a copy. Type DELETE to confirm.' });
+  if(!ok){ show('Deletion cancelled.'); return; }
+  if(!online||!TOKEN){ show('You need to be online and signed in.'); return; }
+  btn.disabled=true; show('Scheduling…', true);
+  try{
+    await api('/api/account/delete',{method:'POST', body:JSON.stringify({password:pw, confirm:'DELETE'})});
+    toast('Your account is scheduled for deletion in 30 days. Contact support to cancel.','ok',6500);
+    setTimeout(()=>signOut(), 1200);
+  }catch(e){ show(e.message||'Could not schedule deletion.'); btn.disabled=false; }
+}
 
 /* ---------- mutations ---------- */
 function addLine(){ const j=currentJob(); j.lines.push({id:uid(),desc:'',type:'fixed',price:0,hours:0,rate:0,furn:'you'}); touch(j); saveJobs(); render(); }
 function delLine(id){ const j=currentJob(); j.lines=j.lines.filter(l=>l.id!==id); touch(j); saveJobs(); render(); }
 function updLine(id,k,v){ const j=currentJob(); const l=j.lines.find(x=>x.id===id); if(!l)return;
+  const learn=(k==='rate' && l.type==='hourly');
+  const oldRate=learn?(+l.rate||0):0;
   if(k==='price'||k==='hours'||k==='rate'||k==='qty') l[k]=+v||0; else l[k]=v;
   touch(j); saveJobs();
   if(k==='type'||k==='furn'||k==='section') render(); else refreshTotals(j);
+  if(learn) edenRateEdit(j, l, oldRate);   // edits teach: learn the labor rate into the price book
+}
+/* ===== Edit-and-learn (CPO audit §4 / blueprint Phase 1 #7) =====
+   Change an hourly rate and Eden quietly remembers it — "Got it — $95/hr for tile
+   from now on." — persisting it to the price book so the NEXT same-trade estimate
+   uses it. Debounced so it fires once on the settled value, with a one-tap Undo. */
+let _rateEditPrev={}, _rateEditT={};
+function jobTradeLabel(job){ const k=(job&&job.trade)||''; const t=(typeof TRADE_PICK!=='undefined')&&TRADE_PICK.find(x=>x.key===k); return t?t.label.toLowerCase():''; }
+function edenRateEdit(job, line, oldRate){
+  const id=line.id;
+  if(_rateEditPrev[id]===undefined) _rateEditPrev[id]=oldRate;   // remember the pre-edit value once per session
+  clearTimeout(_rateEditT[id]);
+  _rateEditT[id]=setTimeout(()=>edenCommitRate(job, id), 1200);
+}
+// Find-or-create the trade's labor SKU (no duplicates); returns the SKU used.
+async function edenUpsertLaborRate(tl, rate, existing){
+  if(!TOKEN || !online) return null;
+  const name = tl ? (tl.charAt(0).toUpperCase()+tl.slice(1)+' labor') : 'Labor';
+  try{ if(typeof loadSkus==='function' && !(window.CATALOG&&CATALOG.loaded)) await loadSkus(); }catch(_){}
+  const sku = existing || ((window.CATALOG&&CATALOG.skus)||[]).find(s=>String(s.unit)==='hr' && String(s.name||'').toLowerCase()===name.toLowerCase());
+  if(sku && sku.id){ const r=await api('/api/skus/'+encodeURIComponent(sku.id),{method:'PATCH', body:JSON.stringify({unit_price:rate})}); if(typeof loadSkus==='function') loadSkus(); return (r&&r.sku)||sku; }
+  const r=await api('/api/skus',{method:'POST', body:JSON.stringify({ name, unit:'hr', unit_price:rate })}); if(typeof loadSkus==='function') loadSkus(); return r&&r.sku;
+}
+async function edenCommitRate(job, id){
+  const line=(job.lines||[]).find(x=>x.id===id); if(!line){ delete _rateEditPrev[id]; return; }
+  const rate=Math.round(+line.rate||0), prev=_rateEditPrev[id]; delete _rateEditPrev[id];
+  if(rate<1 || rate===prev) return;                              // no real change → say nothing
+  const tl=jobTradeLabel(job);
+  let sku=null; try{ sku=await edenUpsertLaborRate(tl, rate); }catch(e){}
+  toastAction('Got it — $'+rate+'/hr'+(tl?(' for '+tl):'')+' from now on.', 'Undo', ()=>{
+    line.rate=prev; touch(job); saveJobs(); if(state.view==='job') render(); else if(typeof refreshTotals==='function') refreshTotals(job);
+    if(sku) edenUpsertLaborRate(tl, prev, sku).catch(()=>{});     // revert the learned rate too
+  });
 }
 function addUp(){ const j=currentJob(); j.upgrades.push({id:uid(),desc:'',price:0}); touch(j); saveJobs(); render(); }
 function delUp(i){ const j=currentJob(); j.upgrades.splice(i,1); touch(j); saveJobs(); render(); }
@@ -6150,7 +6666,7 @@ async function uploadJobDoc(input){
   persist(); if(state.view==='job') render(); if(ok) toast('✓ '+ok+' document'+(ok===1?'':'s')+' uploaded','ok');
 }
 async function deleteJobDoc(jobId,docId){
-  if(!confirm('Remove this document?')) return;
+  if(!await edenConfirm({title:'Remove this document?',okLabel:'Remove',danger:true})) return;
   const j=currentJob();
   try{ await api('/api/jobs/'+jobId+'/documents/'+docId,{method:'DELETE'}); if(j) j.documents=(j.documents||[]).filter(d=>d.id!==docId); persist(); render(); }
   catch(e){ toast(e.message||'Could not remove.','bad'); }
@@ -6166,8 +6682,8 @@ function permitToLine(id){ const j=currentJob(); const p=(j.permits||[]).find(x=
 }
 function updJob(k,v){ const j=currentJob(); j[k]=(k==='margin'||k==='deposit_pct'||k==='tax_rate')?(+v||0):v; touch(j); saveJobs(); if(k==='margin'||k==='tax_rate') refreshTotals(j); }
 function updList(k,v){ const j=currentJob(); j[k]=String(v).split('\n').map(s=>s.trim()).filter(Boolean); touch(j); saveJobs(); }
-function deleteJob(id){
-  if(!confirm('Delete this job? This removes it from all your devices.')) return;
+async function deleteJob(id){
+  if(!await edenConfirm({title:'Delete this job?',body:'This removes it from all your devices.',okLabel:'Delete',danger:true})) return;
   const j=JOBS.find(x=>x.id===id); if(!j) return;
   j._deleted=true; j._dirty=true; persist();
   state.view='home'; render(); syncNow();
@@ -6261,6 +6777,19 @@ function toast(msg, kind, ms){
   box.appendChild(el);
   setTimeout(()=>{ el.style.transition='opacity .2s'; el.style.opacity='0'; setTimeout(()=>el.remove(),220); }, ms||3200);
 }
+// A toast with one inline action (e.g. Undo) — used by edit-and-learn so a learned
+// rate is always reversible. The action fires at most once.
+function toastAction(msg, actionLabel, onAction, ms){
+  const box=document.getElementById('toasts'); if(!box) return;
+  const el=document.createElement('div'); el.className='toast ok';
+  el.style.display='flex'; el.style.alignItems='center'; el.style.gap='12px';
+  const span=document.createElement('span'); span.textContent=msg; span.style.flex='1'; el.appendChild(span);
+  const btn=document.createElement('button'); btn.textContent=actionLabel;
+  btn.style.cssText='background:transparent;border:1px solid rgba(255,255,255,.45);color:inherit;font:inherit;font-weight:700;border-radius:8px;padding:4px 11px;cursor:pointer;white-space:nowrap';
+  let used=false; btn.onclick=()=>{ if(used) return; used=true; try{ onAction&&onAction(); }catch(_){} el.remove(); };
+  el.appendChild(btn); box.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .2s'; el.style.opacity='0'; setTimeout(()=>el.remove(),220); }, ms||6500);
+}
 // Copy text to the clipboard with a graceful fallback; resolves true on success.
 async function copyText(text){
   try{ if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); return true; } }catch(e){}
@@ -6333,11 +6862,78 @@ let recAbort=false;  // released before getUserMedia resolved → stop the momen
 let recTimer=null;   // safety auto-stop so a stuck press can't record forever
 function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
 
+/* ===== Offline-first voice capture queue (Fable blueprint Phase 1.5 · AC 8) =====
+   Every recording is written to IndexedDB BEFORE any upload attempt, so a clip
+   survives a lost signal or an app kill and is transcribed when we're back online.
+   AC: airplane-mode → record → kill app → restore signal → the estimate arrives. */
+let _capDBp=null, _capDraining=false, _capOfflineToastAt=0;
+function capDB(){
+  if(_capDBp) return _capDBp;
+  _capDBp=new Promise((res,rej)=>{ try{
+    const r=indexedDB.open('bidvoice_cap',1);
+    r.onupgradeneeded=()=>{ const db=r.result; if(!db.objectStoreNames.contains('clips')) db.createObjectStore('clips',{keyPath:'id'}); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  }catch(e){ rej(e); } });
+  return _capDBp;
+}
+async function capQueuePut(blob, lang){
+  const db=await capDB();
+  return new Promise((res,rej)=>{ const tx=db.transaction('clips','readwrite');
+    const id='c'+Date.now()+'_'+Math.round(Math.random()*1e6);
+    tx.objectStore('clips').put({ id, blob, lang:lang||'en', at:Date.now() });
+    tx.oncomplete=()=>res(id); tx.onerror=()=>rej(tx.error); });
+}
+async function capQueueAll(){
+  try{ const db=await capDB(); return await new Promise((res)=>{ const tx=db.transaction('clips','readonly');
+    const rq=tx.objectStore('clips').getAll(); rq.onsuccess=()=>res(rq.result||[]); rq.onerror=()=>res([]); }); }
+  catch(e){ return []; }
+}
+async function capQueueDel(id){
+  try{ const db=await capDB(); await new Promise((res)=>{ const tx=db.transaction('clips','readwrite');
+    tx.objectStore('clips').delete(id); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); }catch(e){}
+}
+// Append transcribed text to the live capture draft (persisted), and refresh the
+// screen + re-run intake if the contractor is on the capture screen.
+function capAppendTranscript(txt){
+  txt=String(txt||'').trim(); if(!txt) return;
+  CAP_DRAFT.text=[(CAP_DRAFT.text||'').trim(), txt].filter(Boolean).join(' ').replace(/\s+/g,' ');
+  try{ localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT)); }catch(e){}
+  const ta=document.getElementById('capText');
+  if(ta){ ta.value=CAP_DRAFT.text; ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px'; ta.scrollTop=ta.scrollHeight; }
+  if(state.view==='capture'){ buzz(12); scheduleIntake(); }
+}
+// Drain the queue oldest-first: transcribe each clip, append its text, then delete
+// it. A transient/network failure stops the drain and leaves the clip for next time
+// (on reconnect or next load), so nothing is ever lost.
+async function capQueueDrain(){
+  if(_capDraining) return;
+  if(!online || !TOKEN || !AI_TRANSCRIBE) return;   // need the server to transcribe; keep clips queued otherwise
+  _capDraining=true;
+  try{
+    const clips=(await capQueueAll()).sort((a,b)=>(a.at||0)-(b.at||0));
+    for(const c of clips){
+      if(!online || !TOKEN) break;
+      let dataUrl=''; try{ dataUrl=await new Promise((res)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(c.blob); }); }catch(e){}
+      if(!dataUrl){ await capQueueDel(c.id); continue; }   // unreadable blob → drop, don't loop forever
+      try{
+        const r=await api('/api/assist/transcribe',{ method:'POST', body:JSON.stringify({ audio:dataUrl, lang:c.lang||(SETTINGS.from||'en') }) });
+        capAppendTranscript((r&&r.text)||'');
+        await capQueueDel(c.id);   // processed (delete even on empty text — a silent clip shouldn't retry forever)
+      }catch(e){
+        if(e && e.status===402){ await capQueueDel(c.id); gate402(e); }  // billing gate → drop + surface
+        break;                                                          // transient → leave queued, retry later
+      }
+    }
+  } finally { _capDraining=false; }
+}
+
 // Begin a recording (Whisper path). Robust to a release landing before the mic
 // permission resolves — recAbort makes us stop the instant capture is live.
 async function startRecord(){
   if(recording||recBusy) return;
-  if(!online||!TOKEN){ toast('Connect to the internet to dictate.','warn'); return; }
+  // Offline-first: we record locally regardless of connectivity and transcribe when
+  // we're back online. Only a missing session truly blocks capture.
+  if(!TOKEN){ toast('Sign in to dictate.','warn'); return; }
   // In-app browsers (Instagram/Facebook/etc.) block the mic — don't let it fail
   // silently. Tell the user how to fix it and log why, so the back end can see it.
   const app=inAppBrowser();
@@ -6345,7 +6941,9 @@ async function startRecord(){
   if(!recordSupported()){ track('record_failed',{reason:'unsupported',ios:isIOS()}); toast(isIOS()?'Open this in Safari to use voice.':'Voice recording isn’t supported in this browser.','warn',6000); return; }
   recBusy=true; recAbort=false;
   let stream;
-  try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+  // Noise-robust capture (exec-review §1): construction sites are loud, and these
+  // constraints also help Eden not hear herself. Cheap first line before any DSP.
+  try{ stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}); }
   catch(e){ recBusy=false; track('record_failed',{reason:'permission_denied',err:String(e&&e.name||''),ios:isIOS()}); toast('Allow microphone access to dictate.','warn',5000); return; }
   mediaStream=stream; mediaChunks=[];
   const mime=pickAudioMime();
@@ -6359,16 +6957,20 @@ async function startRecord(){
     const blob=new Blob(mediaChunks,{type:(mediaRec&&mediaRec.mimeType)||'audio/webm'});
     recBusy=false; micState='idle';
     if(blob.size<900){ updateMic(); toast('Didn’t catch anything — tap and speak.','warn'); return; }
-    const dataUrl=await new Promise((res)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(blob); });
-    try{
-      const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({ audio:dataUrl, lang:(SETTINGS.from||'es') })});
-      const ta=document.getElementById('capText');
-      if(ta && (r.text||'').trim()){
-        ta.value=[ta.value.trim(), r.text.trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
-        capDraft('text', ta.value); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px'; ta.scrollTop=ta.scrollHeight;
-        buzz(12); scheduleIntake(); // pull the job details from what they just said
-      } else if(!(r.text||'').trim()) toast('Didn’t catch that — tap and speak clearly.','warn');
-    }catch(e){ if(e.status===402){ gate402(e); } else toast(e.message||'Could not transcribe.','bad',5000); }
+    const lang=(SETTINGS.from||'en');
+    // Durability first: the clip goes to IndexedDB BEFORE any upload, so a lost
+    // signal or an app kill never loses what the contractor just said.
+    let queued=false;
+    try{ await capQueuePut(blob, lang); queued=true; }catch(e){ queued=false; }
+    if(queued){
+      if(online && TOKEN){ await capQueueDrain(); }
+      else { const now=Date.now(); if(now-_capOfflineToastAt>4000){ _capOfflineToastAt=now; toast('Saved. I’ll get to work as soon as we’re back online.','ok',5000); } }
+    } else if(online && TOKEN){
+      // IndexedDB unavailable (e.g. private mode) — transcribe directly, best-effort.
+      const dataUrl=await new Promise((res)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(blob); });
+      try{ const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({ audio:dataUrl, lang })}); if((r.text||'').trim()) capAppendTranscript(r.text.trim()); else toast('Didn’t catch that — tap and speak clearly.','warn'); }
+      catch(e){ if(e.status===402){ gate402(e); } else toast(e.message||'Could not transcribe.','bad',5000); }
+    } else { toast('Couldn’t save the recording on this device.','warn'); }
     updateMic();
   };
   mediaRec.start();
@@ -6665,8 +7267,19 @@ function confettiBurst(gold){
   const billingReturn=params.get('billing');
   const paymentsReturn=params.get('payments'); // 'connected' | 'refresh' after Stripe onboarding
   if(billingReturn || paymentsReturn || refParam || roleParam){ history.replaceState({}, '', location.pathname); }
+  // Email-verification link (/verify?token=…&e=…): confirm the address, then drop
+  // into the app. Handled before the reset check because verify links also carry ?token.
+  if(location.pathname==='/verify'){
+    const vtok=params.get('token')||'', vem=params.get('e')||'';
+    history.replaceState({}, '', '/');
+    try{
+      const r=await api('/api/auth/verify-confirm',{method:'POST',body:JSON.stringify({email:vem, token:vtok})});
+      if(USER) USER.email_verified=true;
+      setTimeout(()=>toast((r&&r.alreadyVerified)?'Your email is already verified. ✓':'Email verified — you’re all set. ✓','ok',5000), 450);
+    }catch(e){ setTimeout(()=>toast(e.message||'That verification link is invalid or has expired.','bad',6000), 450); }
+  }
   // Password-reset link (/reset?token=…&e=…): show the set-new-password screen.
-  if(location.pathname==='/reset' || params.get('token')){
+  else if(location.pathname==='/reset' || params.get('token')){
     RESET={ token:params.get('token')||'', email:params.get('e')||'' };
     state.authMode='reset'; state.authSent=false;
     history.replaceState({}, '', '/');
@@ -6675,6 +7288,7 @@ function confettiBurst(gold){
   render();
   if(TOKEN){
     await loadDashboardData();
+    capQueueDrain();   // process any voice clips captured offline last session (AC 8)
     // Coming back from Stripe Connect onboarding — pull the fresh account status
     // and land the contractor on Setup so they see "Ready".
     if(paymentsReturn){ await refreshPayments(); state.view='settings'; }

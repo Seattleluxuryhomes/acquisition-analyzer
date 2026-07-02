@@ -669,15 +669,26 @@ function intakeSystemPrompt(tradeLabel, fields) {
     '{"project_name":string,"client":string,"address":string,"scope":[string],"materials":[string],' +
     '"labor":[string],"timeline":string,"notes":string,' +
     '"checklist":[{"label":string,"value":string,"status":"captured"|"missing"|"unsure"}],' +
+    '"ambiguous":[{"heard":string,"question":string,"chips":[string]}],' +
     '"next_question":string,"ready":boolean,"questions":[string]}. ' +
+    "AMBIGUOUS: any FIGURE the contractor stated whose exact value is uncertain — spelled-out large " +
+    "numbers that could be misheard (\"fifteen hundred\" → 1500 vs 1,500? vs 15,000?), ranges (\"ten to " +
+    "fifteen squares\"), or hedged/approximate quantities (\"about\", \"around\", \"maybe\", \"a couple\", " +
+    "\"I think\", \"roughly\"). For each, output heard = the figure as stated, question = a short spoken " +
+    "confirm (e.g. \"Did you say fifteen hundred square feet — 1,500?\"), chips = 2-4 likely exact values to " +
+    "tap (e.g. [\"1,500 sq ft\",\"150 sq ft\",\"15,000 sq ft\"]). Empty array when every figure is clear. " +
+    "An estimate must NEVER contain an unverified ambiguous number: while `ambiguous` is non-empty, " +
+    "next_question MUST be the first ambiguous figure's `question`, and `ready` MUST be false. " +
     "CHECKLIST: assess each of these items for THIS job — " + JSON.stringify(fields) + ". For each item " +
     "relevant to this job, output {label, value, status}: \"captured\" (with a short value the contractor " +
     "gave), \"missing\" (not stated yet), or \"unsure\" (the contractor said they don't know / it needs to " +
     "be measured later). Skip items clearly irrelevant to this job. Keep each value short. " +
-    "NEXT_QUESTION: the SINGLE most important still-missing item, phrased as one short, natural spoken " +
-    "question (e.g. \"About how tall will the fence be?\"). Empty string when nothing important is missing. " +
+    "NEXT_QUESTION: follow-up priority is (a) confirm any ambiguous figure, then (b) the single most " +
+    "important still-missing price-impacting item, phrased as one short, natural spoken question (e.g. " +
+    "\"About how tall will the fence be?\"). Empty string when nothing important is missing. " +
     "Ask the MINIMUM questions needed — never ask about something already captured or flagged unsure, and " +
-    "never ask filler. READY: true only when every critical item is captured OR flagged unsure (you have " +
+    "never ask filler; a hard cap of 3 open questions. READY: true only when no figure is ambiguous AND " +
+    "every critical item is captured OR flagged unsure (you have " +
     "enough to produce an accurate estimate; unsure items get flagged for review). " +
     "Also fill the structured fields from the conversation: client = customer name if stated (else \"\"), " +
     "address (else \"\"), scope = short work phrases, materials named, labor/crew tasks, timeline, notes = " +
@@ -697,6 +708,16 @@ function sanitizeIntake(d) {
     value: String((c && c.value) || "").slice(0, 120),
     status: ["captured", "unsure", "missing"].includes(c && c.status) ? c.status : "missing",
   })).filter((c) => c.label);
+  const ambiguous = (Array.isArray(d.ambiguous) ? d.ambiguous : []).slice(0, 5).map((a) => ({
+    heard: String((a && a.heard) || "").slice(0, 80),
+    question: String((a && a.question) || "").slice(0, 200),
+    chips: (Array.isArray(a && a.chips) ? a.chips : []).slice(0, 4).map((s) => String(s).slice(0, 40)).filter(Boolean),
+  })).filter((a) => a.heard && a.question);
+  // An estimate must never carry an unverified ambiguous figure: while any remain,
+  // the follow-up is the first ambiguity confirm and the intake is not "ready".
+  let next_question = String(d.next_question || "").slice(0, 240);
+  let ready = !!d.ready;
+  if (ambiguous.length) { next_question = ambiguous[0].question; ready = false; }
   return {
     project_name: String(d.project_name || "").slice(0, 120),
     client: String(d.client || "").slice(0, 120),
@@ -707,8 +728,9 @@ function sanitizeIntake(d) {
     timeline: String(d.timeline || "").slice(0, 160),
     notes: String(d.notes || "").slice(0, 600),
     checklist,
-    next_question: String(d.next_question || "").slice(0, 240),
-    ready: !!d.ready,
+    ambiguous,
+    next_question,
+    ready,
     questions: list(d.questions),
   };
 }
