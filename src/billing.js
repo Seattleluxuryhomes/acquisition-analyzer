@@ -5,7 +5,8 @@
 import crypto from "node:crypto";
 import db from "./db.js";
 import { track } from "./analytics.js";
-import { referralStatus, effectiveMonthly, agentStatus, agentFreeActive } from "./referrals.js";
+import { referralStatus, agentStatus, agentFreeActive } from "./referrals.js";
+import * as Credits from "./referralCredits.js";
 
 const KEY = () => process.env.STRIPE_SECRET_KEY || "";
 const PRICE = () => process.env.STRIPE_PRICE_ID || "";
@@ -17,10 +18,10 @@ const SETUP_PRICE = () => process.env.STRIPE_SETUP_PRICE_ID || "";
 // the ad spend. Set BT_SETUP_FEE=299 (and configure STRIPE_SETUP_PRICE_ID to a
 // matching $299 one-time Price) to enable it.
 const SETUP_FEE_DISPLAY = () => Number(process.env.BT_SETUP_FEE || 0);
-// The setup fee is WAIVED for founders (rate-locked) and for anyone who came in
-// through a GC's crew/referral link — only cold signups (ads) pay it.
+// The setup fee is WAIVED for founders (rate-locked / Founding Member) and for anyone who
+// came in through a referral link — only cold signups (ads) pay it.
 function setupWaived(user) {
-  return !!(user && (user.locked_monthly != null || user.referred_by));
+  return !!(user && (user.locked_monthly != null || user.founding_member || user.referred_by));
 }
 const WEBHOOK_SECRET = () => process.env.STRIPE_WEBHOOK_SECRET || "";
 // Optional: collect sales tax automatically via Stripe Tax. Off unless set, so
@@ -70,17 +71,19 @@ export function billingStatus(user) {
     trial_ends_at: user.trial_ends_at || null,
     current_period_end: user.current_period_end || null,
     has_subscription: !!user.stripe_subscription_id,
-    // Real prices from Stripe (dollars). The UI shows the setup fee only when
-    // setup_fee > 0, so the page never promises a fee that isn't charged.
-    monthly: priceCache.monthly != null ? priceCache.monthly : referralStatus(user).base,
-    // Setup fee: the configured amount, ZEROED when waived (founders + crew/referral
-    // signups). setup_fee_base is the un-waived amount so the UI can say "waived".
+    // Monthly price (dollars). A Founding Member sees their locked rate (captured from
+    // Stripe at activation); otherwise the live Stripe price, then the display fallback.
+    monthly: user.founding_price_cents != null ? user.founding_price_cents / 100
+      : (priceCache.monthly != null ? priceCache.monthly : referralStatus(user).base),
+    founding_member: !!user.founding_member,
+    // Setup fee: the configured amount, ZEROED when waived (founders + referral signups).
+    // setup_fee_base is the un-waived amount so the UI can say "waived".
     setup_fee: setupWaived(user) ? 0 : (SETUP_FEE_DISPLAY() || priceCache.setup || 0),
     setup_fee_base: SETUP_FEE_DISPLAY() || priceCache.setup || 0,
     setup_waived: setupWaived(user),
-    // Referral credit ladder: base $50, −$10 per paying sub, free at 5. Drives the
-    // paywall/billing display and the price the contractor is actually charged.
-    referral: referralStatus(user),
+    // Referral: attribution + the credit-ledger summary (give-a-month/get-a-month,
+    // 12/calendar-year cap). No per-sub price ladder anymore — credits are discrete.
+    referral: { ...referralStatus(user), credits: Credits.summary(user.id) },
     // Agent persona (null for contractors): free-first-year countdown + T-90 nudge.
     agent: agentStatus(user),
   };
@@ -130,12 +133,6 @@ async function stripe(path, body) {
   return json;
 }
 
-async function stripeDelete(path) {
-  const res = await fetch("https://api.stripe.com/v1/" + path, { method: "DELETE", headers: { Authorization: "Bearer " + KEY() } });
-  if (!res.ok) throw Object.assign(new Error("Payment provider error."), { status: 502 });
-  return res.json().catch(() => ({}));
-}
-
 async function stripeGet(path) {
   let res;
   try {
@@ -175,11 +172,12 @@ export async function createCheckout(user, baseUrl) {
     success_url: `${baseUrl}/?billing=success`,
     cancel_url: `${baseUrl}/?billing=cancel`,
   };
-  // Apply the referral credit (−$10 per paying sub) as a recurring amount-off
-  // coupon. Stripe rejects discounts + promo codes together, so only offer the
-  // promo-code field when there's no earned credit to apply.
-  const creditCoupon = await earnedCreditCoupon(user).catch(() => null);
-  if (creditCoupon) params.discounts = [{ coupon: creditCoupon }];
+  // Give-a-month: a referred company gets its FIRST MONTH FREE — a once-100%-off coupon
+  // applied at checkout (price-agnostic, deterministic). Recorded in the ledger for audit.
+  // Stripe rejects discounts + the promo-code field together, so offer promo codes only
+  // when there's no welcome credit to apply.
+  const welcome = await refereeWelcomeCoupon(user).catch(() => null);
+  if (welcome) params.discounts = [{ coupon: welcome }];
   else params.allow_promotion_codes = true;
   if (TAX_ENABLED()) {
     params.automatic_tax = { enabled: true };
@@ -202,34 +200,83 @@ export async function createPortal(user, baseUrl) {
   return session.url;
 }
 
-// ---- Referral credit ↔ Stripe (apply the −$10/paying-sub credit to the bill) ----
-// A reusable, deterministic amount-off coupon ("btref<cents>"), created once and
-// reused. The id is deterministic so re-creating is a harmless no-op.
-async function ensureCoupon(cents) {
-  const id = "btref" + cents;
-  try { await stripe("coupons", { id, amount_off: cents, currency: "usd", duration: "forever", name: `Crew credit $${Math.round(cents / 100)} off` }); }
+// ---- Referral credits ↔ Stripe (give-a-month / get-a-month; the ledger is authoritative) ----
+
+// The value of one month for a user, in cents: their Founding Member locked rate if set,
+// else the live Stripe price, else the display-base fallback. Deterministic.
+async function monthlyCentsFor(user) {
+  if (user && user.founding_price_cents != null) return Number(user.founding_price_cents);
+  if (priceCache.monthly != null) return Math.round(priceCache.monthly * 100);
+  try { const p = await stripeGet("prices/" + PRICE()); if (p && p.unit_amount) return p.unit_amount; } catch { /* fall through */ }
+  return Math.round(Number(process.env.BT_BASE_PRICE || 50) * 100);
+}
+
+// A reusable "first month free" coupon (100% off, once). Deterministic id → re-creating
+// is a harmless no-op. This is the give-a-month half for the REFERRED company.
+async function ensureWelcomeCoupon() {
+  const id = "btwelcome100";
+  try { await stripe("coupons", { id, percent_off: 100, duration: "once", name: "Referral — first month free" }); }
   catch { /* already exists (or transient) — the deterministic id is reusable */ }
   return id;
 }
-// The coupon representing a GC's currently-earned credit, or null if none.
-async function earnedCreditCoupon(user) {
-  const base = user.locked_monthly != null ? Number(user.locked_monthly) : Number(process.env.BT_BASE_PRICE || 50);
-  const creditDollars = base - effectiveMonthly(user);
-  if (creditDollars <= 0) return null;
-  return ensureCoupon(Math.round(creditDollars * 100));
+
+// If this user was referred and hasn't claimed their welcome yet, record the welcome
+// credit (audit) and return the coupon to apply at checkout. Otherwise null.
+async function refereeWelcomeCoupon(user) {
+  if (!user || !user.referred_by) return null;
+  if (Credits.welcomeExistsFor(user.id)) return null;      // already claimed (idempotent)
+  const cents = await monthlyCentsFor(user).catch(() => 0);
+  // Ledger row first (idempotent via UNIQUE) — the coupon is the applied mechanism.
+  Credits.record({ userId: user.id, kind: "referee_welcome", refereeId: user.id,
+    amountCents: cents || 100, reason: "signup_welcome", status: "applied" });
+  return ensureWelcomeCoupon().catch(() => null);
 }
-// Re-apply a GC's referral discount to their live subscription so the bill tracks
-// their crew (a sub starts paying → price drops; a sub churns → price rises). Wired
-// into the webhook below; best-effort and a no-op without billing configured.
-export async function syncReferralDiscount(userId) {
-  if (!billingConfigured() || !userId) return;
-  const u = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
-  if (!u || !u.stripe_subscription_id) return;
-  const coupon = await earnedCreditCoupon(u).catch(() => null);
+
+// The get-a-month half: grant the REFERRER one month of credit once their referred
+// company completes month two. Posts a customer-balance credit to Stripe (auto-applies
+// to the referrer's next invoice, never below $0) and records the immutable ledger row.
+// Idempotent (UNIQUE referee_id+kind) and capped at 12 rewards / calendar year.
+export async function grantReferrerReward(refereeId) {
+  if (!billingConfigured() || !refereeId) return;
+  const referee = db.prepare("SELECT id, referred_by FROM user WHERE id=?").get(refereeId);
+  if (!referee || !referee.referred_by) return;
+  const referrer = db.prepare("SELECT * FROM user WHERE id=?").get(referee.referred_by);
+  if (!referrer) return;
+  if (Credits.rewardExistsFor(refereeId)) return;                 // already granted
+  if (Credits.capReached(referrer.id)) return;                    // 12/calendar-year cap
+  const cents = await monthlyCentsFor(referrer).catch(() => 0);
+  if (!(cents > 0)) return;
+  // Record the ledger row first (idempotent). If a duplicate, stop — no double credit.
+  const row = Credits.record({ userId: referrer.id, kind: "referrer_reward", refereeId,
+    amountCents: cents, reason: "month_two_completed", status: "earned" });
+  if (!row) return;
+  // Push the money to Stripe: a negative customer balance = credit toward future invoices.
   try {
-    if (coupon) await stripe("subscriptions/" + u.stripe_subscription_id, { coupon });
-    else await stripeDelete("subscriptions/" + u.stripe_subscription_id + "/discount"); // clear when no credit
-  } catch { /* best-effort */ }
+    const customer = referrer.stripe_customer_id;
+    if (customer) {
+      const txn = await stripe("customers/" + customer + "/balance_transactions",
+        { amount: -Math.abs(cents), currency: "usd", description: `Referral credit — 1 month (referred ${refereeId})` });
+      Credits.markApplied(row.id, txn && txn.id);
+    }
+  } catch { /* best-effort — the ledger row stands; a reconcile can re-push if needed */ }
+  track(referrer.id, "referral_reward_earned", { refereeId, cents });
+}
+
+// Founding Member grandfathering: capture the price a company signs up at the first time
+// their subscription goes active, and lock it while active. Idempotent — only set once.
+function captureFoundingLock(userId, sub) {
+  const u = db.prepare("SELECT founding_price_cents FROM user WHERE id=?").get(userId);
+  if (!u || u.founding_price_cents != null) return;              // already locked
+  let cents = null;
+  try { cents = sub?.items?.data?.[0]?.price?.unit_amount ?? sub?.plan?.amount ?? null; } catch { cents = null; }
+  if (cents == null && priceCache.monthly != null) cents = Math.round(priceCache.monthly * 100);
+  if (cents == null) return;
+  db.prepare("UPDATE user SET founding_price_cents=?, founding_member=1 WHERE id=?").run(cents, userId);
+}
+// On full cancellation, drop the lock so a returning customer gets whatever price is
+// current then (Stripe re-checkout uses the live Price — no manual intervention).
+function clearFoundingLock(userId) {
+  db.prepare("UPDATE user SET founding_price_cents=NULL, founding_member=0 WHERE id=?").run(userId);
 }
 
 // ---- Webhook ----
@@ -249,6 +296,11 @@ export function verifyWebhook(rawBody, sigHeader) {
   return JSON.parse(rawBody);
 }
 
+// The referred company earns the referrer their credit once they PAY their 2nd invoice —
+// they are a paying customer through month two. (Month one is free via the welcome coupon,
+// so the 2nd paid invoice is their first real payment.) One constant so it's explicit.
+const MONTH_TWO_INVOICE = 2;
+
 function applySubscription(customerId, sub) {
   const row = db.prepare("SELECT id, subscription_status FROM user WHERE stripe_customer_id=?").get(customerId);
   if (!row) return;
@@ -256,13 +308,15 @@ function applySubscription(customerId, sub) {
   db.prepare(
     "UPDATE user SET subscription_status=?, stripe_subscription_id=?, current_period_end=? WHERE id=?"
   ).run(next, sub.id || null, sub.current_period_end ? sub.current_period_end * 1000 : null, row.id);
-  // Fire once, on the transition into a paying state (drives the CRM milestone).
   const live = (s) => s === "active" || s === "trialing";
-  if (live(next) && !live(row.subscription_status || "none")) track(row.id, "subscription_active", { status: next });
-  // This user's paid status changed → if they were referred, their GC's crew credit
-  // may have moved. Re-sync the referrer's discount (a sub paid → −$10; churned → +$10).
-  const me = db.prepare("SELECT referred_by FROM user WHERE id=?").get(row.id);
-  if (me && me.referred_by) syncReferralDiscount(me.referred_by).catch(() => {});
+  // On the transition into a paying state: fire the CRM milestone + lock the Founding
+  // Member rate (captured from Stripe = what they signed up at; set once, kept while active).
+  if (live(next) && !live(row.subscription_status || "none")) {
+    track(row.id, "subscription_active", { status: next });
+    captureFoundingLock(row.id, sub);
+  }
+  // On full cancellation, drop the Founding lock so a return gets the then-current price.
+  if (next === "canceled") clearFoundingLock(row.id);
 }
 
 export function handleEvent(event) {
@@ -282,6 +336,19 @@ export function handleEvent(event) {
     case "customer.subscription.deleted":
       applySubscription(obj.customer, obj);
       break;
+    case "invoice.paid":
+    case "invoice.payment_succeeded": {
+      // Count paid SUBSCRIPTION invoices; when a referred company pays its month-two
+      // invoice, the referrer earns their give-a-month/get-a-month credit.
+      const reason = obj.billing_reason || "";
+      if (!/^subscription/.test(reason)) break;
+      const row = db.prepare("SELECT id FROM user WHERE stripe_customer_id=?").get(obj.customer);
+      if (!row) break;
+      const n = db.prepare("UPDATE user SET paid_invoice_count = COALESCE(paid_invoice_count,0) + 1 WHERE id=? RETURNING paid_invoice_count")
+        .get(row.id);
+      if (n && n.paid_invoice_count === MONTH_TWO_INVOICE) grantReferrerReward(row.id).catch(() => {});
+      break;
+    }
     default:
       break;
   }
