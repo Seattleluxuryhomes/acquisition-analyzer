@@ -3403,23 +3403,21 @@ function paintTrialChip(){
 }
 
 /* ---------- PAYWALL ---------- */
-// The crew-credit ladder: $50 base, −$10 per paying sub, free at 5. Shows where the
-// contractor is on the ladder and nudges them to bring more crew.
+// Give a month, get a month. Refer another company: they get their first month free,
+// and once they've paid through month two you get a month credited — up to 12 a year.
+// Credits never expire while you're active and apply to your future invoices.
 function referralLadderHTML(){
   const r = BILLING && BILLING.referral; if(!r) return '';
-  const rungs=[];
-  for(let i=0;i<=r.freeAt;i++){ rungs.push({ i, price:Math.max(0, r.base - r.creditPerRef*i), on:i===r.payingReferrals }); }
-  const free = r.effective===0;
-  // Lead with the destination — FREE at 5 — then the math. Once they're free, keep
-  // it open-ended: they stay free and adding more crew grows their network.
+  const c = r.credits || {};
+  const earned = c.earnedThisYear || 0;
+  const remaining = (c.remainingThisYear==null) ? 12 : c.remainingThisYear;
+  const lifetime = c.lifetimeRewards || 0;
+  const brought = r.referredCompanies || 0;
   return `<div class="pricecard" style="border-color:var(--amber)">
-    <div class="h-eyebrow">${free?"You're in — it's free":`Get it FREE — bring ${r.freeAt} of your crew`}</div>
-    <div class="amt">${free?'$0':priceStr(r.effective)}<span>${free?" — free while your crew's active":'/month'}</span></div>
-    <div class="hint" style="margin:-4px 0 10px">${free
-      ? `Your crew's got you — <b style="color:var(--paper)">$0/month</b> for as long as they stay subscribed${r.locked?', and your founder rate is locked in':''}. Keep adding crew — you stay free, and every contractor you bring grows your network.`
-      : `$${r.base}/mo, and every contractor you bring on who subscribes takes <b style="color:var(--paper)">$${r.creditPerRef} off</b> — <b style="color:var(--paper)">${r.freeAt} paying subs and it's $0.</b> You're at ${r.payingReferrals} so far; bring <b style="color:var(--paper)">${r.remainingToFree}</b> more and it's free${r.locked?' (founder rate locked in)':''}.`}</div>
-    <div class="ladder">${rungs.map(x=>`<div class="rung ${x.on?'on':''}"><span>${x.i}</span><b>${x.price===0?'Free':'$'+x.price}</b></div>`).join('')}</div>
-    <button class="btn ghost full" style="margin-top:12px" onclick="shareReferral()">${icon('share',15)} ${free?'Add more of your crew':'Invite your crew — get to free'}</button>
+    <div class="h-eyebrow">Give a month, get a month</div>
+    <div class="amt">${earned}<span> ${earned===1?'month':'months'} earned this year</span></div>
+    <div class="hint" style="margin:-4px 0 10px">Refer another company — <b style="color:var(--paper)">they get their first month free</b>, and once they've paid through month two <b style="color:var(--paper)">you get a month credited</b>. Up to <b style="color:var(--paper)">12 a year</b>; credits never expire while you're active and come off your future invoices.${c.capReached?` <b style="color:var(--paper)">You've hit this year's 12 — nice.</b>`:` <b style="color:var(--paper)">${remaining}</b> left this year.`}${lifetime?` You've earned <b style="color:var(--paper)">${lifetime}</b> total${brought?` from ${brought} paying ${brought===1?'company':'companies'}`:''}.`:''}${r.locked?' Your founding rate is locked in.':''}</div>
+    <button class="btn ghost full" style="margin-top:12px" onclick="shareReferral()">${icon('share',15)} Refer a company</button>
   </div>`;
 }
 function openMySite(){ closeMore(); if(!USER||!USER.id){ toast('Sign in first.','warn'); return; } window.open('/c/'+USER.id, '_blank'); }
@@ -3489,8 +3487,9 @@ function viewPaywall(){
         : (setupWaivedView()
           ? `your ${priceStr(BILLING.setup_fee_base)} setup fee is <b style="color:var(--paper)">waived</b> (founding member) — just your first ${priceStr(planMonthly())}`
           : `your first ${priceStr(planMonthly())} is charged`)}, then ${priceStr(planMonthly())}/month. Cancel anytime.</div>
-      ${(BILLING&&BILLING.referral)?`<div class="freecallout">${icon('party',15)} Or get it <b>FREE</b> — bring ${BILLING.referral.freeAt} contractors who subscribe and your ${priceStr(BILLING.referral.base)}/mo drops to <b>$0</b>.</div>`:''}
+      ${(BILLING&&BILLING.referral)?`<div class="freecallout">${icon('party',15)} <b>Give a month, get a month</b> — refer another company: they get their first month free, and once they pay through month two, you earn a free month (up to 12 a year).</div>`:''}
       <ul class="feat">
+        <li><b>Unlimited team</b> — your whole crew, one price</li>
         <li>Unlimited job notebooks</li>
         <li>Voice capture &amp; English ⇄ Spanish translation</li>
         <li>AI bid drafting from the conversation</li>
@@ -3503,18 +3502,18 @@ function viewPaywall(){
     ${referralLadderHTML()}
     <div class="pricecard soon">
       <div class="soonflag">Coming soon</div>
-      <div class="h-eyebrow">Team plan · for a GC's sales team</div>
-      <div class="amt">$149.99<span>/month</span></div>
-      <div class="hint" style="margin:-4px 0 10px">One-time <b style="color:var(--paper)">$599.99 setup</b>, then <b style="color:var(--paper)">$149.99/mo</b>. For a GC running a sales team — bring every salesperson under one roof, assign leads, and track every rep's bids in one place.</div>
+      <div class="h-eyebrow">Eden Front Office</div>
+      <div class="amt">The answered phone<span></span></div>
+      <div class="hint" style="margin:-4px 0 10px">A dedicated business number, 24/7 answering, and SMS/email/forms in one thread — Eden handles the front office so nothing falls through the cracks. Everything in your plan, plus the phone. Still one price per company, still unlimited team.</div>
       <ul class="feat">
-        <li>Everything in the Contractor plan</li>
-        <li>Add your whole sales team</li>
-        <li>Assign leads &amp; track every rep's bids</li>
-        <li>One dashboard for the whole operation</li>
+        <li>Everything in your plan</li>
+        <li>Dedicated business number &amp; 24/7 answering</li>
+        <li>SMS, email &amp; web forms as one conversation</li>
+        <li>Scheduling within your approval</li>
       </ul>
-      <div id="teamInterest">${interestDone('team')
+      <div id="teamInterest">${interestDone('front_office')
         ? `<button class="btn ghost full" disabled>${icon('check',14)} You're on the list — we'll email you</button>`
-        : `<button class="btn ghost full" onclick="notifyInterest('team',this)">${icon('bell',15)} Notify me when it's ready</button>`}</div>
+        : `<button class="btn ghost full" onclick="notifyInterest('front_office',this)">${icon('bell',15)} Notify me when it's ready</button>`}</div>
     </div>
     ${BILLING&&BILLING.has_subscription?`<div style="margin-top:14px;text-align:center"><button class="btn ghost" onclick="openPortal(this)">Manage billing</button></div>`:''}`;
 }
@@ -5365,7 +5364,7 @@ function billingSection(){
     return `<div class="billbox"><h3>Subscription</h3>
       <div class="statline"><span class="badge active">Agent — free year</span></div>
       <div class="hint" style="margin-top:8px">${icon('home',15)} Free until <b style="color:var(--paper)">${esc(until)}</b> (${ag.days_left} day${ag.days_left===1?'':'s'} left), then <b style="color:var(--paper)">${priceStr(ag.after_monthly||50)}/mo locked</b> — never rises.</div>
-      ${ag.nudge?`<div class="freecallout" style="margin-top:10px">⏳ Your free year is ending soon. Keep it free: bring ${BILLING.referral?BILLING.referral.freeAt:5} contractors who subscribe and your bill stays <b>$0</b>.</div>`:''}</div>`;
+      ${ag.nudge?`<div class="freecallout" style="margin-top:10px">⏳ Your free year is ending soon. Refer a company and you earn a free month once they pay through month two — up to 12 a year.</div>`:''}</div>`;
   }
   const s=BILLING.status;
   const label = s==='active'?'Active':(BILLING.in_trial?'Free trial':(s==='past_due'?'Past due':(s==='canceled'?'Canceled':'No subscription')));
