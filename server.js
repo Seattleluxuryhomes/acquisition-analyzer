@@ -34,6 +34,8 @@ import { renderDrawHTML } from "./src/drawHtml.js";
 import { renderChangeOrderHTML } from "./src/changeOrderHtml.js";
 import { renderContractorSite } from "./src/contractorSite.js";
 import { renderGuidePage } from "./src/guidePage.js";
+import { renderLegalPage } from "./src/legal.js";
+import * as Emails from "./src/emails.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
 import { renderProposalPDF } from "./src/pdf.js";
 import { signPhotoUrl, verifyPhotoSig, signProposalUrl, verifyProposalSig, verifySkuImageSig, signProposalPdfUrl, verifyProposalPdfSig, signDocUrl, verifyDocSig } from "./src/files.js";
@@ -215,6 +217,11 @@ app.post("/api/auth/signup", wrap((req, res) => {
     const ref = String((req.body && (req.body.ref || req.body.r)) || "").trim();
     if (ref && Referrals.setReferrer(out.user.id, ref)) track(out.user.id, "referred_signup", { by: ref }, uaOf(req));
     track(out.user.id, "user_registered", { email: out.user.email, role: out.user.role || "contractor" }, uaOf(req));
+    // Warm welcome from Eden — fire-and-forget so signup never waits on email.
+    if (Mail.mailConfigured() && out.user.email) {
+      const m = Emails.welcome(baseUrl(req), { name: out.user.name || "", appUrl: baseUrl(req) });
+      Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }).catch(() => {});
+    }
   }
   res.json(out);
 }));
@@ -239,7 +246,8 @@ app.post("/api/auth/reset", wrap(async (req, res) => {
   const out = createResetToken(email);
   if (out && Mail.mailConfigured()) {
     const link = `${baseUrl(req)}/reset?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
-    try { await Mail.sendMail({ to: out.user.email, subject: "Reset your BidVoice password", html: resetEmailHtml(link), text: `Reset your BidVoice password:\n${link}\n\nThis link expires in 1 hour. If you didn't request it, ignore this email.` }); }
+    const m = Emails.passwordReset(baseUrl(req), { link });
+    try { await Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }); }
     catch { /* never surface send errors to the caller (no enumeration) */ }
   }
   res.json({ ok: true, sent: Mail.mailConfigured() });
@@ -547,11 +555,13 @@ app.post("/api/admin/onboard", requireAuth, requireAdmin, wrap(async (req, res) 
   let emailed = false;
   if (Mail.mailConfigured()) {
     try {
+      const fromName = req.user.name || (req.user.company && req.user.company !== "Your Company" ? req.user.company : "");
+      const m = Emails.invitation(baseUrl(req), { link, from: fromName, note: b.note });
       await Mail.sendMail({
         to: user.email,
-        subject: `${req.user.company && req.user.company !== "Your Company" ? req.user.company : "BidVoice"} — your account is ready`,
-        html: onboardEmailHtml(link, req.user, b.note),
-        text: `You're set up on BidVoice. Set your password and get started:\n${link}\n\nThis link works for 7 days.`,
+        subject: m.subject,
+        html: m.html,
+        text: m.text,
         replyTo: req.user.email || undefined,
       });
       emailed = true;
@@ -1592,6 +1602,14 @@ app.get("/pay/done", (req, res) => {
 // /faq all resolve to it.
 app.get(["/guide", "/how-it-works", "/faq"], (req, res) => {
   res.type("html").send(renderGuidePage({ baseUrl: baseUrl(req) }));
+});
+
+// Legal pages — branded, crawlable, no dead links. Served before the SPA fallback.
+app.get(["/terms", "/privacy", "/acceptable-use", "/cookies", "/disclaimer"], (req, res) => {
+  const slug = req.path.replace(/^\//, "");
+  const html = renderLegalPage(slug);
+  if (!html) return res.status(404).send("Not found");
+  res.set("Content-Type", "text/html; charset=utf-8").send(html);
 });
 
 // SPA fallback for the single-page app.

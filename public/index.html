@@ -680,6 +680,9 @@
   .brand-big .mark{width:28px;height:28px;border-radius:5px;background:var(--amber);display:flex;align-items:center;justify-content:center}
   .tagline{text-align:center;color:var(--muted);font-size:.9rem;margin-top:8px}
   .brand-big .wm{display:inline-flex;white-space:nowrap}
+  .auth-legal{text-align:center;margin-top:20px;color:var(--muted);font-size:.78rem}
+  .auth-legal a{color:var(--muted);text-decoration:none}
+  .auth-legal a:hover{color:var(--amber)}
   .auth-hero{text-align:center;margin-top:22px}
   .auth-hero-h{font-family:"Archivo";font-weight:800;font-size:1.55rem;line-height:1.16;color:var(--text);margin:0 6px}
   .auth-hero-sub{color:var(--muted);font-size:.92rem;margin:9px auto 0;max-width:330px;line-height:1.45}
@@ -1434,6 +1437,8 @@ const I18N = {
     auth_hero_h:"Welcome to BidVoice.",
     auth_hero_sub:"Your AI employee is ready. Let's get to work.",
     auth_one_account:"One account = your jobs, synced across your devices.",
+    legal_terms:"Terms", legal_privacy:"Privacy", legal_support:"Support",
+    sms_consent:"By providing your mobile number, you agree to receive transactional and account-related text messages from BidVoice. Message and data rates may apply. Reply STOP to unsubscribe or HELP for assistance.",
     auth_create_eyebrow:"Create your account", auth_welcome_eyebrow:"Welcome back",
     auth_get_started:"Get started", auth_sign_in:"Sign in",
     auth_email:"Email", auth_password:"Password",
@@ -1521,6 +1526,8 @@ const I18N = {
     auth_hero_h:"Bienvenido a BidVoice.",
     auth_hero_sub:"Tu empleada de IA está lista. Manos a la obra.",
     auth_one_account:"Una cuenta = tus trabajos, sincronizados en todos tus dispositivos.",
+    legal_terms:"Términos", legal_privacy:"Privacidad", legal_support:"Soporte",
+    sms_consent:"Al proporcionar tu número de celular, aceptas recibir mensajes de texto transaccionales y relacionados con tu cuenta de BidVoice. Pueden aplicar tarifas de mensajes y datos. Responde STOP para cancelar o HELP para ayuda.",
     auth_create_eyebrow:"Crea tu cuenta", auth_welcome_eyebrow:"Bienvenido de nuevo",
     auth_get_started:"Empezar", auth_sign_in:"Iniciar sesión",
     auth_email:"Correo electrónico", auth_password:"Contraseña",
@@ -3451,6 +3458,7 @@ function viewAuth(){
     </div>
     ${card}
     <div class="hint" style="text-align:center;margin-top:14px">${esc(t('auth_one_account'))}</div>
+    <div class="auth-legal"><a href="/terms">${esc(t('legal_terms'))}</a> · <a href="/privacy">${esc(t('legal_privacy'))}</a> · <a href="mailto:support@bidvoice.ai">${esc(t('legal_support'))}</a> · <span>© BidVoice AI</span></div>
   </div>`;
 }
 // Compact language picker tucked into the top-right corner of the auth card —
@@ -4080,6 +4088,7 @@ function onboardPanel(){
       <input id="obEmail" class="input" type="email" placeholder="Their email (required)"/>
       <div class="row2" style="margin-top:8px"><input id="obCompany" class="input" placeholder="Company"/><input id="obName" class="input" placeholder="Contact name"/></div>
       <div class="row2" style="margin-top:8px"><input id="obPhone" class="input" type="tel" placeholder="Phone / WhatsApp"/><input id="obRegion" class="input" placeholder="State (e.g. WA)"/></div>
+      <div class="hint" style="margin-top:6px;font-size:.76rem">${esc(t('sms_consent'))}</div>
       <div class="row2" style="margin-top:8px"><input id="obTax" class="input" type="number" step="0.1" min="0" placeholder="Sales tax %"/>
         <select id="obToLang" class="input" title="Their client's language">${langOpts('en')}</select></div>
       <label class="fld" style="margin-top:10px">Their trades <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(tap — sets up their website + a sample bid)</span></label>
@@ -5934,7 +5943,7 @@ function viewSettings(){
     <input class="input" value="${escAttr(SETTINGS.company)}" oninput="setS('company',this.value)"/>
     <div class="row2">
       <div><label class="fld">Your name</label><input class="input" value="${escAttr(SETTINGS.name)}" oninput="setS('name',this.value)"/></div>
-      <div><label class="fld">Phone</label><input class="input" value="${escAttr(SETTINGS.phone)}" oninput="setS('phone',this.value)"/></div>
+      <div><label class="fld">Phone</label><input class="input" type="tel" value="${escAttr(SETTINGS.phone)}" oninput="setS('phone',this.value)"/><div class="hint" style="margin-top:5px;font-size:.75rem">${esc(t('sms_consent'))}</div></div>
     </div>
     <label class="fld">License # (optional)</label>
     <input class="input" value="${escAttr(SETTINGS.license)}" oninput="setS('license',this.value)" style="max-width:240px"/>
