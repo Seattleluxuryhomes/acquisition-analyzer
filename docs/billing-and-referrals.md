@@ -41,15 +41,16 @@ source of truth for money; our tables are the source of truth for *why* a credit
   from Eden's voice.
 
 ### The month-two trigger
-On every subscription `invoice.paid` (or `invoice.payment_succeeded`) that moved **real money**
-(`amount_paid > 0`), `billing.js` calls `grantReferrerReward()`. Because month one is free (the
-welcome coupon), the referred company's **first `amount_paid > 0` invoice is month two** — so the
-grant fires exactly when they become a paying customer. This is deliberately **not** a fragile
-counter: the grant is gated by `rewardExistsFor()` + the `UNIQUE(referee_id, kind)` index, so
-duplicate events (Stripe fires both `invoice.paid` *and* `invoice.payment_succeeded`), webhook
-redeliveries, and later invoices are all safe no-ops, and a transient failure simply re-fires on
-the next paid invoice or redelivery. `$0` invoices (the welcome invoice, prorations, plan tweaks)
-never trigger it. (`user.paid_invoice_count` exists but is not part of the trigger.)
+The grant fires on the referred company's first **renewal** invoice that charged **real money** —
+`invoice.paid` (or `invoice.payment_succeeded`) with `billing_reason = subscription_cycle` **and**
+`amount_paid > 0` — i.e. **month two** (month one is the free `subscription_create` invoice). This
+is deliberately **not** a fragile counter: the grant is gated by `rewardExistsFor()` + the
+`UNIQUE(referee_id, kind)` index, so duplicate events (Stripe fires both `invoice.paid` *and*
+`invoice.payment_succeeded`), webhook redeliveries, and later invoices are all safe no-ops, and a
+transient failure simply re-fires on the next renewal or redelivery. The `subscription_cycle` +
+`amount_paid > 0` filter excludes the $0 welcome invoice **and** any mid-cycle proration/plan-change
+invoice, so nothing grants before a genuine month-two payment. (`user.paid_invoice_count` exists but
+is not part of the trigger.)
 
 ## 3. Referral credit ledger (the audit spine)
 Table `referral_credit` — append-only, one immutable row per credit:
@@ -117,8 +118,9 @@ customers.
    makes month one free.
 3. `checkout.session.completed` + `customer.subscription.created` → subscription recorded,
    Founding lock captured, setup fee marked paid.
-4. Each `invoice.paid` increments `paid_invoice_count`. The referred company's 2nd paid invoice
-   → `grantReferrerReward()` → ledger row + Stripe balance credit on the referrer.
+4. The referred company's first **renewal** invoice that charges real money
+   (`billing_reason = subscription_cycle`, `amount_paid > 0` — i.e. month two) →
+   `grantReferrerReward()` → ledger row + Stripe balance credit on the referrer (idempotent).
 5. The referrer's next invoice auto-applies the credit (never below $0).
 6. On cancellation → Founding lock cleared; a later return gets current pricing.
 

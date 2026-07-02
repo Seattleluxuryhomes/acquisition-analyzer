@@ -109,15 +109,20 @@ function form(obj, prefix = "", out = []) {
   return out.join("&");
 }
 
-async function stripe(path, body) {
+// opts.idempotencyKey → Stripe's Idempotency-Key header: retrying/re-posting the same key
+// (e.g. reconcile after an ambiguous timeout) returns the ORIGINAL result instead of creating
+// a second object. Essential for the money-moving balance-credit push.
+async function stripe(path, body, opts = {}) {
+  const headers = {
+    Authorization: "Bearer " + KEY(),
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  if (opts.idempotencyKey) headers["Idempotency-Key"] = String(opts.idempotencyKey);
   let res;
   try {
     res = await fetch("https://api.stripe.com/v1/" + path, {
       method: "POST",
-      headers: {
-        Authorization: "Bearer " + KEY(),
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
+      headers,
       body: body ? form(body) : undefined,
     });
   } catch {
@@ -272,8 +277,12 @@ async function pushCreditToStripe(row, referrer) {
   const customer = referrer && referrer.stripe_customer_id;
   if (!customer) return;   // no customer yet → leave 'earned' for reconcile
   try {
+    // Idempotency-Key = the ledger row id: if a prior push actually reached Stripe but we
+    // failed to record it (timeout/crash), reconcile re-posts the SAME key and Stripe returns
+    // the original transaction instead of creating a second credit. No double-credit.
     const txn = await stripe("customers/" + customer + "/balance_transactions",
-      { amount: -Math.abs(row.amount_cents), currency: row.currency || "usd", description: "Referral credit — 1 month" });
+      { amount: -Math.abs(row.amount_cents), currency: row.currency || "usd", description: "Referral credit — 1 month" },
+      { idempotencyKey: "refcredit_" + row.id });
     Credits.markApplied(row.id, txn && txn.id);
   } catch (e) {
     console.warn("[billing] referral credit push failed (will reconcile):", (e && e.message) || e);
@@ -376,14 +385,13 @@ export function handleEvent(event) {
       break;
     case "invoice.paid":
     case "invoice.payment_succeeded": {
-      // The referrer earns their credit on the referred company's FIRST invoice that moves
-      // real money (amount_paid > 0). Month one is free via the welcome coupon, so that first
-      // paid invoice is month two. Requiring amount_paid > 0 ignores the $0 welcome invoice
-      // and any $0 proration/update invoices; gating the grant on rewardExistsFor + UNIQUE
-      // makes duplicate events (invoice.paid AND invoice.payment_succeeded both fire) and
-      // webhook redeliveries safe no-ops — no counter, no double-grant, no early grant.
-      const reason = obj.billing_reason || "";
-      if (!/^subscription/.test(reason)) break;
+      // The referrer earns their credit on the referred company's first RENEWAL invoice that
+      // moves real money — i.e. month two. Requiring billing_reason === 'subscription_cycle'
+      // (a renewal, not the create invoice) AND amount_paid > 0 excludes the $0 welcome
+      // invoice AND any mid-cycle proration/update invoice, so a $5 plan tweak during the free
+      // month can't grant early. Gating on rewardExistsFor + UNIQUE makes duplicate events
+      // (invoice.paid AND invoice.payment_succeeded both fire) and redeliveries safe no-ops.
+      if (obj.billing_reason !== "subscription_cycle") break;
       if (!((obj.amount_paid || 0) > 0)) break;
       const row = db.prepare("SELECT id FROM user WHERE stripe_customer_id=?").get(obj.customer);
       if (!row) break;
