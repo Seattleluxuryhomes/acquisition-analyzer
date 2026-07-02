@@ -383,15 +383,40 @@ deferrals.**
 
 ---
 
-## 12. Business model — 🟡 founder decision; current implementation documented
-**Framing (adopted, `exec-review-response.md`):** flat **"AI employee" pricing**, anchored against a
-fraction of a human coordinator's salary — per-seat pricing would contradict the hiring metaphor. **Public
-page, real numbers, no "Contact sales" wall for the core tier.** **Implemented (`src/billing.js`):** free
-trial; monthly Stripe subscription (`requireEntitled` gates paid features); a one-time setup fee shown only
-when >0 and **waived** for founders/referrals; agents free for a year then **$50/mo locked**; Stripe
-Connect payouts with the fee disclosed and **BidVoice taking nothing on top.** **Open founder decision (not
-canon until ratified):** the single public base price ($49 vs $50/mo) and the upsell SKUs. Ratify one line
-and enforce it in `billing.js`.
+## 12. Business model — ✅ architecture ratified (`bidvoice-commercial-architecture-v1.0.md`); numbers = beta hypotheses
+**Ratified architecture (`docs/00-bidvoice-bible/bidvoice-commercial-architecture-v1.0.md`, conforms to the
+Soul).** This replaces the prior "open founder decision" on pricing shape. Three revenue layers: (1) a flat
+**per-company** subscription, unlimited people, **no gates on any trust feature** (approval gates,
+transcript access, export, "here's what I heard", offline capture identical in every tier forever);
+(2) **Hiring Eden™** — optional, flat, fixed-scope activation, priced at cost-plus (never a profit center);
+(3) **payments** as the quiet second engine (monetizes the contractor's success, not his conversations or
+data). **Hard limits (never ship):** per-seat pricing, more than two tiers, gating trust features, AI-token/
+usage pricing, hidden fees, consulting-disguised-as-onboarding, monetizing customer conversations/data
+(incl. "anonymized insights"), discount culture, lead marketplaces, enterprise exception-making. Segments:
+homeowners never monetized; property managers = segment two (Year 3+); enterprise refused in favor of
+per-location franchise licensing.
+
+**Launch hypotheses (NOT frozen — validate against real WTP in beta):** Eden **$199/mo**, Eden Front Office
+**$349/mo** (ships with the comms phase), Hiring Eden™ **$1,500** flat. The **Founding Member rate-lock** is
+the mechanism that makes a wrong launch number survivable — early believers keep their rate while active.
+
+**Implemented today (`src/billing.js`, `src/referrals.js`):** free trial; monthly Stripe subscription
+(`requireEntitled` gates paid features); a one-time setup fee shown only when >0 and **waived** for
+founders/referrals; founder rate-lock (`locked_monthly`); Stripe Connect payouts with the fee disclosed and
+**BidVoice taking nothing on top** (matches Layer 3). Current base-price fallback is **$50/mo** (Stripe
+Price is source of truth when configured).
+
+**⚠️ Divergences flagged for founder decision (Bible frozen → flagged, not silently resolved):**
+1. **Base price:** shipped fallback **$50** vs. ratified hypothesis **$199**. The doc says *measure WTP in
+   beta before freezing* — so this is a deliberate open number, not a defect. Wire the beta price when Ben
+   sets it; the Founding Member lock protects early accounts either way.
+2. **Referral mechanic (material):** shipped `effectiveMonthly()` gives a **perpetual per-sub credit that
+   rises again when a sub churns** — which the architecture **explicitly rejects** ("someone's bill changes
+   when someone *else* churns — anti-peace-of-mind"). The doc prescribes **give-a-month/get-a-month, one
+   month per referral that completes month two, capped at 12/yr** — bounded, not tied to others' active
+   status. Re-architecting the referral/credit engine is a founder-gated change (see the alignment report,
+   C-6); left as-is until Ben rules.
+3. **Front Office tier + Hiring Eden™ naming/SKU** are not yet built — deferred to the comms phase; not V1.
 
 ---
 
@@ -476,7 +501,8 @@ window; any *future* Soul conflict is flagged and work stops until a founder ame
 Law-XV merge), `CONSTITUTION.md` (⚠️ owed Bid Brain→Eden + the Chief-of-Staff-as-metaphor note),
 `trade-intelligence-packs.md`, `timeline-schema.md`, and **`docs/specs/`**: `eden-experience-guide.md`,
 `eden-voice-spec.md`, `eden-intake-final-spec.md`, `bidvoice-v1-blueprint.md`,
-`sprint-package-eden-intake-voice.md`, `bidvoice-cpo-audit.md`, `exec-review-response.md`.
+`sprint-package-eden-intake-voice.md`, `bidvoice-cpo-audit.md`, `exec-review-response.md`, and
+`00-bidvoice-bible/bidvoice-commercial-architecture-v1.0.md` (the ratified commercial architecture).
 
 **Historical / sprint artifacts (context, not canon):** `PROJECT-STATE.md`, `HANDOFF-for-ChatGPT.md`,
 `MARKETING-BRIEF-for-ChatGPT.md`, `ECOSYSTEM-ROADMAP.md`, `bid-brain-roadmap.md`, `bid-brain-scope.md`,
