@@ -24,20 +24,22 @@
 | 7 | In-app modals only — zero `window.alert/confirm/prompt` | Bible §14.4 | `scripts/no-native-dialogs.mjs` | ✅ |
 | 8 | Brand integrity — no retired name/domain, no wordmark drift | brand-steward | `scripts/brand-check.mjs` | ✅ |
 | 9 | The app builds a bid by hand if AI is down | hard-rule #4 | `scripts/constitution-tests.mjs` (job created + priced with no AI key) | ✅ |
+| 10 | One Eden — no user-facing identity variation ships | Soul; §14.6 (C-1) | `scripts/static-invariants.mjs` (fails if `aiIdentitySeg()` is called) | ✅ |
+| 11 | The AI/provider key never reaches the browser | hard-rule #1 | `scripts/static-invariants.mjs` (bans secret key VALUES in `public/`) | ✅ |
+| 12 | Photos/PDFs private via signed, expiring URLs | hard-rule #6 | `scripts/constitution-tests.mjs` (unsigned proposal PDF → 403) | ✅ |
+| 13 | Beta decision metrics fire + aggregate | Mandate D2; AC19 | `Analytics.betaMetrics()` → `/api/admin/overview.beta` (instrumented events) | ✅ |
+| 14 | Trust line renders exactly twice per account, never spoken | AC4 | `trustReviewOnce()` + greeting; render-count = 2 (manual/grep) | ✅ |
 
 ## B. Gaps — build these next (each becomes a build-failing test)
 
 | # | Principle | Source | Planned test | Priority |
 |---|-----------|--------|--------------|----------|
-| 10 | One Eden — no user-facing identity variation ships | Soul; §14.6 (C-1) | grep guard: fail if an identity switcher (`aiIdentitySeg`, Name-Trial UI) is user-facing | P1 |
-| 11 | The AI provider key never reaches the browser | hard-rule #1 | grep guard: no `ANTHROPIC/OPENAI/STRIPE_SECRET` key patterns in `public/` | P1 |
-| 12 | Voice has ONE grep-verifiable dispatch site | sprint AC 14–16 | grep guard: exactly one speech-dispatch call site | P2 |
-| 13 | Spoken-once strings: "I'm Eden" once ever; the trust line exactly twice | AC 2, 4 | grep + render-count guard **(Fable flagged the trust line currently renders once, not twice — product fix first)** | P2 |
-| 14 | Photos/PDFs private via signed, expiring URLs | hard-rule #6 | test: unsigned `/p/:id/pdf` and photo/doc URLs → 403 | P2 |
-| 15 | AI behavior regression — golden transcripts diffed on every model change | Mandate | fixture suite: canned transcripts → asserted structured output; needs an AI key in CI | P2 |
-| 16 | Offline capture kill-test: record → kill app → restore signal → estimate arrives | hard-rule #3; AC 8 | device/browser harness (Playwright) | P2 |
-| 17 | <100ms interruption: any tap/talk cancels audio, action proceeds | AC 11 | device/browser harness | P3 |
-| 18 | Approval audit trail retained 7 years, visible to the contractor | Data §6 | test: signature/approval rows persist + are surfaced; retention policy check | P3 |
+| 15 | Voice has ONE grep-verifiable dispatch site | sprint AC 14–16 | grep guard: exactly one speech-dispatch call site (`speechSynthesis.speak` is at one site today) | P2 |
+| 16 | Every spoken string appears verbatim in the copy register (§6) | AC 16 | grep guard: spoken strings ⊆ the register | P2 |
+| 17 | AI behavior regression — golden transcripts diffed on every model change | Mandate | fixture suite: canned transcripts → asserted structured output; needs an AI key in CI | P2 |
+| 18 | Offline capture kill-test: record → kill app → restore signal → estimate arrives | hard-rule #3; AC 8 | device/browser harness (Playwright) | P2 |
+| 19 | <100ms interruption: any tap/talk cancels audio, action proceeds | AC 11 | device/browser harness | P3 |
+| 20 | Approval audit trail retained 7 years, visible to the contractor | Data §6 | test: signature/approval rows persist + are surfaced; retention policy check | P3 |
 
 ## C. Human owners — judgment/process, not testable
 

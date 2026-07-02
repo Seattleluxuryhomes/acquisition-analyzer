@@ -80,6 +80,10 @@ try {
   const bBundleJobs = (expB.json && expB.json.jobs) || [];
   ok(!bBundleJobs.some((j) => j.id === jobId), "§2/§3: B's export does not contain A's job");
 
+  // Hard-rule #6 — private artifacts are signed-URL only. The proposal PDF must reject an
+  // unsigned request rather than serve the document.
+  ok((await fetch(BASE + "/p/" + jobId + "/pdf")).status === 403, "hard-rule #6: unsigned proposal PDF → 403 (signed URLs only)");
+
   // Soul / hard-rule #2 — the client proposal must never leak margin or private notes.
   const pub = await fetch(BASE + "/p/" + jobId).then((r) => r.text()).catch(() => "");
   ok(!/undercut|PRIVATE/i.test(pub), "hard-rule #2: public proposal never leaks private notes");
