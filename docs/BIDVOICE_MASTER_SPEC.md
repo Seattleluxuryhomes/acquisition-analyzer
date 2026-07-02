@@ -1,14 +1,21 @@
 # The BidVoice Bible — Master Product Specification
+### Version 1.0 · reviewed for consistency with The Soul of BidVoice (v1.0, frozen) · July 2, 2026
 
-### The single, canonical source of truth. Every engineer, designer, AI model, employee, and investor reads this first.
+### The implementation constitution. Every engineer, designer, AI model, employee, and investor reads the Soul first, then this.
 
-> **What this is.** The constitutional document of the company. It states *what BidVoice is*, *how Eden
+> **⚠️ This is not the highest authority.** Above this document sits **The Soul of BidVoice**
+> (`docs/00-bidvoice-bible/The_Soul_of_BidVoice_v1.0.md`, FROZEN v1.0) — the company's constitution. The
+> Bible is the **implementation constitution**: it translates the Soul into what we build and how. **If
+> anything here ever conflicts with the Soul, the Soul wins and the conflict is flagged, never silently
+> resolved.** This document has been reviewed for consistency with the Soul (see §0.1).
+>
+> **What this is.** The implementation constitution of the company. It states *what BidVoice is*, *how Eden
 > behaves*, *what is actually built*, *what the canonical V1 specs require*, and *what we will not do*.
 > Written to outlive every UI, model, framework, and sprint. When a feature and this document disagree,
-> the feature is wrong.
+> the feature is wrong; when this document and the Soul disagree, this document is wrong.
 >
-> **Authority.** Canonical. When it conflicts with a deep reference doc, **this wins and the deep doc is
-> updated to match.** Deep docs hold the full detail; the binding rules are stated here.
+> **Authority.** Canonical below the Soul. When it conflicts with a deep reference doc, **this wins and the
+> deep doc is updated to match.** Deep docs hold the full detail; the binding rules are stated here.
 >
 > **Honesty rule (for this document itself).** Nothing here is written from memory or assumption. Every
 > claim is **documented** (cited), **implemented** (verified in code), or a **recorded founder decision**.
@@ -26,6 +33,7 @@
 | v0.3 | 2026-07-02 | Launch Readiness Sprint shipped (verification, account controls, transparency). | Claude |
 | v0.4 | 2026-07-02 | Custodial rewrite to constitutional grade; resolved terminology/positioning/scope drift; corrected four implementation-drift items. | Claude |
 | v0.5 | 2026-07-02 | **Canonical V1 specs received and integrated.** Unblocked §4 (Voice), §5 (Intake), §11 (Roadmap) from `eden-voice-spec.md`, `eden-intake-final-spec.md`, `bidvoice-v1-blueprint.md`, `sprint-package-eden-intake-voice.md`, `bidvoice-cpo-audit.md`, `exec-review-response.md` (all now in `docs/specs/`). Added the north-star metric, the no-autonomous-outbound invariant, numeric-ambiguity rule, component canon, and §14 (open conflicts for founder decision). | Claude |
+| **v1.0** | 2026-07-02 | **The Soul of BidVoice frozen as the supreme authority; Bible reviewed for constitutional consistency and declared complete.** Added §0.1 (alignment with the Soul), led §1 with the Soul's mission + protected sentence, added the Soul-derived non-negotiables to §10 (portability, openly-AI, never-hide-a-failure, never-monetize-the-homeowner, no attention-farming), set the authority hierarchy (§13), and flagged the one Soul↔product conflict (§14.6: "one Eden" vs the Name Trial System). | Claude |
 
 ## Table of contents
 0. Canonical facts · 1. Vision & North Star · 2. Brand & identity · 3. Eden (what she is + how she
@@ -60,13 +68,52 @@ secondary.
 
 ---
 
-## 1. Vision & North Star — ✅ canonical
-*Sources: `product-principles.md`, `the-2035-employee.md`.*
+## 0.1 Alignment with the Soul — ✅ reviewed (constitutional consistency)
+*The Soul of BidVoice (FROZEN v1.0) is the supreme authority. Every chapter below was compared against it.
+The Soul is preserved unchanged; where the Bible drifted, the Bible was corrected. Result:*
+
+**Mission (now canonical, from the Soul):** **"Nothing falls through the cracks."** Every decision answers
+one question — *does this prevent something from falling through the cracks?* **Protected sentence:** *"The
+business responded instantly. The human slept."* Any feature that makes both halves more true belongs;
+any feature that trades one half for the other does not.
+
+**Where the Bible already embodies the Soul (verified aligned):** the approval gate / no-autonomous-outbound
+invariant (§7, §10) = the Soul's *"never send a word or a dollar he hasn't approved"* · never-fabricate /
+placeholder prices / *"ship late before a guess"* (§10.1, §10.7) · silence over noise, no attention-farming
+(§1, §3 Law XV) = *"evenings returned, not time-in-app"* · Eden openly an AI employee, not a chatbot (§3) ·
+disclosure / legal honesty (§8.3, §10.8).
+
+**Where the Bible was corrected to the Soul (this review):**
+- **Portability is now a non-negotiable** (§10.10): *"everything a contractor built leaves in one tap,
+  whole."* This makes the delete-with-full-export (jobs/estimates/contacts) a **constitutional
+  requirement**, not a nicety — it elevates the §14.4 item.
+- **Never hide a failure** and **never monetize Eden against the homeowner** added to §10.
+- **Positioning altitude clarified:** "AI Construction Operating System" is the external *category label*;
+  the Soul's deeper truth is *"peace of mind… one employee worth trusting."* The OS framing must never
+  drift into *"a dashboard company, a feature list"* — which the Soul forbids.
+
+**The one conflict flagged, not resolved (§14.6):** the Soul's *"there is one Eden… never split into market
+variants"* vs. the product's **Name Trial System** (per-account configurable assistant identity). Surfaced
+for the founder.
+
+---
+
+## 1. Vision & North Star — ✅ canonical (governed by the Soul)
+*Supreme source: The Soul of BidVoice. Supporting: `product-principles.md`, `the-2035-employee.md`.*
+
+**The mission (from the Soul, supreme):** **"Nothing falls through the cracks."** We do not sell software
+or automation — we sell **peace of mind, the specific, checkable kind:** when the contractor pockets his
+phone tonight, nothing is slipping; every person was answered, every promise tracked, every dollar
+pursued, and **every word that left in his name, he approved first.**
+
+**The sentence we protect (from the Soul):** ***"The business responded instantly. The human slept."***
 
 **The thesis.** *"The interface is temporary; the employee is permanent."* Design goal: **subtraction
-toward zero interface** — every control we delete is a victory. **The benchmark sentence:** a contractor
-tells his wife at dinner, **"She already handled it."** The win condition: contractors stop saying *"I
-open BidVoice"* and start saying ***"I ask Eden."***
+toward zero interface** — every control we delete is a victory. A related benchmark from the vision docs
+(subordinate to the Soul's protected sentence): a contractor tells his wife, *"She already handled it,"* and
+the win condition is contractors saying ***"I ask Eden."*** Eden's job is **momentum**: if work waits she
+prepares, if customers wait she responds, if money waits she organizes, if decisions wait she presents
+them, **if nothing waits she is silent — she owns preparation, never decisions.**
 
 **The eight principles:** Trust above everything (never fabricate) · remove work (every release ships a
 deletion) · proactive (only when real) · daily use (fastest path, never engagement hooks) · every release
@@ -288,9 +335,22 @@ users disable it, default voice off).
 8. Consent/terms: substantive Terms/Privacy/AUP/SMS/AI-disclaimer pages are **live** (`src/legal.js`);
    per-proposal contract terms are contractor-editable defaults; legal review still required pre-launch.
 9. **No autonomous outbound — nothing leaves the system without the contractor's sign-off** (§3.7); every
-   send behind ApprovalGate, CI-enforced.
+   send behind ApprovalGate, CI-enforced. *(Soul: "we will never send a word or a dollar he hasn't
+   approved… auto-send would convert better and we will never ship it.")*
 10. The working flow is preserved: capture → **bid draft** → proposal → e-sign → deposit; the orb + Law XV;
     bilingual proposals; the Trade Intelligence Packs.
+
+**Soul-derived non-negotiables (added in the v1.0 consistency review; equal force):**
+11. **Portability — no data hostage.** Everything a contractor built with us **leaves in one tap, whole**
+    (jobs, estimates, contacts). He stays because Eden is irreplaceable, never because she's unremovable.
+    *(Makes the delete-with-full-export in §14.4 a constitutional requirement, not a nicety.)*
+12. **Openly AI, never performing humanity.** Eden is an employee **and** an AI, stated in the same breath;
+    she never pretends to be human and never apologizes for not being.
+13. **Never hide a failure.** When we fail, we say so first, plainly, and fix it.
+14. **Never monetize Eden against the homeowner.** The homeowner is the contractor's customer, not ours;
+    Eden's conversations are never sold against the person she serves.
+15. **Not an attention business.** The metric is evenings returned, never time-in-app: no manufactured
+    urgency, no engagement hooks, no notification farming.
 
 ---
 
@@ -335,14 +395,18 @@ and enforce it in `billing.js`.
 ---
 
 ## 13. Amendment & document hierarchy — ✅ canonical
-1. **This Bible** — canonical; resolves conflicts. 2. **The two Constitutions** — deep detail. 3. **Domain
-standards** — `brand-standard.md` (naming/positioning authority), `trust-architecture.md`, the Experience
-Guide, and the V1 specs in `docs/specs/`. 4. **Vision** — `product-principles.md`, `the-2035-employee.md`.
-5. **Operational artifacts** — sprint/launch/audit files. §0–§3 and §10 change only by the founder's hand.
+**0. The Soul of BidVoice** (`docs/00-bidvoice-bible/The_Soul_of_BidVoice_v1.0.md`, FROZEN v1.0) — the
+supreme authority; the company constitution. 1. **This Bible** — the implementation constitution; resolves
+conflicts below it. 2. **The two Constitutions** — deep detail. 3. **Canonical Product Specifications** —
+the V1 specs in `docs/specs/`, `brand-standard.md`, `trust-architecture.md`, the Experience Guide. 4.
+**Engineering specifications** & **Vision** (`product-principles.md`, `the-2035-employee.md`). 5. **Source
+code.** A lower-level document that conflicts with a higher one is **flagged, never silently resolved.**
+The Soul changes only by a recorded founder amendment; §0–§3 and §10 of this Bible change only by the
+founder's hand.
 
 ---
 
-## 14. Open conflicts requiring founder decision — 🟡 14.1 DECIDED (retrofit); remainder open
+## 14. Open conflicts requiring founder decision — 🟡 14.1 DECIDED (retrofit); 14.2–14.6 open (14.6 = Soul conflict)
 
 *Per the sprint package's governing rule (§14): "Where existing repo specs conflict with this package,
 list the conflict and stop; do not resolve it yourself." These are surfaced for the founder; I have not
@@ -390,6 +454,17 @@ stateful client state machine with server awareness fields (`hasCompletedIntake`
 `SPEAK_PARAMS`, the handoff timing). **None were provided.** A faithful "port" is impossible without them;
 building the V1 screens needs either those four files or an explicit instruction to reconstruct the orb/
 handoff from the prose specs (which I will not do silently).
+
+**14.6 Soul ↔ product conflict — "one Eden" vs the Name Trial System (flagged in the v1.0 consistency
+review; NOT resolved).** *The Soul (supreme):* "there is one Eden. A million contractors, one character —
+the same employee in every truck, **never a brand voice to be borrowed, split into market variants, or
+optimized into someone else.**" *The product (`brand-standard.md` + shipped code — `AI_IDENTITIES`,
+`setAiIdentity`):* a **Name Trial System** lets an account run the assistant under a different name/voice;
+Eden is the default and public face. **The tension:** a per-account configurable identity can read as
+"splitting into variants," which the Soul forbids. **Plausible reconciliation (for the founder to
+ratify, not for me to assume):** the Name Trial was a *pre-launch experiment to choose the one name* (Eden
+won) and should now be retired to a single fixed identity — but that is a founder decision. Per the freeze
+order, this is surfaced, not silently resolved.
 
 ---
 
