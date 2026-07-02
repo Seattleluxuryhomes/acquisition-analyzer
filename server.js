@@ -569,7 +569,9 @@ const requireAdmin = (req, res, next) =>
   Analytics.isAdmin(req.user) ? next() : res.status(403).json({ error: "Not authorized." });
 app.get("/api/admin/overview", requireAuth, requireAdmin, (req, res) =>
   res.json({ overview: Analytics.overview(), funnel: Analytics.funnel(), biggestDropoff: Analytics.biggestDropoff(), features: Analytics.featureAdoption(),
-    devices: Analytics.deviceBreakdown(), voiceFailures: Analytics.voiceFailures(), beta: Analytics.betaMetrics() }));
+    devices: Analytics.deviceBreakdown(), voiceFailures: Analytics.voiceFailures(), beta: Analytics.betaMetrics(),
+    // Founder-only config diagnostics (booleans only — never secret values).
+    mail: Mail.mailStatus() }));
 app.get("/api/admin/users", requireAuth, requireAdmin, (req, res) =>
   res.json({ users: Analytics.listUsers() }));
 app.get("/api/admin/users/:id", requireAuth, requireAdmin, (req, res) => {

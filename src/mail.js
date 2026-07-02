@@ -20,6 +20,19 @@ function fromWithName(name) {
 
 export function mailConfigured() { return !!KEY(); }
 
+// Read-only config diagnostics for the founder admin panel — booleans only, never the
+// secret values. `using_default_sender` flags the resend.dev test sender (which only
+// delivers to your own Resend account email), so a "configured but nobody gets mail"
+// setup is visible at a glance.
+export function mailStatus() {
+  const fromSet = !!String(process.env.BT_MAIL_FROM || "").trim();
+  return {
+    mail_configured: !!KEY(),            // RESEND_API_KEY present
+    mail_from_configured: fromSet,       // BT_MAIL_FROM explicitly set
+    using_default_sender: !fromSet,      // true → onboarding@resend.dev (test-only delivery)
+  };
+}
+
 // attachments: [{ filename, content }] where content is base64 (no data: prefix).
 // fromName: optional display name (client-facing mail sent under the contractor's brand).
 export async function sendMail({ to, subject, html, text, attachments, replyTo, fromName } = {}) {
