@@ -380,12 +380,12 @@ function resetEmailHtml(link) {
 // The "you have a new lead" email — the one notification a contractor gets when a
 // homeowner requests an estimate on their website, so the lead never goes unseen.
 function leadEmailHtml(lead, appUrl) {
-  const row = (k, v) => v ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68">${k}</td><td style="padding:4px 0;font-weight:600">${esc(v)}</td></tr>` : "";
+  const row = (k, v) => v ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68">${k}</td><td style="padding:4px 0;font-weight:600">${escHtml(v)}</td></tr>` : "";
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
     <div style="font-weight:800;font-size:1.2rem">Bid<span style="color:#CF7F18">Voice</span></div>
     <h2 style="margin:18px 0 6px">📥 New estimate request</h2>
     <p style="color:#5a5240">Someone just asked you for an estimate. Reach out while it's hot.</p>
-    <table style="margin:14px 0;font-size:.96rem">${row("Name", lead.name)}${row("Phone", lead.phone)}${row("Email", lead.email)}${row("Project", lead.job_type)}${row("Area", lead.city)}${lead.message ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68;vertical-align:top">Details</td><td style="padding:4px 0">${esc(lead.message)}</td></tr>` : ""}</table>
+    <table style="margin:14px 0;font-size:.96rem">${row("Name", lead.name)}${row("Phone", lead.phone)}${row("Email", lead.email)}${row("Project", lead.job_type)}${row("Area", lead.city)}${lead.message ? `<tr><td style="padding:4px 12px 4px 0;color:#8a7f68;vertical-align:top">Details</td><td style="padding:4px 0">${escHtml(lead.message)}</td></tr>` : ""}</table>
     <p style="margin:20px 0"><a href="${appUrl}/" style="background:#CF7F18;color:#1F252C;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:10px;display:inline-block">Open BidVoice &amp; bid it</a></p>
   </div>`;
 }
@@ -927,7 +927,9 @@ app.get("/api/jobs/:id/documents/:docId", (req, res) => {
   res.type(row.mime || "application/octet-stream");
   res.setHeader("Cache-Control", "private, max-age=3600");
   res.setHeader("Content-Disposition", `${req.query.dl ? "attachment" : "inline"}; filename="${String(row.orig_name).replace(/[\r\n"]/g, "")}"`);
-  fs.createReadStream(path.join(PHOTO_DIR, row.filename)).pipe(res);
+  const stream = fs.createReadStream(path.join(PHOTO_DIR, row.filename));
+  stream.on("error", () => { if (!res.headersSent) res.status(404).send("Document file missing"); });
+  stream.pipe(res);
 });
 
 app.delete("/api/jobs/:id/documents/:docId", requireAuth, wrap((req, res) => {
@@ -1046,7 +1048,9 @@ app.get("/api/skus/:id/image", (req, res) => {
   if (!row || !row.image_file) return res.status(404).send("Not found");
   res.type(row.image_mime || "image/jpeg");
   res.setHeader("Cache-Control", "private, max-age=3600");
-  fs.createReadStream(path.join(PHOTO_DIR, row.image_file)).pipe(res);
+  const stream = fs.createReadStream(path.join(PHOTO_DIR, row.image_file));
+  stream.on("error", () => { if (!res.headersSent) res.status(404).send("Image file missing"); });
+  stream.pipe(res);
 });
 
 app.delete("/api/skus/:id/image", requireAuth, wrap((req, res) => {
@@ -1349,7 +1353,9 @@ app.get("/pub/photo/:pid", (req, res) => {
   if (!row) return res.status(404).send("Not found.");
   res.set("Cache-Control", "public, max-age=86400");
   if (row.mime) res.type(row.mime);
-  fs.createReadStream(path.join(PHOTO_DIR, row.filename)).pipe(res);
+  const stream = fs.createReadStream(path.join(PHOTO_DIR, row.filename));
+  stream.on("error", () => { if (!res.headersSent) res.status(404).send("Not found."); });
+  stream.pipe(res);
 });
 
 // Living website (Sprint 12) — publish a finished job to the website. AI writes the
@@ -1593,7 +1599,7 @@ app.post("/p/:id/sign", wrap(async (req, res) => {
       }, base);
       track(jobRow.user_id, "checkout_opened", { jobId: jobRow.id, amount: deposit });
       Notify.notifySigned({ owner, job: jobRow, signerName: name, total: proposal.total, paid: false });
-      return res.json({ ok: true, checkout_url: reqObj.checkout_url });
+      return res.json({ ok: true, checkout_url: reqObj.url });
     } catch { /* fall through to the no-payment confirmation */ }
   }
   Notify.notifySigned({ owner, job: jobRow, signerName: name, total: proposal.total, paid: false });
@@ -1697,7 +1703,7 @@ app.post("/p/:id/accept-and-pay", wrap(async (req, res) => {
       amount: deposit, description: `Deposit — ${proposal.title}`, clientName: proposal.customer,
       jobId: jobRow.id, successUrl: `${base}/p/${jobRow.id}?paid=1`, cancelUrl: `${base}/p/${jobRow.id}`,
     }, base);
-    return res.redirect(reqObj.checkout_url);
+    return res.redirect(reqObj.url);
   } catch {
     return res.redirect("/p/" + jobRow.id);
   }
@@ -1777,6 +1783,18 @@ const runReconcile = () => Billing.reconcileReferralCredits()
   .catch(() => {});
 runReconcile();
 setInterval(runReconcile, 60 * 60 * 1000).unref();   // hourly; unref'd so it never holds the process open
+// Process-level safety net. A single missed `.catch()` on a background promise (a
+// reconcile, a fire-and-forget email, a Stripe call) or a throw outside the request
+// lifecycle must never silently take BidVoice down for every contractor. Log both,
+// keep serving on a rejection, and exit on a truly-unknown crash so the container
+// (Docker `restart: always`) brings us back clean rather than limping in a bad state.
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason && reason.stack ? reason.stack : reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err && err.stack ? err.stack : err);
+  process.exit(1);
+});
 app.listen(PORT, () => {
   console.log(`BidVoice on http://localhost:${PORT}`);
   // Make an unconfigured mail provider obvious in the logs — otherwise password-reset /
