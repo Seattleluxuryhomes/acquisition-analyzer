@@ -562,6 +562,15 @@
   .est-q{margin-top:10px;background:rgba(238,155,46,.1);border:1px solid var(--amber-deep);border-radius:12px;padding:12px 14px}
   .est-q-t{font-size:1.02rem;font-weight:700;color:var(--text);line-height:1.35}
   .est-q-act{display:flex;gap:8px;margin-top:10px}
+  .est-amb{background:rgba(238,155,46,.16);border-color:var(--amber-deep)}
+  .est-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .est-chip{white-space:nowrap}
+  .heard{margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);overflow:hidden}
+  .heard-sum{list-style:none;cursor:pointer;padding:12px 14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+  .heard-sum::-webkit-details-marker{display:none}
+  .heard-hint{margin-left:auto;font-weight:400;font-size:.8rem;color:var(--muted)}
+  .heard[open] .heard-sum{border-bottom:1px solid var(--line)}
+  .heard-body{padding:12px 14px}
   .est-ready{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;background:rgba(62,125,90,.14);border:1px solid rgba(62,125,90,.4);border-radius:12px;padding:12px 14px;font-size:.96rem;color:var(--text)}
   .est-ready .btn{margin-left:auto}
   .langchip{display:block;width:100%;margin-top:16px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:10px 12px;font-family:"IBM Plex Sans";font-size:.72rem;cursor:pointer;text-align:center}
@@ -4486,11 +4495,22 @@ function questionsCard(){
   const cl=Array.isArray(x.checklist)?x.checklist:[];
   const nq=(x.next_question||'').trim();
   const ready=!!x.ready;
-  if(!cl.length && !nq && !ready) return '';
+  const hasAmb=Array.isArray(x.ambiguous)&&x.ambiguous.length;
+  if(!cl.length && !nq && !ready && !hasAmb) return '';
   const ic=(s)=> s==='captured'?icon('check',14):s==='unsure'?icon('alert',14):'<svg class="ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.85" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/></svg>';
   const clHTML = cl.length ? `<div class="est-list">${cl.map(c=>`<div class="est-item ${esc(c.status)}"><span class="est-ic">${ic(c.status)}</span><span class="est-l">${esc(c.label)}${c.status==='captured'&&c.value?` — <b>${esc(c.value)}</b>`:''}${c.status==='unsure'?` <span class="est-flag">to confirm</span>`:''}</span></div>`).join('')}</div>` : '';
+  // Numeric-ambiguity routing (exec-review): a figure Eden isn't sure she heard right
+  // becomes the follow-up — never a guess. Tap a chip to lock the exact number, or
+  // answer by voice. An estimate must never carry an unverified ambiguous number.
+  const amb=Array.isArray(x.ambiguous)?x.ambiguous:[];
   let action='';
-  if(ready){
+  if(amb.length){
+    const a=amb[0];
+    const chips=(a.chips||[]).map((c,i)=>`<button class="btn ghost sm est-chip" onclick="capConfirmFigure(${i})">${esc(c)}</button>`).join('');
+    action=`<div class="est-q est-amb"><div class="est-q-t">${icon('alert',16)} ${esc(a.question)}</div>
+      ${chips?`<div class="est-chips">${chips}</div>`:''}
+      <div class="est-q-act"><button class="btn sm" onclick="micTap()">${icon('mic',15)} Say it again</button><button class="btn ghost sm" onclick="capNotSure()">I'm not sure</button></div></div>`;
+  } else if(ready){
     action=`<div class="est-ready">${icon('check',15)} <b>I have everything I need.</b><button class="btn sm" onclick="buildFromConversation()">Build the estimate →</button></div>`;
   } else if(nq){
     action=`<div class="est-q"><div class="est-q-t">${icon('message',16)} ${esc(nq)}</div>
@@ -4673,6 +4693,18 @@ function speakQuestion(q){ if(!q || q===_ttsLast) return; _ttsLast=q; bbSpeak(q)
 function toggleTts(){ TTS_ON=!TTS_ON; localStorage.setItem('bt_tts', TTS_ON?'on':'off'); if(!TTS_ON){ bbStopSpeaking(); } _ttsLast=''; _bbSpokeLast=''; if(state.view==='capture') renderIntakeRegions(); }
 // "I'm not sure": flag the current question for review and let the estimator move on —
 // never dead-end the conversation over one unknown.
+// Tap a chip to lock the exact figure Eden was unsure about — it's written back into
+// the conversation so the next intake pass reads a clear number and clears the flag.
+function capConfirmFigure(i){
+  const amb=(CAP_INTAKE&&Array.isArray(CAP_INTAKE.ambiguous))?CAP_INTAKE.ambiguous:[];
+  const a=amb[0]; if(!a) return;
+  const val=(a.chips&&a.chips[i])||''; if(!val) return;
+  const ta=document.getElementById('capText'); if(!ta) return;
+  const heard=(a.heard||'').trim();
+  ta.value=[ta.value.trim(), heard?`(To confirm: ${heard} = ${val}.)`:`(To confirm: ${val}.)`].filter(Boolean).join(' ');
+  capDraft('text', ta.value); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px';
+  runIntake(true); // re-evaluate: the figure is now unambiguous, drop it from the flag list
+}
 function capNotSure(){
   const nq=((CAP_INTAKE&&CAP_INTAKE.next_question)||'').trim();
   const ta=document.getElementById('capText'); if(!ta) return;
@@ -4976,6 +5008,21 @@ function lineEditor(l){
     </div>`;
 }
 
+// "Here's what I heard" (exec-review): the full transcript is always one tap from
+// the estimate. Open it, correct a misheard word or quantity in place, and re-price —
+// the line items are rebuilt from the corrected conversation. Native <details> so it's
+// a single tap and needs no view state.
+function heardCard(j){
+  const t=String(j.transcript||'').trim();
+  if(!t) return '';
+  return `<details class="heard">
+    <summary class="heard-sum">${icon('message',15)} Here's what I heard <span class="heard-hint">tap to review &amp; correct</span></summary>
+    <div class="heard-body">
+      <textarea class="editarea" oninput="updJob('transcript',this.value)" placeholder="The captured conversation…">${esc(j.transcript)}</textarea>
+      <button class="btn ghost full" style="margin-top:10px" onclick="rebuildWithAI('${j.id}',this)">${icon('wand',15)} Re-price from these corrections</button>
+      <div class="hint" style="margin-top:4px">Fix a misheard word or quantity, then re-price — the line items rebuild from the corrected conversation.</div>
+    </div></details>`;
+}
 function tabBuild(j){
   let lines;
   if(jobHasSections(j.lines)){
@@ -5006,7 +5053,7 @@ function tabBuild(j){
 
   return `<div class="h-eyebrow" style="margin-bottom:8px">Step 2 · Private estimating</div>
     <div class="note">AI prices are rough placeholders — you set the real numbers here.</div>
-    ${(j.transcript||'').trim() ? `<button class="btn ghost full" style="margin-bottom:12px" onclick="rebuildWithAI('${j.id}',this)">${icon('wand',15)} Rebuild these lines from the conversation with AI</button>` : ''}
+    ${heardCard(j)}
     ${lines||'<div class="hint">No line items yet.</div>'}
     ${AI_BUILD && (j.lines||[]).length ? `<button class="btn ghost full" style="margin-top:10px" onclick="reviewBidAI('${j.id}',this)">${icon('bulb',15)} Find missing money — check this bid</button>
       <div class="hint" style="margin-top:4px">AI checks your bid against what ${tradeLbl(j.trade)||'this trade'}'s bids usually include — so you don't eat costs you forgot to charge for.</div>` : ''}
