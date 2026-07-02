@@ -6399,9 +6399,44 @@ async function deleteAccountUI(btn){
 function addLine(){ const j=currentJob(); j.lines.push({id:uid(),desc:'',type:'fixed',price:0,hours:0,rate:0,furn:'you'}); touch(j); saveJobs(); render(); }
 function delLine(id){ const j=currentJob(); j.lines=j.lines.filter(l=>l.id!==id); touch(j); saveJobs(); render(); }
 function updLine(id,k,v){ const j=currentJob(); const l=j.lines.find(x=>x.id===id); if(!l)return;
+  const learn=(k==='rate' && l.type==='hourly');
+  const oldRate=learn?(+l.rate||0):0;
   if(k==='price'||k==='hours'||k==='rate'||k==='qty') l[k]=+v||0; else l[k]=v;
   touch(j); saveJobs();
   if(k==='type'||k==='furn'||k==='section') render(); else refreshTotals(j);
+  if(learn) edenRateEdit(j, l, oldRate);   // edits teach: learn the labor rate into the price book
+}
+/* ===== Edit-and-learn (CPO audit §4 / blueprint Phase 1 #7) =====
+   Change an hourly rate and Eden quietly remembers it — "Got it — $95/hr for tile
+   from now on." — persisting it to the price book so the NEXT same-trade estimate
+   uses it. Debounced so it fires once on the settled value, with a one-tap Undo. */
+let _rateEditPrev={}, _rateEditT={};
+function jobTradeLabel(job){ const k=(job&&job.trade)||''; const t=(typeof TRADE_PICK!=='undefined')&&TRADE_PICK.find(x=>x.key===k); return t?t.label.toLowerCase():''; }
+function edenRateEdit(job, line, oldRate){
+  const id=line.id;
+  if(_rateEditPrev[id]===undefined) _rateEditPrev[id]=oldRate;   // remember the pre-edit value once per session
+  clearTimeout(_rateEditT[id]);
+  _rateEditT[id]=setTimeout(()=>edenCommitRate(job, id), 1200);
+}
+// Find-or-create the trade's labor SKU (no duplicates); returns the SKU used.
+async function edenUpsertLaborRate(tl, rate, existing){
+  if(!TOKEN || !online) return null;
+  const name = tl ? (tl.charAt(0).toUpperCase()+tl.slice(1)+' labor') : 'Labor';
+  try{ if(typeof loadSkus==='function' && !(window.CATALOG&&CATALOG.loaded)) await loadSkus(); }catch(_){}
+  const sku = existing || ((window.CATALOG&&CATALOG.skus)||[]).find(s=>String(s.unit)==='hr' && String(s.name||'').toLowerCase()===name.toLowerCase());
+  if(sku && sku.id){ const r=await api('/api/skus/'+encodeURIComponent(sku.id),{method:'PATCH', body:JSON.stringify({unit_price:rate})}); if(typeof loadSkus==='function') loadSkus(); return (r&&r.sku)||sku; }
+  const r=await api('/api/skus',{method:'POST', body:JSON.stringify({ name, unit:'hr', unit_price:rate })}); if(typeof loadSkus==='function') loadSkus(); return r&&r.sku;
+}
+async function edenCommitRate(job, id){
+  const line=(job.lines||[]).find(x=>x.id===id); if(!line){ delete _rateEditPrev[id]; return; }
+  const rate=Math.round(+line.rate||0), prev=_rateEditPrev[id]; delete _rateEditPrev[id];
+  if(rate<1 || rate===prev) return;                              // no real change → say nothing
+  const tl=jobTradeLabel(job);
+  let sku=null; try{ sku=await edenUpsertLaborRate(tl, rate); }catch(e){}
+  toastAction('Got it — $'+rate+'/hr'+(tl?(' for '+tl):'')+' from now on.', 'Undo', ()=>{
+    line.rate=prev; touch(job); saveJobs(); if(state.view==='job') render(); else if(typeof refreshTotals==='function') refreshTotals(job);
+    if(sku) edenUpsertLaborRate(tl, prev, sku).catch(()=>{});     // revert the learned rate too
+  });
 }
 function addUp(){ const j=currentJob(); j.upgrades.push({id:uid(),desc:'',price:0}); touch(j); saveJobs(); render(); }
 function delUp(i){ const j=currentJob(); j.upgrades.splice(i,1); touch(j); saveJobs(); render(); }
@@ -6575,6 +6610,19 @@ function toast(msg, kind, ms){
   el.textContent=msg;
   box.appendChild(el);
   setTimeout(()=>{ el.style.transition='opacity .2s'; el.style.opacity='0'; setTimeout(()=>el.remove(),220); }, ms||3200);
+}
+// A toast with one inline action (e.g. Undo) — used by edit-and-learn so a learned
+// rate is always reversible. The action fires at most once.
+function toastAction(msg, actionLabel, onAction, ms){
+  const box=document.getElementById('toasts'); if(!box) return;
+  const el=document.createElement('div'); el.className='toast ok';
+  el.style.display='flex'; el.style.alignItems='center'; el.style.gap='12px';
+  const span=document.createElement('span'); span.textContent=msg; span.style.flex='1'; el.appendChild(span);
+  const btn=document.createElement('button'); btn.textContent=actionLabel;
+  btn.style.cssText='background:transparent;border:1px solid rgba(255,255,255,.45);color:inherit;font:inherit;font-weight:700;border-radius:8px;padding:4px 11px;cursor:pointer;white-space:nowrap';
+  let used=false; btn.onclick=()=>{ if(used) return; used=true; try{ onAction&&onAction(); }catch(_){} el.remove(); };
+  el.appendChild(btn); box.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .2s'; el.style.opacity='0'; setTimeout(()=>el.remove(),220); }, ms||6500);
 }
 // Copy text to the clipboard with a graceful fallback; resolves true on success.
 async function copyText(text){
