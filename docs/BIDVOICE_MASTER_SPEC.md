@@ -342,7 +342,7 @@ Guide, and the V1 specs in `docs/specs/`. 4. **Vision** — `product-principles.
 
 ---
 
-## 14. Open conflicts requiring founder decision — 🔴 LISTED, NOT RESOLVED
+## 14. Open conflicts requiring founder decision — 🟡 14.1 DECIDED (retrofit); remainder open
 
 *Per the sprint package's governing rule (§14): "Where existing repo specs conflict with this package,
 list the conflict and stop; do not resolve it yourself." These are surfaced for the founder; I have not
@@ -354,10 +354,14 @@ rebuild**: a React/TypeScript component architecture (`components/eden/EdenOrb.t
 `SPEAK_PARAMS`), and a **dark surface system** (`#08080A` / `#101013`). The **shipped product** is a
 single-file **vanilla-JS** app (`public/index.html`), **no build step**, an **SVG** orb, and the **light
 paper (`#F1EEE7`) brand palette** — which `brand-standard.md` marks *protected*. The blueprint says both
-"palette locked" *and* specifies dark tokens (internally contradictory). **Decision needed:** does V1 =
-(a) build the Fable screens fresh in React/TS with the dark system, (b) retrofit the specs' *behavior* into
-the existing vanilla/paper app, or (c) a hybrid? And: is the surface **dark or paper**? This governs the
-entire build plan and cannot be resolved without you.
+"palette locked" *and* specifies dark tokens (internally contradictory). **✅ DECISION (founder,
+2026-07-02): RETROFIT.** V1 is built **into the existing vanilla-JS app**, keeping the **protected paper
+palette** and the existing SVG orb. The Fable specs are **canonical for behavior, the state machine, the
+moment map, and the exact copy strings** — their React/TS stack, dark `#08080A` surface, and `.jsx`
+prototypes are **reference for behavior/copy, not a mandate on stack or color.** This preserves every
+shipped feature, needs no missing build files, and is the fastest path to launch. Build plan:
+`docs/specs/eden-v1-retrofit-plan.md`. (Adopting the dark surface later would be a separate, explicit
+brand decision per `brand-standard.md`.)
 
 **14.2 Voice in V1 — resolvable, noted.** The voice spec says voice **ships in V1** and "supersedes the
 'voice deferred' line"; the blueprint and intake-v4 list "voice replies from Eden" as *not in V1*. The
