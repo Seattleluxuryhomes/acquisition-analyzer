@@ -2383,7 +2383,7 @@ async function uploadPendingPhotos(job){
   }
 }
 
-window.addEventListener('online', ()=>{ online=true; paintSync(); syncNow(); loadNotifications(); });
+window.addEventListener('online', ()=>{ online=true; paintSync(); syncNow(); loadNotifications(); capQueueDrain(); });
 // Coming back to the app is the moment to surprise them with a paid deposit.
 document.addEventListener('visibilitychange', async ()=>{ if(!document.hidden && TOKEN && online){ await loadNotifications(); if(state.view==='home') render(); } });
 window.addEventListener('offline', ()=>{ online=false; paintSync(); });
@@ -6571,11 +6571,78 @@ let recAbort=false;  // released before getUserMedia resolved → stop the momen
 let recTimer=null;   // safety auto-stop so a stuck press can't record forever
 function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
 
+/* ===== Offline-first voice capture queue (Fable blueprint Phase 1.5 · AC 8) =====
+   Every recording is written to IndexedDB BEFORE any upload attempt, so a clip
+   survives a lost signal or an app kill and is transcribed when we're back online.
+   AC: airplane-mode → record → kill app → restore signal → the estimate arrives. */
+let _capDBp=null, _capDraining=false, _capOfflineToastAt=0;
+function capDB(){
+  if(_capDBp) return _capDBp;
+  _capDBp=new Promise((res,rej)=>{ try{
+    const r=indexedDB.open('bidvoice_cap',1);
+    r.onupgradeneeded=()=>{ const db=r.result; if(!db.objectStoreNames.contains('clips')) db.createObjectStore('clips',{keyPath:'id'}); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  }catch(e){ rej(e); } });
+  return _capDBp;
+}
+async function capQueuePut(blob, lang){
+  const db=await capDB();
+  return new Promise((res,rej)=>{ const tx=db.transaction('clips','readwrite');
+    const id='c'+Date.now()+'_'+Math.round(Math.random()*1e6);
+    tx.objectStore('clips').put({ id, blob, lang:lang||'en', at:Date.now() });
+    tx.oncomplete=()=>res(id); tx.onerror=()=>rej(tx.error); });
+}
+async function capQueueAll(){
+  try{ const db=await capDB(); return await new Promise((res)=>{ const tx=db.transaction('clips','readonly');
+    const rq=tx.objectStore('clips').getAll(); rq.onsuccess=()=>res(rq.result||[]); rq.onerror=()=>res([]); }); }
+  catch(e){ return []; }
+}
+async function capQueueDel(id){
+  try{ const db=await capDB(); await new Promise((res)=>{ const tx=db.transaction('clips','readwrite');
+    tx.objectStore('clips').delete(id); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); }catch(e){}
+}
+// Append transcribed text to the live capture draft (persisted), and refresh the
+// screen + re-run intake if the contractor is on the capture screen.
+function capAppendTranscript(txt){
+  txt=String(txt||'').trim(); if(!txt) return;
+  CAP_DRAFT.text=[(CAP_DRAFT.text||'').trim(), txt].filter(Boolean).join(' ').replace(/\s+/g,' ');
+  try{ localStorage.setItem('bt_capdraft', JSON.stringify(CAP_DRAFT)); }catch(e){}
+  const ta=document.getElementById('capText');
+  if(ta){ ta.value=CAP_DRAFT.text; ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px'; ta.scrollTop=ta.scrollHeight; }
+  if(state.view==='capture'){ buzz(12); scheduleIntake(); }
+}
+// Drain the queue oldest-first: transcribe each clip, append its text, then delete
+// it. A transient/network failure stops the drain and leaves the clip for next time
+// (on reconnect or next load), so nothing is ever lost.
+async function capQueueDrain(){
+  if(_capDraining) return;
+  if(!online || !TOKEN || !AI_TRANSCRIBE) return;   // need the server to transcribe; keep clips queued otherwise
+  _capDraining=true;
+  try{
+    const clips=(await capQueueAll()).sort((a,b)=>(a.at||0)-(b.at||0));
+    for(const c of clips){
+      if(!online || !TOKEN) break;
+      let dataUrl=''; try{ dataUrl=await new Promise((res)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(c.blob); }); }catch(e){}
+      if(!dataUrl){ await capQueueDel(c.id); continue; }   // unreadable blob → drop, don't loop forever
+      try{
+        const r=await api('/api/assist/transcribe',{ method:'POST', body:JSON.stringify({ audio:dataUrl, lang:c.lang||(SETTINGS.from||'en') }) });
+        capAppendTranscript((r&&r.text)||'');
+        await capQueueDel(c.id);   // processed (delete even on empty text — a silent clip shouldn't retry forever)
+      }catch(e){
+        if(e && e.status===402){ await capQueueDel(c.id); gate402(e); }  // billing gate → drop + surface
+        break;                                                          // transient → leave queued, retry later
+      }
+    }
+  } finally { _capDraining=false; }
+}
+
 // Begin a recording (Whisper path). Robust to a release landing before the mic
 // permission resolves — recAbort makes us stop the instant capture is live.
 async function startRecord(){
   if(recording||recBusy) return;
-  if(!online||!TOKEN){ toast('Connect to the internet to dictate.','warn'); return; }
+  // Offline-first: we record locally regardless of connectivity and transcribe when
+  // we're back online. Only a missing session truly blocks capture.
+  if(!TOKEN){ toast('Sign in to dictate.','warn'); return; }
   // In-app browsers (Instagram/Facebook/etc.) block the mic — don't let it fail
   // silently. Tell the user how to fix it and log why, so the back end can see it.
   const app=inAppBrowser();
@@ -6583,7 +6650,9 @@ async function startRecord(){
   if(!recordSupported()){ track('record_failed',{reason:'unsupported',ios:isIOS()}); toast(isIOS()?'Open this in Safari to use voice.':'Voice recording isn’t supported in this browser.','warn',6000); return; }
   recBusy=true; recAbort=false;
   let stream;
-  try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+  // Noise-robust capture (exec-review §1): construction sites are loud, and these
+  // constraints also help Eden not hear herself. Cheap first line before any DSP.
+  try{ stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}); }
   catch(e){ recBusy=false; track('record_failed',{reason:'permission_denied',err:String(e&&e.name||''),ios:isIOS()}); toast('Allow microphone access to dictate.','warn',5000); return; }
   mediaStream=stream; mediaChunks=[];
   const mime=pickAudioMime();
@@ -6597,16 +6666,20 @@ async function startRecord(){
     const blob=new Blob(mediaChunks,{type:(mediaRec&&mediaRec.mimeType)||'audio/webm'});
     recBusy=false; micState='idle';
     if(blob.size<900){ updateMic(); toast('Didn’t catch anything — tap and speak.','warn'); return; }
-    const dataUrl=await new Promise((res)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(blob); });
-    try{
-      const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({ audio:dataUrl, lang:(SETTINGS.from||'es') })});
-      const ta=document.getElementById('capText');
-      if(ta && (r.text||'').trim()){
-        ta.value=[ta.value.trim(), r.text.trim()].filter(Boolean).join(' ').replace(/\s+/g,' ');
-        capDraft('text', ta.value); ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,300)+'px'; ta.scrollTop=ta.scrollHeight;
-        buzz(12); scheduleIntake(); // pull the job details from what they just said
-      } else if(!(r.text||'').trim()) toast('Didn’t catch that — tap and speak clearly.','warn');
-    }catch(e){ if(e.status===402){ gate402(e); } else toast(e.message||'Could not transcribe.','bad',5000); }
+    const lang=(SETTINGS.from||'en');
+    // Durability first: the clip goes to IndexedDB BEFORE any upload, so a lost
+    // signal or an app kill never loses what the contractor just said.
+    let queued=false;
+    try{ await capQueuePut(blob, lang); queued=true; }catch(e){ queued=false; }
+    if(queued){
+      if(online && TOKEN){ await capQueueDrain(); }
+      else { const now=Date.now(); if(now-_capOfflineToastAt>4000){ _capOfflineToastAt=now; toast('Saved. I’ll get to work as soon as we’re back online.','ok',5000); } }
+    } else if(online && TOKEN){
+      // IndexedDB unavailable (e.g. private mode) — transcribe directly, best-effort.
+      const dataUrl=await new Promise((res)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(''); r.readAsDataURL(blob); });
+      try{ const r=await api('/api/assist/transcribe',{method:'POST', body:JSON.stringify({ audio:dataUrl, lang })}); if((r.text||'').trim()) capAppendTranscript(r.text.trim()); else toast('Didn’t catch that — tap and speak clearly.','warn'); }
+      catch(e){ if(e.status===402){ gate402(e); } else toast(e.message||'Could not transcribe.','bad',5000); }
+    } else { toast('Couldn’t save the recording on this device.','warn'); }
     updateMic();
   };
   mediaRec.start();
@@ -6924,6 +6997,7 @@ function confettiBurst(gold){
   render();
   if(TOKEN){
     await loadDashboardData();
+    capQueueDrain();   // process any voice clips captured offline last session (AC 8)
     // Coming back from Stripe Connect onboarding — pull the fresh account status
     // and land the contractor on Setup so they see "Ready".
     if(paymentsReturn){ await refreshPayments(); state.view='settings'; }
