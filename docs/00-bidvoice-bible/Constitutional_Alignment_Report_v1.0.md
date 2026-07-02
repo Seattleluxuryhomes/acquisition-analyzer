@@ -60,19 +60,20 @@ price / never-fabricate rules (§10), and the "employee not chatbot" identity (�
 *never hide a failure* and *never monetize Eden against the homeowner* were **added** to §10 for
 completeness.
 
-### C-6 · Referral engine vs. the Commercial Architecture — FLAGGED (post-freeze; founder decision required)
+### C-6 · Referral engine vs. the Commercial Architecture — ✅ RESOLVED (implemented 2026-07-02 per founder decision)
 - **Commercial Architecture (`bidvoice-commercial-architecture-v1.0.md`, conforms to the Soul):** rejects
   perpetual credit tied to others' active status — *"someone's bill changes when someone else churns —
   anti-peace-of-mind"* — and prescribes **give-a-month/get-a-month, one month per referral that completes
   month two, capped at 12/yr.**
 - **Shipped (`src/referrals.js` `effectiveMonthly`):** a perpetual per-paying-sub credit that comes off when
   a sub stops paying (the bill rises again) — the exact pattern the architecture rejects.
-- **Status:** This document arrived **after** Bible v1.0 was frozen, so per the go-forward protocol the
-  conflict is **flagged and work stops** on it until Ben rules. It is **not** a Soul conflict (the Soul
-  doesn't specify referral mechanics) and **not** silently resolved. Re-architecting the credit engine is a
-  billing-level, outward-facing change; recorded in Bible §12 divergence #2. *(The base-price number — $50
-  shipped vs. $199 hypothesis — is NOT a conflict: the doc deliberately leaves numbers open for beta WTP
-  testing.)*
+- **Status: ✅ RESOLVED (implemented 2026-07-02).** Ben ruled: replace the per-sub model. Shipped as
+  per-company licensing (unlimited internal users) + give-a-month/get-a-month via an auditable credit ledger
+  (referred company's first month free; referrer earns a capped credit — 12/calendar year — once the
+  referral pays through month two) + Founding Member rate-lock captured from Stripe. The perpetual
+  churn-driven discount is gone; existing discounts are frozen (never raised). Engineering reference:
+  `docs/billing-and-referrals.md`. *(The base-price number remains an open beta hypothesis set in Stripe —
+  not a conflict.)*
 
 ## Non-conflicts noted (spec-vs-code gaps, not Soul conflicts)
 - **`window.confirm/alert/prompt` sweep:** ✅ **RESOLVED** — every native dialog is now an in-app modal

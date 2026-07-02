@@ -8,6 +8,14 @@
 > previously left as an open founder decision. **The architecture is canon; the specific
 > dollar figures are launch hypotheses to be validated against real willingness-to-pay in
 > beta, and are NOT frozen.** Filed 2026-07-02.
+>
+> **Implementation status (2026-07-02): SHIPPED.** The commercial engine described here is
+> built — per-company subscription with unlimited internal users; give-a-month/get-a-month
+> referrals via an auditable credit ledger (first month free for the referred company; the
+> referrer earns a capped credit — 12/calendar year — once the referral pays through month two);
+> Founding Member rate-lock captured from Stripe and cleared on cancel; payments untouched.
+> Engineering reference + runbook: **`docs/billing-and-referrals.md`**. The dollar figures
+> ($199 / $349 / $1,500) remain beta hypotheses set in Stripe, not frozen here.
 
 ---
 

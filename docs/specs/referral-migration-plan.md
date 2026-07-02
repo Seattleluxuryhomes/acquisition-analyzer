@@ -1,5 +1,13 @@
 # Referral Migration Plan — perpetual credit ladder → capped give-a-month/get-a-month
-### For founder review. No code changes until approved. Conforms to the Soul + Commercial Architecture v1.0.
+### ✅ IMPLEMENTED (2026-07-02). Conforms to the Soul + Commercial Architecture v1.0.
+
+> **Status: shipped.** The founder ratified all open decisions below and directed full
+> implementation. Built as: `src/referralCredits.js` (ledger), `src/billing.js` (Stripe wiring
+> + Founding lock), schema in `src/db.js`, UI in `public/index.html`. Engineering reference and
+> operational runbook: **`docs/billing-and-referrals.md`**. Founder decisions as built: crew/
+> network model **replaced** (per-company, unlimited users); referee reward = **first month
+> free**; month-two trigger = **2nd paid invoice**; cap = **12/calendar year**; existing per-sub
+> discounts **frozen in place** (never raised). The plan text below is kept as the design record.
 
 ## 1. Why
 The Commercial Architecture (`docs/00-bidvoice-bible/bidvoice-commercial-architecture-v1.0.md`, §5)

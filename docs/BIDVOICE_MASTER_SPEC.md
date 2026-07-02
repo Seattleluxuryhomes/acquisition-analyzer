@@ -416,12 +416,12 @@ Price is source of truth when configured).
 1. **Base price:** shipped fallback **$50** vs. ratified hypothesis **$199**. The doc says *measure WTP in
    beta before freezing* — so this is a deliberate open number, not a defect. Wire the beta price when Ben
    sets it; the Founding Member lock protects early accounts either way.
-2. **Referral mechanic (material):** shipped `effectiveMonthly()` gives a **perpetual per-sub credit that
-   rises again when a sub churns** — which the architecture **explicitly rejects** ("someone's bill changes
-   when someone *else* churns — anti-peace-of-mind"). The doc prescribes **give-a-month/get-a-month, one
-   month per referral that completes month two, capped at 12/yr** — bounded, not tied to others' active
-   status. Re-architecting the referral/credit engine is a founder-gated change (see the alignment report,
-   C-6); left as-is until Ben rules.
+2. **Referral mechanic — ✅ RESOLVED (implemented).** The old `effectiveMonthly()` per-sub perpetual
+   discount (which moved when a sub churned) is **removed**. Referrals are now **give-a-month/get-a-month**
+   via an auditable credit ledger: the referred company's first month is free; the referrer earns one month
+   (Stripe customer-balance credit) once the referral pays through month two; capped 12/calendar year; per
+   company with unlimited internal users. Founding Member rate-lock captured from Stripe. Engineering
+   reference: `docs/billing-and-referrals.md`; design record: `docs/specs/referral-migration-plan.md`.
 3. **Front Office tier + Hiring Eden™ naming/SKU** are not yet built — deferred to the comms phase; not V1.
 
 ---
