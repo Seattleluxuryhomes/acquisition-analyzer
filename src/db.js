@@ -559,9 +559,12 @@ ensureColumns("user", [
   ["email_verified", "INTEGER DEFAULT 0"],
   ["verify_token_hash", "TEXT"],
   ["verify_token_exp", "INTEGER"],
-  // Account lifecycle: 'active' (default), 'deactivated' (reversible self-serve
-  // pause — sign-in blocked), or 'deleted' (hard-deleted; row cascades away).
+  // Account lifecycle: 'active' (default), 'deactivated' (reversible pause), or
+  // 'pending_delete' (a 30-day grace before the row is purged). purge_at = when the
+  // hard delete fires. Portability is constitutional (Soul: data leaves in one tap,
+  // whole) — export is always available, and delete is reversible for 30 days.
   ["status", "TEXT DEFAULT 'active'"],
+  ["purge_at", "INTEGER"],
   // Eden awareness (Intake/Voice V1): server-driven context so greetings are
   // never faked client-side. has_completed_intake gates first-visit vs returning;
   // last_activity_at drives the "quiet" reopen (<4h); last_spoken_at + the

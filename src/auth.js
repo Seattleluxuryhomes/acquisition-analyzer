@@ -137,6 +137,9 @@ export function signin({ email, password }) {
   if (row.status === "deactivated") {
     throw httpError(403, "This account is deactivated. Contact support@bidvoice.ai to reactivate it.");
   }
+  if (row.status === "pending_delete") {
+    throw httpError(403, "This account is scheduled for deletion. Contact support@bidvoice.ai within 30 days to cancel it.");
+  }
   if (row.status === "deleted") {
     throw httpError(403, "This account has been deleted.");
   }
@@ -263,18 +266,33 @@ export function deactivateAccount({ userId, password }) {
   return { ok: true };
 }
 
-// Delete: permanent. Verifying the password, we hard-delete the user row — every
-// child table references user(id) ON DELETE CASCADE (foreign_keys=ON), so all of
-// the contractor's jobs, photos, payments, leads, and sessions go with it. There
-// is no recovery; the caller must confirm intent before calling this.
+// Delete: scheduled, with a 30-day grace (Soul-constitutional: no data hostage, no
+// retention maze). We verify the password, mark the account pending_delete with a
+// purge date, and revoke sessions. The hard cascade delete fires later, on/after
+// purge_at (purgeExpiredDeletions). Support can cancel within the window. The
+// contractor should be offered a full export before this — see exportAccount().
+const DELETE_GRACE_MS = 30 * DAY;
 export function deleteAccount({ userId, password }) {
   const row = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
   if (!row) throw httpError(401, "Account not found.");
   if (!verifyPassword(String(password || ""), row.password_hash)) {
     throw httpError(403, "Your password is incorrect.");
   }
-  db.prepare("DELETE FROM user WHERE id=?").run(userId); // cascades to all owned data + sessions
-  return { ok: true };
+  const purgeAt = Date.now() + DELETE_GRACE_MS;
+  db.prepare("UPDATE user SET status='pending_delete', purge_at=? WHERE id=?").run(purgeAt, userId);
+  db.prepare("DELETE FROM session WHERE user_id=?").run(userId);
+  return { ok: true, purge_at: purgeAt };
+}
+
+// Hard-purge accounts whose grace window has elapsed. Idempotent; run on boot (and
+// could run on a timer). The cascade takes all owned data + sessions with the row.
+export function purgeExpiredDeletions() {
+  try {
+    const due = db.prepare("SELECT id FROM user WHERE status='pending_delete' AND purge_at IS NOT NULL AND purge_at < ?").all(Date.now());
+    const del = db.prepare("DELETE FROM user WHERE id=?");
+    for (const u of due) del.run(u.id);
+    return due.length;
+  } catch { return 0; }
 }
 
 // Express middleware: resolves the bearer token to req.user, or 401s.

@@ -6273,13 +6273,18 @@ function viewSettings(){
       <button class="btn ghost sm" style="margin-top:8px" onclick="changeEmailUI(this)">Update email</button>
       <div class="hint" style="margin-top:6px">Changing your email signs you out of other devices and sends a verification link to the new address.</div>
     </div>
+    <div class="legalbox">
+      <h3>Your data</h3>
+      <p style="margin:0 0 8px">Everything you built here is yours. Export it all — profile, jobs, estimates, contacts, price book, payments — in one file, any time.</p>
+      <button class="btn ghost sm" onclick="exportMyData(this)">${icon('download',14)} Export my data</button>
+    </div>
     <div class="legalbox" style="border-color:rgba(169,78,56,.4)">
       <h3 style="color:#d98a72">Deactivate or delete account</h3>
-      <p style="margin:0 0 8px">Deactivating pauses your account and signs you out everywhere — your data is kept and support can reactivate it. Deleting is permanent: every job, photo, payment record and setting is erased and cannot be recovered.</p>
+      <p style="margin:0 0 8px">Deactivating pauses your account and signs you out everywhere — your data is kept and support can reactivate it. Deleting schedules permanent removal after a <b>30-day grace period</b> — your data is kept until then, and support can cancel it. Export your data first if you want a copy.</p>
       <input id="dzPw" type="password" class="input" placeholder="Your password" autocomplete="current-password"/>
       <div class="row2" style="margin-top:8px">
         <div><button class="btn ghost sm" style="width:100%" onclick="deactivateAccountUI(this)">Deactivate account</button></div>
-        <div><button class="btn ghost sm" style="width:100%;color:#d98a72;border-color:rgba(169,78,56,.5)" onclick="deleteAccountUI(this)">Delete permanently</button></div>
+        <div><button class="btn ghost sm" style="width:100%;color:#d98a72;border-color:rgba(169,78,56,.5)" onclick="deleteAccountUI(this)">Delete account</button></div>
       </div>
       <div id="dzMsg" class="hint" style="margin-top:8px"></div>
     </div>
@@ -6366,11 +6371,58 @@ async function changeEmailUI(btn){
   }catch(e){ show(e.message||'Could not update email.'); }
   finally{ btn.disabled=false; }
 }
+// Professional in-app confirm/prompt modal — replaces window.confirm/prompt for the
+// sensitive account actions (blueprint §5: zero window.alert/confirm/prompt). Returns
+// a Promise<boolean>; requireText makes the OK button gate on a typed match (e.g. DELETE).
+function edenConfirm(opts){
+  opts=opts||{};
+  return new Promise((resolve)=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+    const need=opts.requireText||'';
+    const card=document.createElement('div');
+    card.style.cssText='background:var(--card,#fff);color:var(--text,#1F252C);max-width:400px;width:100%;border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4)';
+    card.innerHTML='<div style="font-family:Archivo,sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:8px">'+esc(opts.title||'Are you sure?')+'</div>'+
+      '<div style="font-size:.92rem;color:var(--muted,#5c6270);line-height:1.5">'+(opts.body||'')+'</div>'+
+      (need?'<input id="edenConfirmType" class="input" style="margin-top:12px" placeholder="Type '+esc(need)+' to confirm" autocomplete="off"/>':'')+
+      '<div style="display:flex;gap:10px;margin-top:16px">'+
+        '<button id="edenConfirmCancel" class="btn ghost" style="flex:1">'+esc(opts.cancelLabel||'Cancel')+'</button>'+
+        '<button id="edenConfirmOk" class="btn" style="flex:1'+(opts.danger?';background:#a94e38;border-color:#a94e38;color:#fff':'')+'">'+esc(opts.okLabel||'Confirm')+'</button>'+
+      '</div>';
+    ov.appendChild(card); document.body.appendChild(ov);
+    const done=(v)=>{ try{ ov.remove(); }catch(_){} document.removeEventListener('keydown',onKey); resolve(v); };
+    const onKey=(e)=>{ if(e.key==='Escape') done(false); };
+    document.addEventListener('keydown',onKey);
+    ov.addEventListener('click',(e)=>{ if(e.target===ov) done(false); });
+    card.querySelector('#edenConfirmCancel').onclick=()=>done(false);
+    card.querySelector('#edenConfirmOk').onclick=()=>{
+      if(need){ const el=card.querySelector('#edenConfirmType'); if(!el || (el.value||'').trim()!==need){ if(el){ el.style.borderColor='#a94e38'; el.focus(); } return; } }
+      done(true);
+    };
+    setTimeout(()=>{ const f=card.querySelector(need?'#edenConfirmType':'#edenConfirmOk'); if(f) f.focus(); },50);
+  });
+}
+// Portability (Soul: no data hostage). Download the full account export as one JSON file.
+async function exportMyData(btn){
+  if(!online||!TOKEN){ toast('Connect to the internet to export your data.','warn'); return; }
+  if(btn) btn.disabled=true;
+  try{
+    const res=await fetch('/api/account/export',{headers:{authorization:'Bearer '+TOKEN}});
+    if(!res.ok) throw new Error('Export failed');
+    const blob=await res.blob(), url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='bidvoice-export.json'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    toast('Your data is downloading — jobs, estimates, contacts, and more.','ok',4000);
+  }catch(e){ toast('Could not export your data — try again.','bad'); }
+  finally{ if(btn) btn.disabled=false; }
+}
 async function deactivateAccountUI(btn){
   const pw=(document.getElementById('dzPw')||{}).value||'';
   const msg=document.getElementById('dzMsg'); const show=(t,ok)=>{ if(msg){ msg.textContent=t; msg.style.color=ok?'#8fce8f':'#e88'; } };
   if(!pw){ show('Enter your password to deactivate.'); return; }
-  if(!confirm('Deactivate your account? You’ll be signed out everywhere and won’t be able to sign in until support reactivates it.')) return;
+  const ok=await edenConfirm({ title:'Deactivate your account?', okLabel:'Deactivate',
+    body:'You’ll be signed out everywhere and won’t be able to sign in until support reactivates it. <b>Your data is kept.</b>' });
+  if(!ok) return;
   if(!online||!TOKEN){ show('You need to be online and signed in.'); return; }
   btn.disabled=true; show('Deactivating…', true);
   try{
@@ -6383,16 +6435,16 @@ async function deleteAccountUI(btn){
   const pw=(document.getElementById('dzPw')||{}).value||'';
   const msg=document.getElementById('dzMsg'); const show=(t,ok)=>{ if(msg){ msg.textContent=t; msg.style.color=ok?'#8fce8f':'#e88'; } };
   if(!pw){ show('Enter your password to delete.'); return; }
-  if(!confirm('Permanently delete your account and ALL your data? This cannot be undone.')) return;
-  const typed=prompt('This is permanent. Type DELETE to confirm.');
-  if(typed!=='DELETE'){ show('Deletion cancelled.'); return; }
+  const ok=await edenConfirm({ title:'Delete your account?', danger:true, okLabel:'Delete', requireText:'DELETE',
+    body:'This schedules permanent deletion in <b>30 days</b>. Your data is kept until then, and support can cancel it. <b>Export your data first</b> if you want a copy. Type DELETE to confirm.' });
+  if(!ok){ show('Deletion cancelled.'); return; }
   if(!online||!TOKEN){ show('You need to be online and signed in.'); return; }
-  btn.disabled=true; show('Deleting…', true);
+  btn.disabled=true; show('Scheduling…', true);
   try{
     await api('/api/account/delete',{method:'POST', body:JSON.stringify({password:pw, confirm:'DELETE'})});
-    toast('Your account and data have been permanently deleted.','ok',6000);
-    setTimeout(()=>signOut(), 900);
-  }catch(e){ show(e.message||'Could not delete the account.'); btn.disabled=false; }
+    toast('Your account is scheduled for deletion in 30 days. Contact support to cancel.','ok',6500);
+    setTimeout(()=>signOut(), 1200);
+  }catch(e){ show(e.message||'Could not schedule deletion.'); btn.disabled=false; }
 }
 
 /* ---------- mutations ---------- */

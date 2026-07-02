@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { PassThrough } from "node:stream";
 
 import db, { PHOTO_DIR } from "./src/db.js";
-import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser, createVerifyToken, confirmEmailVerify, changeEmail, deactivateAccount, deleteAccount } from "./src/auth.js";
+import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser, createVerifyToken, confirmEmailVerify, changeEmail, deactivateAccount, deleteAccount, purgeExpiredDeletions } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, generateReviewRequest, generateLeadFollowup, generateFunnelHeadline, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured, bidBrainChat, localBrainReply } from "./src/assist.js";
@@ -337,7 +337,26 @@ app.post("/api/account/delete", requireAuth, wrap((req, res) => {
   const b = req.body || {};
   if (b.confirm !== "DELETE") return res.status(400).json({ error: 'Type DELETE to confirm.' });
   track(req.user.id, "account_deleted", {});
-  res.json(deleteAccount({ userId: req.user.id, password: b.password }));
+  res.json(deleteAccount({ userId: req.user.id, password: b.password })); // 30-day grace, then purge
+}));
+// Portability (Soul-constitutional: no data hostage — everything leaves in one tap, whole).
+// A complete JSON export of the contractor's owned data: profile, jobs (+ line items),
+// leads, price book, and payment records.
+app.get("/api/account/export", requireAuth, wrap((req, res) => {
+  const uid = req.user.id;
+  const q = (sql) => { try { return db.prepare(sql).all(uid); } catch { return []; } };
+  const bundle = {
+    exported_at: new Date().toISOString(),
+    account: publicUser(req.user),
+    profile: settingsOf(req.user),
+    jobs: q("SELECT * FROM job WHERE user_id=? ORDER BY created_at"),
+    contacts: q("SELECT * FROM customer WHERE user_id=? ORDER BY created_at"),
+    leads: q("SELECT * FROM lead WHERE user_id=? ORDER BY created_at"),
+    price_book: q("SELECT * FROM sku WHERE user_id=? ORDER BY created_at"),
+    payments: q("SELECT * FROM payment_request WHERE user_id=? ORDER BY created_at"),
+  };
+  res.setHeader("Content-Disposition", 'attachment; filename="bidvoice-export.json"');
+  res.type("application/json").send(JSON.stringify(bundle, null, 2));
 }));
 function resetEmailHtml(link) {
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
@@ -1720,6 +1739,7 @@ app.get("*", (req, res, next) => {
 });
 
 const PORT = process.env.BT_PORT || process.env.PORT || 4000;
+try { const n = purgeExpiredDeletions(); if (n) console.log(`Purged ${n} account(s) past their 30-day deletion grace.`); } catch { /* never block boot */ }
 app.listen(PORT, () => console.log(`BidVoice on http://localhost:${PORT}`));
 // Pull the real plan + setup-fee prices from Stripe so the paywall shows exactly
 // what checkout charges. Fire-and-forget; the UI falls back to defaults until ready.
