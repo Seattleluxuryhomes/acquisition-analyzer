@@ -14,7 +14,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>BidVoice | AI Construction Operating System</title>
-<link rel="icon" type="image/png" href="/icon-192.png?v=2" />
+<link rel="icon" type="image/png" href="/brand-orange.png?v=4" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
 <meta name="theme-color" content="#CF7F18" />
 <link rel="manifest" href="/manifest.json" />
@@ -208,6 +208,8 @@
   .routedir{display:flex;align-items:center;justify-content:center;min-width:54px;font-size:1.1rem;text-decoration:none}
   /* ===== Dashboard ===== */
   .dash-hello{margin:6px 0 14px}
+  h1.page.dash-lead{display:flex;align-items:flex-start;gap:9px;line-height:1.2}
+  h1.page.dash-lead .di-ic{color:var(--amber);margin-top:3px}
   .greet-emoji{display:inline-block;transform-origin:72% 75%}
   @keyframes bt-wave{0%{transform:rotate(0)}15%{transform:rotate(14deg)}30%{transform:rotate(-8deg)}45%{transform:rotate(12deg)}60%{transform:rotate(-4deg)}75%{transform:rotate(8deg)}100%{transform:rotate(0)}}
   .greet-emoji.wave{animation:bt-wave 1s ease-in-out 1}
@@ -3724,12 +3726,12 @@ function dailyInsight(){
   return {ic:'star', text:pickMotivation()};
 }
 function greetingHTML(){
-  const who=(SETTINGS.name||'').trim();
-  const e=greetEmoji(), isHand=(e==='👋');
-  const waveCls=(isHand && !greetWaved)?' wave':''; greetWaved=true;
+  // Law XV: no scripted "Good <time>, Name." The home leads with the one real thing that
+  // matters right now (money in, appointments, follow-ups, leads, estimates ready) — pulled
+  // from live data by dailyInsight(). Awareness, not a greeting.
+  const di=dailyInsight();
   return `<div class="dash-hello"><div class="h-eyebrow">${esc(SETTINGS.company)||'Your business'}</div>
-    <h1 class="page">${greetingWord()}${who?', '+esc(who):''}</h1>
-    <div class="daily-insight">${(di=>`<span class="di-ic">${icon(di.ic,15)}</span><span>${esc(di.text)}</span>`)(dailyInsight())}</div></div>`;
+    <h1 class="page dash-lead"><span class="di-ic">${icon(di.ic,20)}</span> ${esc(di.text)}</h1></div>`;
 }
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function timeAgo(ts){ if(!ts) return ''; const m=Math.floor((Date.now()-ts)/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
