@@ -75,9 +75,9 @@ completeness.
   testing.)*
 
 ## Non-conflicts noted (spec-vs-code gaps, not Soul conflicts)
-- **`window.confirm/alert/prompt` sweep:** the blueprint wants zero in the codebase; the sensitive account
-  actions were converted to an in-app modal this cycle; **46 non-sensitive calls remain** — a bounded
-  engineering follow-on with a build-failing CI grep. Not a Soul conflict.
+- **`window.confirm/alert/prompt` sweep:** ✅ **RESOLVED** — every native dialog is now an in-app modal
+  (`edenAlert`/`edenConfirm`/`edenPrompt`/`edenCopy`), enforced by a build-failing guard
+  (`scripts/no-native-dialogs.mjs`). Zero remain. Not a Soul conflict; closed.
 - **Missing reference builds** (`eden-intake-v3/v4/v5.jsx`, `login-handoff.jsx`) — a delivery gap
   (Bible §14.5), not a Soul conflict.
 

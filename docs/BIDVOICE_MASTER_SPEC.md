@@ -465,15 +465,18 @@ stateful client state machine with server awareness fields (`hasCompletedIntake`
 **14.4 My shipped Launch-Readiness work diverges from the now-canonical blueprint §5 — needs rework:**
 - **Delete flow:** I shipped *immediate hard-delete*; the blueprint requires **30-day grace + data export
   (jobs/estimates/contacts as CSV/PDF)** before hard delete.
-- **`window.confirm`/`window.prompt`:** my danger-zone uses them; the blueprint mandates **zero
-  `window.alert/confirm/prompt`** and a single `<Modal>`/`<Confirm>` system.
+- **`window.confirm`/`window.prompt`:** ✅ **DONE** — every native dialog is converted to the in-app
+  `edenAlert`/`edenConfirm`/`edenPrompt`/`edenCopy` modal system; a build-failing guard
+  (`scripts/no-native-dialogs.mjs`, in `verify`/CI) keeps it at zero.
 - **Voice settings persistence:** I persist to device `localStorage`; the spec requires the **user
   profile, cross-device** (AC-18).
-- **Dual email identities:** the blueprint wants client-facing mail under the **contractor's** brand
-  (reply-to the contractor, quiet "Sent via BidVoice"), separate from BidVoice system mail; my emails are
+- **Dual email identities:** ✅ **DONE** — the client-facing send (signed agreement to the homeowner) now
+  goes out under the **contractor's brand** (display name = their company via `sendMail({fromName})`, keeping
+  BidVoice's verified sending domain), **reply-to the contractor**, with the quiet *"Sent by BidVoice on
+  behalf of {company}"* footer. BidVoice system mail (verify, reset, welcome, crew invite) stays
   BidVoice-branded.
-  *These are corrections to already-shipped code — small, but they should be scheduled before the Fable V1
-  merges, or they'll contradict it.*
+  *All four §14.4 corrections are now shipped: 30-day-grace delete + export (C-4), zero native dialogs,
+  voice settings → profile (AC-18), and dual email identity.*
 
 **14.5 Missing reference builds.** The specs repeatedly say "port verbatim from" `eden-intake-v3.jsx`,
 `eden-intake-v4.jsx`, `eden-intake-v5.jsx`, and `login-handoff.jsx` (the canvas orb, `ORB_PARAMS`/

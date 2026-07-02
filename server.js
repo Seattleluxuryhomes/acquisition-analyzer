@@ -1632,6 +1632,8 @@ async function deliverSignedAgreement(jobRow, owner, proposal, { name, email } =
           html, text: `Attached is the signed agreement for ${proposal.title}.`,
           attachments: [{ filename, content: pdf.toString("base64") }],
           replyTo: owner && owner.email ? owner.email : undefined,
+          // Dual identity: client-facing mail under the contractor's brand.
+          fromName: (owner && owner.company && owner.company !== "Your Company") ? owner.company : undefined,
         });
       } catch { /* never fail signing */ }
     }
