@@ -34,6 +34,7 @@ import { renderDrawHTML } from "./src/drawHtml.js";
 import { renderChangeOrderHTML } from "./src/changeOrderHtml.js";
 import { renderContractorSite } from "./src/contractorSite.js";
 import { renderGuidePage } from "./src/guidePage.js";
+import { renderComparisonPage, renderCompareIndex, comparisonSlugs } from "./src/comparePages.js";
 import { renderLegalPage } from "./src/legal.js";
 import * as Emails from "./src/emails.js";
 import { buildProposal, DEFAULT_TERMS } from "./src/proposal.js";
@@ -1762,6 +1763,17 @@ app.get("/pay/done", (req, res) => {
 // /faq all resolve to it.
 app.get(["/guide", "/how-it-works", "/faq"], (req, res) => {
   res.type("html").send(renderGuidePage({ baseUrl: baseUrl(req) }));
+});
+
+// Public, honest "BidVoice vs {tool}" comparison pages (+ a /compare index). Never
+// attack a competitor: who each is for, where each excels, where BidVoice differs.
+app.get("/compare", (req, res) => {
+  res.type("html").send(renderCompareIndex({ baseUrl: baseUrl(req) }));
+});
+app.get("/vs/:competitor", (req, res) => {
+  const html = renderComparisonPage(req.params.competitor, { baseUrl: baseUrl(req) });
+  if (!html) return res.status(404).redirect("/compare");
+  res.type("html").send(html);
 });
 
 // Legal pages — branded, crawlable, no dead links. Served before the SPA fallback.
