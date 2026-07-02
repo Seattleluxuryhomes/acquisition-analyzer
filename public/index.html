@@ -2602,6 +2602,49 @@ function bbOpeningLine(){ const j=bbActiveJob(); return j ? bbJobOpeningLine(j) 
 let bbOpenState=null;   // {t, speak} decided at open; bbMaybeBrief speaks it (or nothing)
 function _bbSeen(){ try{ return JSON.parse(localStorage.getItem('bt_bb_seen')||'{}')||{}; }catch(_){ return {}; } }
 function _bbSaveSeen(s){ try{ localStorage.setItem('bt_bb_seen', JSON.stringify(s||{})); }catch(_){} }
+/* ===== Eden speech dispatch — the moment map's gatekeeper (eden-experience-guide §1/§6/§7) =====
+   One place decides whether Eden speaks a NON-INTAKE moment. Budget: at most 3 spoken moments per
+   session, and never twice in a row without a user action between (§1). Foreground-gated: no
+   timer/push/socket line unless the surface is visible (§7). Headphone-only privacy mode (§6).
+   Intake conversation itself is exempt from the budget — it's the work, not a briefing. */
+const EDEN_SPEECH_BUDGET = 3;
+let _edenSpoke = 0, _edenSpokeSinceAction = 0;
+function edenUserAction(){ _edenSpokeSinceAction = 0; }              // any real gesture re-opens the floor
+function edenOverBudget(){ return _edenSpoke >= EDEN_SPEECH_BUDGET; }
+function edenDidSpeak(){ _edenSpoke++; _edenSpokeSinceAction++; }
+// The single gate for a spoken non-intake moment: on + not-muted + budget + not-twice + foreground.
+function edenMaySpeakSync(){
+  if(!TTS_ON || !('speechSynthesis' in window)) return false;
+  if(bbBriefMode()==='silent') return false;                        // the mute overrides everything
+  if(edenOverBudget()) return false;                                // over budget → text only, silently
+  if(_edenSpokeSinceAction >= 1) return false;                      // never twice without an action between
+  if(document.hidden) return false;                                 // a backgrounded surface never speaks
+  return true;
+}
+// Privacy: "speak only through headphones" (§6). Browsers can't reliably read the output route, so
+// when the setting is on and we can't confirm a private (headphone/earpiece/BT) output, Eden stays
+// silent — a spoken "They accepted." in front of the wrong person is a real leak. Opt-in, default off.
+function edenHeadphoneOnly(){ try{ return localStorage.getItem('bt_hp_only')==='on'; }catch(_){ return false; } }
+async function edenOutputIsPrivate(){
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return false;
+    const outs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audiooutput');
+    return outs.some(d=>/head|ear|bud|bluetooth|airpod|hands.?free/i.test(d.label||''));
+  }catch(_){ return false; }
+}
+// Contextual greeting — allowed ONLY first-session-of-the-day or after a meaningful (4h+) absence,
+// and at most once per day. Law XV amended (approved): a warm "Morning, Ben." is fine when it's
+// genuinely a new arrival; it must never become scripted filler or repeat. Returns '' otherwise so
+// the caller can stay silent. (eden-experience-guide §2.)
+function edenGreetedToday(){ try{ return localStorage.getItem('bt_bb_greetday')===todayKey(); }catch(_){ return false; } }
+function edenMarkGreeted(){ try{ localStorage.setItem('bt_bb_greetday', todayKey()); }catch(_){} }
+function edenAwaySec(){ try{ const last=Number(localStorage.getItem('bt_bb_lastopen')||0); return last?(Date.now()-last)/1000:Infinity; }catch(_){ return Infinity; } }
+function edenGreetOK(){ return !edenGreetedToday() && edenAwaySec() >= 14400; }   // once/day, 4h+ gap
+function edenGreetWord(es){ const h=new Date().getHours(); return es?(h<12?'Buenos días':(h<18?'Buenas tardes':'Buenas noches')):(h<12?'Morning':(h<18?'Afternoon':'Evening')); }
+function edenGreeting(es){ let nm=''; try{ nm=bbFirst(SETTINGS.name)||''; }catch(_){} const w=edenGreetWord(es); return nm?(w+', '+nm+'.'):(w+'.'); }
+// Global speaking pace (§6) — one control, 0.9–1.3×, default 1.15×; governs everything Eden says.
+function edenPace(){ let p=parseFloat(localStorage.getItem('bt_pace')); return (p>=0.9&&p<=1.3)?p:1.15; }
+function setEdenPace(v){ v=parseFloat(v); if(v>=0.9&&v<=1.3){ try{ localStorage.setItem('bt_pace', String(v)); }catch(_){} } }
 function bbAwareOpening(){
   try{
     const es=(typeof LANG!=='undefined'&&LANG==='es');
@@ -2620,15 +2663,19 @@ function bbAwareOpening(){
     if(fresh.length){
       const p=fresh[0]; const who=bbFirst(p.name)||(es?'un cliente':'a customer'); const amt=money(p.amount);
       seen.paid=paid.map(pk); _bbSaveSeen(seen);
-      const line=es?bbPick([who+' pagó el anticipo — '+amt+'.','Entró el anticipo de '+who+': '+amt+'.','Ya pagó '+who+' — '+amt+'.'],'aw_paid')
-                   :bbPick([who+"'s deposit came in — "+amt+'.',"That's "+amt+' in from '+who+'.',who+' paid the deposit — '+amt+'.'],'aw_paid');
-      return {t:line, speak:true};
+      const greet=edenGreetOK(); const gp=greet?(edenGreeting(es)+' '):''; if(greet) edenMarkGreeted();
+      // Screen keeps the number; the spoken line never does (§4: dollar amounts are read, not heard).
+      const screen=gp+(es?bbPick([who+' pagó el anticipo — '+amt+'.','Entró el anticipo de '+who+': '+amt+'.','Ya pagó '+who+' — '+amt+'.'],'aw_paid')
+                        :bbPick([who+"'s deposit came in — "+amt+'.',"That's "+amt+' in from '+who+'.',who+' paid the deposit — '+amt+'.'],'aw_paid'));
+      const spoken=gp+(es?(who+' pagó el anticipo.'):(who+"'s deposit came in."));
+      return {t:screen, say:spoken, speak:true};
     }
     // 2) A new lead since last time — real and time-sensitive.
     if(nl>(seen.leads||0)){
       const d=nl-(seen.leads||0); seen.leads=nl; _bbSaveSeen(seen);
-      const line=es?bbPick([(d===1?'Entró un prospecto nuevo.':'Entraron '+d+' prospectos nuevos.'),(d===1?'Tienes un lead nuevo esperando.':'Tienes '+d+' leads nuevos esperando.')],'aw_lead')
-                   :bbPick([(d===1?'New lead just came in.':d+' new leads just came in.'),(d===1?"There's a fresh lead waiting.":'There are '+d+' fresh leads waiting.')],'aw_lead');
+      const greet=edenGreetOK(); const gp=greet?(edenGreeting(es)+' '):''; if(greet) edenMarkGreeted();
+      const line=gp+(es?bbPick([(d===1?'Entró un prospecto nuevo.':'Entraron '+d+' prospectos nuevos.'),(d===1?'Tienes un lead nuevo esperando.':'Tienes '+d+' leads nuevos esperando.')],'aw_lead')
+                      :bbPick([(d===1?'New lead just came in.':d+' new leads just came in.'),(d===1?"There's a fresh lead waiting.":'There are '+d+' fresh leads waiting.')],'aw_lead'));
       return {t:line, speak:true};
     }
     if(nl<(seen.leads||0)){ seen.leads=nl; _bbSaveSeen(seen); }   // keep the watermark honest; never re-announce
@@ -2647,7 +2694,10 @@ function bbAwareOpening(){
       const line=es?bbPick(['De vuelta contigo.','Aquí sigo.',''],'aw_quick'):bbPick(['Back with you.','Still here.',''],'aw_quick');
       return {t:line, speak:false};
     }
-    // 5) Nothing changed — stay quiet, or a short presence line. NEVER a scripted greeting.
+    // 5) Nothing new. If this is the first arrival of the day (or after a real 4h+ gap), a warm
+    // greeting is warranted (Law XV amended — approved) — otherwise a short, silent presence line,
+    // never scripted filler. She greets at most once a day; never on a quick reopen.
+    if(edenGreetOK()){ edenMarkGreeted(); return {t:edenGreeting(es), speak:true}; }
     const line=es?bbPick(['','¿Qué sigue?','Lista.','Aquí estoy.',''],'aw_idle'):bbPick(['',"What's next?",'Ready.',"I'm here.",''],'aw_idle');
     return {t:line, speak:false};
   }catch(_){ return {t:'', speak:false}; }
@@ -2656,12 +2706,17 @@ function bbAwareOpening(){
 // No manufactured greeting: if awareness is silent, she is silent, whatever the mode.
 function bbMaybeBrief(){
   try{
-    if(!('speechSynthesis' in window) || !TTS_ON) return;
-    if(bbBriefMode()==='silent') return;            // the mute overrides everything
     const op=bbOpenState; if(!op || !op.t || !op.speak) return;   // awareness said nothing to say
-    setTimeout(()=>{ if(!bbPanelOpen() || BBC.recording) return;
-      bbSetState('speaking');
-      bbSpeak(op.t, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
+    if(!edenMaySpeakSync()) return;                 // budget / not-twice / foreground / mute (§1,§7)
+    const spoken=op.say||op.t;                       // the spoken variant never carries numbers (§4)
+    const dispatch=()=>{ if(!bbPanelOpen() || BBC.recording) return;
+      bbSetState('speaking'); edenDidSpeak();        // count it against the session budget
+      bbSpeak(spoken, { full:true, onEnd:()=>{ if(!bbPanelOpen()) return; if(bbHandsFree()&&bbMicReady()) bbEnterReady(true); else bbSetState('ready'); } });
+    };
+    setTimeout(()=>{
+      // Headphone-only privacy gate (§6): confirm a private audio route, or stay on screen.
+      if(edenHeadphoneOnly()){ edenOutputIsPrivate().then(ok=>{ if(ok) dispatch(); }); }
+      else dispatch();
     }, 500);
   }catch(_){}
 }
@@ -2854,7 +2909,7 @@ function bbSuggestionsHTML(){
 function bbSuggestPick(i){ const s=BB_SUGGEST[i]; if(!s) return; bbActivity(); if(s.kind==='job'){ bbClosePanel(); go('job',s.id); } else bbDoAction(s.a); }
 function bbOpenPanel(){
   const p=document.getElementById('bbPanel'), s=document.getElementById('bbScrim'); if(!p) return;
-  bbActivity(); if(typeof loadBrain==='function') loadBrain();
+  bbActivity(); edenUserAction(); if(typeof loadBrain==='function') loadBrain();
   bbSessionStart=Date.now();   // start of this working session (feeds her energy/memory)
   // Every open starts clean — never reopens mid-transcript. The conversation is
   // ephemeral to this session, like talking to a person: you walk up fresh, you don't
@@ -2916,7 +2971,7 @@ async function bbConvSend(text){
   const inp=document.getElementById('bbInput');
   const msg=(text!=null?String(text):(inp?inp.value:'')).trim(); if(!msg||BBC.busy) return;
   if(inp) inp.value='';
-  bbActivity(); BBC.thread.push({role:'user',content:msg}); bbThreadSave();
+  bbActivity(); edenUserAction(); BBC.thread.push({role:'user',content:msg}); bbThreadSave();
   BBC.busy=true; bbConvRender(); bbStartThinking(msg); bbSetState('thinking'); bbAk('thinking');
   const _turnT0=bbTurnStart||Date.now();   // measure the whole turn (you stop talking → she answers)
   try{
@@ -2973,6 +3028,7 @@ function bbClosePanel(){ const p=document.getElementById('bbPanel'),s=document.g
 // In-overlay voice: (barge-in) → record → silence auto-stop → transcribe → send.
 async function bbConvMic(){
   if(bbSpeaking()) bbStopSpeaking();           // barge-in: stop Bid Brain so it can listen
+  edenUserAction();                            // talking is a user action — re-opens Eden's floor
   bbTurn++; bbClearVoiceTimers();              // a new user turn invalidates any pending auto-listen
   const micBtn=document.getElementById('bbMicBtn'); if(micBtn) micBtn.classList.remove('ready');
   if(BBC.recording){ bbConvStopRec(); return; }              // tap again = stop & send
@@ -4455,7 +4511,7 @@ function bbSpeak(text, opts){
     const lang = prof.lang==='auto' ? (/[áéíóúñ¿¡]/i.test(say)?'es':'en') : prof.lang;
     const u=new SpeechSynthesisUtterance(say);
     const v=bbPickVoice(lang); if(v){ u.voice=v; u.lang=v.lang; } else { u.lang = (lang==='es'?'es-ES':'en-US'); }
-    u.rate=prof.rate||1.15; u.pitch=prof.pitch||1.0; u.volume=1;
+    u.rate=edenPace(); u.pitch=prof.pitch||1.0; u.volume=1;   // one global Pace control (§6), 0.9–1.3×
     _bbSpeaking=true; _bbSpokeLast=say;
     let done=false; const fin=()=>{ if(done) return; done=true; _bbSpeaking=false; clearTimeout(t2); onEnd(); };
     u.onend=fin; u.onerror=fin;
@@ -5902,6 +5958,34 @@ function bbVoiceSeg(){
 }
 function setBbVoice(v){ try{ if(v) localStorage.setItem('bt_voice_dev', v); else localStorage.removeItem('bt_voice_dev'); }catch(_){} if(typeof bbTestVoice==='function') bbTestVoice(); if(state.view==='settings') render(); }
 function bbTestVoice(){ try{ const es=(((SETTINGS&&SETTINGS.from)||LANG)==='es'); bbSpeak(es?('Hola, soy '+AI.name+'. Aquí estoy cuando quieras.'):("Hi, I'm "+AI.name+". I'm ready when you are."), {full:true}); }catch(_){} }
+// Working with Eden — Voice (eden-experience-guide §6): one small group — on/off, Pace (0.9–1.3×,
+// default 1.15×), a device-voice picker shown ONLY when the device has more than one usable voice,
+// a "speak only through headphones" privacy switch, and how much she briefs on open. No per-moment
+// toggles, no verbosity sliders — the moment map is the product's opinion.
+function edenVoiceGroup(){
+  const on=TTS_ON, pace=edenPace(), hp=edenHeadphoneOnly();
+  // Voice picker only if the device offers more than one usable voice — hide, don't offer bad options.
+  const want=(((SETTINGS&&SETTINGS.from)||LANG)==='es')?'es':'en';
+  const wantMale=(typeof AI!=='undefined'&&AI.voice==='male');
+  let usable=0; try{ if(typeof bbLoadVoices==='function') bbLoadVoices(); usable=(_bbVoices||[]).map(v=>bbVoiceScore(v,want,wantMale)).filter(s=>s>=0).length; }catch(_){}
+  const picker=usable>1?bbVoiceSeg():'';
+  return `<div class="appearance">
+    <label class="fld" style="margin-top:16px">Working with ${esc(AI.name)} — Voice</label>
+    <div class="seg"><button class="segbtn ${on?'on':''}" onclick="setEdenVoiceOn(true)">On</button><button class="segbtn ${on?'':'on'}" onclick="setEdenVoiceOn(false)">Off</button></div>
+    <div class="hint">${esc(AI.name)} speaks only to move work forward — an acknowledgment, a question, or a hand-off — at most three times a session, never twice in a row. Everything else stays on screen.</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:14px"><label class="fld" style="margin:0">Pace</label><span id="edenPaceVal" style="font-weight:700;color:var(--amber)">${pace.toFixed(2)}×</span></div>
+    <input type="range" min="0.9" max="1.3" step="0.05" value="${pace}" style="width:100%;accent-color:var(--amber)" oninput="setEdenPaceLive(this.value)" onchange="bbTestVoice()">
+    <div class="seg" style="margin-top:8px"><button class="segbtn" onclick="bbTestVoice()">▶ Hear ${esc(AI.name)}</button></div>
+    ${picker}
+    <label class="fld" style="margin-top:16px">Speak only through headphones</label>
+    <div class="seg"><button class="segbtn ${hp?'on':''}" onclick="setEdenHpOnly(true)">On</button><button class="segbtn ${hp?'':'on'}" onclick="setEdenHpOnly(false)">Off</button></div>
+    <div class="hint">Job sites are public. With this on, ${esc(AI.name)} speaks only when headphones or an earpiece are detected — otherwise she stays on screen, so a spoken update never plays out loud in front of the wrong person. Where the audio route can't be detected, she stays silent to be safe.</div>
+    ${bbBriefSeg()}
+  </div>`;
+}
+function setEdenVoiceOn(v){ if(!!v!==!!TTS_ON) toggleTts(); if(state.view==='settings') render(); }
+function setEdenPaceLive(v){ setEdenPace(v); const el=document.getElementById('edenPaceVal'); if(el) el.textContent=parseFloat(v).toFixed(2)+'×'; }
+function setEdenHpOnly(v){ try{ localStorage.setItem('bt_hp_only', v?'on':'off'); }catch(_){} if(state.view==='settings') render(); }
 // How much the assistant says out loud when you open it — the contractor's call.
 function bbBriefSeg(){
   const cur=(typeof bbBriefMode==='function')?bbBriefMode():'exceptions';
@@ -5929,9 +6013,8 @@ function viewSettings(){
   return `<div class="h-eyebrow">Setup</div><h1 class="page">Your business</h1>
     <div class="sub">This appears on the proposals you send. Synced to your account.</div>
     ${themeSeg()}
-    ${bbBriefSeg()}
     ${aiIdentitySeg()}
-    ${bbVoiceSeg()}
+    ${edenVoiceGroup()}
     <label class="fld">Company logo (shows on your bids &amp; PDF)</label>
     <div class="logo-row">
       ${SETTINGS.logo?`<img class="logo-preview" src="${SETTINGS.logo}" alt="logo"/>`:`<div class="logo-empty">No logo yet</div>`}
