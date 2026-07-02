@@ -46,6 +46,18 @@ const FAQ = [
     a: "It's free to try. You can capture a job and see a real bid come out of your own words before you pay anything. Pricing for ongoing use is straightforward and built for a one-person or small crew." },
   { q: "Why should I use this instead of writing bids at night?",
     a: "Because that hour you spend at the kitchen table after dinner is time you don't get back. BidVoice turns a job conversation into a finished, professional proposal in a couple of minutes — so you bid faster, look sharper, and get your evenings back." },
+  { q: "What's the best app to write estimates from your phone?",
+    a: "The best estimate app is the one you'll actually use standing in the driveway — no laptop, no spreadsheet, no forms. BidVoice is built phone-first for contractors: you talk through the job, it writes a structured estimate, and you send a professional proposal before you leave. Try it on a real job and judge it against whatever you use now." },
+  { q: "Is there a free contractor estimate app I can try?",
+    a: "Yes — BidVoice is free to try, with no credit card. You can capture a real job with your voice and see an actual bid come out of your own words before you pay anything. Ongoing pricing is simple and built for a one-person shop or a small crew." },
+  { q: "How do I bid a job as a new contractor?",
+    a: "Walk the job, then talk it through out loud — the scope, the materials, the labor, the rough measurements — the way you'd explain it to a buddy. BidVoice turns that into an organized estimate and asks if it's missing a detail. You set your own prices and margin, then send a clean proposal. It's a fast way to look professional on your first bids." },
+  { q: "How do I price a remodel or renovation job?",
+    a: "You price it — BidVoice never invents your numbers. It drafts the scope, materials, and labor from what you describe so nothing gets forgotten, then you set your rates and margin. Your margin and private notes stay yours and never show on the customer's proposal. The AI does the writing; you own the money." },
+  { q: "Can I send a professional proposal to a client from my phone?",
+    a: "Yes. You send a branded PDF proposal — your logo, a clean scope, and the price — straight from your phone by link or attachment. The client reviews it, e-signs to accept, and can pay a deposit online, so you can win the job on the spot instead of driving back with paperwork." },
+  { q: "What's a fast way to make an estimate on the job site?",
+    a: "Talk instead of type. Standing on site, tap the mic and describe the work; BidVoice captures it — even with no signal — and builds the estimate as soon as you're back on data. It's the fastest way to turn a walkthrough into a real number without stopping to fill out a form." },
 ];
 
 export function renderGuidePage(opts = {}) {
