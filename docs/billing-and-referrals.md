@@ -41,11 +41,15 @@ source of truth for money; our tables are the source of truth for *why* a credit
   from Eden's voice.
 
 ### The month-two trigger
-`billing.js` counts paid **subscription** invoices (`invoice.paid` / `invoice.payment_succeeded`
-with a `subscription*` billing reason) in `user.paid_invoice_count`. When a referred company's
-count reaches **2** (`MONTH_TWO_INVOICE`), `grantReferrerReward()` fires. To change the
-semantics (e.g. require paying through month *three*), change the single constant
-`MONTH_TWO_INVOICE`.
+On every subscription `invoice.paid` (or `invoice.payment_succeeded`) that moved **real money**
+(`amount_paid > 0`), `billing.js` calls `grantReferrerReward()`. Because month one is free (the
+welcome coupon), the referred company's **first `amount_paid > 0` invoice is month two** — so the
+grant fires exactly when they become a paying customer. This is deliberately **not** a fragile
+counter: the grant is gated by `rewardExistsFor()` + the `UNIQUE(referee_id, kind)` index, so
+duplicate events (Stripe fires both `invoice.paid` *and* `invoice.payment_succeeded`), webhook
+redeliveries, and later invoices are all safe no-ops, and a transient failure simply re-fires on
+the next paid invoice or redelivery. `$0` invoices (the welcome invoice, prorations, plan tweaks)
+never trigger it. (`user.paid_invoice_count` exists but is not part of the trigger.)
 
 ## 3. Referral credit ledger (the audit spine)
 Table `referral_credit` — append-only, one immutable row per credit:
@@ -71,9 +75,12 @@ Table `referral_credit` — append-only, one immutable row per credit:
   movement lives only in `billing.js`.
 
 ## 4. Founding Member grandfathering
-- When a contractor's subscription **first goes active**, `captureFoundingLock()` records the
-  monthly price (cents) from Stripe into `user.founding_price_cents` and sets
-  `user.founding_member = 1`. This is the **auditable record of what they locked in**.
+- On **any live subscription event while still unlocked** (`customer.subscription.created` /
+  `.updated` with status active/trialing), `captureFoundingLock()` records the monthly price
+  (cents) from Stripe into `user.founding_price_cents` and sets `user.founding_member = 1` — the
+  **auditable record of what they locked in**. It runs on any live event (not just the exact
+  none→active edge) and is idempotent, so out-of-order webhooks (`checkout.session.completed`
+  arriving before `subscription.created`) can't cause it to be missed.
 - **The lock is real via Stripe:** Stripe keeps an existing subscription on its original Price
   when you raise prices for new customers (point `STRIPE_PRICE_ID` at a *new* Price; never
   migrate existing subs). So the price is held **without any app-side override** and **without
@@ -116,19 +123,35 @@ customers.
 6. On cancellation → Founding lock cleared; a later return gets current pricing.
 
 ## 7. Edge cases handled
-- **Double-delivered webhooks:** `UNIQUE(referee_id, kind)` + `rewardExistsFor()` → no double
-  grant; `paid_invoice_count` only triggers at exactly the month-two invoice.
-- **Cap reached:** the 13th referral in a calendar year records nothing and is surfaced in-app;
-  no silent drop.
+- **Double-delivered / dual webhooks:** Stripe fires both `invoice.paid` and
+  `invoice.payment_succeeded`, and may redeliver — all are safe no-ops via `rewardExistsFor()` +
+  `UNIQUE(referee_id, kind)`. No counter to skew; no double-grant; no early grant.
+- **$0 invoices don't count:** the welcome ($0) invoice, prorations, and plan-change invoices
+  have `amount_paid = 0` and never trigger the reward — so the reward can't fire before a real
+  payment.
+- **Abandoned checkout:** the welcome ledger row is written on `checkout.session.completed`, not
+  at session creation, so an abandoned checkout doesn't burn the referred company's free month.
+- **Out-of-order subscription events:** the Founding lock captures on any live event while
+  unlocked, so `checkout.session.completed` arriving first can't cause a missed lock.
+- **Transient failure at the grant:** the grant re-fires on the next paid invoice/redelivery
+  (idempotent); if the ledger row is written but the Stripe credit push fails (or the referrer
+  has no customer yet), the row stays `earned` and **`reconcileReferralCredits()` re-pushes it on
+  the next boot** — logged, never silently lost.
+- **Concurrent referees, same referrer:** the cap check and ledger insert run synchronously with
+  no `await` between them (the price is resolved first), so two simultaneous grants can't both
+  slip past the 12/year cap.
+- **Cap reached:** the 13th referral in a calendar year records nothing (hard cap, by design) and
+  the referral screen shows "you've hit this year's 12".
 - **Self-referral / re-attribution:** `setReferrer()` blocks self-referral and never overwrites
   an existing attribution.
-- **Credit exceeds an invoice:** Stripe floors the invoice at $0 and rolls the remainder to the
-  next invoice.
-- **Billing not configured:** all Stripe paths no-op; the app runs free/entitled (unchanged).
-- **Referrer has no Stripe customer yet:** the ledger row is still recorded; the balance credit
-  is best-effort and can be reconciled once they have a customer (see §9).
+- **Credit exceeds an invoice:** Stripe floors the invoice at $0 and rolls the remainder forward.
+- **Billing not configured:** all Stripe paths no-op; the app runs free/entitled.
 - **Missing price at grant time:** `monthlyCentsFor()` falls back Founding → Stripe price →
   `BT_BASE_PRICE`.
+- **Refunds / chargebacks (accepted limitation):** if a referred company's month-two payment is
+  later refunded or disputed, the referrer keeps the credit (the ledger has a `void` status
+  reserved for wiring this later). Low frequency; clawing back a granted referral credit is
+  itself user-hostile, so v1 does not.
 
 ## 8. Migration strategy (existing accounts)
 - **New schema is additive** (`referral_credit` table; `founding_price_cents`,
@@ -152,8 +175,10 @@ customers.
 2. **Enable the webhook events** in §5 (especially `invoice.paid`).
 3. **(Optional) Backfill** `founding_price_cents` for existing active subscribers and retire
    frozen `btref*` coupons — cosmetic; Stripe already holds their Price.
-4. **(Optional) Reconcile job** for any `referrer_reward` rows whose `stripe_txn_id` is null
-   (referrer had no customer at grant time): re-post the balance credit and `markApplied()`.
+
+Reconciliation of earned-but-unpushed credits is **automatic** — `reconcileReferralCredits()`
+runs on every boot and re-pushes any `referrer_reward` row with a null `stripe_txn_id` once the
+referrer has a Stripe customer. No manual step.
 
 ## 10. Constitutional conformance
 - **Soul:** no data hostage (ledger in export), never betray early customers (Founding lock +

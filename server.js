@@ -243,8 +243,8 @@ app.post("/api/auth/signup", wrap((req, res) => {
   const out = signup(req.body || {});
   if (out && out.user) {
     db.prepare("UPDATE user SET last_login=? WHERE id=?").run(Date.now(), out.user.id);
-    // Attribute the signup to whoever's referral code they came in on (the GC
-    // earns a crew credit once this user becomes a paying subscriber).
+    // Attribute the signup to whoever's referral code they came in on. The referrer
+    // earns a give-a-month credit once this company pays through month two (billing.js).
     const ref = String((req.body && (req.body.ref || req.body.r)) || "").trim();
     if (ref && Referrals.setReferrer(out.user.id, ref)) track(out.user.id, "referred_signup", { by: ref }, uaOf(req));
     track(out.user.id, "user_registered", { email: out.user.email, role: out.user.role || "contractor" }, uaOf(req));
@@ -1756,6 +1756,9 @@ app.get("*", (req, res, next) => {
 
 const PORT = process.env.BT_PORT || process.env.PORT || 4000;
 try { const n = purgeExpiredDeletions(); if (n) console.log(`Purged ${n} account(s) past their 30-day deletion grace.`); } catch { /* never block boot */ }
+// Re-push any referral credits that were earned but never reached Stripe (provider was down,
+// or the referrer had no customer at grant time). Idempotent; safe every boot.
+Billing.reconcileReferralCredits().then((n) => { if (n) console.log(`Reconciled ${n} pending referral credit(s) to Stripe.`); }).catch(() => {});
 app.listen(PORT, () => {
   console.log(`BidVoice on http://localhost:${PORT}`);
   // Make an unconfigured mail provider obvious in the logs — otherwise password-reset /

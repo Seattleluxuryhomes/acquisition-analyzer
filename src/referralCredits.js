@@ -47,6 +47,9 @@ export function welcomeExistsFor(refereeId) {
 // the new row, or null when it already existed.
 export function record({ userId, kind, refereeId = null, amountCents, reason = "", stripeTxnId = null, status = "earned" }) {
   if (!userId || !kind || !(amountCents > 0)) return null;
+  // refereeId is REQUIRED for both kinds — it's the idempotency key (UNIQUE index treats
+  // NULLs as distinct, so a null would bypass double-grant protection). Never insert without it.
+  if (!refereeId) return null;
   const id = uid(), now = Date.now();
   try {
     db.prepare(
