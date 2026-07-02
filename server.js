@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { PassThrough } from "node:stream";
 
 import db, { PHOTO_DIR } from "./src/db.js";
-import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser } from "./src/auth.js";
+import { signup, signin, signout, changePassword, requireAuth, publicUser, createResetToken, confirmPasswordReset, adminCreateUser, createVerifyToken, confirmEmailVerify, changeEmail, deactivateAccount, deleteAccount } from "./src/auth.js";
 import * as Mail from "./src/mail.js";
 import * as Jobs from "./src/jobs.js";
 import { assistBuild, assistIntake, reviewBid, aiConfigured, parseSkus, scanMaterials, generateSiteCopy, generateProjectWriteup, generateReviewRequest, generateLeadFollowup, generateFunnelHeadline, transcribeAudio, transcribeConfigured, visualizeRoom, visualizeConfigured, bidBrainChat, localBrainReply } from "./src/assist.js";
@@ -195,6 +195,15 @@ function settingsOf(user) {
   };
 }
 
+// The profile used on the PUBLIC contractor website. Same as settingsOf, but a
+// contact email is exposed to the world only once the contractor has verified it —
+// so an unconfirmed (or typo'd) address is never published for scraping/spoofing.
+function publicProfileOf(user) {
+  const prof = settingsOf(user);
+  if (!user.email_verified) prof.email = "";
+  return prof;
+}
+
 function attachPhotos(userId, job) {
   if (!job) return job;
   const rows = db.prepare("SELECT id, show_on_bid FROM photo WHERE job_id=? AND user_id=? ORDER BY created_at").all(job.id, userId);
@@ -217,10 +226,18 @@ app.post("/api/auth/signup", wrap((req, res) => {
     const ref = String((req.body && (req.body.ref || req.body.r)) || "").trim();
     if (ref && Referrals.setReferrer(out.user.id, ref)) track(out.user.id, "referred_signup", { by: ref }, uaOf(req));
     track(out.user.id, "user_registered", { email: out.user.email, role: out.user.role || "contractor" }, uaOf(req));
-    // Warm welcome from Eden — fire-and-forget so signup never waits on email.
+    // Warm welcome from Eden + an email-verification link — fire-and-forget so
+    // signup never waits on email. The verify link confirms the inbox is theirs
+    // before public contact info (e.g. their website email) is ever exposed.
     if (Mail.mailConfigured() && out.user.email) {
-      const m = Emails.welcome(baseUrl(req), { name: out.user.name || "", appUrl: baseUrl(req) });
-      Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }).catch(() => {});
+      const w = Emails.welcome(baseUrl(req), { name: out.user.name || "", appUrl: baseUrl(req) });
+      Mail.sendMail({ to: out.user.email, subject: w.subject, html: w.html, text: w.text }).catch(() => {});
+      const vt = createVerifyToken(out.user.id);
+      if (vt && vt.token) {
+        const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(vt.token)}&e=${encodeURIComponent(out.user.email)}`;
+        const m = Emails.verifyEmail(baseUrl(req), { link, name: out.user.name || "" });
+        Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }).catch(() => {});
+      }
     }
   }
   res.json(out);
@@ -256,6 +273,49 @@ app.post("/api/auth/reset", wrap(async (req, res) => {
 app.post("/api/auth/reset-confirm", wrap((req, res) => {
   const { email, token, password } = req.body || {};
   res.json(confirmPasswordReset({ email, token, newPassword: password }));
+}));
+// Confirm an email-verification link (the SPA at /verify posts the token here).
+app.post("/api/auth/verify-confirm", wrap((req, res) => {
+  const { email, token } = req.body || {};
+  res.json(confirmEmailVerify({ email, token }));
+}));
+// Resend the verification email to the signed-in user's current address.
+app.post("/api/auth/resend-verification", requireAuth, wrap(async (req, res) => {
+  const vt = createVerifyToken(req.user.id);
+  if (vt && vt.alreadyVerified) return res.json({ ok: true, alreadyVerified: true });
+  if (vt && vt.token && Mail.mailConfigured()) {
+    const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(vt.token)}&e=${encodeURIComponent(req.user.email)}`;
+    const m = Emails.verifyEmail(baseUrl(req), { link, name: req.user.name || "" });
+    try { await Mail.sendMail({ to: req.user.email, subject: m.subject, html: m.html, text: m.text }); } catch { /* never surface send errors */ }
+  }
+  res.json({ ok: true, sent: Mail.mailConfigured() });
+}));
+// ---- Account (change email · deactivate · delete) ----
+// Change email: verify password, move to the new address (unverified), and email a
+// fresh verification link. Other sessions were revoked server-side (email = identity).
+app.post("/api/account/email", requireAuth, wrap(async (req, res) => {
+  const { currentPassword, newEmail } = req.body || {};
+  const out = changeEmail({ userId: req.user.id, currentPassword, newEmail });
+  track(req.user.id, "email_changed", {});
+  if (out && out.token && Mail.mailConfigured()) {
+    const link = `${baseUrl(req)}/verify?token=${encodeURIComponent(out.token)}&e=${encodeURIComponent(out.user.email)}`;
+    const m = Emails.verifyEmail(baseUrl(req), { link, name: out.user.name || "" });
+    try { await Mail.sendMail({ to: out.user.email, subject: m.subject, html: m.html, text: m.text }); } catch { /* silent */ }
+  }
+  res.json({ ok: true, user: out.user, sent: Mail.mailConfigured() });
+}));
+// Deactivate: reversible pause. Verify password, block sign-in, revoke sessions.
+app.post("/api/account/deactivate", requireAuth, wrap((req, res) => {
+  const out = deactivateAccount({ userId: req.user.id, password: (req.body || {}).password });
+  track(req.user.id, "account_deactivated", {});
+  res.json(out);
+}));
+// Delete: permanent. Verify password + explicit confirm, then hard-delete (cascades).
+app.post("/api/account/delete", requireAuth, wrap((req, res) => {
+  const b = req.body || {};
+  if (b.confirm !== "DELETE") return res.status(400).json({ error: 'Type DELETE to confirm.' });
+  track(req.user.id, "account_deleted", {});
+  res.json(deleteAccount({ userId: req.user.id, password: b.password }));
 }));
 function resetEmailHtml(link) {
   return `<div style="font-family:system-ui,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#1F252C">
@@ -1292,7 +1352,7 @@ app.get("/f/:id", (req, res) => {
     title: p.title, description: p.description, service: p.service, area: p.area,
     before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)), after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
   }));
-  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects, offer: { headline: f.headline, subhead: f.subhead, cta: f.cta }, lang: pickSiteLang(req), altBase: `${baseUrl(req)}/f/${encodeURIComponent(f.id)}` }));
+  res.type("html").send(renderContractorSite(publicProfileOf(u), { leadAction, projects, offer: { headline: f.headline, subhead: f.subhead, cta: f.cta }, lang: pickSiteLang(req), altBase: `${baseUrl(req)}/f/${encodeURIComponent(f.id)}` }));
 });
 
 // Public, login-free contractor website (built from their profile + published
@@ -1311,7 +1371,7 @@ app.get("/c/:id", (req, res) => {
     before: p.before_ids.map((pid) => pubPhotoUrl(req, pid)),
     after: p.after_ids.map((pid) => pubPhotoUrl(req, pid)),
   }));
-  res.type("html").send(renderContractorSite(settingsOf(u), { leadAction, projects, lang: pickSiteLang(req), altBase: `${baseUrl(req)}/c/${encodeURIComponent(u.site_slug || u.id)}` }));
+  res.type("html").send(renderContractorSite(publicProfileOf(u), { leadAction, projects, lang: pickSiteLang(req), altBase: `${baseUrl(req)}/c/${encodeURIComponent(u.site_slug || u.id)}` }));
 });
 
 // ---- Share a bid: a clean public link the contractor texts/emails ----

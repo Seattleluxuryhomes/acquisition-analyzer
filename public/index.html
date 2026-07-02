@@ -2006,6 +2006,24 @@ async function markNotifsSeen(){
 function openNotifs(){ go('home'); }
 // The "good news" banner on the dashboard. Each item is swipe-to-dismiss (with an
 // × for desktop); dismissed ids are remembered so they don't come back.
+// A gentle, dismissible-by-verifying banner while the account's email is unconfirmed.
+// Verifying secures the login and unlocks publishing public contact info (item 6).
+function verifyBanner(){
+  if(!USER || USER.email_verified!==false) return '';
+  return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(238,155,46,.12);border:1px solid rgba(238,155,46,.38);color:inherit;border-radius:12px;padding:11px 14px;margin:10px 0;font-size:.9rem">
+    ${icon('message',16)}<span style="flex:1;min-width:170px">Verify your email — it secures your account and lets your public contact info go live.</span>
+    <button class="btn ghost sm" onclick="resendVerify(this)">Resend link</button></div>`;
+}
+async function resendVerify(btn){
+  if(!online||!TOKEN){ toast('Connect to the internet to resend the link.','warn'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  try{
+    const r=await api('/api/auth/resend-verification',{method:'POST'});
+    if(r&&r.alreadyVerified){ if(USER) USER.email_verified=true; toast('Your email is already verified. ✓','ok'); if(state.view==='home'||state.view==='settings') render(); return; }
+    toast(r&&r.sent?('Verification link sent to '+((USER&&USER.email)||'your email')+'.'):'Email isn’t switched on yet on the server.', r&&r.sent?'ok':'warn', 5000);
+  }catch(e){ toast(e.message||'Could not send the link.','bad'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='Resend link'; } }
+}
 function notifBanner(){
   const items=((NOTIFS&&NOTIFS.items)||[]).filter(i=>!NOTIF_DISMISSED.includes(i.id));
   if(!items.length) return '';
@@ -3198,12 +3216,16 @@ function bbScheduleAsk(reason){ return reason==='no_match'?t('bb_sched_which'):t
 function goJobs(){ go('home'); requestAnimationFrame(()=>{ const el=document.querySelector('.fchips')||document.querySelector('.newbar'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }); }
 function openMore(){ const a=document.getElementById('sheetAdmin'); if(a) a.style.display=ADMIN?'block':'none';
   const pr=document.getElementById('sheetProspect'); if(pr) pr.style.display=ADMIN?'block':'none';
-  const ins=document.getElementById('sheetInstall'); if(ins) ins.style.display=isStandalone()?'none':'block';
+  // "Add to home screen" is a phone/tablet concept — hide it on desktop (and when
+  // already installed) so we never show a mobile-only prompt where it can't apply.
+  const ins=document.getElementById('sheetInstall'); if(ins) ins.style.display=(isStandalone()||!isMobileDevice())?'none':'block';
   document.getElementById('sheet').style.display='flex'; }
 // ---- Install as an app (PWA) ----
 let deferredInstall=null;
 window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredInstall=e; });
 function isStandalone(){ try{ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }catch(e){ return false; } }
+// A touch/handheld device — used to hide add-to-home and other mobile-only prompts on desktop.
+function isMobileDevice(){ try{ return (window.matchMedia && matchMedia('(pointer:coarse)').matches) || /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(navigator.userAgent||''); }catch(_){ return false; } }
 function installApp(){
   closeMore();
   if(isStandalone()){ toast('BidVoice is already on your home screen.','ok'); return; }
@@ -3913,9 +3935,10 @@ function viewHome(){
   const needsSetup = !SETTINGS.company || SETTINGS.company==='Your Company' || !SETTINGS.logo || !(SETTINGS.phone||'').trim();
   const nudge = needsSetup ? `<button class="setupnudge" onclick="go('settings')">Finish your setup — add your company name, logo &amp; phone so every bid looks professional. <span class="nudge-go">Set up ${icon('chevron',12)}</span></button>` : '';
   const news = notifBanner();
+  const verify = verifyBanner();
   const crew = teamNudge();
   if(visible.length===0){
-    return hello + news + nudge + crew + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
+    return hello + verify + news + nudge + crew + `<div class="empty"><div class="big">No jobs yet</div><div class="sub">Start a job — talk it through, and build a bid.</div><div style="margin-top:16px"><button class="btn" onclick="newJob()">+ New job</button></div></div>`;
   }
   const f = state.jobFilter || 'all';
   const counts = { all: visible.length, draft:0, sent:0, signed:0, scheduled:0 };
@@ -3932,7 +3955,7 @@ function viewHome(){
   let list;
   if(filtered.length===0){ list = folHead + `<div class="hint" style="margin-top:16px">${f==='followups'?"No follow-ups needed — you're on top of it. "+icon('party',14):'No '+statusLabel(f).toLowerCase()+' jobs yet.'}</div>`; }
   else { list = folHead + (f==='scheduled'?`<div class="hint" style="margin:2px 0 12px">${icon('map',14)} Tap ${icon('compass',13)} for directions to each stop.</div>`:'') + '<div class="joblist">' + filtered.map(jobCardHTML).join('') + '</div>'; }
-  return `${hello}${news}${nudge}${crew}
+  return `${hello}${verify}${news}${nudge}${crew}
     ${growthCard()}
     ${kpiStrip(dashKPIs(visible))}
     ${scheduleBlock(visible)}
@@ -5026,6 +5049,7 @@ function paymentsBlock(j){
     <label class="fld">Client name (optional)</label><input id="prName" class="input" placeholder="e.g. Reyes" value="${escAttr(j.customer||'')}"/>
     <button class="btn blue full" style="margin-top:10px" onclick="createPayReq('${j.id}',this)">Create payment link</button>
     <div class="hint" style="margin-top:8px">The label shows on your client's checkout, so deposits, material costs and the final balance are easy to tell apart.</div>
+    <div class="hint" style="margin-top:6px">Payments are processed by Stripe. Stripe's standard processing fee (about 2.9% + 30¢ per card payment) is deducted by Stripe — <b>BidVoice adds nothing on top</b>. The rest lands in your connected account.</div>
     ${(reqs&&reqs.length)?`<div class="paylist">${list}</div>`:(reqs?'':'<div class="hint" style="margin-top:10px">Loading…</div>')}</div>`;
 }
 
@@ -6061,9 +6085,9 @@ function viewSettings(){
       <div class="svcpick">${TRADE_PICK.map(t=>{const on=(SETTINGS.services||[]).includes(t.key);return `<button class="svcchip ${on?'on':''}" onclick="toggleService('${t.key}')">${t.emoji} ${esc(t.label)}</button>`;}).join('')}</div>
       <button class="btn full" style="margin-top:12px" onclick="openMySite()">${icon('globe',16)} View your website</button>
       ${SETTINGS.site_published
-        ? `<div class="freecallout" style="margin-top:12px">${icon('globe',15)} <b>Your website is live.</b><div style="margin-top:4px;font-size:.9rem">${esc(SETTINGS.site_branded_url||'')} <span style="color:var(--muted)">(coming soon)</span></div></div>`
-        : `<button class="btn blue full" style="margin-top:8px" onclick="publishWebsite(this)">${icon('globe',16)} Publish Website</button>
-           <div class="hint" style="margin-top:4px">Make it live and get your address. Free, hosted for you — no setup.</div>`}
+        ? `<div class="freecallout" style="margin-top:12px">${icon('globe',15)} <b>Your website preview is ready.</b><div style="margin-top:4px;font-size:.9rem">${esc(SETTINGS.site_branded_url||'')} <span style="color:var(--muted)">(branded publishing coming soon)</span></div></div>`
+        : `<button class="btn ghost full" style="margin-top:8px;opacity:.9" onclick="toast('One-tap publishing to your branded BidVoice address is coming soon. Your site preview already works — tap “View your website.”','ok',5500)">${icon('globe',16)} Publish Website <span style="color:var(--muted);font-weight:400">(coming soon)</span></button>
+           <div class="hint" style="margin-top:4px">Your site preview works now — tap “View your website” to see it. One-tap branded publishing lands shortly.</div>`}
       <button class="btn ghost full" style="margin-top:8px" onclick="toast('Custom domains are coming soon — you’ll be able to connect yourcompany.com. Want it now? Tap “Request a custom website”.','ok',5000)">${icon('link',15)} Connect a custom domain <span style="color:var(--muted);font-weight:400">(coming soon)</span></button>
       ${SETTINGS.site_requested
         ? `<div class="freecallout" style="margin-top:12px">${icon('check',15)} Custom website requested — we'll reach out to build it with you.</div>`
@@ -6113,6 +6137,25 @@ function viewSettings(){
       </div>
       <div id="pwMsg" class="hint" style="margin-top:8px"></div>
       <button class="btn ghost sm" style="margin-top:8px" onclick="changePw(this)">Update password</button>
+    </div>
+    <div class="legalbox">
+      <h3>Email address</h3>
+      <div class="hint" style="margin-bottom:8px">Your account email is <b style="color:var(--paper)">${esc((USER&&USER.email)||'')}</b>${USER&&USER.email_verified===false?` · <span style="color:#e0a94b">unverified</span> — <a href="#" onclick="event.preventDefault();resendVerify(this)" style="color:var(--amber)">resend link</a>`:(USER&&USER.email_verified?` · <span style="color:#8fce8f">verified ✓</span>`:'')}</div>
+      <input id="emCur" type="password" class="input" placeholder="Current password" autocomplete="current-password"/>
+      <input id="emNew" type="email" class="input" style="margin-top:8px" placeholder="New email address" autocomplete="email"/>
+      <div id="emMsg" class="hint" style="margin-top:8px"></div>
+      <button class="btn ghost sm" style="margin-top:8px" onclick="changeEmailUI(this)">Update email</button>
+      <div class="hint" style="margin-top:6px">Changing your email signs you out of other devices and sends a verification link to the new address.</div>
+    </div>
+    <div class="legalbox" style="border-color:rgba(169,78,56,.4)">
+      <h3 style="color:#d98a72">Deactivate or delete account</h3>
+      <p style="margin:0 0 8px">Deactivating pauses your account and signs you out everywhere — your data is kept and support can reactivate it. Deleting is permanent: every job, photo, payment record and setting is erased and cannot be recovered.</p>
+      <input id="dzPw" type="password" class="input" placeholder="Your password" autocomplete="current-password"/>
+      <div class="row2" style="margin-top:8px">
+        <div><button class="btn ghost sm" style="width:100%" onclick="deactivateAccountUI(this)">Deactivate account</button></div>
+        <div><button class="btn ghost sm" style="width:100%;color:#d98a72;border-color:rgba(169,78,56,.5)" onclick="deleteAccountUI(this)">Delete permanently</button></div>
+      </div>
+      <div id="dzMsg" class="hint" style="margin-top:8px"></div>
     </div>
     <div class="legalbox">
       <h3>Terms &amp; privacy</h3>
@@ -6178,6 +6221,52 @@ async function changePw(btn){
   }catch(e){
     show(e.message||'Could not update password.');
   }finally{ btn.disabled=false; }
+}
+async function changeEmailUI(btn){
+  const g=id=>{ const e=document.getElementById(id); return e?e.value:''; };
+  const msg=document.getElementById('emMsg');
+  const show=(t,ok)=>{ if(msg){ msg.textContent=t; msg.style.color=ok?'#8fce8f':'#e88'; } };
+  const cur=g('emCur'), nw=(g('emNew')||'').trim();
+  if(!cur||!nw){ show('Enter your current password and the new email.'); return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nw)){ show('Enter a valid email address.'); return; }
+  if(!online||!TOKEN){ show('You need to be online and signed in.'); return; }
+  btn.disabled=true; show('Updating…', true);
+  try{
+    const r=await api('/api/account/email',{method:'POST', body:JSON.stringify({currentPassword:cur, newEmail:nw})});
+    if(r&&r.user){ USER.email=r.user.email; USER.email_verified=r.user.email_verified; }
+    show(r&&r.sent?'Email updated — check the new inbox to verify it. ✓':'Email updated. Verification email will send once the mail service is on. ✓', true);
+    ['emCur','emNew'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+    setTimeout(()=>{ if(state.view==='settings') render(); }, 1200);
+  }catch(e){ show(e.message||'Could not update email.'); }
+  finally{ btn.disabled=false; }
+}
+async function deactivateAccountUI(btn){
+  const pw=(document.getElementById('dzPw')||{}).value||'';
+  const msg=document.getElementById('dzMsg'); const show=(t,ok)=>{ if(msg){ msg.textContent=t; msg.style.color=ok?'#8fce8f':'#e88'; } };
+  if(!pw){ show('Enter your password to deactivate.'); return; }
+  if(!confirm('Deactivate your account? You’ll be signed out everywhere and won’t be able to sign in until support reactivates it.')) return;
+  if(!online||!TOKEN){ show('You need to be online and signed in.'); return; }
+  btn.disabled=true; show('Deactivating…', true);
+  try{
+    await api('/api/account/deactivate',{method:'POST', body:JSON.stringify({password:pw})});
+    toast('Your account is deactivated. Contact support@bidvoice.ai to reactivate.','ok',6000);
+    setTimeout(()=>signOut(), 900);
+  }catch(e){ show(e.message||'Could not deactivate.'); btn.disabled=false; }
+}
+async function deleteAccountUI(btn){
+  const pw=(document.getElementById('dzPw')||{}).value||'';
+  const msg=document.getElementById('dzMsg'); const show=(t,ok)=>{ if(msg){ msg.textContent=t; msg.style.color=ok?'#8fce8f':'#e88'; } };
+  if(!pw){ show('Enter your password to delete.'); return; }
+  if(!confirm('Permanently delete your account and ALL your data? This cannot be undone.')) return;
+  const typed=prompt('This is permanent. Type DELETE to confirm.');
+  if(typed!=='DELETE'){ show('Deletion cancelled.'); return; }
+  if(!online||!TOKEN){ show('You need to be online and signed in.'); return; }
+  btn.disabled=true; show('Deleting…', true);
+  try{
+    await api('/api/account/delete',{method:'POST', body:JSON.stringify({password:pw, confirm:'DELETE'})});
+    toast('Your account and data have been permanently deleted.','ok',6000);
+    setTimeout(()=>signOut(), 900);
+  }catch(e){ show(e.message||'Could not delete the account.'); btn.disabled=false; }
 }
 
 /* ---------- mutations ---------- */
@@ -6765,8 +6854,19 @@ function confettiBurst(gold){
   const billingReturn=params.get('billing');
   const paymentsReturn=params.get('payments'); // 'connected' | 'refresh' after Stripe onboarding
   if(billingReturn || paymentsReturn || refParam || roleParam){ history.replaceState({}, '', location.pathname); }
+  // Email-verification link (/verify?token=…&e=…): confirm the address, then drop
+  // into the app. Handled before the reset check because verify links also carry ?token.
+  if(location.pathname==='/verify'){
+    const vtok=params.get('token')||'', vem=params.get('e')||'';
+    history.replaceState({}, '', '/');
+    try{
+      const r=await api('/api/auth/verify-confirm',{method:'POST',body:JSON.stringify({email:vem, token:vtok})});
+      if(USER) USER.email_verified=true;
+      setTimeout(()=>toast((r&&r.alreadyVerified)?'Your email is already verified. ✓':'Email verified — you’re all set. ✓','ok',5000), 450);
+    }catch(e){ setTimeout(()=>toast(e.message||'That verification link is invalid or has expired.','bad',6000), 450); }
+  }
   // Password-reset link (/reset?token=…&e=…): show the set-new-password screen.
-  if(location.pathname==='/reset' || params.get('token')){
+  else if(location.pathname==='/reset' || params.get('token')){
     RESET={ token:params.get('token')||'', email:params.get('e')||'' };
     state.authMode='reset'; state.authSent=false;
     history.replaceState({}, '', '/');

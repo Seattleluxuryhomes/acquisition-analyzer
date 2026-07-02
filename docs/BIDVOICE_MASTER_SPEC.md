@@ -12,6 +12,8 @@
 | Version | Date | Change | By |
 |---|---|---|---|
 | v0.1 | 2026-07-02 | Skeleton created; approved in-repo specs consolidated; Fable sections stubbed | Claude |
+| v0.2 | 2026-07-02 | Eden Voice V1 (greeting amendment + speech-budget dispatcher) shipped; Law XV amended (contextual greetings allowed under strict conditions). See `docs/specs/eden-experience-guide.md`. | Claude |
+| v0.3 | 2026-07-02 | Launch Readiness Sprint shipped: email verification, change email, deactivate/delete account, public-email-after-verify, Stripe-fee + setup-fee transparency, Publish-Website "coming soon", desktop mobile-prompt hide. See `docs/launch-readiness-sprint.md`. | Claude |
 
 ## Table of contents
 1. Vision · 2. Brand · 3. Eden (identity + Constitution) · 4. Voice · 5. Intake · 6. UX ·
@@ -41,7 +43,11 @@
 - Named AI employee; feminine default voice; identity is config-driven (Name Trial System).
 - The 5 behavioral laws + state machine (READY/LISTENING/THINKING/RESPONDING) + honest visible work
   + the 10-law Personality Contract (Part XIV).
-- **Law XV — No scripted greetings:** awareness, not scripts; silence is valid; never predictable.
+- **Law XV — No scripted greetings (amended 2026-07-02):** awareness, not scripts; silence is
+  valid; never predictable. **Amendment (founder-approved):** Eden *may* use a contextual greeting
+  ("Morning, Ben.") but **only** on the first arrival of the day or after a meaningful (4h+) absence,
+  at most once per day, never on a quick reopen, never as scripted filler. The principle stands —
+  awareness beats routine; nothing meaningful to say → she says nothing.
 - Bearing on intake/voice: one thought → one question (never dump a list); every sentence moves the
   *work* forward; never ask what she already knows; calm/competent; reduced-motion respected.
 - *Full text: Appendix → `docs/bid-brain-interaction-constitution.md` (canonical rules mirrored here).*

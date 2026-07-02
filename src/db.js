@@ -553,6 +553,15 @@ ensureColumns("user", [
   // (<slug>.<BT_SITE_DOMAIN>, name-agnostic) and whether they've hit "Publish".
   ["site_slug", "TEXT"],
   ["site_published", "INTEGER DEFAULT 0"],
+  // Email verification: whether the address is confirmed, plus a single-use
+  // verify token (sha256 hash) and its expiry (ms). Public contact info (e.g. the
+  // email on a contractor's website) is only exposed once email_verified=1.
+  ["email_verified", "INTEGER DEFAULT 0"],
+  ["verify_token_hash", "TEXT"],
+  ["verify_token_exp", "INTEGER"],
+  // Account lifecycle: 'active' (default), 'deactivated' (reversible self-serve
+  // pause — sign-in blocked), or 'deleted' (hard-deleted; row cascades away).
+  ["status", "TEXT DEFAULT 'active'"],
 ]);
 // Photos: per-photo opt-in to appear on the client-facing bid (default off, so a
 // private/internal photo is never exposed unless the contractor chooses it).

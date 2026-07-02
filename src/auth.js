@@ -40,6 +40,8 @@ function publicUser(row) {
     logo: row.logo || "",
     role: row.role || "contractor",
     agent_free_until: row.agent_free_until || null,
+    email_verified: !!row.email_verified,
+    status: row.status || "active",
   };
 }
 
@@ -132,6 +134,12 @@ export function signin({ email, password }) {
   if (!row || !verifyPassword(password, row.password_hash)) {
     throw httpError(401, "Email or password is incorrect.");
   }
+  if (row.status === "deactivated") {
+    throw httpError(403, "This account is deactivated. Contact support@bidvoice.ai to reactivate it.");
+  }
+  if (row.status === "deleted") {
+    throw httpError(403, "This account has been deleted.");
+  }
   return { token: issueSession(row.id), user: publicUser(row) };
 }
 
@@ -190,6 +198,82 @@ export function confirmPasswordReset({ email, token, newPassword }) {
   db.prepare("UPDATE user SET password_hash=?, reset_token_hash=NULL, reset_token_exp=NULL WHERE id=?")
     .run(hashPassword(newPassword), row.id);
   db.prepare("DELETE FROM session WHERE user_id=?").run(row.id);
+  return { ok: true };
+}
+
+// ---- Email verification ----
+const VERIFY_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+// Mint a single-use verify token: store its hash + expiry, return the raw token
+// so the caller can email the link. Safe to call repeatedly (issues a fresh one).
+export function createVerifyToken(userId, ttlMs = VERIFY_TTL) {
+  const row = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
+  if (!row) return null;
+  if (row.email_verified) return { user: publicUser(row), token: null, alreadyVerified: true };
+  const token = crypto.randomBytes(32).toString("base64url");
+  db.prepare("UPDATE user SET verify_token_hash=?, verify_token_exp=? WHERE id=?")
+    .run(sha256(token), Date.now() + ttlMs, userId);
+  return { user: publicUser(row), token };
+}
+
+// Confirm the emailed token → mark the address verified and clear the token.
+export function confirmEmailVerify({ email, token }) {
+  email = String(email || "").trim().toLowerCase();
+  const row = db.prepare("SELECT * FROM user WHERE email=?").get(email);
+  if (row && row.email_verified) return { ok: true, alreadyVerified: true };
+  const ok = row && row.verify_token_hash && row.verify_token_exp > Date.now() && safeEq(sha256(token), row.verify_token_hash);
+  if (!ok) throw httpError(400, "This verification link is invalid or has expired — request a new one.");
+  db.prepare("UPDATE user SET email_verified=1, verify_token_hash=NULL, verify_token_exp=NULL WHERE id=?").run(row.id);
+  return { ok: true };
+}
+
+// ---- Change email (re-verification required) ----
+// Verify the current password, move to the new address, and reset verification so
+// the new inbox must be confirmed. Other sessions are revoked (email is identity).
+export function changeEmail({ userId, currentPassword, newEmail }) {
+  const row = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
+  if (!row) throw httpError(401, "Account not found.");
+  if (!verifyPassword(String(currentPassword || ""), row.password_hash)) {
+    throw httpError(403, "Your current password is incorrect.");
+  }
+  newEmail = String(newEmail || "").trim().toLowerCase();
+  if (!EMAIL_RE.test(newEmail)) throw httpError(400, "Enter a valid email address.");
+  if (newEmail === row.email) throw httpError(400, "That's already your email address.");
+  if (db.prepare("SELECT id FROM user WHERE email=? AND id!=?").get(newEmail, userId)) {
+    throw httpError(409, "An account with that email already exists.");
+  }
+  const token = crypto.randomBytes(32).toString("base64url");
+  db.prepare("UPDATE user SET email=?, email_verified=0, verify_token_hash=?, verify_token_exp=? WHERE id=?")
+    .run(newEmail, sha256(token), Date.now() + VERIFY_TTL, userId);
+  const fresh = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
+  return { user: publicUser(fresh), token };
+}
+
+// ---- Account lifecycle ----
+// Deactivate: a reversible self-serve pause. The account keeps its data but can't
+// sign in until support reactivates it. Every session is revoked immediately.
+export function deactivateAccount({ userId, password }) {
+  const row = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
+  if (!row) throw httpError(401, "Account not found.");
+  if (!verifyPassword(String(password || ""), row.password_hash)) {
+    throw httpError(403, "Your password is incorrect.");
+  }
+  db.prepare("UPDATE user SET status='deactivated' WHERE id=?").run(userId);
+  db.prepare("DELETE FROM session WHERE user_id=?").run(userId);
+  return { ok: true };
+}
+
+// Delete: permanent. Verifying the password, we hard-delete the user row — every
+// child table references user(id) ON DELETE CASCADE (foreign_keys=ON), so all of
+// the contractor's jobs, photos, payments, leads, and sessions go with it. There
+// is no recovery; the caller must confirm intent before calling this.
+export function deleteAccount({ userId, password }) {
+  const row = db.prepare("SELECT * FROM user WHERE id=?").get(userId);
+  if (!row) throw httpError(401, "Account not found.");
+  if (!verifyPassword(String(password || ""), row.password_hash)) {
+    throw httpError(403, "Your password is incorrect.");
+  }
+  db.prepare("DELETE FROM user WHERE id=?").run(userId); // cascades to all owned data + sessions
   return { ok: true };
 }
 
