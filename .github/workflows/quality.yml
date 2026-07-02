@@ -20,5 +20,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+      # verify now boots a real server (constitution-tests) → needs the runtime deps.
+      - name: Install dependencies
+        run: npm ci
       - name: Run verify suite
         run: npm run verify
