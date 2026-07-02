@@ -677,9 +677,8 @@
   .brand-big{display:flex;align-items:center;gap:10px;justify-content:center;font-family:"Archivo";font-weight:800;font-size:1.3rem}
   .brand-big .mark{width:28px;height:28px;border-radius:5px;background:var(--amber);display:flex;align-items:center;justify-content:center}
   .tagline{text-align:center;color:var(--muted);font-size:.9rem;margin-top:8px}
-  .auth-hero{text-align:center;margin-top:20px}
-  .auth-mic{width:74px;height:74px;border-radius:50%;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 10px 26px rgba(207,127,24,.4)}
-  .auth-mic .ico{width:34px;height:34px;stroke-width:2}
+  .brand-big .wm{display:inline-flex;white-space:nowrap}
+  .auth-hero{text-align:center;margin-top:22px}
   .auth-hero-h{font-family:"Archivo";font-weight:800;font-size:1.55rem;line-height:1.16;color:var(--text);margin:0 6px}
   .auth-hero-sub{color:var(--muted);font-size:.92rem;margin:9px auto 0;max-width:330px;line-height:1.45}
   .why{max-width:560px;margin:0 auto}
@@ -1430,8 +1429,8 @@ let LANG = (function(){ try{ const s=localStorage.getItem('bt_lang'); if(s==='en
   return (String((navigator.language||navigator.userLanguage||'en')).toLowerCase().slice(0,2)==='es') ? 'es' : 'en'; })();
 const I18N = {
   en: {
-    auth_hero_h:"Just talk. We write the bid.",
-    auth_hero_sub:"Say the job out loud — in English or Spanish — and BidVoice turns it into a clean, priced proposal you can send from your phone.",
+    auth_hero_h:"Welcome to BidVoice.",
+    auth_hero_sub:"Your AI employee is ready. Let's get to work.",
     auth_one_account:"One account = your jobs, synced across your devices.",
     auth_create_eyebrow:"Create your account", auth_welcome_eyebrow:"Welcome back",
     auth_get_started:"Get started", auth_sign_in:"Sign in",
@@ -1517,8 +1516,8 @@ const I18N = {
     onb_v_paid:"I'll help you get paid.",
   },
   es: {
-    auth_hero_h:"Solo habla. Nosotros escribimos el presupuesto.",
-    auth_hero_sub:"Di el trabajo en voz alta — en inglés o español — y BidVoice lo convierte en una propuesta clara y con precio que puedes enviar desde tu teléfono.",
+    auth_hero_h:"Bienvenido a BidVoice.",
+    auth_hero_sub:"Tu empleada de IA está lista. Manos a la obra.",
     auth_one_account:"Una cuenta = tus trabajos, sincronizados en todos tus dispositivos.",
     auth_create_eyebrow:"Crea tu cuenta", auth_welcome_eyebrow:"Bienvenido de nuevo",
     auth_get_started:"Empezar", auth_sign_in:"Iniciar sesión",
@@ -3443,9 +3442,8 @@ function viewAuth(){
   if(m==='welcome') return viewWelcome();
   const card = m==='forgot' ? authForgotCard() : m==='reset' ? authResetCard() : authSigninCard(m==='signup');
   return `<div class="auth">
-    <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span>Bid<span style="color:var(--amber)">Voice</span></div>
+    <div class="brand-big"><span class="mark"><img src="/brand-white.png" alt="" /></span><span class="wm">Bid<span style="color:var(--amber)">Voice</span></span></div>
     <div class="auth-hero">
-      <div class="auth-mic">${icon('mic',34)}</div>
       <div class="auth-hero-h">${esc(t('auth_hero_h'))}</div>
       <div class="auth-hero-sub">${esc(t('auth_hero_sub'))}</div>
     </div>
