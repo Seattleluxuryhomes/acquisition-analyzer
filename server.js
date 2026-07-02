@@ -362,6 +362,8 @@ app.get("/api/account/export", requireAuth, wrap((req, res) => {
     leads: q("SELECT * FROM lead WHERE user_id=? ORDER BY created_at"),
     price_book: q("SELECT * FROM sku WHERE user_id=? ORDER BY created_at"),
     payments: q("SELECT * FROM payment_request WHERE user_id=? ORDER BY created_at"),
+    // Referral credit ledger — every earned/applied credit, for the contractor's own audit.
+    referral_credits: q("SELECT * FROM referral_credit WHERE user_id=? ORDER BY created_at"),
   };
   res.setHeader("Content-Disposition", 'attachment; filename="bidvoice-export.json"');
   res.type("application/json").send(JSON.stringify(bundle, null, 2));
